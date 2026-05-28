@@ -10,7 +10,9 @@ function isStandalone() {
 }
 
 function isIOS() {
-  return /iphone|ipad|ipod/i.test(navigator.userAgent)
+  const ua = navigator.userAgent
+  return /iphone|ipad|ipod/i.test(ua) ||
+    (/macintosh/i.test(ua) && navigator.maxTouchPoints > 1)
 }
 
 export default function InstallBanner() {
