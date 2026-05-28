@@ -66,6 +66,14 @@ const W_BALANCE = [
     desc:"Jump laterally, land and FREEZE 2 full seconds. Teaches force control for cutting and landing.",
     cues:["Soft landing — ankle to knee to hip","Freeze means FREEZE — 2 full seconds","Progress to landing on grass"],
     videoId:"HJi0bU2YiR8", videoTitle:"Top 8 Beginner Plyometric Jumps — Youth Athletes" },
+  { id:"triple-lat-hops", name:"Triple Lateral Hops", tag:"Reactive Balance", sets:"3x5 each side", rest:"45 s",
+    desc:"Three consecutive lateral hops on one foot, then stick and hold the final landing for 2 seconds. Builds balance, landing control, and ankle strength together.",
+    cues:["Same foot for all three hops","Stick the final landing HARD — no extra steps","Soft landing on each hop — absorb","Eyes forward, not down at feet"],
+    videoId:"6xwGFn-J_QE", videoTitle:"Triple Lateral Hops" },
+  { id:"pogo-hops", name:"Pogo Hops", tag:"Reactive Balance", sets:"3x15 reps", rest:"45 s",
+    desc:"Single-leg rapid pogo hops. Combines ankle stiffness training with single-leg balance and reactive movement.",
+    cues:["Stay on ball of foot — heels barely graze the floor","Stiff ankle — spring, do not collapse","Small quick hops first, build rhythm","Switch legs every set"],
+    videoId:"1j3w6KyYg6c", videoTitle:"Single Leg Pogos — How To" },
 ];
 
 const W_STRENGTH = [
@@ -121,6 +129,10 @@ const W_STRENGTH = [
     desc:"Arms overhead, legs extended, lower back pressed flat. Builds full-body tension — foundation of all athletic movement.",
     cues:["Lower back MUST stay pressed into the floor","Chin tucked — look at your belly","Arms by ears — reach long","Start with knees bent if needed"],
     videoId:"0yPin8hSc8o", videoTitle:"Hollow Body Hold — Proper Form Tutorial" },
+  { id:"dead-bug", name:"Dead Bug", tag:"Day 1 Core", sets:"3x6 each side", rest:"30 s",
+    desc:"Lie on back, arms up, knees at 90°. Lower opposite arm and leg while keeping lower back pressed FLAT. The gold standard anti-rotation core exercise for youth athletes.",
+    cues:["Lower back MUST stay glued to the floor — no gap","Breathe out as you lower the limbs","Move SLOW — 3 seconds down, 2 seconds hold","Only lower as far as your back stays flat"],
+    videoId:"m8lSq4SC_eM", videoTitle:"Dead Bug Core Exercise" },
   { id:"str-full",    name:"Youth Strength Full Session",tag:"Full Workout",   sets:"Follow video", rest:"As directed",
     desc:"Complete guided session covering all the key strength and power patterns for young athletes.",
     cues:["Form first — pause and reset any rep that feels wrong","Never grind — if form breaks, set is done","Full rest between rounds"],
@@ -148,6 +160,49 @@ const W_STRENGTH_EXTRA = [
     desc:"The most underrated athletic training tool. Builds foot speed, coordination, rhythm, and calf strength simultaneously.",
     cues:["Land on balls of feet — not flat-footed","Small quick jumps — just enough clearance","Wrists do the work — arms stay at sides","Progress to alternating feet then double unders"],
     videoId:"xVM5s3DdE24", videoTitle:"Youth Speed and Agility Training — Ages 8-10" },
+];
+
+const W_EXPLOSION = [
+  { id:"pogo-jumps", name:"Pogo Jumps", tag:"PJF Elasticity", sets:"3x20 reps", rest:"60 s",
+    desc:"Two-foot rapid ground contacts — minimal time on the floor. Trains ankle stiffness and elasticity that powers your first step.",
+    cues:["Stay on balls of feet — heels barely touch","Think spring, not squat","Keep knees slightly bent and stiff","Arms help rhythm — small pumps"],
+    trainer:"PJF Performance", videoId:"-dNKKNwYTM8", videoTitle:"Pogo Jumps — PJF Performance" },
+  { id:"single-leg-hops", name:"Single Leg Hops", tag:"PJF Reactive", sets:"3x8 each leg", rest:"60 s",
+    desc:"Hop forward on one foot and stick each landing for 2 seconds before next hop. Builds reactive strength and jumping mechanics.",
+    cues:["Absorb landing through ankle, knee, hip","Freeze on every landing — 2 full counts","Drive knee up on the hop","Eyes forward, not down"],
+    trainer:"PJF Performance", videoId:"7WgzHOQGgYw", videoTitle:"Single Leg Hops — PJF Performance" },
+  { id:"lateral-bounds-pjf", name:"Lateral Bounds", tag:"PJF Lateral", sets:"3x8 each side", rest:"60 s",
+    desc:"Bound sideways off one foot, land and stick on the other. Directly trains the lateral explosiveness used in defensive slides and drives.",
+    cues:["Push off the full foot — not just the toes","Reach as far laterally as possible","Soft landing — absorb the energy","Pause 1 second on each landing"],
+    trainer:"PJF Performance", videoId:"gjiZLF5S6aA", videoTitle:"Lateral Bounds — PJF Performance" },
+  { id:"reactive-pogos", name:"Reactive Pogos", tag:"PJF Reactive", sets:"3x15 reps", rest:"60 s",
+    desc:"Faster-paced pogo jumps with a direction change cue. React and redirect on each rep — trains the nervous system, not just the muscle.",
+    cues:["React immediately — no hesitation","Stay low and springy","Quick ground contacts","Eyes up for the cue"],
+    trainer:"PJF Performance", videoId:"lz6BM6WyJ0k", videoTitle:"Reactive Pogos — PJF Performance" },
+  { id:"broad-jump-stick", name:"Broad Jump Stick Landing", tag:"PJF Power", sets:"3x5", rest:"90 s",
+    desc:"Two-foot takeoff, jump as far forward as possible, STICK and hold the landing for 3 seconds. Builds horizontal power and landing control.",
+    cues:["Load hips — arm swing back before launch","Reach arms forward aggressively on takeoff","Soft landing: toes → ankles → knees → hips","Hold the landing completely still"],
+    trainer:"PJF Performance", videoId:"QOVaHwm-Q6U", videoTitle:"Broad Jump Stick Landing — PJF Performance" },
+  { id:"squat-jumps", name:"Squat Jumps", tag:"PJF Power", sets:"3x8", rest:"90 s",
+    desc:"Squat to parallel, explode up as high as possible, land soft. Classic vertical power builder.",
+    cues:["Full squat before each jump","Maximum effort every rep — jump as HIGH as possible","Land quiet — absorb through the legs","Reset fully before next rep"],
+    trainer:"PJF Performance", videoId:"U4s4mEQ5VqU", videoTitle:"Squat Jumps — PJF Performance" },
+  { id:"tuck-jumps", name:"Tuck Jumps", tag:"PJF Power", sets:"3x6", rest:"90 s",
+    desc:"Jump and pull knees to chest at the top. Builds explosive power and body control in the air.",
+    cues:["Explode UP first — height before tuck","Pull knees fast at peak","Land and immediately soften","Arms drive the jump — not just legs"],
+    trainer:"PJF Performance", videoId:"PAh9YntwQ3s", videoTitle:"Tuck Jumps — PJF Performance" },
+  { id:"snap-downs", name:"Snap Downs", tag:"PJF Landing", sets:"3x8", rest:"60 s",
+    desc:"From standing tall, snap down into a quarter squat athletic position as fast as possible. Trains the ability to decelerate — essential for cutting and landing safely.",
+    cues:["Start tall, feet together","Snap down FAST — like a controlled fall","Land in wide athletic stance","Absorb through hips, not knees"],
+    trainer:"PJF Performance", videoId:"TN4x2Jx2g9E", videoTitle:"Snap Downs — PJF Performance" },
+  { id:"depth-drop", name:"Depth Drop Landing", tag:"PJF Landing", sets:"3x6", rest:"60 s",
+    desc:"Step off a low box, land and absorb as quietly as possible. Teaches proper force absorption — most important injury-prevention drill.",
+    cues:["Step off — do not jump off","Land SOFT and absorb completely","Toes to ankles to knees to hips","Hold landing 2 seconds before moving"],
+    trainer:"PJF Performance", videoId:"FJx2hWm0A1Y", videoTitle:"Depth Drop Landing — PJF Performance" },
+  { id:"lateral-line-hops", name:"Lateral Line Hops", tag:"PJF Elasticity", sets:"3x20 s", rest:"45 s",
+    desc:"Rapid two-foot hops side to side over a line on the floor. Trains foot speed, lateral quickness, and ankle elasticity.",
+    cues:["Stay on balls of feet — fast contacts","Keep feet together","Hips stay level — no side lean","Go as fast as you can maintain rhythm"],
+    trainer:"PJF Performance", videoId:"dZKEw4zDL_c", videoTitle:"Lateral Line Hops — PJF Performance" },
 ];
 
 const W_HANDLES = [
@@ -333,6 +388,7 @@ const WORKOUTS = {
   speed:      W_SPEED,
   balance:    W_BALANCE,
   strength:   [...W_STRENGTH, ...W_STRENGTH_EXTRA],
+  explosion:  W_EXPLOSION,
   handles:    W_HANDLES,
   basketball: W_BASKETBALL,
   shooting:   W_SHOOTING,
@@ -342,17 +398,18 @@ const CATS = {
   speed:      { label:"Speed & Agility",      emoji:"⚡" },
   balance:    { label:"Balance & Foundation", emoji:"🎯" },
   strength:   { label:"Strength Program",     emoji:"💪" },
+  explosion:  { label:"Explosion & Jumps",    emoji:"💥" },
   handles:    { label:"Ball Handling",        emoji:"🤲" },
   basketball: { label:"Basketball Skills",    emoji:"🏀" },
   shooting:   { label:"Shooting Reps",        emoji:"🎯" },
 };
 
 const SCHEDULE = [
-  { day:"Mon", cats:["speed","balance"],             label:"Speed + Foundation" },
+  { day:"Mon", cats:["explosion","balance"],         label:"Explosion + Foundation" },
   { day:"Tue", cats:["strength","handles"],          label:"Strength + Handles" },
-  { day:"Wed", cats:["balance","speed"],             label:"Foundation + Agility" },
+  { day:"Wed", cats:["balance","explosion"],         label:"Foundation + Explosion" },
   { day:"Thu", cats:["shooting","handles"],          label:"Shots + Ball Handling 🏀" },
-  { day:"Fri", cats:["speed","basketball"],          label:"Speed + Defense" },
+  { day:"Fri", cats:["speed","explosion"],           label:"Speed + Explosion" },
   { day:"Sat", cats:["strength","shooting"],         label:"Strength + Full Court" },
   { day:"Sun", cats:[],                              label:"Rest & Recovery 😴" },
 ];
@@ -1091,6 +1148,7 @@ export default function SummerTrainingApp() {
   const [settings, setSettings] = useState(()=>{ try{return{...DEFAULT,...JSON.parse(localStorage.getItem("s_settings")||"{}")}}catch{return DEFAULT} });
   const [showSettings, setShowSettings] = useState(false);
   const [view, setView] = useState("home");
+  const [prevView, setPrevView] = useState("home");
   const [activeCat, setActiveCat] = useState(null);
   const [completed, setCompleted] = useState(()=>{ try{return JSON.parse(localStorage.getItem("s_done")||"{}")}catch{return{}} });
   const [strDay, setStrDay] = useState(()=>localStorage.getItem('s_strday')||'Day 1');
@@ -1159,7 +1217,7 @@ export default function SummerTrainingApp() {
       <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"#e2e8f0",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
         {showSettings&&<SettingsSheet settings={settings} setSettings={setSettings} onClose={()=>setShowSettings(false)}/>}
         <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 16px",borderBottom:`2px solid ${color}40`,position:"sticky",top:0,background:NV,backdropFilter:"blur(10px)",zIndex:10 }}>
-          <button onClick={()=>setView("home")} style={{ background:`${color}14`,border:`1px solid ${color}30`,borderRadius:8,color,fontSize:12,fontWeight:700,cursor:"pointer",padding:"5px 10px",letterSpacing:"0.02em" }}>← Back</button>
+          <button onClick={()=>setView(prevView)} style={{ background:`${color}14`,border:`1px solid ${color}30`,borderRadius:8,color,fontSize:12,fontWeight:700,cursor:"pointer",padding:"5px 10px",letterSpacing:"0.02em" }}>← Back</button>
           <span style={{ fontSize:15,fontWeight:800,color,letterSpacing:"-0.01em" }}>{CATS[activeCat].emoji} {CATS[activeCat].label}</span>
           <button onClick={()=>setShowSettings(true)} style={{ background:`${color}14`,border:`1px solid ${color}30`,borderRadius:8,color,fontSize:16,cursor:"pointer",padding:"5px 8px" }}>⚙</button>
         </div>
@@ -1244,7 +1302,7 @@ export default function SummerTrainingApp() {
             <div style={{ fontSize:15,fontWeight:800,color:P,marginBottom:10 }}>{todayPlan.label}</div>
             <div style={{ display:"flex",flexWrap:"wrap",gap:6 }}>
               {todayPlan.cats.map(c=>(
-                <button key={c} onClick={()=>{setActiveCat(c);setView("cat");}} style={{ fontSize:11,padding:"6px 14px",borderRadius:20,fontWeight:600,background:catBg(c),color:catColor(c),border:`1px solid ${catBrd(c)}`,cursor:"pointer" }}>
+                <button key={c} onClick={()=>{setActiveCat(c);setPrevView("home");setView("cat");}} style={{ fontSize:11,padding:"6px 14px",borderRadius:20,fontWeight:600,background:catBg(c),color:catColor(c),border:`1px solid ${catBrd(c)}`,cursor:"pointer" }}>
                   {CATS[c].emoji} {CATS[c].label} →
                 </button>
               ))}
@@ -1259,7 +1317,7 @@ export default function SummerTrainingApp() {
             {Object.entries(CATS).map(([key,cat])=>{
               const done=WORKOUTS[key].filter(w=>isDone(w.id)).length, total=WORKOUTS[key].length, c=catColor(key);
               return (
-                <button key={key} onClick={()=>{setActiveCat(key);setView("cat");}}
+                <button key={key} onClick={()=>{setActiveCat(key);setPrevView("home");setView("cat");}}
                   style={{ padding:"14px",borderRadius:16,textAlign:"left",cursor:"pointer",border:`1px solid ${catBrd(key)}`,background:catBg(key) }}>
                   <div style={{ fontSize:22,marginBottom:6 }}>{cat.emoji}</div>
                   <div style={{ fontSize:12,fontWeight:700,color:c,lineHeight:1.25,marginBottom:2 }}>{cat.label}</div>
@@ -1281,18 +1339,24 @@ export default function SummerTrainingApp() {
           <div style={lbl}>Weekly Schedule</div>
           {SCHEDULE.map((d,i)=>{
             const isToday = i===todayIdx;
+            const hasWork = d.cats.length > 0;
             return (
-            <div key={i} style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:10,marginBottom:4,background:isToday?`${P}0e`:"transparent",border:`1px solid ${isToday?`${P}30`:"transparent"}` }}>
+            <div key={i}
+              onClick={hasWork ? ()=>{ setActiveCat(d.cats[0]); setPrevView("schedule"); setView("cat"); } : undefined}
+              style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:10,marginBottom:4,background:isToday?`${P}0e`:"transparent",border:`1px solid ${isToday?`${P}30`:"transparent"}`,cursor:hasWork?"pointer":undefined }}>
               <div style={{ fontFamily:"'DM Mono',monospace",fontSize:11,color:isToday?P:`${P}99`,width:32,flexShrink:0,fontWeight:isToday?800:400 }}>{d.day}</div>
               <div style={{ fontSize:13,color:isToday?P:`${P}dd`,flex:1,fontWeight:600 }}>{d.label}</div>
               {isToday&&<span style={{ fontSize:9,fontWeight:800,color:P,letterSpacing:"0.06em" }}>TODAY</span>}
               <div style={{ display:"flex",gap:5 }}>
                 {d.cats.map(c=>(
-                  <span key={c} style={{ fontSize:11,padding:"3px 9px",borderRadius:20,background:catBg(c),color:catColor(c),border:`1px solid ${catBrd(c)}`,fontWeight:600 }}>
-                    {CATS[c].emoji}
-                  </span>
+                  <button key={c}
+                    onClick={e=>{ e.stopPropagation(); setActiveCat(c); setPrevView("schedule"); setView("cat"); }}
+                    style={{ fontSize:11,padding:"3px 9px",borderRadius:20,background:catBg(c),color:catColor(c),border:`1px solid ${catBrd(c)}`,fontWeight:600,cursor:"pointer" }}>
+                    {CATS[c].emoji} {CATS[c].label.split(' ')[0]}
+                  </button>
                 ))}
               </div>
+              {hasWork&&<span style={{ fontSize:16,color:`${P}80`,flexShrink:0,lineHeight:1 }}>›</span>}
             </div>
             );
           })}
