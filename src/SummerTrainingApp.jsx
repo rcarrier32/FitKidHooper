@@ -369,13 +369,13 @@ const STR_DAYS = {
 const SHOT_TYPES = [
   { id:"layup",        label:"Layup",          emoji:"🏃", locations:null },
   { id:"rev_layup",    label:"Reverse Layup",  emoji:"🔄", locations:null },
-  { id:"block_bank",   label:"Block / Bank",   emoji:"📐", locations:["Left Block","Right Block"] },
-  { id:"mid_bank",     label:"Mid-Range Bank", emoji:"💫", locations:["Left Elbow","Right Elbow"] },
+  { id:"block_bank",   label:"Block Area",     emoji:"📐", locations:["Left Block","Right Block"] },
+  { id:"mid_bank",     label:"Elbow Shot",    emoji:"💫", locations:["Left Elbow","Right Elbow"] },
   { id:"mid",          label:"Mid-Range",      emoji:"🎯", locations:["Left Elbow","Top Key","Right Elbow","Left Wing","Right Wing"] },
   { id:"free_throw",   label:"Free Throw",     emoji:"🆓", locations:null },
-  { id:"three_corner", label:"3PT Corner",     emoji:"📐", locations:["Left Corner","Right Corner"] },
-  { id:"three_slot",   label:"3PT Slot",       emoji:"↗️", locations:["Left Slot","Right Slot"] },
-  { id:"three_center", label:"3PT Center",     emoji:"🎯", locations:null },
+  { id:"three_corner", label:"Corner 3",       emoji:"📐", locations:["Left Corner","Right Corner"] },
+  { id:"three_slot",   label:"Wing 3",         emoji:"↗️", locations:["Left Slot","Right Slot"] },
+  { id:"three_center", label:"Top 3",          emoji:"🎯", locations:null },
 ];
 const SHOT_COLORS = {
   layup:"#34d399", rev_layup:"#6ee7b7", block_bank:"#60a5fa",
@@ -497,7 +497,10 @@ function SettingsSheet({ settings, setSettings, onClose }) {
               </button>
               <input value={settings.athleteName} onChange={e=>setSettings(p=>({...p,athleteName:e.target.value}))}
                 placeholder="Athlete Name"
-                style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.05)",border:`1.5px solid ${P}44`,borderRadius:10,padding:"8px 12px",fontSize:14,fontWeight:700,color:P,outline:"none" }}/>
+                style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.05)",border:`1.5px solid ${P}44`,borderRadius:10,padding:"8px 12px",fontSize:14,fontWeight:700,color:P,outline:"none",marginBottom:8 }}/>
+              <div style={{ fontSize:11,color:"#475569",marginBottom:4,fontWeight:600 }}>Training Start Date</div>
+              <input type="date" value={settings.startDate||''} onChange={e=>setSettings(p=>({...p,startDate:e.target.value}))}
+                style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.05)",border:`1.5px solid ${P}44`,borderRadius:10,padding:"8px 12px",fontSize:14,color:"#e2e8f0",outline:"none" }}/>
             </div>
           </div>
         </div>
@@ -666,6 +669,7 @@ function ShotTracker({ P, S, BG, athleteName }) {
   const [log, setLog] = useState(()=>{ try{return JSON.parse(localStorage.getItem("shot_log_v2")||"{}")}catch{return{}} });
   const [view, setView] = useState("log");
   const [activeType, setActiveType] = useState(null);
+  const [activeLoc, setActiveLoc] = useState(null);
   const [lastShot, setLastShot] = useState(null);
   const [selDate, setSelDate] = useState(todayKey());
   const [range, setRange] = useState(14);
@@ -674,9 +678,15 @@ function ShotTracker({ P, S, BG, athleteName }) {
   const [custEnd, setCustEnd] = useState("");
 
   const save = nl => { setLog(nl); try{localStorage.setItem("shot_log_v2",JSON.stringify(nl))}catch{} };
-  const addShot = (tid, loc=null) => {
-    const k = todayKey(), e = {type:tid,location:loc,ts:Date.now()};
+  const addShot = (tid, loc, made) => {
+    const k = todayKey(), e = {type:tid,location:loc||null,ts:Date.now(),made};
     save({...log,[k]:[...(log[k]||[]),e]}); setLastShot(e);
+    setActiveType(null); setActiveLoc(null);
+  };
+  const selectType = tid => {
+    const st = SHOT_TYPES.find(s=>s.id===tid);
+    setActiveType(tid);
+    setActiveLoc(st?.locations ? null : '__noloc__');
   };
   const undo = () => { const k=todayKey(); if(!(log[k]?.length)) return; save({...log,[k]:log[k].slice(0,-1)}); setLastShot(null); };
 
@@ -687,6 +697,8 @@ function ShotTracker({ P, S, BG, athleteName }) {
   const allByType = useMemo(()=>{ const c={}; allFlat.forEach(s=>{c[s.type]=(c[s.type]||0)+1}); return c; },[allFlat]);
   const allTotal = allFlat.length;
   const streak = useMemo(()=>{ let s=0,d=new Date(); while(true){const k=d.toLocaleDateString("en-CA");if((log[k]||[]).length>0){s++;d.setDate(d.getDate()-1)}else break} return s; },[log]);
+  const todayMade = useMemo(()=>todayShots.filter(s=>s.made!==false).length,[todayShots]);
+  const todayPct = todayTotal>0 ? Math.round((todayMade/todayTotal)*100) : 0;
 
   const histData = useMemo(()=>{
     const days=[];
@@ -723,7 +735,7 @@ function ShotTracker({ P, S, BG, athleteName }) {
         <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-end" }}>
           <h2 style={{ fontSize:24,fontWeight:800,margin:0,letterSpacing:"-0.02em" }}>{athleteName}'s <span style={{ color:P }}>Shots</span></h2>
           <div style={{ display:"flex",gap:14 }}>
-            {[[todayTotal,"TODAY",P],[streak,"STREAK",S],[allTotal,"ALL TIME","#34d399"]].map(([n,l,c])=>(
+            {[[todayMade,"TODAY",P],[`${todayPct}%`,"FG%",S],[streak,"STREAK","#34d399"]].map(([n,l,c])=>(
               <div key={l} style={{ textAlign:"right" }}>
                 <div style={{ fontSize:22,fontWeight:800,color:c,fontFamily:"'DM Mono',monospace",lineHeight:1 }}>{n}</div>
                 <div style={{ fontSize:8,color:"#334155",letterSpacing:"0.06em" }}>{l}</div>
@@ -743,24 +755,36 @@ function ShotTracker({ P, S, BG, athleteName }) {
       {view==="log" && (
         <div style={{ padding:"14px 16px 0" }}>
           <div style={lbl}>Tap Court Zone to Log</div>
-          <CourtMap priColor={P} onZoneSelect={tid=>{ const st=SHOT_TYPES.find(s=>s.id===tid); if(st?.locations)setActiveType(tid); else addShot(tid); }} lastShot={lastShot}/>
-          {activeType && (
+          <CourtMap priColor={P} onZoneSelect={selectType} lastShot={lastShot}/>
+          {activeType && !activeLoc && (
             <div style={{ background:`${P}10`,border:`1px solid ${P}28`,borderRadius:12,padding:"12px 14px",margin:"12px 0" }}>
               <div style={{ fontSize:12,fontWeight:700,color:P,marginBottom:10 }}>
-                {SHOT_TYPES.find(s=>s.id===activeType)?.emoji} {SHOT_TYPES.find(s=>s.id===activeType)?.label} — Pick Location
+                {SHOT_TYPES.find(s=>s.id===activeType)?.emoji} {SHOT_TYPES.find(s=>s.id===activeType)?.label} — Where from?
               </div>
               <div style={{ display:"flex",flexWrap:"wrap",gap:8 }}>
                 {SHOT_TYPES.find(s=>s.id===activeType)?.locations?.map(loc=>(
-                  <button key={loc} onClick={()=>{addShot(activeType,loc);setActiveType(null);}} style={{ padding:"7px 14px",borderRadius:10,border:`1px solid ${P}40`,background:`${P}18`,color:P,fontSize:12,fontWeight:600,cursor:"pointer" }}>{loc}</button>
+                  <button key={loc} onClick={()=>setActiveLoc(loc)} style={{ padding:"7px 14px",borderRadius:10,border:`1px solid ${P}40`,background:`${P}18`,color:P,fontSize:12,fontWeight:600,cursor:"pointer" }}>{loc}</button>
                 ))}
-                <button onClick={()=>setActiveType(null)} style={{ padding:"7px 12px",borderRadius:10,border:"1px solid rgba(255,255,255,0.1)",background:"transparent",color:"#475569",fontSize:12,cursor:"pointer" }}>✕</button>
+                <button onClick={()=>{setActiveType(null);setActiveLoc(null);}} style={{ padding:"7px 12px",borderRadius:10,border:"1px solid rgba(255,255,255,0.1)",background:"transparent",color:"#475569",fontSize:12,cursor:"pointer" }}>✕</button>
+              </div>
+            </div>
+          )}
+          {activeType && activeLoc && (
+            <div style={{ background:`${P}10`,border:`1px solid ${P}28`,borderRadius:12,padding:"12px 14px",margin:"12px 0" }}>
+              <div style={{ fontSize:12,fontWeight:700,color:P,marginBottom:10 }}>
+                {SHOT_TYPES.find(s=>s.id===activeType)?.emoji} {SHOT_TYPES.find(s=>s.id===activeType)?.label}{activeLoc!=='__noloc__'?` — ${activeLoc}`:''} — Did it go in?
+              </div>
+              <div style={{ display:"flex",gap:8 }}>
+                <button onClick={()=>addShot(activeType,activeLoc==='__noloc__'?null:activeLoc,true)} style={{ flex:1,padding:"12px",borderRadius:10,border:"1px solid #22c55e44",background:"#22c55e18",color:"#22c55e",fontSize:14,fontWeight:700,cursor:"pointer" }}>✅ Made it!</button>
+                <button onClick={()=>addShot(activeType,activeLoc==='__noloc__'?null:activeLoc,false)} style={{ flex:1,padding:"12px",borderRadius:10,border:"1px solid #ef444444",background:"#ef444418",color:"#ef4444",fontSize:14,fontWeight:700,cursor:"pointer" }}>❌ Missed</button>
+                <button onClick={()=>{setActiveType(null);setActiveLoc(null);}} style={{ padding:"12px",borderRadius:10,border:"1px solid rgba(255,255,255,0.1)",background:"transparent",color:"#475569",fontSize:12,cursor:"pointer" }}>✕</button>
               </div>
             </div>
           )}
           <div style={{ ...lbl,marginTop:14 }}>Quick Tap</div>
           <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14 }}>
             {SHOT_TYPES.map(s=>{ const cnt=todayByType[s.id]||0,c=SHOT_COLORS[s.id]; return (
-              <button key={s.id} onClick={()=>{ if(s.locations)setActiveType(s.id); else addShot(s.id); }} style={{ padding:"10px 12px",borderRadius:12,border:`1px solid ${c}28`,background:`${c}0e`,display:"flex",alignItems:"center",gap:10,cursor:"pointer",textAlign:"left" }}>
+              <button key={s.id} onClick={()=>selectType(s.id)} style={{ padding:"10px 12px",borderRadius:12,border:`1px solid ${c}28`,background:`${c}0e`,display:"flex",alignItems:"center",gap:10,cursor:"pointer",textAlign:"left" }}>
                 <span style={{ fontSize:18 }}>{s.emoji}</span>
                 <div style={{ flex:1 }}>
                   <div style={{ fontSize:11,fontWeight:700,color:c,lineHeight:1.2 }}>{s.label}</div>
@@ -781,6 +805,7 @@ function ShotTracker({ P, S, BG, athleteName }) {
                   <div key={i} style={{ display:"flex",alignItems:"center",gap:10,padding:"7px 10px",background:sf,borderRadius:8,border:`1px solid ${c}1a` }}>
                     <span style={{ fontSize:14 }}>{def?.emoji}</span>
                     <span style={{ flex:1,fontSize:12,color:c,fontWeight:600 }}>{def?.label}</span>
+                    <span style={{ fontSize:13 }}>{s.made===false?'❌':'✅'}</span>
                     {s.location&&<span style={{ fontSize:10,color:"#475569",background:"rgba(255,255,255,0.04)",padding:"2px 7px",borderRadius:20 }}>{s.location}</span>}
                     <span style={{ fontSize:10,fontFamily:"'DM Mono',monospace",color:"#334155" }}>{new Date(s.ts).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})}</span>
                   </div>
@@ -926,7 +951,7 @@ function DrillCard({ w, color, bg2, brd, isDone, onToggle }) {
             {w.trainer && <span style={{ fontSize:9,padding:"2px 8px",borderRadius:20,display:"inline-block",marginBottom:4,marginLeft:4,background:metaBg,color,border:`1px solid ${metaBrd}`,opacity:0.8 }}>📹 {w.trainer}</span>}
             <div style={{ fontSize:13,fontWeight:700,color:"#f1f5f9",lineHeight:1.2 }}>{w.name}</div>
           </div>
-          <button onClick={onToggle} style={{ flexShrink:0,width:28,height:28,borderRadius:"50%",border:`2px solid ${isDone?color:metaBrd}`,background:isDone?color:metaBg,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:13,fontWeight:800,color:isDone?"#000":color }}>
+          <button onClick={onToggle} style={{ flexShrink:0,width:44,height:44,borderRadius:"50%",border:`2px solid ${isDone?color:metaBrd}`,background:isDone?color:metaBg,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:13,fontWeight:800,color:isDone?"#000":color }}>
             {isDone?"✓":"○"}
           </button>
         </div>
@@ -957,9 +982,17 @@ export default function SummerTrainingApp() {
   const [showSettings, setShowSettings] = useState(false);
   const [view, setView] = useState("home");
   const [activeCat, setActiveCat] = useState(null);
-  const [week, setWeek] = useState(1);
   const [completed, setCompleted] = useState(()=>{ try{return JSON.parse(localStorage.getItem("s_done")||"{}")}catch{return{}} });
-  const [strDay, setStrDay] = useState("Day 1");
+  const [strDay, setStrDay] = useState(()=>localStorage.getItem('s_strday')||'Day 1');
+  const [onboardName, setOnboardName] = useState('');
+  const [showOnboarding, setShowOnboarding] = useState(()=>!localStorage.getItem('s_onboarded')&&settings.athleteName===DEFAULT.athleteName);
+
+  const calcWeek = startDate => {
+    if (!startDate) return null;
+    const start = new Date(startDate+'T00:00:00'), now = new Date();
+    return Math.max(1, Math.floor((now-start)/(7*24*60*60*1000))+1);
+  };
+  const trainingWeek = calcWeek(settings.startDate);
 
   useEffect(()=>{ try{localStorage.setItem("s_settings",JSON.stringify(settings))}catch{} },[settings]);
   useEffect(()=>{ try{localStorage.setItem("s_done",JSON.stringify(completed))}catch{} },[completed]);
@@ -970,6 +1003,7 @@ export default function SummerTrainingApp() {
 
   const isDone  = id => !!completed[`${today}-${id}`];
   const toggle  = id => setCompleted(p=>({...p,[`${today}-${id}`]:!p[`${today}-${id}`]}));
+  const setStrDayPersist = day => { setStrDay(day); localStorage.setItem('s_strday',day); };
   const doneCnt = Object.keys(completed).filter(k=>k.startsWith(today)).length;
 
   const todayIdx  = new Date().getDay()===0?6:new Date().getDay()-1;
@@ -1023,10 +1057,10 @@ export default function SummerTrainingApp() {
         {/* Strength day picker */}
         {isStrength && (
           <div style={{ padding:"12px 16px 0" }}>
-            <div style={lbl}>8-Week Program — Select Day</div>
+            <div style={lbl}>Training Program — Select Day</div>
             <div style={{ display:"flex",gap:8,marginBottom:14 }}>
               {Object.entries(STR_DAYS).map(([key,val])=>(
-                <button key={key} onClick={()=>setStrDay(key)} style={{ flex:1,padding:"10px 8px",borderRadius:12,border:`1px solid ${strDay===key?color:bd}`,background:strDay===key?`${color}18`:"transparent",color:strDay===key?color:"#475569",fontSize:11,fontWeight:700,cursor:"pointer",textAlign:"center",lineHeight:1.3 }}>
+                <button key={key} onClick={()=>setStrDayPersist(key)} style={{ flex:1,padding:"10px 8px",borderRadius:12,border:`1px solid ${strDay===key?color:bd}`,background:strDay===key?`${color}18`:"transparent",color:strDay===key?color:"#475569",fontSize:11,fontWeight:700,cursor:"pointer",textAlign:"center",lineHeight:1.3 }}>
                   <div style={{ fontSize:16,marginBottom:3 }}>{key==="Day 1"?"💪":key==="Day 2"?"🎯":"⚡"}</div>
                   {key}
                   <div style={{ fontSize:9,color:`${color}99`,marginTop:2 }}>{key==="Day 1"?"Strength/Core":key==="Day 2"?"Balance/Move":"Power/Athletic"}</div>
@@ -1041,6 +1075,7 @@ export default function SummerTrainingApp() {
             <DrillCard key={w.id} w={w} color={color} bg2={bg2} brd={brd} isDone={isDone(w.id)} onToggle={()=>toggle(w.id)}/>
           ))}
         </div>
+        {renderBottomNav()}
       </div>
     );
   }
@@ -1049,6 +1084,21 @@ export default function SummerTrainingApp() {
   return (
     <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"#e2e8f0",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
       {showSettings&&<SettingsSheet settings={settings} setSettings={setSettings} onClose={()=>setShowSettings(false)}/>}
+      {showOnboarding&&(
+        <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.88)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:20 }}>
+          <div style={{ background:"#0d1627",borderRadius:20,padding:28,width:"100%",maxWidth:360,border:"1px solid #f9731640" }}>
+            <div style={{ fontSize:48,textAlign:"center",marginBottom:12 }}>🏀</div>
+            <h2 style={{ textAlign:"center",fontSize:22,fontWeight:800,color:"#f1f5f9",marginBottom:6,margin:"0 0 6px" }}>Welcome!</h2>
+            <p style={{ textAlign:"center",color:"#64748b",fontSize:13,marginBottom:20 }}>What's your name, hooper?</p>
+            <input type="text" value={onboardName} onChange={e=>setOnboardName(e.target.value)} placeholder="Your name" autoFocus
+              style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.07)",border:"1.5px solid #f9731640",borderRadius:10,padding:"12px",fontSize:16,color:"#fff",outline:"none",marginBottom:16 }}/>
+            <button onClick={()=>{ const name=onboardName.trim()||'Hooper'; setSettings(p=>({...p,athleteName:name})); localStorage.setItem('s_onboarded','1'); setShowOnboarding(false); }}
+              style={{ width:"100%",background:"#f97316",border:"none",borderRadius:12,padding:"14px",fontSize:15,fontWeight:800,color:"#000",cursor:"pointer" }}>
+              Let's Go! 🏀
+            </button>
+          </div>
+        </div>
+      )}
 
       <div style={{ padding:"26px 20px 16px",display:"flex",justifyContent:"space-between",alignItems:"flex-start",borderBottom:`1px solid ${P}14` }}>
         <div style={{ flex:1 }}>
@@ -1066,12 +1116,16 @@ export default function SummerTrainingApp() {
 
       {view==="home" && (<>
         <div style={{ display:"flex",gap:10,padding:"14px 20px" }}>
-          {[[doneCnt,"done today",P],[`Wk ${week}`,"summer week",S]].map(([n,l,c])=>(
+          {[[doneCnt,"done today",P], trainingWeek?[`Wk ${trainingWeek}`,"training week",S]:null].filter(Boolean).map(([n,l,c])=>(
             <div key={l} style={{ flex:1,background:`${c}10`,border:`1px solid ${c}40`,borderRadius:12,padding:"12px 8px",textAlign:"center" }}>
               <div style={{ fontSize:22,fontWeight:800,fontFamily:"'DM Mono',monospace",color:c,lineHeight:1 }}>{n}</div>
               <div style={{ fontSize:9,color:"#334155",marginTop:4,letterSpacing:"0.06em",textTransform:"uppercase" }}>{l}</div>
             </div>
           ))}
+          {!trainingWeek&&<div style={{ flex:1,background:`${S}10`,border:`1px solid ${S}40`,borderRadius:12,padding:"12px 8px",textAlign:"center",cursor:"pointer" }} onClick={()=>setShowSettings(true)}>
+            <div style={{ fontSize:11,color:S,fontWeight:700 }}>Set start date</div>
+            <div style={{ fontSize:9,color:"#334155",marginTop:2 }}>in ⚙ settings</div>
+          </div>}
         </div>
 
         <div style={{ padding:"0 20px 16px" }}>
@@ -1080,9 +1134,9 @@ export default function SummerTrainingApp() {
             <div style={{ fontSize:15,fontWeight:800,color:P,marginBottom:10 }}>{todayPlan.label}</div>
             <div style={{ display:"flex",flexWrap:"wrap",gap:6 }}>
               {todayPlan.cats.map(c=>(
-                <span key={c} style={{ fontSize:11,padding:"4px 12px",borderRadius:20,fontWeight:600,background:catBg(c),color:catColor(c),border:`1px solid ${catBrd(c)}` }}>
-                  {CATS[c].emoji} {CATS[c].label}
-                </span>
+                <button key={c} onClick={()=>{setActiveCat(c);setView("cat");}} style={{ fontSize:11,padding:"6px 14px",borderRadius:20,fontWeight:600,background:catBg(c),color:catColor(c),border:`1px solid ${catBrd(c)}`,cursor:"pointer" }}>
+                  {CATS[c].emoji} {CATS[c].label} →
+                </button>
               ))}
               {todayPlan.cats.length===0&&<span style={{ color:"#475569",fontSize:12 }}>Recover. Stretch. Sleep well. 💤</span>}
             </div>
@@ -1110,23 +1164,18 @@ export default function SummerTrainingApp() {
           </div>
         </div>
 
-        <div style={{ padding:"0 20px" }}>
-          <div style={lbl}>Summer Week</div>
-          <div style={{ display:"flex",gap:5,flexWrap:"wrap" }}>
-            {Array.from({length:10}).map((_,i)=>(
-              <button key={i} onClick={()=>setWeek(i+1)} style={{ width:32,height:32,borderRadius:8,border:`1px solid ${week===i+1?P:bd}`,background:week===i+1?`${P}1e`:"transparent",color:week===i+1?P:"#475569",fontSize:11,fontWeight:600,cursor:"pointer" }}>{i+1}</button>
-            ))}
-          </div>
-        </div>
       </>)}
 
       {view==="schedule" && (
         <div style={{ padding:"14px 20px" }}>
           <div style={lbl}>Weekly Schedule</div>
-          {SCHEDULE.map((d,i)=>(
-            <div key={i} style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:`1px solid ${bd}` }}>
-              <div style={{ fontFamily:"'DM Mono',monospace",fontSize:11,color:`${P}99`,width:32,flexShrink:0 }}>{d.day}</div>
-              <div style={{ fontSize:13,color:`${P}dd`,flex:1,fontWeight:600 }}>{d.label}</div>
+          {SCHEDULE.map((d,i)=>{
+            const isToday = i===todayIdx;
+            return (
+            <div key={i} style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:10,marginBottom:4,background:isToday?`${P}0e`:"transparent",border:`1px solid ${isToday?`${P}30`:"transparent"}` }}>
+              <div style={{ fontFamily:"'DM Mono',monospace",fontSize:11,color:isToday?P:`${P}99`,width:32,flexShrink:0,fontWeight:isToday?800:400 }}>{d.day}</div>
+              <div style={{ fontSize:13,color:isToday?P:`${P}dd`,flex:1,fontWeight:600 }}>{d.label}</div>
+              {isToday&&<span style={{ fontSize:9,fontWeight:800,color:P,letterSpacing:"0.06em" }}>TODAY</span>}
               <div style={{ display:"flex",gap:5 }}>
                 {d.cats.map(c=>(
                   <span key={c} style={{ fontSize:11,padding:"3px 9px",borderRadius:20,background:catBg(c),color:catColor(c),border:`1px solid ${catBrd(c)}`,fontWeight:600 }}>
@@ -1135,7 +1184,8 @@ export default function SummerTrainingApp() {
                 ))}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
