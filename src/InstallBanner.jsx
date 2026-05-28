@@ -14,33 +14,44 @@ function isIOS() {
 }
 
 export default function InstallBanner() {
-  const [deferredPrompt, setDeferredPrompt] = useState(null)
+  const [deferredPrompt, setDeferredPrompt] = useState(() => window._installPrompt || null)
   const [show, setShow] = useState(false)
-  const [installed, setInstalled] = useState(false)
 
   useEffect(() => {
     if (isStandalone() || localStorage.getItem(DISMISSED_KEY)) return
 
-    // Android/Chrome — capture native prompt
-    const handler = e => {
-      e.preventDefault()
-      setDeferredPrompt(e)
+    // If prompt was already captured before React mounted, show immediately
+    if (window._installPrompt) {
+      setDeferredPrompt(window._installPrompt)
       setShow(true)
+      return
     }
-    window.addEventListener('beforeinstallprompt', handler)
 
-    // iOS — show manual instructions after a short delay
+    // iOS — show instructions after short delay
     if (isIOS()) {
       const t = setTimeout(() => setShow(true), 1500)
-      return () => { clearTimeout(t); window.removeEventListener('beforeinstallprompt', handler) }
+      return () => clearTimeout(t)
     }
 
-    return () => window.removeEventListener('beforeinstallprompt', handler)
+    // Android — listen for prompt (fires on first load) or show fallback after delay
+    const onPromptReady = () => {
+      setDeferredPrompt(window._installPrompt)
+      setShow(true)
+    }
+    window.addEventListener('installpromptready', onPromptReady)
+
+    // Fallback: show manual instructions if prompt never fires (already installed
+    // on this device, or browser policy delay)
+    const fallback = setTimeout(() => setShow(true), 2000)
+
+    return () => {
+      window.removeEventListener('installpromptready', onPromptReady)
+      clearTimeout(fallback)
+    }
   }, [])
 
-  // Hide banner once the app is installed from native prompt
   useEffect(() => {
-    const handler = () => { setInstalled(true); setShow(false) }
+    const handler = () => setShow(false)
     window.addEventListener('appinstalled', handler)
     return () => window.removeEventListener('appinstalled', handler)
   }, [])
@@ -54,14 +65,16 @@ export default function InstallBanner() {
     if (!deferredPrompt) return
     deferredPrompt.prompt()
     const { outcome } = await deferredPrompt.userChoice
-    if (outcome === 'accepted') setInstalled(true)
+    window._installPrompt = null
     setDeferredPrompt(null)
     setShow(false)
+    if (outcome === 'accepted') localStorage.setItem(DISMISSED_KEY, '1')
   }
 
-  if (!show || installed || isStandalone()) return null
+  if (!show || isStandalone()) return null
 
   const ios = isIOS()
+  const hasNativePrompt = !!deferredPrompt
 
   return (
     <div style={{
@@ -84,50 +97,53 @@ export default function InstallBanner() {
         <div style={{ fontSize: 13, fontWeight: 700, color: '#f97316', marginBottom: 4 }}>
           Install FTH Fit Kid Hooper
         </div>
-        {ios ? (
-          <div style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.5 }}>
-            Tap the <strong style={{ color: '#e2e8f0' }}>Share</strong> button{' '}
-            <span style={{ fontSize: 14 }}>⎋</span> at the bottom of Safari, then tap{' '}
-            <strong style={{ color: '#e2e8f0' }}>"Add to Home Screen"</strong> to install as an app.
-          </div>
-        ) : (
-          <div style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.5 }}>
-            Add to your home screen for the full app experience — works offline too.
+
+        {ios && (
+          <div style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.6 }}>
+            Tap <strong style={{ color: '#e2e8f0' }}>Share</strong> ⎋ at the bottom of Safari,
+            then <strong style={{ color: '#e2e8f0' }}>Add to Home Screen</strong>.
           </div>
         )}
-        {!ios && deferredPrompt && (
-          <button
-            onClick={triggerInstall}
-            style={{
-              marginTop: 10,
+
+        {!ios && hasNativePrompt && (
+          <>
+            <div style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.5, marginBottom: 10 }}>
+              Install for the full app experience — works offline too.
+            </div>
+            <button onClick={triggerInstall} style={{
               background: '#f97316',
               color: '#000',
               border: 'none',
               borderRadius: 8,
-              padding: '8px 16px',
-              fontSize: 12,
+              padding: '10px 16px',
+              fontSize: 13,
               fontWeight: 700,
               cursor: 'pointer',
               width: '100%',
-            }}
-          >
-            Install App
-          </button>
+            }}>
+              Install App
+            </button>
+          </>
+        )}
+
+        {!ios && !hasNativePrompt && (
+          <div style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.6 }}>
+            Tap the <strong style={{ color: '#e2e8f0' }}>⋮ menu</strong> in Chrome, then tap{' '}
+            <strong style={{ color: '#e2e8f0' }}>Add to Home Screen</strong>.
+          </div>
         )}
       </div>
-      <button
-        onClick={dismiss}
-        style={{
-          background: 'none',
-          border: 'none',
-          color: '#475569',
-          fontSize: 18,
-          cursor: 'pointer',
-          padding: 0,
-          flexShrink: 0,
-          lineHeight: 1,
-        }}
-      >
+
+      <button onClick={dismiss} style={{
+        background: 'none',
+        border: 'none',
+        color: '#475569',
+        fontSize: 18,
+        cursor: 'pointer',
+        padding: 0,
+        flexShrink: 0,
+        lineHeight: 1,
+      }}>
         ✕
       </button>
     </div>
