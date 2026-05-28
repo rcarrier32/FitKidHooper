@@ -10,9 +10,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: 'FTH Fit Kid Hooper',
-        short_name: 'FitKidHooper',
-        description: 'Summer basketball training tracker for FTH',
+        name: 'Fit Kid Hooper',
+        short_name: 'FKH',
+        description: 'Youth basketball training app — FKH',
         theme_color: '#060b14',
         background_color: '#060b14',
         display: 'standalone',
