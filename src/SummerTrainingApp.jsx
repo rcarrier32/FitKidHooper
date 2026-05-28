@@ -918,6 +918,136 @@ const AGE_RULES = {
   14: { maxMinutes:30, maxExercises:9, maxHighImpact:5, focus:["explosion","speed","conditioning","strength"] },
 };
 
+/* ═══════════════════════════════════════════════════════════════
+   WORKOUT TEMPLATES + GENERATOR
+═══════════════════════════════════════════════════════════════ */
+const WORKOUT_TEMPLATES = {
+  jump:      { name:"Jump Workout",      emoji:"💥", desc:"Explosive power and landing control.",     cats:["explosion","deceleration","balance"],      structure:{warmup:1,main:3,finisher:1,recovery:0}, ageMin:10 },
+  quickFeet: { name:"Quick Feet",        emoji:"⚡", desc:"Foot speed, agility, and reaction time.",  cats:["speed","coordination","athletic"],          structure:{warmup:2,main:3,finisher:1,recovery:0}, ageMin:9  },
+  fullBody:  { name:"Full Body Athlete", emoji:"🏃", desc:"Strength, speed, and conditioning.",       cats:["strength","conditioning","athletic"],       structure:{warmup:1,main:3,finisher:1,recovery:1}, ageMin:9  },
+  recovery:  { name:"Recovery Day",      emoji:"🔄", desc:"Light movement, balance, and mobility.",   cats:["balance","coordination"],                   structure:{warmup:2,main:2,finisher:0,recovery:2}, ageMin:9  },
+  handles:   { name:"Ball Handling",     emoji:"🤲", desc:"Dribbling, footwork, and court IQ.",       cats:["handles","basketball","coordination"],      structure:{warmup:1,main:4,finisher:1,recovery:0}, ageMin:9  },
+  shooting:  { name:"Shooting Session",  emoji:"🎯", desc:"Form, range, and shooting consistency.",   cats:["shooting","basketball"],                    structure:{warmup:1,main:3,finisher:1,recovery:0}, ageMin:9  },
+};
+
+const SCHED_TO_TEMPLATE = { explosion:"jump",deceleration:"jump",speed:"quickFeet",coordination:"quickFeet",athletic:"quickFeet",strength:"fullBody",conditioning:"fullBody",balance:"recovery",handles:"handles",basketball:"handles",shooting:"shooting" };
+
+function generateWorkout(settings, templateKey, recentIds=[]) {
+  const tmpl = WORKOUT_TEMPLATES[templateKey];
+  if (!tmpl) return null;
+  const age    = Math.min(14, Math.max(9, settings.athleteAge||12));
+  const rule   = AGE_RULES[age];
+  const dRank  = {beginner:0,intermediate:1,advanced:2};
+  const pRank  = dRank[settings.experience||"beginner"]??0;
+  const goals  = settings.goals||[];
+
+  // Build pool from template categories, enrich with metadata
+  const pool = tmpl.cats.flatMap(cat =>
+    (WORKOUTS[cat]||[]).map(ex => ({ ...ex, _cat:cat, meta:EXERCISE_META[ex.id]||{} }))
+  );
+
+  // Filter: age range + difficulty (allow one level stretch for challenge)
+  const eligible = pool.filter(ex => {
+    const m = ex.meta;
+    if (m.ageRange && age < m.ageRange[0]) return false;
+    return (dRank[m.difficulty]??0) <= pRank + 1;
+  });
+
+  // Score: funScore + goal match + anti-repeat + randomness
+  const scored = eligible.map(ex => {
+    const m = ex.meta;
+    let s = m.funScore || 5;
+    if (goals.some(g => (m.basketballTransfer||[]).includes(g))) s += 2;
+    if (age <= 11) s += (m.funScore||5) * 0.15; // weight fun more for young athletes
+    if (recentIds.includes(ex.id)) s -= 4;
+    s += Math.random() * 1.8;
+    return { ...ex, _score:s };
+  }).sort((a,b) => b._score - a._score);
+
+  let highImpact = 0, totalSecs = 0;
+  const maxSecs = rule.maxMinutes * 60 * 1.1;
+  const used = new Set();
+  const slots = { warmup:[], main:[], finisher:[], recovery:[] };
+
+  const pick = (role, n, test) => {
+    const out = [];
+    for (const ex of scored) {
+      if (out.length >= n) break;
+      if (used.has(ex.id)) continue;
+      const m = ex.meta, roles = m.workoutRole||[];
+      if (!roles.some(r => test(r))) continue;
+      if (m.impactLevel==="high") { if (highImpact >= rule.maxHighImpact) continue; highImpact++; }
+      const dur = m.estimatedDuration || 90;
+      if (totalSecs + dur > maxSecs) continue;
+      totalSecs += dur;
+      used.add(ex.id);
+      out.push(ex);
+    }
+    return out;
+  };
+
+  slots.warmup   = pick("warmup",   tmpl.structure.warmup,   r => r==="warmup");
+  slots.main     = pick("main",     tmpl.structure.main,     r => r==="main");
+  slots.finisher = pick("finisher", tmpl.structure.finisher, r => r==="finisher");
+  slots.recovery = pick("recovery", tmpl.structure.recovery, r => r==="recovery"||r==="warmup");
+
+  const exercises = [
+    ...slots.warmup.map(e=>({...e,role:"warmup"})),
+    ...slots.main.map(e=>({...e,role:"main"})),
+    ...slots.finisher.map(e=>({...e,role:"finisher"})),
+    ...slots.recovery.map(e=>({...e,role:"recovery"})),
+  ];
+
+  return { templateKey, templateName:tmpl.name, templateEmoji:tmpl.emoji, templateDesc:tmpl.desc, exercises, totalSecs, generatedAt:Date.now() };
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   CHALLENGES
+═══════════════════════════════════════════════════════════════ */
+const CHALLENGES_DEF = [
+  { id:"streak-3",   emoji:"🔥", name:"3-Day Streak",    type:"streak",    target:3,  desc:"Train 3 days in a row",              reward:"On Fire 🔥" },
+  { id:"streak-7",   emoji:"💪", name:"Week Warrior",    type:"streak",    target:7,  desc:"Train all 7 days this week",         reward:"Week Warrior 💪" },
+  { id:"jump-5",     emoji:"💥", name:"Jump Week",       type:"cat_week",  target:5,  cat:"explosion", desc:"5 explosion drills this week",   reward:"Sky High 💥" },
+  { id:"shots-50",   emoji:"🏀", name:"50 Shots Made",   type:"shots_week",target:50, desc:"Make 50 shots this week",            reward:"Buckets 🏀" },
+  { id:"handles-5",  emoji:"🤲", name:"Handle Master",   type:"cat_week",  target:5,  cat:"handles",   desc:"5 handle drills this week",      reward:"Handle King 🤲" },
+  { id:"speed-5",    emoji:"⚡", name:"Speed Week",      type:"cat_week",  target:5,  cat:"speed",     desc:"5 speed drills this week",       reward:"Jet Feet ⚡" },
+  { id:"today-3",    emoji:"🎯", name:"Full Send",       type:"day_count", target:3,  desc:"Complete 3+ drills today",           reward:"Full Send 🎯" },
+  { id:"coord-5",    emoji:"🎶", name:"Coordination",   type:"cat_week",  target:5,  cat:"coordination", desc:"5 coordination drills this week", reward:"Body Control 🎶" },
+];
+
+const _ws = () => { const d=new Date(); d.setDate(d.getDate()-d.getDay()); return d.toLocaleDateString("en-CA"); };
+
+function getChallengeProgress(def, completed) {
+  const today = new Date().toLocaleDateString("en-CA"), ws = _ws();
+  if (def.type==="streak") {
+    let streak=0, d=new Date();
+    for (let i=0; i<14; i++) {
+      const k=d.toLocaleDateString("en-CA");
+      if (Object.keys(completed).some(c=>c.startsWith(k)&&completed[c])) { streak++; d.setDate(d.getDate()-1); } else break;
+    }
+    return { cur:streak, target:def.target };
+  }
+  if (def.type==="cat_week") {
+    const ids = new Set((WORKOUTS[def.cat]||[]).map(e=>e.id));
+    const cur = Object.keys(completed).filter(k => {
+      const dateStr=k.split("-").slice(0,3).join("-");
+      if (dateStr < ws) return false;
+      return completed[k] && ids.has(k.split("-").slice(3).join("-"));
+    }).length;
+    return { cur, target:def.target };
+  }
+  if (def.type==="shots_week") {
+    let sl; try{sl=JSON.parse(localStorage.getItem("shot_log_v2")||"{}")}catch{sl={}}
+    const cur = Object.keys(sl).filter(k=>k>=ws).flatMap(k=>sl[k]||[]).filter(s=>s.made!==false).length;
+    return { cur, target:def.target };
+  }
+  if (def.type==="day_count") {
+    const cur = Object.keys(completed).filter(k=>k.startsWith(today)&&completed[k]).length;
+    return { cur, target:def.target };
+  }
+  return { cur:0, target:def.target };
+}
+
 /* ═══════════════════════ SHOT TRACKER DATA ═══════════════════ */
 const SHOT_TYPES = [
   { id:"layup",        label:"Layup",          emoji:"🏃", locations:null },
@@ -1769,6 +1899,24 @@ export default function SummerTrainingApp() {
   const todayIdx  = new Date().getDay()===0?6:new Date().getDay()-1;
   const todayPlan = SCHEDULE[todayIdx];
 
+  /* Workout generator ──────────────────────────────────────────── */
+  const defaultTmpl = todayPlan.cats.map(c=>SCHED_TO_TEMPLATE[c]).find(Boolean)||"quickFeet";
+  const [selectedTemplate, setSelectedTemplate] = useState(defaultTmpl);
+  const [todaysWorkout, setTodaysWorkout] = useState(null);
+
+  const recentExIds = useMemo(()=>{
+    const cutoff = new Date(Date.now()-3*86400000).toLocaleDateString("en-CA");
+    return Object.keys(completed)
+      .filter(k=>{ const d=k.split("-").slice(0,3).join("-"); return d>=cutoff && completed[k]; })
+      .map(k=>k.split("-").slice(3).join("-"));
+  },[completed]);
+
+  const refreshWorkout = useCallback(()=>{
+    setTodaysWorkout(generateWorkout(settings, selectedTemplate, recentExIds));
+  },[settings, selectedTemplate, recentExIds]);
+
+  useEffect(()=>{ refreshWorkout(); },[selectedTemplate, settings.athleteAge, settings.experience]);
+
   const catColor = key => key==="strength" ? ST : key==="speed"||key==="balance" ? P : S;
   const catBg    = key => `${catColor(key)}16`;
   const catBrd   = key => `${catColor(key)}2e`;
@@ -1904,39 +2052,155 @@ export default function SummerTrainingApp() {
       )}
 
       {view==="home" && (<>
-        <div style={{ display:"flex",gap:10,padding:"14px 20px" }}>
-          {[[doneCnt,"done today",P], trainingWeek?[`Wk ${trainingWeek}`,"training week",S]:null].filter(Boolean).map(([n,l,c])=>(
-            <div key={l} style={{ flex:1,background:`${c}10`,border:`1px solid ${c}40`,borderRadius:12,padding:"12px 8px",textAlign:"center" }}>
-              <div style={{ fontSize:22,fontWeight:800,fontFamily:"'DM Mono',monospace",color:c,lineHeight:1 }}>{n}</div>
-              <div style={{ fontSize:9,color:"#334155",marginTop:4,letterSpacing:"0.06em",textTransform:"uppercase" }}>{l}</div>
+
+        {/* ── Stat Row ───────────────────────────────────────────── */}
+        <div style={{ display:"flex",gap:8,padding:"12px 20px 8px" }}>
+          {[[doneCnt,"done today",P], trainingWeek?[`Wk ${trainingWeek}`,"training",S]:null].filter(Boolean).map(([n,l,c])=>(
+            <div key={l} style={{ flex:1,background:`${c}10`,border:`1px solid ${c}35`,borderRadius:12,padding:"10px 8px",textAlign:"center" }}>
+              <div style={{ fontSize:20,fontWeight:800,fontFamily:"'DM Mono',monospace",color:c,lineHeight:1 }}>{n}</div>
+              <div style={{ fontSize:9,color:"#334155",marginTop:3,letterSpacing:"0.06em",textTransform:"uppercase" }}>{l}</div>
             </div>
           ))}
-          {!trainingWeek&&<div style={{ flex:1,background:`${S}10`,border:`1px solid ${S}40`,borderRadius:12,padding:"12px 8px",textAlign:"center",cursor:"pointer" }} onClick={()=>setShowSettings(true)}>
+          {!trainingWeek&&<div style={{ flex:1,background:`${S}10`,border:`1px solid ${S}35`,borderRadius:12,padding:"10px 8px",textAlign:"center",cursor:"pointer" }} onClick={()=>setShowSettings(true)}>
             <div style={{ fontSize:11,color:S,fontWeight:700 }}>Set start date</div>
             <div style={{ fontSize:9,color:"#334155",marginTop:2 }}>in ⚙ settings</div>
           </div>}
-        </div>
-
-        <div style={{ padding:"0 20px 16px" }}>
-          <div style={lbl}>Today's Plan</div>
-          <div style={{ background:`${P}0e`,border:`1px solid ${P}26`,borderRadius:14,padding:"14px 16px" }}>
-            <div style={{ fontSize:15,fontWeight:800,color:P,marginBottom:10 }}>{todayPlan.label}</div>
-            <div style={{ display:"flex",flexWrap:"wrap",gap:6 }}>
-              {todayPlan.cats.map(c=>(
-                <button key={c} onClick={()=>{setActiveCat(c);setPrevView("home");setView("cat");}} style={{ fontSize:11,padding:"6px 14px",borderRadius:20,fontWeight:600,background:catBg(c),color:catColor(c),border:`1px solid ${catBrd(c)}`,cursor:"pointer" }}>
-                  {CATS[c].emoji} {CATS[c].label} →
-                </button>
-              ))}
-              {todayPlan.cats.length===0&&<span style={{ color:"#475569",fontSize:12 }}>Recover. Stretch. Sleep well. 💤</span>}
+          <div style={{ flex:1,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:12,padding:"10px 8px",textAlign:"center" }}>
+            <div style={{ fontSize:20,fontWeight:800,fontFamily:"'DM Mono',monospace",color:"#475569",lineHeight:1 }}>
+              {Object.keys(completed).filter(k=>{ const d=k.split("-").slice(0,3).join("-"), cutoff=new Date(Date.now()-6*86400000).toLocaleDateString("en-CA"); return d>=cutoff&&completed[k]; }).length > 0
+                ? (() => { let s=0,d=new Date(); for(let i=0;i<14;i++){const k=d.toLocaleDateString("en-CA");if(Object.keys(completed).some(c=>c.startsWith(k)&&completed[c])){s++;d.setDate(d.getDate()-1);}else break;} return s; })()
+                : 0}
             </div>
+            <div style={{ fontSize:9,color:"#334155",marginTop:3,letterSpacing:"0.06em",textTransform:"uppercase" }}>streak</div>
           </div>
         </div>
 
+        {/* ── Template Picker ────────────────────────────────────── */}
+        <div style={{ padding:"10px 20px 4px" }}>
+          <div style={lbl}>Today's Mission</div>
+        </div>
+        <div style={{ display:"flex",gap:7,overflowX:"auto",padding:"0 20px 10px",scrollbarWidth:"none",WebkitOverflowScrolling:"touch" }}>
+          {Object.entries(WORKOUT_TEMPLATES).map(([key,tmpl])=>(
+            <button key={key} onClick={()=>setSelectedTemplate(key)}
+              style={{ flexShrink:0,padding:"7px 13px",borderRadius:20,fontSize:11,fontWeight:700,cursor:"pointer",
+                background:selectedTemplate===key?P:"rgba(255,255,255,0.05)",
+                border:`1.5px solid ${selectedTemplate===key?P:"rgba(255,255,255,0.09)"}`,
+                color:selectedTemplate===key?"#000":"#64748b" }}>
+              {tmpl.emoji} {tmpl.name}
+            </button>
+          ))}
+        </div>
+
+        {/* ── Mission Card ───────────────────────────────────────── */}
+        {todaysWorkout ? (
+          <div style={{ margin:"0 20px 16px",borderRadius:16,background:`${P}09`,border:`1px solid ${P}22`,overflow:"hidden" }}>
+
+            {/* Header */}
+            <div style={{ padding:"14px 16px 8px",display:"flex",alignItems:"flex-start",gap:10 }}>
+              <span style={{ fontSize:28,lineHeight:1 }}>{todaysWorkout.templateEmoji}</span>
+              <div style={{ flex:1,minWidth:0 }}>
+                <div style={{ fontSize:15,fontWeight:800,color:P,lineHeight:1.2 }}>{todaysWorkout.templateName}</div>
+                <div style={{ fontSize:11,color:"#64748b",marginTop:2 }}>{todaysWorkout.templateDesc}</div>
+              </div>
+              <div style={{ textAlign:"right",flexShrink:0 }}>
+                <div style={{ fontSize:22,fontWeight:800,color:P,fontFamily:"'DM Mono',monospace",lineHeight:1 }}>
+                  {Math.max(1,Math.round(todaysWorkout.totalSecs/60))}
+                </div>
+                <div style={{ fontSize:9,color:"#475569",letterSpacing:"0.07em" }}>MIN</div>
+              </div>
+            </div>
+
+            {/* Exercise list by role */}
+            <div style={{ padding:"4px 12px 10px" }}>
+              {["warmup","main","finisher","recovery"].map(role=>{
+                const exs=todaysWorkout.exercises.filter(e=>e.role===role);
+                if(!exs.length) return null;
+                const [dot,roleName]={warmup:["🟡","Warm-Up"],main:["🔵","Main Block"],finisher:["🔴","Finisher"],recovery:["🟢","Cool Down"]}[role];
+                return (
+                  <div key={role} style={{ marginBottom:8 }}>
+                    <div style={{ fontSize:9,fontWeight:700,color:"#475569",letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:5,paddingLeft:4 }}>
+                      {dot} {roleName}
+                    </div>
+                    {exs.map(ex=>{
+                      const done2=isDone(ex.id);
+                      return (
+                        <div key={ex.id}
+                          onClick={()=>{ setActiveCat(ex._cat||"explosion"); setPrevView("home"); setView("cat"); }}
+                          style={{ display:"flex",alignItems:"center",gap:8,padding:"7px 8px",borderRadius:10,marginBottom:3,cursor:"pointer",
+                            background:done2?"rgba(34,197,94,0.08)":"rgba(255,255,255,0.03)",
+                            border:`1px solid ${done2?"rgba(34,197,94,0.15)":"transparent"}` }}>
+                          <div style={{ flex:1,minWidth:0 }}>
+                            <div style={{ fontSize:12,fontWeight:600,color:done2?"#22c55e":"#e2e8f0",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{ex.name}</div>
+                            <div style={{ fontSize:10,color:"#475569" }}>{ex.sets}</div>
+                          </div>
+                          <div style={{ fontSize:10,color:"#334155",fontFamily:"'DM Mono',monospace",flexShrink:0 }}>
+                            {Math.round((ex.meta?.estimatedDuration||90)/60)}m
+                          </div>
+                          <span style={{ fontSize:14,color:done2?"#22c55e":"#334155",flexShrink:0 }}>{done2?"✓":"›"}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Actions */}
+            <div style={{ padding:"8px 14px 14px",borderTop:"1px solid rgba(255,255,255,0.05)",display:"flex",gap:8 }}>
+              <button onClick={()=>{
+                const first=todaysWorkout.exercises[0];
+                if(first){ setActiveCat(first._cat||"explosion"); setPrevView("home"); setView("cat"); }
+              }} style={{ flex:1,padding:"11px",borderRadius:12,background:P,border:"none",color:"#000",fontSize:13,fontWeight:800,cursor:"pointer" }}>
+                Start Workout →
+              </button>
+              <button onClick={refreshWorkout}
+                title="Shuffle exercises"
+                style={{ padding:"11px 15px",borderRadius:12,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.09)",color:"#64748b",fontSize:16,cursor:"pointer" }}>
+                🔀
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ margin:"0 20px 16px",padding:"20px",borderRadius:16,background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",textAlign:"center" }}>
+            <div style={{ fontSize:13,color:"#475569" }}>Generating workout…</div>
+          </div>
+        )}
+
+        {/* ── Active Challenges ──────────────────────────────────── */}
+        <div style={{ padding:"0 20px 16px" }}>
+          <div style={lbl}>Active Challenges</div>
+          <div style={{ display:"flex",flexDirection:"column",gap:7 }}>
+            {CHALLENGES_DEF.map(def=>{
+              const {cur,target}=getChallengeProgress(def,completed);
+              const pct=Math.min(1,cur/target), done2=pct>=1;
+              return (
+                <div key={def.id} style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:12,
+                  background:done2?"rgba(34,197,94,0.08)":"rgba(255,255,255,0.04)",
+                  border:`1px solid ${done2?"rgba(34,197,94,0.2)":"rgba(255,255,255,0.07)"}` }}>
+                  <span style={{ fontSize:18,lineHeight:1 }}>{def.emoji}</span>
+                  <div style={{ flex:1,minWidth:0 }}>
+                    <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4 }}>
+                      <span style={{ fontSize:11,fontWeight:700,color:done2?"#22c55e":"#cbd5e1" }}>{def.name}</span>
+                      <span style={{ fontSize:10,color:done2?"#22c55e":"#475569",fontFamily:"'DM Mono',monospace",flexShrink:0,marginLeft:6 }}>{Math.min(cur,target)}/{target}</span>
+                    </div>
+                    <div style={{ height:4,background:"rgba(255,255,255,0.06)",borderRadius:99,overflow:"hidden" }}>
+                      <div style={{ height:"100%",width:`${pct*100}%`,background:done2?"#22c55e":P,borderRadius:99,transition:"width 0.5s ease" }}/>
+                    </div>
+                    <div style={{ fontSize:9,color:"#334155",marginTop:3 }}>{def.desc}</div>
+                  </div>
+                  {done2&&<span style={{ fontSize:14,flexShrink:0 }}>🏆</span>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ── Training Modules ───────────────────────────────────── */}
         <div style={{ padding:"0 20px 16px" }}>
           <div style={lbl}>Training Modules</div>
           <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10 }}>
             {Object.entries(CATS).map(([key,cat])=>{
-              const done=WORKOUTS[key].filter(w=>isDone(w.id)).length, total=WORKOUTS[key].length, c=catColor(key);
+              const done2=WORKOUTS[key].filter(w=>isDone(w.id)).length, total=WORKOUTS[key].length, c=catColor(key);
               return (
                 <button key={key} onClick={()=>{setActiveCat(key);setPrevView("home");setView("cat");}}
                   style={{ padding:"14px",borderRadius:16,textAlign:"left",cursor:"pointer",border:`1px solid ${catBrd(key)}`,background:catBg(key) }}>
@@ -1944,9 +2208,9 @@ export default function SummerTrainingApp() {
                   <div style={{ fontSize:12,fontWeight:700,color:c,lineHeight:1.25,marginBottom:2 }}>{cat.label}</div>
                   <div style={{ fontSize:10,color:`${c}99`,marginBottom:8 }}>{total} drills</div>
                   <div style={{ height:3,background:"rgba(255,255,255,0.06)",borderRadius:99,overflow:"hidden",marginBottom:4 }}>
-                    <div style={{ height:"100%",width:`${(done/total)*100}%`,background:c,borderRadius:99 }}/>
+                    <div style={{ height:"100%",width:`${(done2/total)*100}%`,background:c,borderRadius:99 }}/>
                   </div>
-                  {done>0&&<div style={{ fontSize:10,fontWeight:700,color:c }}>✓ {done} done</div>}
+                  {done2>0&&<div style={{ fontSize:10,fontWeight:700,color:c }}>✓ {done2} done</div>}
                 </button>
               );
             })}
