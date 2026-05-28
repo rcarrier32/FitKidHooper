@@ -9,6 +9,7 @@ const DEFAULT = {
   bgHue:222, bgSat:47, bgLight:6,
   accentHue:158, accentSat:85, accentLight:50,
   athleteName:"Champ", avatar:null,
+  athleteAge:12, experience:"beginner", goals:[], playStyle:"any",
 };
 const hsl  = (h,s,l) => `hsl(${h},${s}%,${l}%)`;
 const pri  = s => hsl(s.primaryHue,   s.primarySat,   s.primaryLight);
@@ -738,6 +739,185 @@ const STR_DAYS = {
 
 
 
+/* ═══════════════════════════════════════════════════════════════
+   EXERCISE METADATA — difficulty, impact, age range, equipment.
+   Keyed by exercise id. Powers age-aware workout generation.
+═══════════════════════════════════════════════════════════════ */
+const EXERCISE_META = {
+  /* ─── SPEED ─── */
+  "ladder":              { difficulty:"beginner",     impactLevel:"low",    movementType:"coordination", bodyFocus:["feet","ankles","coordination"],    basketballTransfer:["footwork","quickness"],     equipment:"cones",        spaceRequired:"medium",     ageRange:[9,14],  minutesPerSet:2 },
+  "cone-cod":            { difficulty:"beginner",     impactLevel:"medium", movementType:"athletic",     bodyFocus:["legs","hips","ankles"],            basketballTransfer:["cutting","defense"],        equipment:"cones",        spaceRequired:"medium",     ageRange:[9,14],  minutesPerSet:1.5 },
+  "5-10-5":              { difficulty:"intermediate", impactLevel:"medium", movementType:"athletic",     bodyFocus:["legs","hips"],                     basketballTransfer:["speed","cutting"],          equipment:"cones",        spaceRequired:"medium",     ageRange:[10,14], minutesPerSet:1.5 },
+  "lat-bounds":          { difficulty:"intermediate", impactLevel:"high",   movementType:"elastic",      bodyFocus:["legs","glutes","ankles"],          basketballTransfer:["explosion","speed"],        equipment:"none",         spaceRequired:"large",      ageRange:[10,14], minutesPerSet:2 },
+  "def-slide":           { difficulty:"beginner",     impactLevel:"medium", movementType:"athletic",     bodyFocus:["legs","hips"],                     basketballTransfer:["defense","speed"],          equipment:"none",         spaceRequired:"large",      ageRange:[9,14],  minutesPerSet:2 },
+  /* ─── BALANCE ─── */
+  "sl-hold":             { difficulty:"beginner",     impactLevel:"low",    movementType:"mobility",     bodyFocus:["ankles","core","feet"],            basketballTransfer:["defense","landing"],        equipment:"none",         spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:1 },
+  "bosu-sq":             { difficulty:"intermediate", impactLevel:"low",    movementType:"strength",     bodyFocus:["legs","ankles","core"],            basketballTransfer:["jumping","landing"],        equipment:"bosu",         spaceRequired:"small",      ageRange:[10,14], minutesPerSet:1.5 },
+  "sl-ball":             { difficulty:"intermediate", impactLevel:"low",    movementType:"skill",        bodyFocus:["ankles","core","coordination"],    basketballTransfer:["defense","reaction"],       equipment:"none",         spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:1 },
+  "sl-squat":            { difficulty:"intermediate", impactLevel:"medium", movementType:"strength",     bodyFocus:["quads","glutes","ankles"],         basketballTransfer:["jumping","cutting"],        equipment:"none",         spaceRequired:"small",      ageRange:[10,14], minutesPerSet:1.5 },
+  "lat-stick":           { difficulty:"intermediate", impactLevel:"medium", movementType:"elastic",      bodyFocus:["legs","ankles","hips"],            basketballTransfer:["cutting","landing"],        equipment:"none",         spaceRequired:"medium",     ageRange:[10,14], minutesPerSet:1.5 },
+  "triple-lat-hops":     { difficulty:"intermediate", impactLevel:"medium", movementType:"elastic",      bodyFocus:["ankles","calves","core"],          basketballTransfer:["cutting","landing"],        equipment:"none",         spaceRequired:"medium",     ageRange:[10,14], minutesPerSet:1.5 },
+  "pogo-hops":           { difficulty:"beginner",     impactLevel:"medium", movementType:"elastic",      bodyFocus:["ankles","calves","feet"],          basketballTransfer:["jumping","quickness"],      equipment:"none",         spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:1 },
+  "sl-balance-reach":    { difficulty:"beginner",     impactLevel:"low",    movementType:"mobility",     bodyFocus:["ankles","hips","core"],            basketballTransfer:["defense","stability"],      equipment:"none",         spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:1 },
+  /* ─── STRENGTH main ─── */
+  "goblet-sq":           { difficulty:"beginner",     impactLevel:"low",    movementType:"strength",     bodyFocus:["quads","glutes","core"],           basketballTransfer:["jumping","power"],          equipment:"dumbbells",    spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:2 },
+  "pushup":              { difficulty:"beginner",     impactLevel:"low",    movementType:"strength",     bodyFocus:["chest","shoulders","core"],        basketballTransfer:["strength","all"],           equipment:"none",         spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:2 },
+  "step-ups":            { difficulty:"beginner",     impactLevel:"medium", movementType:"strength",     bodyFocus:["quads","glutes"],                  basketballTransfer:["jumping","first-step"],     equipment:"box",          spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:2 },
+  "db-rows":             { difficulty:"beginner",     impactLevel:"low",    movementType:"strength",     bodyFocus:["back","biceps"],                   basketballTransfer:["strength","rebounding"],    equipment:"dumbbells",    spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:2 },
+  "plank-hold":          { difficulty:"beginner",     impactLevel:"low",    movementType:"mobility",     bodyFocus:["core"],                            basketballTransfer:["stability","all"],          equipment:"none",         spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:1 },
+  "walk-lunge":          { difficulty:"beginner",     impactLevel:"medium", movementType:"strength",     bodyFocus:["quads","glutes","hamstrings"],     basketballTransfer:["running","cutting"],        equipment:"none",         spaceRequired:"large",      ageRange:[9,14],  minutesPerSet:2 },
+  "glute-bridge":        { difficulty:"beginner",     impactLevel:"low",    movementType:"strength",     bodyFocus:["glutes","hamstrings","core"],      basketballTransfer:["jumping","sprinting"],      equipment:"none",         spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:1.5 },
+  "side-plank":          { difficulty:"beginner",     impactLevel:"low",    movementType:"mobility",     bodyFocus:["core","obliques"],                 basketballTransfer:["cutting","defense"],        equipment:"none",         spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:1 },
+  "box-jump":            { difficulty:"intermediate", impactLevel:"high",   movementType:"elastic",      bodyFocus:["legs","glutes","ankles"],          basketballTransfer:["jumping","explosion"],      equipment:"box",          spaceRequired:"small",      ageRange:[10,14], minutesPerSet:2 },
+  "db-deadlift":         { difficulty:"intermediate", impactLevel:"medium", movementType:"strength",     bodyFocus:["hamstrings","glutes","back"],      basketballTransfer:["jumping","sprinting"],      equipment:"dumbbells",    spaceRequired:"small",      ageRange:[10,14], minutesPerSet:2 },
+  "ohp":                 { difficulty:"intermediate", impactLevel:"low",    movementType:"strength",     bodyFocus:["shoulders","triceps","core"],      basketballTransfer:["shooting","strength"],      equipment:"dumbbells",    spaceRequired:"small",      ageRange:[10,14], minutesPerSet:2 },
+  "split-sq":            { difficulty:"intermediate", impactLevel:"medium", movementType:"strength",     bodyFocus:["quads","glutes","hips"],           basketballTransfer:["cutting","jumping"],        equipment:"none",         spaceRequired:"small",      ageRange:[10,14], minutesPerSet:2 },
+  "hollow-hold":         { difficulty:"intermediate", impactLevel:"low",    movementType:"mobility",     bodyFocus:["core"],                            basketballTransfer:["stability","all"],          equipment:"none",         spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:1.5 },
+  "dead-bug":            { difficulty:"beginner",     impactLevel:"low",    movementType:"mobility",     bodyFocus:["core"],                            basketballTransfer:["stability","all"],          equipment:"none",         spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:1.5 },
+  "reverse-lunge":       { difficulty:"beginner",     impactLevel:"medium", movementType:"strength",     bodyFocus:["quads","glutes","hamstrings"],     basketballTransfer:["running","cutting"],        equipment:"none",         spaceRequired:"medium",     ageRange:[9,14],  minutesPerSet:2 },
+  "bw-squats":           { difficulty:"beginner",     impactLevel:"low",    movementType:"strength",     bodyFocus:["quads","glutes","core"],           basketballTransfer:["jumping","landing"],        equipment:"none",         spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:1.5 },
+  "str-full":            { difficulty:"intermediate", impactLevel:"medium", movementType:"strength",     bodyFocus:["full-body"],                       basketballTransfer:["strength","all"],           equipment:"dumbbells",    spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:25 },
+  /* ─── STRENGTH extra ─── */
+  "bear-crawl":          { difficulty:"beginner",     impactLevel:"low",    movementType:"coordination", bodyFocus:["shoulders","core","coordination"], basketballTransfer:["stability","all"],          equipment:"none",         spaceRequired:"large",      ageRange:[9,14],  minutesPerSet:1.5 },
+  "broad-jump":          { difficulty:"intermediate", impactLevel:"high",   movementType:"elastic",      bodyFocus:["legs","glutes","ankles"],          basketballTransfer:["jumping","first-step"],     equipment:"none",         spaceRequired:"large",      ageRange:[10,14], minutesPerSet:2 },
+  "skater-jumps":        { difficulty:"intermediate", impactLevel:"high",   movementType:"elastic",      bodyFocus:["legs","glutes","ankles"],          basketballTransfer:["cutting","explosion"],      equipment:"none",         spaceRequired:"large",      ageRange:[10,14], minutesPerSet:2 },
+  "farmers-carry":       { difficulty:"beginner",     impactLevel:"low",    movementType:"strength",     bodyFocus:["grip","core","traps"],             basketballTransfer:["strength","all"],           equipment:"dumbbells",    spaceRequired:"large",      ageRange:[9,14],  minutesPerSet:2 },
+  "jump-rope":           { difficulty:"beginner",     impactLevel:"medium", movementType:"conditioning", bodyFocus:["calves","ankles","coordination"],  basketballTransfer:["footwork","conditioning"],  equipment:"jump_rope",    spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:5 },
+  /* ─── EXPLOSION ─── */
+  "pogo-jumps":          { difficulty:"beginner",     impactLevel:"high",   movementType:"elastic",      bodyFocus:["ankles","calves","feet"],          basketballTransfer:["jumping","quickness"],      equipment:"none",         spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:1.5 },
+  "single-leg-hops":     { difficulty:"intermediate", impactLevel:"high",   movementType:"elastic",      bodyFocus:["ankles","calves","quads"],         basketballTransfer:["jumping","cutting"],        equipment:"none",         spaceRequired:"medium",     ageRange:[10,14], minutesPerSet:2 },
+  "lateral-bounds-pjf":  { difficulty:"intermediate", impactLevel:"high",   movementType:"elastic",      bodyFocus:["legs","glutes","ankles"],          basketballTransfer:["cutting","explosion"],      equipment:"none",         spaceRequired:"medium",     ageRange:[10,14], minutesPerSet:2 },
+  "reactive-pogos":      { difficulty:"intermediate", impactLevel:"high",   movementType:"elastic",      bodyFocus:["ankles","calves"],                 basketballTransfer:["jumping","reaction"],       equipment:"none",         spaceRequired:"small",      ageRange:[10,14], minutesPerSet:1.5 },
+  "broad-jump-stick":    { difficulty:"intermediate", impactLevel:"high",   movementType:"elastic",      bodyFocus:["legs","glutes","ankles"],          basketballTransfer:["jumping","power"],          equipment:"none",         spaceRequired:"large",      ageRange:[10,14], minutesPerSet:2 },
+  "squat-jumps":         { difficulty:"intermediate", impactLevel:"high",   movementType:"elastic",      bodyFocus:["legs","glutes"],                   basketballTransfer:["jumping","explosion"],      equipment:"none",         spaceRequired:"small",      ageRange:[10,14], minutesPerSet:2 },
+  "tuck-jumps":          { difficulty:"intermediate", impactLevel:"high",   movementType:"elastic",      bodyFocus:["legs","core"],                     basketballTransfer:["jumping","explosion"],      equipment:"none",         spaceRequired:"small",      ageRange:[10,14], minutesPerSet:2 },
+  "snap-downs":          { difficulty:"beginner",     impactLevel:"medium", movementType:"deceleration", bodyFocus:["legs","ankles","hips"],            basketballTransfer:["cutting","landing"],        equipment:"none",         spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:1.5 },
+  "depth-drop":          { difficulty:"intermediate", impactLevel:"high",   movementType:"deceleration", bodyFocus:["legs","ankles","hips"],            basketballTransfer:["landing","safety"],         equipment:"box",          spaceRequired:"small",      ageRange:[10,14], minutesPerSet:1.5 },
+  "lateral-line-hops":   { difficulty:"beginner",     impactLevel:"high",   movementType:"elastic",      bodyFocus:["ankles","calves","feet"],          basketballTransfer:["quickness","footwork"],     equipment:"none",         spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:1 },
+  "pogo-tutorial":       { difficulty:"beginner",     impactLevel:"medium", movementType:"elastic",      bodyFocus:["ankles","calves"],                 basketballTransfer:["jumping","technique"],      equipment:"none",         spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:1.5 },
+  "single-leg-pogo":     { difficulty:"intermediate", impactLevel:"high",   movementType:"elastic",      bodyFocus:["ankles","calves"],                 basketballTransfer:["jumping","cutting"],        equipment:"none",         spaceRequired:"small",      ageRange:[10,14], minutesPerSet:1.5 },
+  "lat-skater-hops":     { difficulty:"intermediate", impactLevel:"high",   movementType:"elastic",      bodyFocus:["legs","glutes","ankles"],          basketballTransfer:["cutting","explosion"],      equipment:"none",         spaceRequired:"medium",     ageRange:[10,14], minutesPerSet:2 },
+  "broad-bounds-sprint": { difficulty:"advanced",     impactLevel:"high",   movementType:"elastic",      bodyFocus:["full-legs","ankles"],              basketballTransfer:["explosion","speed"],        equipment:"none",         spaceRequired:"large",      ageRange:[11,14], minutesPerSet:2.5 },
+  "drop-jump":           { difficulty:"advanced",     impactLevel:"high",   movementType:"elastic",      bodyFocus:["legs","ankles","tendons"],         basketballTransfer:["jumping","power"],          equipment:"box",          spaceRequired:"small",      ageRange:[11,14], minutesPerSet:2 },
+  "snap-down-prog":      { difficulty:"intermediate", impactLevel:"medium", movementType:"deceleration", bodyFocus:["legs","ankles","hips"],            basketballTransfer:["cutting","landing"],        equipment:"none",         spaceRequired:"small",      ageRange:[10,14], minutesPerSet:1.5 },
+  "pogo-to-tuck":        { difficulty:"advanced",     impactLevel:"high",   movementType:"elastic",      bodyFocus:["legs","ankles","core"],            basketballTransfer:["jumping","explosion"],      equipment:"none",         spaceRequired:"small",      ageRange:[11,14], minutesPerSet:2 },
+  "vj-progression":      { difficulty:"intermediate", impactLevel:"high",   movementType:"elastic",      bodyFocus:["full-legs"],                       basketballTransfer:["jumping"],                  equipment:"none",         spaceRequired:"medium",     ageRange:[10,14], minutesPerSet:20 },
+  "full-plyo-workout":   { difficulty:"intermediate", impactLevel:"high",   movementType:"elastic",      bodyFocus:["full-legs","core"],                basketballTransfer:["explosion","jumping"],      equipment:"none",         spaceRequired:"large",      ageRange:[10,14], minutesPerSet:25 },
+  "dunk-training":       { difficulty:"advanced",     impactLevel:"high",   movementType:"elastic",      bodyFocus:["full-legs","core"],                basketballTransfer:["jumping","explosion"],      equipment:"none",         spaceRequired:"large",      ageRange:[11,14], minutesPerSet:25 },
+  /* ─── CONDITIONING ─── */
+  "down-ups":            { difficulty:"intermediate", impactLevel:"high",   movementType:"conditioning", bodyFocus:["full-body"],                       basketballTransfer:["conditioning","toughness"], equipment:"none",         spaceRequired:"small",      ageRange:[10,14], minutesPerSet:1.5 },
+  "burpees":             { difficulty:"intermediate", impactLevel:"high",   movementType:"conditioning", bodyFocus:["full-body"],                       basketballTransfer:["conditioning","strength"],  equipment:"none",         spaceRequired:"small",      ageRange:[10,14], minutesPerSet:1.5 },
+  "mountain-climbers":   { difficulty:"beginner",     impactLevel:"medium", movementType:"conditioning", bodyFocus:["core","shoulders"],                basketballTransfer:["conditioning","core"],      equipment:"none",         spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:1 },
+  "cross-mt-climbers":   { difficulty:"beginner",     impactLevel:"medium", movementType:"conditioning", bodyFocus:["core","obliques","shoulders"],     basketballTransfer:["conditioning","core"],      equipment:"none",         spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:1 },
+  "high-knees":          { difficulty:"beginner",     impactLevel:"medium", movementType:"conditioning", bodyFocus:["legs","hips","core"],              basketballTransfer:["speed","conditioning"],     equipment:"none",         spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:1 },
+  "fast-feet":           { difficulty:"beginner",     impactLevel:"low",    movementType:"coordination", bodyFocus:["feet","ankles","legs"],            basketballTransfer:["defense","quickness"],      equipment:"none",         spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:0.75 },
+  "crab-walks":          { difficulty:"beginner",     impactLevel:"low",    movementType:"strength",     bodyFocus:["shoulders","hips","core"],         basketballTransfer:["conditioning","strength"],  equipment:"none",         spaceRequired:"large",      ageRange:[9,14],  minutesPerSet:1.5 },
+  "frog-jumps":          { difficulty:"intermediate", impactLevel:"high",   movementType:"elastic",      bodyFocus:["legs","glutes","core"],            basketballTransfer:["jumping","conditioning"],   equipment:"none",         spaceRequired:"large",      ageRange:[10,14], minutesPerSet:2 },
+  "plank-jacks":         { difficulty:"beginner",     impactLevel:"medium", movementType:"conditioning", bodyFocus:["core","shoulders","legs"],         basketballTransfer:["conditioning","core"],      equipment:"none",         spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:1 },
+  "speed-skaters":       { difficulty:"intermediate", impactLevel:"high",   movementType:"elastic",      bodyFocus:["legs","glutes","ankles"],          basketballTransfer:["cutting","conditioning"],   equipment:"none",         spaceRequired:"medium",     ageRange:[10,14], minutesPerSet:1.5 },
+  "shuffle-sprint":      { difficulty:"beginner",     impactLevel:"medium", movementType:"athletic",     bodyFocus:["legs","hips"],                     basketballTransfer:["defense","conditioning"],   equipment:"none",         spaceRequired:"large",      ageRange:[9,14],  minutesPerSet:1.5 },
+  "quick-feet-cones":    { difficulty:"beginner",     impactLevel:"medium", movementType:"coordination", bodyFocus:["feet","ankles","coordination"],    basketballTransfer:["defense","quickness"],      equipment:"cones",        spaceRequired:"medium",     ageRange:[9,14],  minutesPerSet:1.5 },
+  "wall-sit":            { difficulty:"beginner",     impactLevel:"low",    movementType:"strength",     bodyFocus:["quads","glutes"],                  basketballTransfer:["strength","toughness"],     equipment:"none",         spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:1.5 },
+  "jumping-jacks":       { difficulty:"beginner",     impactLevel:"low",    movementType:"conditioning", bodyFocus:["full-body"],                       basketballTransfer:["conditioning","warmup"],    equipment:"none",         spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:1 },
+  "squat-jacks":         { difficulty:"intermediate", impactLevel:"high",   movementType:"elastic",      bodyFocus:["legs","glutes"],                   basketballTransfer:["jumping","conditioning"],   equipment:"none",         spaceRequired:"small",      ageRange:[10,14], minutesPerSet:1.5 },
+  "push-shoulder-taps":  { difficulty:"intermediate", impactLevel:"low",    movementType:"strength",     bodyFocus:["chest","shoulders","core"],        basketballTransfer:["strength","stability"],     equipment:"none",         spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:1.5 },
+  /* ─── COORDINATION ─── */
+  "carioca":             { difficulty:"beginner",     impactLevel:"low",    movementType:"coordination", bodyFocus:["hips","feet","ankles"],            basketballTransfer:["defense","footwork"],       equipment:"none",         spaceRequired:"large",      ageRange:[9,14],  minutesPerSet:1.5 },
+  "lateral-carioca":     { difficulty:"beginner",     impactLevel:"low",    movementType:"coordination", bodyFocus:["hips","feet","ankles"],            basketballTransfer:["defense","footwork"],       equipment:"none",         spaceRequired:"medium",     ageRange:[9,14],  minutesPerSet:1.5 },
+  "rhythm-line-hops":    { difficulty:"beginner",     impactLevel:"low",    movementType:"coordination", bodyFocus:["feet","ankles"],                   basketballTransfer:["footwork","quickness"],     equipment:"none",         spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:1 },
+  "quick-step-matrix":   { difficulty:"beginner",     impactLevel:"medium", movementType:"coordination", bodyFocus:["feet","ankles","legs"],            basketballTransfer:["footwork","quickness"],     equipment:"cones",        spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:1.5 },
+  "sl-rhythm-hops":      { difficulty:"intermediate", impactLevel:"medium", movementType:"coordination", bodyFocus:["ankles","calves","core"],          basketballTransfer:["footwork","balance"],       equipment:"none",         spaceRequired:"small",      ageRange:[10,14], minutesPerSet:1.5 },
+  "cross-body-toe-taps": { difficulty:"beginner",     impactLevel:"low",    movementType:"coordination", bodyFocus:["hips","core","coordination"],     basketballTransfer:["footwork","handles"],        equipment:"none",         spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:1 },
+  "reactive-cone-calls": { difficulty:"intermediate", impactLevel:"medium", movementType:"coordination", bodyFocus:["full-body","reaction"],            basketballTransfer:["defense","reaction"],       equipment:"cones",        spaceRequired:"medium",     ageRange:[9,14],  minutesPerSet:1.5 },
+  "partner-mirror":      { difficulty:"intermediate", impactLevel:"medium", movementType:"coordination", bodyFocus:["full-body","reaction"],            basketballTransfer:["defense","reaction"],       equipment:"partner",      spaceRequired:"medium",     ageRange:[9,14],  minutesPerSet:1.5 },
+  "tennis-reaction-catch":{ difficulty:"beginner",    impactLevel:"low",    movementType:"skill",        bodyFocus:["hands","eyes","reaction"],         basketballTransfer:["ball-handling","reaction"], equipment:"tennis_ball",  spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:1.5 },
+  "alternating-line-hops":{ difficulty:"beginner",    impactLevel:"low",    movementType:"coordination", bodyFocus:["feet","ankles"],                   basketballTransfer:["footwork","coordination"],  equipment:"none",         spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:1 },
+  "hip-flip-footwork":   { difficulty:"intermediate", impactLevel:"medium", movementType:"coordination", bodyFocus:["hips","feet","ankles"],            basketballTransfer:["defense","cutting"],        equipment:"none",         spaceRequired:"small",      ageRange:[10,14], minutesPerSet:1.5 },
+  "fast-feet-turn":      { difficulty:"beginner",     impactLevel:"medium", movementType:"coordination", bodyFocus:["feet","ankles","hips"],            basketballTransfer:["defense","quickness"],      equipment:"none",         spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:1 },
+  "sl-snap-down-coord":  { difficulty:"intermediate", impactLevel:"high",   movementType:"deceleration", bodyFocus:["ankles","knees","hips"],           basketballTransfer:["landing","cutting"],        equipment:"none",         spaceRequired:"small",      ageRange:[10,14], minutesPerSet:1.5 },
+  "lateral-step-matrix": { difficulty:"intermediate", impactLevel:"medium", movementType:"coordination", bodyFocus:["feet","ankles","hips"],            basketballTransfer:["footwork","defense"],       equipment:"cones",        spaceRequired:"medium",     ageRange:[9,14],  minutesPerSet:2 },
+  "crossover-footwork":  { difficulty:"intermediate", impactLevel:"medium", movementType:"coordination", bodyFocus:["feet","hips","ankles"],            basketballTransfer:["handles","cutting"],        equipment:"none",         spaceRequired:"small",      ageRange:[10,14], minutesPerSet:1.5 },
+  /* ─── DECELERATION ─── */
+  "jump-stop-hold":      { difficulty:"beginner",     impactLevel:"medium", movementType:"deceleration", bodyFocus:["legs","ankles","core"],            basketballTransfer:["footwork","post-moves"],    equipment:"none",         spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:1.5 },
+  "sl-stick-landing":    { difficulty:"intermediate", impactLevel:"high",   movementType:"deceleration", bodyFocus:["ankles","knees","hips"],           basketballTransfer:["landing","cutting"],        equipment:"none",         spaceRequired:"small",      ageRange:[10,14], minutesPerSet:2 },
+  "lateral-stick-landing":{ difficulty:"intermediate",impactLevel:"high",   movementType:"deceleration", bodyFocus:["ankles","knees","hips"],           basketballTransfer:["cutting","defense"],        equipment:"none",         spaceRequired:"medium",     ageRange:[10,14], minutesPerSet:2 },
+  "drop-athletic-stance":{ difficulty:"beginner",     impactLevel:"low",    movementType:"deceleration", bodyFocus:["legs","hips","core"],              basketballTransfer:["defense","reaction"],       equipment:"none",         spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:1 },
+  "sprint-to-stick":     { difficulty:"advanced",     impactLevel:"high",   movementType:"deceleration", bodyFocus:["full-legs","ankles","core"],       basketballTransfer:["defense","stopping"],       equipment:"none",         spaceRequired:"large",      ageRange:[11,14], minutesPerSet:2 },
+  "decel-shuffle":       { difficulty:"intermediate", impactLevel:"medium", movementType:"deceleration", bodyFocus:["legs","hips"],                     basketballTransfer:["defense","footwork"],       equipment:"none",         spaceRequired:"large",      ageRange:[10,14], minutesPerSet:1.5 },
+  "snap-down-to-hold":   { difficulty:"intermediate", impactLevel:"medium", movementType:"deceleration", bodyFocus:["legs","ankles","hips"],            basketballTransfer:["cutting","landing"],        equipment:"none",         spaceRequired:"small",      ageRange:[10,14], minutesPerSet:1.5 },
+  "broad-jump-stick-dec":{ difficulty:"intermediate", impactLevel:"high",   movementType:"deceleration", bodyFocus:["full-legs","ankles"],              basketballTransfer:["jumping","landing"],        equipment:"none",         spaceRequired:"large",      ageRange:[10,14], minutesPerSet:2 },
+  "lateral-bound-stick": { difficulty:"intermediate", impactLevel:"high",   movementType:"deceleration", bodyFocus:["legs","ankles","hips"],            basketballTransfer:["cutting","defense"],        equipment:"none",         spaceRequired:"medium",     ageRange:[10,14], minutesPerSet:2 },
+  "split-stance-absorb": { difficulty:"beginner",     impactLevel:"medium", movementType:"deceleration", bodyFocus:["legs","ankles","hips"],            basketballTransfer:["landing","balance"],        equipment:"none",         spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:1.5 },
+  "hop-hop-stick":       { difficulty:"intermediate", impactLevel:"high",   movementType:"deceleration", bodyFocus:["ankles","calves","core"],          basketballTransfer:["landing","jumping"],        equipment:"none",         spaceRequired:"small",      ageRange:[10,14], minutesPerSet:2 },
+  "reactive-landing":    { difficulty:"intermediate", impactLevel:"high",   movementType:"deceleration", bodyFocus:["full-legs","ankles","reaction"],   basketballTransfer:["landing","defense"],        equipment:"none",         spaceRequired:"medium",     ageRange:[10,14], minutesPerSet:2 },
+  "sl-snap-down-dec":    { difficulty:"advanced",     impactLevel:"high",   movementType:"deceleration", bodyFocus:["ankles","knees","hips"],           basketballTransfer:["cutting","landing"],        equipment:"none",         spaceRequired:"small",      ageRange:[11,14], minutesPerSet:2 },
+  "depth-landing-hold":  { difficulty:"intermediate", impactLevel:"high",   movementType:"deceleration", bodyFocus:["legs","ankles","hips"],            basketballTransfer:["landing","safety"],         equipment:"box",          spaceRequired:"small",      ageRange:[10,14], minutesPerSet:2 },
+  "closeout-decel":      { difficulty:"intermediate", impactLevel:"medium", movementType:"deceleration", bodyFocus:["legs","hips","ankles"],            basketballTransfer:["defense","footwork"],       equipment:"none",         spaceRequired:"large",      ageRange:[10,14], minutesPerSet:1.5 },
+  /* ─── ATHLETIC MOVEMENT ─── */
+  "hip-turns":           { difficulty:"beginner",     impactLevel:"low",    movementType:"coordination", bodyFocus:["hips","feet"],                     basketballTransfer:["defense","cutting"],        equipment:"none",         spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:1.5 },
+  "defensive-hip-flip":  { difficulty:"intermediate", impactLevel:"low",    movementType:"coordination", bodyFocus:["hips","feet","ankles"],            basketballTransfer:["defense","footwork"],       equipment:"none",         spaceRequired:"small",      ageRange:[10,14], minutesPerSet:1.5 },
+  "retreat-sprint":      { difficulty:"intermediate", impactLevel:"medium", movementType:"athletic",     bodyFocus:["legs","hips"],                     basketballTransfer:["defense","speed"],          equipment:"none",         spaceRequired:"large",      ageRange:[10,14], minutesPerSet:2 },
+  "closeout-footwork":   { difficulty:"beginner",     impactLevel:"medium", movementType:"athletic",     bodyFocus:["legs","hips","ankles"],            basketballTransfer:["defense","footwork"],       equipment:"none",         spaceRequired:"large",      ageRange:[9,14],  minutesPerSet:1.5 },
+  "shuffle-shuffle-sprint":{ difficulty:"beginner",   impactLevel:"medium", movementType:"athletic",     bodyFocus:["legs","hips"],                     basketballTransfer:["defense","transition"],     equipment:"none",         spaceRequired:"large",      ageRange:[9,14],  minutesPerSet:1.5 },
+  "backpedal-sprint":    { difficulty:"intermediate", impactLevel:"medium", movementType:"athletic",     bodyFocus:["legs","hips"],                     basketballTransfer:["defense","speed"],          equipment:"none",         spaceRequired:"large",      ageRange:[10,14], minutesPerSet:2 },
+  "sprint-float-sprint": { difficulty:"advanced",     impactLevel:"high",   movementType:"conditioning", bodyFocus:["full-legs","lungs"],               basketballTransfer:["conditioning","speed"],     equipment:"none",         spaceRequired:"large",      ageRange:[11,14], minutesPerSet:2.5 },
+  "reactive-slide":      { difficulty:"intermediate", impactLevel:"medium", movementType:"athletic",     bodyFocus:["legs","hips","ankles"],            basketballTransfer:["defense","reaction"],       equipment:"cones",        spaceRequired:"large",      ageRange:[10,14], minutesPerSet:1.5 },
+  "crossover-run":       { difficulty:"beginner",     impactLevel:"low",    movementType:"coordination", bodyFocus:["hips","feet","ankles"],            basketballTransfer:["footwork","cutting"],       equipment:"none",         spaceRequired:"large",      ageRange:[9,14],  minutesPerSet:1.5 },
+  "acceleration-starts": { difficulty:"beginner",     impactLevel:"medium", movementType:"athletic",     bodyFocus:["legs","hips"],                     basketballTransfer:["speed","first-step"],       equipment:"none",         spaceRequired:"large",      ageRange:[9,14],  minutesPerSet:1.5 },
+  "three-step-burst":    { difficulty:"beginner",     impactLevel:"medium", movementType:"athletic",     bodyFocus:["legs","hips","ankles"],            basketballTransfer:["speed","cutting"],          equipment:"none",         spaceRequired:"medium",     ageRange:[9,14],  minutesPerSet:1.5 },
+  "drop-step-sprint":    { difficulty:"intermediate", impactLevel:"medium", movementType:"athletic",     bodyFocus:["legs","hips"],                     basketballTransfer:["defense","transition"],     equipment:"none",         spaceRequired:"large",      ageRange:[10,14], minutesPerSet:1.5 },
+  "defensive-recovery":  { difficulty:"intermediate", impactLevel:"high",   movementType:"athletic",     bodyFocus:["legs","lungs"],                    basketballTransfer:["defense","conditioning"],   equipment:"none",         spaceRequired:"full_court", ageRange:[10,14], minutesPerSet:2 },
+  "lateral-sprint-combo":{ difficulty:"intermediate", impactLevel:"high",   movementType:"athletic",     bodyFocus:["full-legs","hips"],                basketballTransfer:["defense","conditioning"],   equipment:"none",         spaceRequired:"large",      ageRange:[10,14], minutesPerSet:2 },
+  "reaction-sprint":     { difficulty:"beginner",     impactLevel:"medium", movementType:"athletic",     bodyFocus:["legs","hips","reaction"],          basketballTransfer:["speed","defense"],          equipment:"none",         spaceRequired:"large",      ageRange:[9,14],  minutesPerSet:1.5 },
+  /* ─── HANDLES ─── */
+  "tennis-dribble":      { difficulty:"beginner",     impactLevel:"low",    movementType:"skill",        bodyFocus:["hands","eyes","coordination"],     basketballTransfer:["ball-handling","reaction"], equipment:"tennis_ball",  spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:2 },
+  "tennis-wall":         { difficulty:"beginner",     impactLevel:"low",    movementType:"skill",        bodyFocus:["hands","eyes","reaction"],         basketballTransfer:["ball-handling","reaction"], equipment:"tennis_ball",  spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:1.5 },
+  "figure-8":            { difficulty:"beginner",     impactLevel:"low",    movementType:"skill",        bodyFocus:["hands","wrists","coordination"],   basketballTransfer:["ball-handling"],           equipment:"basketball",   spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:1.5 },
+  "weak-hand":           { difficulty:"beginner",     impactLevel:"low",    movementType:"skill",        bodyFocus:["hands","wrists"],                  basketballTransfer:["ball-handling"],           equipment:"basketball",   spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:10 },
+  "two-ball":            { difficulty:"intermediate", impactLevel:"low",    movementType:"skill",        bodyFocus:["hands","wrists","coordination"],   basketballTransfer:["ball-handling"],           equipment:"basketball_x2",spaceRequired:"small",      ageRange:[10,14], minutesPerSet:2 },
+  "cone-attacks":        { difficulty:"intermediate", impactLevel:"medium", movementType:"skill",        bodyFocus:["hands","feet","coordination"],     basketballTransfer:["ball-handling","cutting"],  equipment:"cones",        spaceRequired:"medium",     ageRange:[10,14], minutesPerSet:2 },
+  "handles-followalong": { difficulty:"beginner",     impactLevel:"low",    movementType:"skill",        bodyFocus:["hands","wrists","feet"],           basketballTransfer:["ball-handling"],           equipment:"basketball",   spaceRequired:"medium",     ageRange:[9,14],  minutesPerSet:10 },
+  "sackmann-detail":     { difficulty:"intermediate", impactLevel:"low",    movementType:"skill",        bodyFocus:["hands","wrists","feet"],           basketballTransfer:["ball-handling"],           equipment:"basketball",   spaceRequired:"small",      ageRange:[10,14], minutesPerSet:12 },
+  "sackmann-hesi":       { difficulty:"intermediate", impactLevel:"medium", movementType:"skill",        bodyFocus:["hands","feet","coordination"],     basketballTransfer:["ball-handling","cutting"],  equipment:"cones",        spaceRequired:"medium",     ageRange:[10,14], minutesPerSet:2 },
+  "relph-twoball":       { difficulty:"advanced",     impactLevel:"low",    movementType:"skill",        bodyFocus:["hands","wrists","coordination"],   basketballTransfer:["ball-handling"],           equipment:"basketball_x2",spaceRequired:"small",      ageRange:[11,14], minutesPerSet:2 },
+  "gethandles-btl":      { difficulty:"intermediate", impactLevel:"low",    movementType:"skill",        bodyFocus:["hands","wrists","coordination"],   basketballTransfer:["ball-handling"],           equipment:"basketball",   spaceRequired:"small",      ageRange:[10,14], minutesPerSet:3 },
+  "otter-move":          { difficulty:"intermediate", impactLevel:"medium", movementType:"skill",        bodyFocus:["hands","feet","coordination"],     basketballTransfer:["ball-handling"],           equipment:"basketball",   spaceRequired:"large",      ageRange:[10,14], minutesPerSet:20 },
+  "gethandles-daily":    { difficulty:"beginner",     impactLevel:"low",    movementType:"skill",        bodyFocus:["hands","wrists"],                  basketballTransfer:["ball-handling"],           equipment:"basketball",   spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:10 },
+  /* ─── BASKETBALL SKILLS ─── */
+  "dribble-basics":      { difficulty:"beginner",     impactLevel:"low",    movementType:"skill",        bodyFocus:["hands","wrists"],                  basketballTransfer:["ball-handling","footwork"], equipment:"basketball",   spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:2 },
+  "handles":             { difficulty:"beginner",     impactLevel:"medium", movementType:"skill",        bodyFocus:["hands","feet","coordination"],     basketballTransfer:["ball-handling","footwork"], equipment:"basketball",   spaceRequired:"medium",     ageRange:[9,14],  minutesPerSet:10 },
+  "full-bball":          { difficulty:"beginner",     impactLevel:"medium", movementType:"skill",        bodyFocus:["full-body","coordination"],        basketballTransfer:["all-skills"],              equipment:"basketball",   spaceRequired:"large",      ageRange:[9,14],  minutesPerSet:20 },
+  "defense":             { difficulty:"beginner",     impactLevel:"medium", movementType:"athletic",     bodyFocus:["legs","hips","feet"],              basketballTransfer:["defense","footwork"],       equipment:"none",         spaceRequired:"large",      ageRange:[9,14],  minutesPerSet:3 },
+  "sackmann-footwork":   { difficulty:"intermediate", impactLevel:"medium", movementType:"skill",        bodyFocus:["feet","hips"],                     basketballTransfer:["footwork","handles"],       equipment:"basketball",   spaceRequired:"medium",     ageRange:[10,14], minutesPerSet:3 },
+  "relph-scoop":         { difficulty:"intermediate", impactLevel:"low",    movementType:"skill",        bodyFocus:["hands","wrists","coordination"],   basketballTransfer:["finishing","layups"],       equipment:"basketball",   spaceRequired:"medium",     ageRange:[10,14], minutesPerSet:2 },
+  "otter-firststep":     { difficulty:"intermediate", impactLevel:"medium", movementType:"skill",        bodyFocus:["feet","hips","coordination"],      basketballTransfer:["handles","speed"],          equipment:"basketball",   spaceRequired:"large",      ageRange:[10,14], minutesPerSet:15 },
+  "relph-5drills":       { difficulty:"intermediate", impactLevel:"medium", movementType:"skill",        bodyFocus:["full-body","coordination"],        basketballTransfer:["all-skills"],              equipment:"basketball",   spaceRequired:"large",      ageRange:[10,14], minutesPerSet:10 },
+  "sackmann-finish":     { difficulty:"intermediate", impactLevel:"medium", movementType:"skill",        bodyFocus:["feet","hands","coordination"],     basketballTransfer:["finishing","footwork"],     equipment:"basketball",   spaceRequired:"large",      ageRange:[10,14], minutesPerSet:3 },
+  "gethandles-combo":    { difficulty:"advanced",     impactLevel:"medium", movementType:"skill",        bodyFocus:["hands","feet","coordination"],     basketballTransfer:["ball-handling","cutting"],  equipment:"basketball",   spaceRequired:"large",      ageRange:[11,14], minutesPerSet:3 },
+  "youth-finishing":     { difficulty:"beginner",     impactLevel:"medium", movementType:"skill",        bodyFocus:["hands","feet","coordination"],     basketballTransfer:["finishing","layups"],       equipment:"basketball",   spaceRequired:"large",      ageRange:[9,14],  minutesPerSet:10 },
+  /* ─── SHOOTING ─── */
+  "form-shots":          { difficulty:"beginner",     impactLevel:"low",    movementType:"skill",        bodyFocus:["hands","wrists","shoulders"],      basketballTransfer:["shooting"],                equipment:"basketball",   spaceRequired:"small",      ageRange:[9,14],  minutesPerSet:10 },
+  "catch-shoot":         { difficulty:"beginner",     impactLevel:"low",    movementType:"skill",        bodyFocus:["hands","wrists","feet"],           basketballTransfer:["shooting"],                equipment:"basketball",   spaceRequired:"medium",     ageRange:[9,14],  minutesPerSet:10 },
+  "off-dribble":         { difficulty:"intermediate", impactLevel:"low",    movementType:"skill",        bodyFocus:["hands","wrists","feet","hips"],    basketballTransfer:["shooting","handles"],       equipment:"basketball",   spaceRequired:"medium",     ageRange:[10,14], minutesPerSet:3 },
+  "full-shooting":       { difficulty:"intermediate", impactLevel:"low",    movementType:"skill",        bodyFocus:["hands","wrists","feet"],           basketballTransfer:["shooting"],                equipment:"basketball",   spaceRequired:"medium",     ageRange:[10,14], minutesPerSet:10 },
+  "sackmann-range":      { difficulty:"intermediate", impactLevel:"low",    movementType:"skill",        bodyFocus:["hands","wrists","legs"],           basketballTransfer:["shooting"],                equipment:"basketball",   spaceRequired:"medium",     ageRange:[10,14], minutesPerSet:10 },
+  "relph-5spot":         { difficulty:"intermediate", impactLevel:"low",    movementType:"skill",        bodyFocus:["hands","wrists","feet"],           basketballTransfer:["shooting"],                equipment:"basketball",   spaceRequired:"large",      ageRange:[10,14], minutesPerSet:15 },
+  "relph-42pt":          { difficulty:"intermediate", impactLevel:"medium", movementType:"skill",        bodyFocus:["hands","wrists","feet","hips"],    basketballTransfer:["shooting","handles"],       equipment:"basketball",   spaceRequired:"large",      ageRange:[10,14], minutesPerSet:15 },
+  "sackmann-hesi-shot":  { difficulty:"intermediate", impactLevel:"medium", movementType:"skill",        bodyFocus:["hands","feet","hips"],             basketballTransfer:["shooting","handles"],       equipment:"basketball",   spaceRequired:"large",      ageRange:[10,14], minutesPerSet:3 },
+  "relph-partner":       { difficulty:"intermediate", impactLevel:"low",    movementType:"skill",        bodyFocus:["hands","wrists","feet"],           basketballTransfer:["shooting"],                equipment:"basketball",   spaceRequired:"large",      ageRange:[10,14], minutesPerSet:10 },
+  "otter-60min":         { difficulty:"advanced",     impactLevel:"medium", movementType:"skill",        bodyFocus:["full-body","coordination"],        basketballTransfer:["all-skills"],              equipment:"basketball",   spaceRequired:"large",      ageRange:[10,14], minutesPerSet:60 },
+};
+
+/* Age-based workout generation rules */
+const AGE_RULES = {
+  9:  { maxMinutes:12, maxExercises:4, maxHighImpact:1, focus:["coordination","balance","fun","skill"] },
+  10: { maxMinutes:15, maxExercises:5, maxHighImpact:2, focus:["coordination","balance","elastic","skill"] },
+  11: { maxMinutes:18, maxExercises:6, maxHighImpact:2, focus:["elastic","coordination","skill","strength"] },
+  12: { maxMinutes:20, maxExercises:7, maxHighImpact:3, focus:["elastic","strength","skill","athletic"] },
+  13: { maxMinutes:25, maxExercises:8, maxHighImpact:4, focus:["explosion","speed","conditioning","strength"] },
+  14: { maxMinutes:30, maxExercises:9, maxHighImpact:5, focus:["explosion","speed","conditioning","strength"] },
+};
+
 /* ═══════════════════════ SHOT TRACKER DATA ═══════════════════ */
 const SHOT_TYPES = [
   { id:"layup",        label:"Layup",          emoji:"🏃", locations:null },
@@ -902,6 +1082,85 @@ function SettingsSheet({ settings, setSettings, onClose }) {
               <div style={{ fontSize:11,color:"#475569",marginBottom:4,fontWeight:600 }}>Training Start Date</div>
               <input type="date" value={settings.startDate||''} onChange={e=>setSettings(p=>({...p,startDate:e.target.value}))}
                 style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.05)",border:`1.5px solid ${P}44`,borderRadius:10,padding:"8px 12px",fontSize:14,color:"#e2e8f0",outline:"none" }}/>
+            </div>
+          </div>
+        </div>
+
+        {/* Training Profile */}
+        <div style={{ padding:"0 20px 16px" }}>
+          <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:"#334155",marginBottom:12,textTransform:"uppercase" }}>Training Profile</div>
+
+          {/* Age */}
+          <div style={{ marginBottom:14 }}>
+            <div style={{ fontSize:11,color:"#475569",fontWeight:600,marginBottom:7 }}>Age</div>
+            <div style={{ display:"flex",gap:5,flexWrap:"wrap" }}>
+              {[9,10,11,12,13,14,15,16].map(a=>(
+                <button key={a} onClick={()=>setSettings(p=>({...p,athleteAge:a}))}
+                  style={{ padding:"6px 12px",borderRadius:8,fontSize:13,fontWeight:700,cursor:"pointer",
+                    background:settings.athleteAge===a?P:"rgba(255,255,255,0.05)",
+                    border:`1px solid ${settings.athleteAge===a?P:"rgba(255,255,255,0.1)"}`,
+                    color:settings.athleteAge===a?"#000":"#64748b" }}>
+                  {a}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Experience */}
+          <div style={{ marginBottom:14 }}>
+            <div style={{ fontSize:11,color:"#475569",fontWeight:600,marginBottom:7 }}>Experience Level</div>
+            <div style={{ display:"flex",gap:6 }}>
+              {[["beginner","🌱 Beginner"],["intermediate","⚡ Intermediate"],["advanced","🔥 Advanced"]].map(([val,lbl])=>(
+                <button key={val} onClick={()=>setSettings(p=>({...p,experience:val}))}
+                  style={{ flex:1,padding:"8px 4px",borderRadius:10,fontSize:11,fontWeight:700,cursor:"pointer",
+                    background:settings.experience===val?`${P}20`:"rgba(255,255,255,0.04)",
+                    border:`1.5px solid ${settings.experience===val?P:"rgba(255,255,255,0.1)"}`,
+                    color:settings.experience===val?P:"#64748b" }}>
+                  {lbl}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Goals */}
+          <div style={{ marginBottom:14 }}>
+            <div style={{ fontSize:11,color:"#475569",fontWeight:600,marginBottom:7 }}>
+              My Goals <span style={{ fontSize:10,fontWeight:400 }}>(pick up to 3)</span>
+            </div>
+            <div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>
+              {[["explosion","💥 Jump Higher"],["speed","⚡ Quick Feet"],["conditioning","🔥 Conditioning"],
+                ["handles","🤲 Ball Handling"],["shooting","🎯 Shooting"],["strength","💪 Strength"],
+                ["defense","🛡 Defense"],["coordination","🎶 Coordination"]].map(([val,lbl])=>{
+                const sel=(settings.goals||[]).includes(val);
+                return (
+                  <button key={val} onClick={()=>setSettings(p=>{
+                    const g=p.goals||[];
+                    return {...p,goals:sel?g.filter(x=>x!==val):g.length<3?[...g,val]:g};
+                  })}
+                    style={{ padding:"6px 11px",borderRadius:20,fontSize:11,fontWeight:600,cursor:"pointer",
+                      background:sel?`${P}20`:"rgba(255,255,255,0.04)",
+                      border:`1.5px solid ${sel?P:"rgba(255,255,255,0.1)"}`,
+                      color:sel?P:"#64748b" }}>
+                    {lbl}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Play Style */}
+          <div>
+            <div style={{ fontSize:11,color:"#475569",fontWeight:600,marginBottom:7 }}>Play Style</div>
+            <div style={{ display:"flex",gap:6 }}>
+              {[["guard","🏃 Guard"],["wing","🏀 Wing"],["post","💪 Post"],["any","⭐ Any"]].map(([val,lbl])=>(
+                <button key={val} onClick={()=>setSettings(p=>({...p,playStyle:val}))}
+                  style={{ flex:1,padding:"8px 4px",borderRadius:10,fontSize:11,fontWeight:700,cursor:"pointer",
+                    background:settings.playStyle===val?`${P}20`:"rgba(255,255,255,0.04)",
+                    border:`1.5px solid ${settings.playStyle===val?P:"rgba(255,255,255,0.1)"}`,
+                    color:settings.playStyle===val?P:"#64748b" }}>
+                  {lbl}
+                </button>
+              ))}
             </div>
           </div>
         </div>
