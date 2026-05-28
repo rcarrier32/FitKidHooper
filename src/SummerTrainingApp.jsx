@@ -849,14 +849,28 @@ function ShotTracker({ P, S, BG, athleteName }) {
                 <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:10 }}>
                   <span style={{ fontSize:13,fontWeight:700,color:"#22c55e",width:68 }}>✅ Made</span>
                   <button style={stepBtn()} onClick={()=>setShotCount(c=>({...c,made:Math.max(0,c.made-1)}))}>−</button>
-                  <span style={{ fontSize:26,fontWeight:800,color:"#22c55e",minWidth:40,textAlign:"center",fontFamily:"'DM Mono',monospace" }}>{shotCount.made}</span>
+                  <input
+                    type="number" inputMode="numeric" min="0"
+                    value={shotCount.made}
+                    onChange={e=>setShotCount(c=>({...c,made:Math.max(0,parseInt(e.target.value)||0)}))}
+                    style={{ width:52,textAlign:"center",fontSize:26,fontWeight:800,color:"#22c55e",
+                      fontFamily:"'DM Mono',monospace",background:"transparent",border:"none",
+                      outline:"none",WebkitAppearance:"none",MozAppearance:"textfield",padding:0 }}
+                  />
                   <button style={stepBtn({background:"#22c55e22",borderColor:"#22c55e44"})} onClick={()=>setShotCount(c=>({...c,made:c.made+1}))}>+</button>
                 </div>
                 {/* Missed row */}
                 <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:14 }}>
                   <span style={{ fontSize:13,fontWeight:700,color:"#ef4444",width:68 }}>❌ Missed</span>
                   <button style={stepBtn()} onClick={()=>setShotCount(c=>({...c,missed:Math.max(0,c.missed-1)}))}>−</button>
-                  <span style={{ fontSize:26,fontWeight:800,color:"#ef4444",minWidth:40,textAlign:"center",fontFamily:"'DM Mono',monospace" }}>{shotCount.missed}</span>
+                  <input
+                    type="number" inputMode="numeric" min="0"
+                    value={shotCount.missed}
+                    onChange={e=>setShotCount(c=>({...c,missed:Math.max(0,parseInt(e.target.value)||0)}))}
+                    style={{ width:52,textAlign:"center",fontSize:26,fontWeight:800,color:"#ef4444",
+                      fontFamily:"'DM Mono',monospace",background:"transparent",border:"none",
+                      outline:"none",WebkitAppearance:"none",MozAppearance:"textfield",padding:0 }}
+                  />
                   <button style={stepBtn({background:"#ef444422",borderColor:"#ef444444"})} onClick={()=>setShotCount(c=>({...c,missed:c.missed+1}))}>+</button>
                 </div>
                 {/* Action row */}
