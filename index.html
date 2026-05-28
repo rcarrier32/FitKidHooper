@@ -2,8 +2,9 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <link rel="icon" type="image/svg+xml" href="/FitKidHooper/favicon.svg" />
+    <link rel="apple-touch-icon" href="/FitKidHooper/pwa-192.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -14,5 +15,17 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <script>
+      setTimeout(function() {
+        var root = document.getElementById('root');
+        if (root && !root.children.length) {
+          var key = 'fkh-blank-reload-v1';
+          if (!sessionStorage.getItem(key)) {
+            sessionStorage.setItem(key, '1');
+            location.reload();
+          }
+        }
+      }, 3500);
+    </script>
   </body>
 </html>

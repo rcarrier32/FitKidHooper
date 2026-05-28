@@ -1,5 +1,11 @@
 import SummerTrainingApp from './SummerTrainingApp'
+import UpdateBanner from './UpdateBanner'
 
 export default function App() {
-  return <SummerTrainingApp />
+  return (
+    <>
+      <UpdateBanner />
+      <SummerTrainingApp />
+    </>
+  )
 }
