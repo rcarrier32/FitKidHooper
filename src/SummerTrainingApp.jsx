@@ -580,18 +580,24 @@ function SettingsSheet({ settings, setSettings, onClose }) {
           </div>
         </div>
 
-        <div style={{ padding:"0 20px 16px" }}>
-          <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:"#334155",marginBottom:12,textTransform:"uppercase" }}>Data & Backup</div>
-          <div style={{ display:"flex",gap:8,marginBottom:8 }}>
-            <button onClick={exportData} style={{ flex:1,padding:"12px 8px",borderRadius:10,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",color:"#e2e8f0",fontSize:12,fontWeight:600,cursor:"pointer" }}>
-              💾 Backup Data
-            </button>
-            <button onClick={()=>importRef.current?.click()} style={{ flex:1,padding:"12px 8px",borderRadius:10,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",color:"#e2e8f0",fontSize:12,fontWeight:600,cursor:"pointer" }}>
-              📂 Restore Backup
-            </button>
-          </div>
-          <input ref={importRef} type="file" accept=".json" style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0];if(f)importData(f);e.target.value='';}}/>
-          <p style={{ fontSize:11,color:"#475569",textAlign:"center",margin:0 }}>Save a backup before clearing app data or reinstalling</p>
+        <div style={{ padding:"0 20px 20px" }}>
+          <details style={{ borderTop:"1px solid rgba(255,255,255,0.06)",paddingTop:12 }}>
+            <summary style={{ fontSize:11,color:"#334155",cursor:"pointer",userSelect:"none",listStyle:"none",display:"flex",alignItems:"center",gap:6 }}>
+              <span style={{ fontSize:9 }}>▶</span> Advanced — Data &amp; Backup
+            </summary>
+            <div style={{ marginTop:10 }}>
+              <div style={{ display:"flex",gap:8,marginBottom:6 }}>
+                <button onClick={exportData} style={{ flex:1,padding:"9px 8px",borderRadius:8,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",color:"#64748b",fontSize:11,fontWeight:600,cursor:"pointer",minHeight:36 }}>
+                  💾 Backup
+                </button>
+                <button onClick={()=>importRef.current?.click()} style={{ flex:1,padding:"9px 8px",borderRadius:8,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",color:"#64748b",fontSize:11,fontWeight:600,cursor:"pointer",minHeight:36 }}>
+                  📂 Restore
+                </button>
+              </div>
+              <input ref={importRef} type="file" accept=".json" style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0];if(f)importData(f);e.target.value='';}}/>
+              <p style={{ fontSize:10,color:"#334155",margin:0 }}>Save a backup before clearing app data or reinstalling.</p>
+            </div>
+          </details>
         </div>
         <button onClick={onClose} style={{ margin:"0 20px",display:"block",width:"calc(100% - 40px)",padding:"14px",borderRadius:14,border:"none",background:pri(settings),fontSize:15,fontWeight:800,color:"#000",cursor:"pointer" }}>
           Save & Apply ✓
