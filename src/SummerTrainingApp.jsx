@@ -677,20 +677,22 @@ function CourtMap({ priColor, onZoneSelect, lastShot }) {
     {id:"layup",        label:"Layup",   x:113,y:42, r:17},
     {id:"block_bank",   label:"Block",   x:68, y:78, r:14},{id:"block_bank",  label:"Block",  x:157,y:78, r:14},
     {id:"free_throw",   label:"FT",      x:113,y:108,r:15},
-    {id:"mid_bank",     label:"Elbow",   x:64, y:118,r:13},{id:"mid_bank",    label:"Elbow",  x:161,y:118,r:13},
-    {id:"mid",          label:"Wing",    x:44, y:140,r:12},{id:"mid",         label:"Wing",   x:181,y:140,r:12},
-    {id:"three_corner", label:"Corner",  x:18, y:150,r:12},{id:"three_corner",label:"Corner", x:207,y:150,r:12},
-    {id:"three_slot",   label:"Slot",    x:50, y:172,r:12},{id:"three_slot",  label:"Slot",   x:175,y:172,r:12},
-    {id:"three_center", label:"Top 3",   x:113,y:180,r:14},
+    {id:"mid_bank",     label:"Elbow",   x:64, y:122,r:13},{id:"mid_bank",    label:"Elbow",  x:161,y:122,r:13},
+    {id:"mid",          label:"Wing",    x:42, y:148,r:12},{id:"mid",         label:"Wing",   x:184,y:148,r:12},
+    {id:"three_corner", label:"Corner",  x:14, y:68, r:12},{id:"three_corner",label:"Corner", x:212,y:68, r:12},
+    {id:"three_slot",   label:"Slot",    x:48, y:170,r:12},{id:"three_slot",  label:"Slot",   x:178,y:170,r:12},
+    {id:"three_center", label:"Top 3",   x:113,y:182,r:14},
   ];
   return (
     <svg viewBox="0 0 226 200" style={{ width:"100%",maxWidth:310,display:"block",margin:"0 auto" }}>
       <rect x="2" y="2" width="222" height="196" rx="8" fill="#0f1e35" stroke="rgba(255,255,255,0.07)" strokeWidth="1"/>
       <rect x="72" y="2" width="82" height="120" rx="3" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.09)" strokeWidth="1"/>
       <circle cx="113" cy="122" r="28" fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="1"/>
-      <path d="M 18 152 Q 18 28 113 28 Q 207 28 207 152" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="1.2" strokeDasharray="4 3"/>
-      <line x1="18" y1="100" x2="18" y2="152" stroke="rgba(255,255,255,0.08)" strokeWidth="1"/>
-      <line x1="207" y1="100" x2="207" y2="152" stroke="rgba(255,255,255,0.08)" strokeWidth="1"/>
+      {/* 3-point arc — radius 150 centered on basket (113,20), sweeping away from basket */}
+      <path d="M 18 136 A 150 150 0 0 1 207 136" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="1.2" strokeDasharray="4 3"/>
+      {/* Corner 3 straight portions — from baseline down to where arc begins */}
+      <line x1="18" y1="2" x2="18" y2="136" stroke="rgba(255,255,255,0.08)" strokeWidth="1"/>
+      <line x1="207" y1="2" x2="207" y2="136" stroke="rgba(255,255,255,0.08)" strokeWidth="1"/>
       <circle cx="113" cy="20" r="4" fill="none" stroke={priColor} strokeWidth="2"/>
       <circle cx="113" cy="20" r="1.8" fill={priColor}/>
       <line x1="96" y1="16" x2="130" y2="16" stroke={priColor} strokeWidth="2.5" strokeLinecap="round"/>
@@ -706,7 +708,7 @@ function CourtMap({ priColor, onZoneSelect, lastShot }) {
           </g>
         );
       })}
-      <text x="113" y="195" textAnchor="middle" style={{ fontSize:7,fill:"rgba(255,255,255,0.18)",fontFamily:"DM Mono,monospace" }}>TAP ZONE TO LOG A MAKE</text>
+      <text x="113" y="195" textAnchor="middle" style={{ fontSize:7,fill:"rgba(255,255,255,0.18)",fontFamily:"DM Mono,monospace" }}>TAP ZONE TO LOG SHOTS</text>
     </svg>
   );
 }
