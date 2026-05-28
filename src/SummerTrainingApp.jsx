@@ -454,7 +454,35 @@ const PRESETS = [
 function SettingsSheet({ settings, setSettings, onClose }) {
   const [tab, setTab] = useState("primary");
   const fileRef = useRef(null);
+  const importRef = useRef(null);
   const P = pri(settings), S = sec(settings), B = bg(settings);
+
+  const exportData = () => {
+    const keys = ['shot_log_v2','s_done','s_settings','s_strday'];
+    const data = { _exported: new Date().toISOString() };
+    keys.forEach(k => { try { data[k] = JSON.parse(localStorage.getItem(k)||'null'); } catch {} });
+    const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `fitkidhooper-backup-${new Date().toLocaleDateString('en-CA')}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importData = file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const data = JSON.parse(e.target.result);
+        ['shot_log_v2','s_done','s_settings','s_strday'].forEach(k => {
+          if (data[k] != null) localStorage.setItem(k, JSON.stringify(data[k]));
+        });
+        window.location.reload();
+      } catch { alert('Could not restore — invalid backup file'); }
+    };
+    reader.readAsText(file);
+  };
 
   const cur = tab==="primary"   ? { h:settings.primaryHue,   s:settings.primarySat,   l:settings.primaryLight }
             : tab==="secondary" ? { h:settings.secondaryHue, s:settings.secondarySat, l:settings.secondaryLight }
@@ -552,6 +580,19 @@ function SettingsSheet({ settings, setSettings, onClose }) {
           </div>
         </div>
 
+        <div style={{ padding:"0 20px 16px" }}>
+          <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:"#334155",marginBottom:12,textTransform:"uppercase" }}>Data & Backup</div>
+          <div style={{ display:"flex",gap:8,marginBottom:8 }}>
+            <button onClick={exportData} style={{ flex:1,padding:"12px 8px",borderRadius:10,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",color:"#e2e8f0",fontSize:12,fontWeight:600,cursor:"pointer" }}>
+              💾 Backup Data
+            </button>
+            <button onClick={()=>importRef.current?.click()} style={{ flex:1,padding:"12px 8px",borderRadius:10,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",color:"#e2e8f0",fontSize:12,fontWeight:600,cursor:"pointer" }}>
+              📂 Restore Backup
+            </button>
+          </div>
+          <input ref={importRef} type="file" accept=".json" style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0];if(f)importData(f);e.target.value='';}}/>
+          <p style={{ fontSize:11,color:"#475569",textAlign:"center",margin:0 }}>Save a backup before clearing app data or reinstalling</p>
+        </div>
         <button onClick={onClose} style={{ margin:"0 20px",display:"block",width:"calc(100% - 40px)",padding:"14px",borderRadius:14,border:"none",background:pri(settings),fontSize:15,fontWeight:800,color:"#000",cursor:"pointer" }}>
           Save & Apply ✓
         </button>
