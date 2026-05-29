@@ -876,7 +876,7 @@ const W_FINISHING = [
     progressionTrack:"Step 1 — Basket Finishing Foundation",
     desc:"Alternate-side baby hooks under the basket — catch on the right, hook left, catch on the left, hook right without letting the ball touch the ground. The greatest finishing drill ever invented.",
     cues:["Ball comes off the glass directly — no floor bounces","High release point — shoot up and over the rim, not at it","Two-foot gather on each catch — then one-foot finish","Rhythm is everything — find the timing before adding speed"],
-    videoUrl:"" },
+    trainer:"Pro Skills Basketball", videoId:"3ZVV7aN1F-A", videoTitle:"PSB Drills & Skills — Mikan Drill" },
 
   { id:"fin-rev-mikan",   name:"Reverse Mikan",           tag:"Intermediate",    difficulty:"intermediate", ageRange:[10,14], funScore:8,  estimatedDuration:120,
     sets:"3x16 reps (8 each side)", rest:"30 s",
@@ -884,7 +884,7 @@ const W_FINISHING = [
     progressionTrack:"Step 2 — Reverse Side Finishing",
     desc:"Same alternating rhythm as the Mikan drill but finishing on the back-side of the backboard — extends touch range, teaches how to use the glass from unusual angles.",
     cues:["Approach from underneath — step backward through the lane","Release against the near side of the backboard square","Soft touch — high arc, not a power move","Same timing as regular Mikan — just the direction changes"],
-    videoUrl:"" },
+    trainer:"Basketball HQ", videoId:"k5mZE2STy0w", videoTitle:"Reverse Mikan Drill Layups — Basketball Practice" },
 
   { id:"fin-power-layup", name:"Power Layups",            tag:"Foundation",      difficulty:"beginner",     ageRange:[9,14],  funScore:7,  estimatedDuration:90,
     sets:"3x10 each side", rest:"30 s",
@@ -892,7 +892,7 @@ const W_FINISHING = [
     progressionTrack:"Step 1 — Basket Finishing Foundation",
     desc:"Two-foot gather and two-foot jump to finish — the most reliable finish through contact for young players. Used on drives when defenders are in the lane.",
     cues:["Gather on TWO feet — wide base","Jump straight up — do not lean into the defender","Release the ball at the peak — do not rush","Land in the same spot you took off from"],
-    videoUrl:"" },
+    trainer:"Baller Bootcamp", videoId:"treZvJON-xM", videoTitle:"How To Shoot A Power Layup In Basketball" },
 
   { id:"fin-reverse",     name:"Reverse Layups",          tag:"Intermediate",    difficulty:"intermediate", ageRange:[10,14], funScore:8,  estimatedDuration:90,
     sets:"3x10 each side", rest:"30 s",
@@ -900,7 +900,7 @@ const W_FINISHING = [
     progressionTrack:"Step 2 — Reverse Side Finishing",
     desc:"Drive past the block line and use the backboard from the other side — takes away the shot blocker's angle completely. Every youth player needs this in their bag.",
     cues:["Drive PAST the block — do not stop under the rim","Reach the ball out to the far side of the backboard","Soft touch on the glass — high arc","Chin stays up — look at where you are aiming, not at the defender"],
-    videoUrl:"" },
+    trainer:"Baller Bootcamp", videoId:"zkSHyZGWU-s", videoTitle:"How To Reverse Layup 5 Ways — Beginner to Advanced" },
 
   { id:"fin-floater",     name:"Floater Series",          tag:"Advanced",        difficulty:"advanced",     ageRange:[11,14], funScore:9,  estimatedDuration:120,
     sets:"3x8 each hand", rest:"45 s",
@@ -908,7 +908,7 @@ const W_FINISHING = [
     progressionTrack:"Step 4 — Advanced Finishes",
     desc:"One or two dribble pull-up with a high-arc shot that floats over the outstretched arms of a shot-blocking big man. The signature scoring move of every great guard.",
     cues:["Release early — before you reach the defender, not after","Arc is EVERYTHING — this is not a regular layup","One-foot take-off gives you more separation than two","Soft wrist: imagine dropping the ball over a fence"],
-    videoUrl:"" },
+    trainer:"ShotMechanics", videoId:"FtT0iQsl890", videoTitle:"Floater Secrets — 3 Simple Keys to Scoring the Floater" },
 
   { id:"fin-euro",        name:"Euro Step",               tag:"Advanced",        difficulty:"intermediate", ageRange:[10,14], funScore:10, estimatedDuration:120,
     sets:"3x8 each direction", rest:"45 s",
@@ -916,7 +916,7 @@ const W_FINISHING = [
     progressionTrack:"Step 3 — Advanced Footwork Finishes",
     desc:"Gather the ball on one foot stepping one direction, then take the legal second step in the opposite direction — steps completely around the defender's body.",
     cues:["Gather foot steps BIG in one direction to commit the defender","Second step sweeps HARD in the other direction","Ball is protected throughout — under arm, not extended","Finish soft — this is a touch finish, not power"],
-    videoUrl:"" },
+    trainer:"ShotMechanics", videoId:"-7ONK1hiZ2A", videoTitle:"How To Euro Step The Safe Way — ShotMechanics" },
 
   { id:"fin-pro-hop",     name:"Pro Hop Finish",          tag:"Advanced",        difficulty:"advanced",     ageRange:[11,14], funScore:9,  estimatedDuration:120,
     sets:"3x8 each side", rest:"45 s",
@@ -924,7 +924,7 @@ const W_FINISHING = [
     progressionTrack:"Step 4 — Advanced Finishes",
     desc:"Gather on one foot, then jump off that foot to land on two feet before finishing — creates extra space and balance against closing defenders. The most versatile finish.",
     cues:["The hop creates the space — land wide before you finish","Two-foot landing gives you options: shoot, pass, or reset","Stay balanced on the landing — do not drift toward the defender","Practice the footwork without a ball first"],
-    videoUrl:"" },
+    trainer:"ShotMechanics", videoId:"pt4i4fzXcSk", videoTitle:"How to Pro Hop Basketball Moves — ShotMechanics" },
 
   { id:"fin-wrong-foot",  name:"Wrong Foot Layup",        tag:"Elite",           difficulty:"advanced",     ageRange:[11,14], funScore:9,  estimatedDuration:120,
     sets:"3x8 each side", rest:"45 s",
@@ -932,7 +932,7 @@ const W_FINISHING = [
     progressionTrack:"Step 5 — Elite Finishing",
     desc:"Finish off the unexpected foot — right-hand layup from the left foot — completely freezes the shot-blocker whose instincts tell them when to jump based on your footwork.",
     cues:["The whole point is surprise — sell the standard footwork first","Jump off the non-dominant foot on the finish","Ball still goes up with the dominant hand — just the take-off foot changes","Film yourself to confirm you are actually switching feet"],
-    videoUrl:"" },
+    trainer:"GetHandles", videoId:"vIfDkyZf52s", videoTitle:"Why You SHOULD Take Wrong Foot Layups — GetHandles" },
 ];
 
 const W_SHOOTING_DRILLS = [
