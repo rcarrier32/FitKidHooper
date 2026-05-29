@@ -1087,14 +1087,44 @@ function getLevel(xp) {
   return lv;
 }
 
+/* Badge categories used to group the collection display */
+const BADGE_CATS = {
+  progression: { label:"Progression Tracks", emoji:"📈" },
+  streak:      { label:"Streaks",            emoji:"🔥" },
+  shooting:    { label:"Shooting",           emoji:"🏀" },
+  milestone:   { label:"Workout Milestones", emoji:"🏋️" },
+};
+
 const BADGES_DEF = [
-  { id:"shots-100",     name:"100 Shots Club",  emoji:"🏀", desc:"Make 100 shots all-time",          color:"#60a5fa" },
-  { id:"shots-1k",      name:"1K Shooter",      emoji:"🎯", desc:"Make 1,000 shots all-time",        color:"#f43f5e" },
-  { id:"jump-week",     name:"Jump Week",        emoji:"💥", desc:"5 explosion sessions in a week",   color:"#fb923c" },
-  { id:"quick-feet",    name:"Quick Feet",       emoji:"⚡", desc:"5 speed sessions in a week",       color:"#facc15" },
-  { id:"handle-master", name:"Handle Master",    emoji:"🤲", desc:"5 handle sessions in a week",      color:"#a78bfa" },
-  { id:"daily-athlete", name:"Daily Athlete",    emoji:"🏃", desc:"Complete 3+ exercises in one day", color:"#34d399" },
-  { id:"streak-keeper", name:"Streak Keeper",    emoji:"🔥", desc:"Maintain a 7-day streak",          color:"#f97316" },
+  /* ── Progression Tracks ─────────────────────────── */
+  { id:"prog-pogo",     cat:"progression", name:"Pogo Mastery",       emoji:"🦘", desc:"Complete the full Pogo Mastery chain",        color:"#fb923c" },
+  { id:"prog-jump",     cat:"progression", name:"Jump Power",         emoji:"💥", desc:"Complete the full Jump Power chain",           color:"#ef4444" },
+  { id:"prog-landing",  cat:"progression", name:"Landing Control",    emoji:"🛑", desc:"Complete the full Landing Control chain",      color:"#60a5fa" },
+  { id:"prog-sl",       cat:"progression", name:"Single-Leg Strength",emoji:"🦵", desc:"Complete the Single-Leg Strength chain",       color:"#34d399" },
+  { id:"prog-strength", cat:"progression", name:"Strength Foundation",emoji:"💪", desc:"Complete the Strength Foundation chain",       color:"#22c55e" },
+  { id:"prog-footwork", cat:"progression", name:"Footwork Foundation",emoji:"👟", desc:"Complete the Footwork Foundation chain",       color:"#a78bfa" },
+  { id:"prog-agility",  cat:"progression", name:"Agility Speed",      emoji:"⚡", desc:"Complete the Agility Speed chain",             color:"#facc15" },
+  { id:"prog-defense",  cat:"progression", name:"Defensive Movement", emoji:"🛡️", desc:"Complete the Defensive Movement chain",       color:"#e879f9" },
+
+  /* ── Streaks ─────────────────────────────────────── */
+  { id:"streak-3",  cat:"streak", name:"3 Day Streak",  emoji:"🔥", desc:"Train 3 days in a row",  color:"#fb923c" },
+  { id:"streak-7",  cat:"streak", name:"Week Warrior",  emoji:"⚡", desc:"Train 7 days in a row",  color:"#facc15" },
+  { id:"streak-14", cat:"streak", name:"14 Day Streak", emoji:"🌟", desc:"Train 14 days in a row", color:"#a78bfa" },
+  { id:"streak-30", cat:"streak", name:"30 Day Streak", emoji:"👑", desc:"Train 30 days in a row", color:"#f59e0b" },
+
+  /* ── Shooting ─────────────────────────────────────── */
+  { id:"shots-100",  cat:"shooting", name:"100 Makes Club", emoji:"🏀", desc:"Make 100 shots all-time",    color:"#60a5fa" },
+  { id:"shots-1k",   cat:"shooting", name:"1K Shooter",     emoji:"🎯", desc:"Make 1,000 shots all-time",  color:"#f43f5e" },
+  { id:"shots-2500", cat:"shooting", name:"2.5K Shooter",   emoji:"🔮", desc:"Make 2,500 shots all-time",  color:"#8b5cf6" },
+  { id:"shots-5k",   cat:"shooting", name:"5K Shooter",     emoji:"🌠", desc:"Make 5,000 shots all-time",  color:"#06b6d4" },
+  { id:"shots-10k",  cat:"shooting", name:"10K Shooter",    emoji:"🏆", desc:"Make 10,000 shots all-time", color:"#f97316" },
+
+  /* ── Workout Milestones ──────────────────────────── */
+  { id:"workouts-1",   cat:"milestone", name:"First Workout", emoji:"🌱", desc:"Complete your first workout",  color:"#22c55e" },
+  { id:"workouts-10",  cat:"milestone", name:"10 Workouts",   emoji:"⭐", desc:"Complete 10 workout days",     color:"#60a5fa" },
+  { id:"workouts-25",  cat:"milestone", name:"25 Workouts",   emoji:"🌟", desc:"Complete 25 workout days",     color:"#a78bfa" },
+  { id:"workouts-50",  cat:"milestone", name:"50 Workouts",   emoji:"🏆", desc:"Complete 50 workout days",     color:"#f59e0b" },
+  { id:"workouts-100", cat:"milestone", name:"100 Workouts",  emoji:"👑", desc:"Complete 100 workout days",    color:"#f43f5e" },
 ];
 
 function computeXP(completed) {
@@ -1149,39 +1179,66 @@ function computeXP(completed) {
 function getEarnedBadges(completed) {
   const earned = new Set();
 
-  // Shot-based
+  /* ── Progression Track badges ─────────────────────────────── */
+  const chainBadgeMap = {
+    "prog-pogo":     "pogo-mastery",
+    "prog-jump":     "jump-power",
+    "prog-landing":  "landing-control",
+    "prog-sl":       "single-leg",
+    "prog-strength": "strength-found",
+    "prog-footwork": "footwork-found",
+    "prog-agility":  "agility-speed",
+    "prog-defense":  "defensive-movement",
+  };
+  for (const [badgeId, chainId] of Object.entries(chainBadgeMap)) {
+    const chain = PROGRESSION_CHAINS.find(c => c.id === chainId);
+    if (chain) {
+      const { progress, total } = getChainStatus(chain, completed);
+      if (progress === total) earned.add(badgeId);
+    }
+  }
+
+  /* ── Streak badges ─────────────────────────────────────────── */
+  const days = [...new Set(
+    Object.keys(completed).filter(k => completed[k])
+      .map(k => k.split("-").slice(0,3).join("-"))
+  )].sort();
+  let maxStreak = 0, st = 0;
+  for (let i = 0; i < days.length; i++) {
+    if (i === 0) { st = 1; }
+    else {
+      const diff = (new Date(days[i]+"T12:00:00") - new Date(days[i-1]+"T12:00:00")) / 86400000;
+      if (diff <= 1.5) st++; else st = 1;
+    }
+    if (st > maxStreak) maxStreak = st;
+  }
+  if (maxStreak >= 3)  earned.add("streak-3");
+  if (maxStreak >= 7)  earned.add("streak-7");
+  if (maxStreak >= 14) earned.add("streak-14");
+  if (maxStreak >= 30) earned.add("streak-30");
+
+  /* ── Shooting badges ──────────────────────────────────────── */
   try {
     const sl = JSON.parse(localStorage.getItem("shot_log_v2")||"{}");
     const makes = Object.values(sl).flatMap(v=>v).filter(s=>s.made!==false).length;
-    if (makes>=100)  earned.add("shots-100");
-    if (makes>=1000) earned.add("shots-1k");
+    if (makes >= 100)   earned.add("shots-100");
+    if (makes >= 1000)  earned.add("shots-1k");
+    if (makes >= 2500)  earned.add("shots-2500");
+    if (makes >= 5000)  earned.add("shots-5k");
+    if (makes >= 10000) earned.add("shots-10k");
   } catch {}
 
-  // Challenge-based
-  const chalMap = { "jump-week":"jump-5", "quick-feet":"speed-5", "handle-master":"handles-5" };
-  for (const [badgeId, chalId] of Object.entries(chalMap)) {
-    const def = CHALLENGES_DEF.find(d=>d.id===chalId);
-    if (def) { const {cur,target}=getChallengeProgress(def,completed); if(cur>=target) earned.add(badgeId); }
-  }
-
-  // Daily Athlete: 3+ exercises in one day
-  const dayMap = {};
-  for (const [k,v] of Object.entries(completed)) {
-    if (!v) continue;
-    const date=k.split("-").slice(0,3).join("-");
-    dayMap[date]=(dayMap[date]||0)+1;
-  }
-  if (Object.values(dayMap).some(c=>c>=3)) earned.add("daily-athlete");
-
-  // Streak Keeper: 7-day streak at any point
-  const days=[...new Set(Object.keys(completed).filter(k=>completed[k]).map(k=>k.split("-").slice(0,3).join("-")))].sort();
-  let maxSt=0,st=0;
-  for (let i=0;i<days.length;i++) {
-    if(i===0){st=1;}
-    else{const d=(new Date(days[i]+"T12:00:00")-new Date(days[i-1]+"T12:00:00"))/86400000;if(d<=1.5)st++;else st=1;}
-    if(st>maxSt) maxSt=st;
-  }
-  if (maxSt>=7) earned.add("streak-keeper");
+  /* ── Workout Milestone badges ─────────────────────────────── */
+  // A "workout day" = any day with ≥ 1 completed exercise
+  const workoutDays = new Set(
+    Object.keys(completed).filter(k => completed[k])
+      .map(k => k.split("-").slice(0,3).join("-"))
+  ).size;
+  if (workoutDays >= 1)   earned.add("workouts-1");
+  if (workoutDays >= 10)  earned.add("workouts-10");
+  if (workoutDays >= 25)  earned.add("workouts-25");
+  if (workoutDays >= 50)  earned.add("workouts-50");
+  if (workoutDays >= 100) earned.add("workouts-100");
 
   return [...earned];
 }
@@ -2358,10 +2415,18 @@ function BadgeCelebration({ badge, onDismiss }) {
           </div>
         </div>
 
-        <div style={{ fontSize:11,fontFamily:"'DM Mono',monospace",letterSpacing:"0.3em",
-          color:badge.color,textTransform:"uppercase",marginBottom:8,
+        <div style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:4,marginBottom:8,
           animation:"fkh-fade-up 0.4s ease 0.5s both" }}>
-          Badge Unlocked!
+          <div style={{ fontSize:11,fontFamily:"'DM Mono',monospace",letterSpacing:"0.3em",
+            color:badge.color,textTransform:"uppercase" }}>
+            Badge Unlocked!
+          </div>
+          {badge.cat && BADGE_CATS[badge.cat] && (
+            <div style={{ fontSize:9,color:"#64748b",fontFamily:"'DM Mono',monospace",
+              letterSpacing:"0.15em",textTransform:"uppercase" }}>
+              {BADGE_CATS[badge.cat].emoji} {BADGE_CATS[badge.cat].label}
+            </div>
+          )}
         </div>
         <div style={{ fontSize:26,fontWeight:800,color:"#f1f5f9",marginBottom:8,lineHeight:1.2,
           animation:"fkh-fade-up 0.4s ease 0.6s both" }}>
@@ -2628,7 +2693,7 @@ function CalendarView({ completed, P, S, BG, SF, bd, lbl }) {
 }
 
 /* ═══════════════════════ PROFILE VIEW ══════════════════════ */
-function ProfileView({ settings, totalXP, xpData, currentLevel, earnedBadges, completed, P, S, ST, BG, SF, bd, lbl, onOpenSettings }) {
+function ProfileView({ settings, totalXP, xpData, currentLevel, earnedBadges, completed, badgeDates, P, S, ST, BG, SF, bd, lbl, onOpenSettings }) {
   const nextLevel = LEVELS.find(l=>l.rank===currentLevel.rank+1);
   const xpInLevel  = totalXP - currentLevel.xpMin;
   const xpSpan     = nextLevel ? nextLevel.xpMin - currentLevel.xpMin : 500;
@@ -2753,44 +2818,80 @@ function ProfileView({ settings, totalXP, xpData, currentLevel, earnedBadges, co
 
       {/* Badge Collection ───────────────────────────────────── */}
       <div>
-        <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10 }}>
+        <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14 }}>
           <div style={lbl}>Badges</div>
           <div style={{ fontSize:10,color:"#475569",fontFamily:"'DM Mono',monospace" }}>
             {earnedBadges.length}/{BADGES_DEF.length} earned
           </div>
         </div>
-        <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:9 }}>
-          {BADGES_DEF.map(badge=>{
-            const earned = earnedBadges.includes(badge.id);
-            return (
-              <div key={badge.id} style={{
-                display:"flex",alignItems:"center",gap:11,padding:"12px 13px",borderRadius:13,
-                background:earned?`${badge.color}0f`:"rgba(255,255,255,0.03)",
-                border:`1px solid ${earned?badge.color+"30":"rgba(255,255,255,0.06)"}`,
-                transition:"all 0.3s",
-                opacity:earned?1:0.45,
-              }}>
-                <div style={{ width:40,height:40,borderRadius:12,flexShrink:0,
-                  background:earned?`${badge.color}18`:"rgba(255,255,255,0.05)",
-                  border:`1.5px solid ${earned?badge.color+"40":"rgba(255,255,255,0.07)"}`,
-                  display:"flex",alignItems:"center",justifyContent:"center",
-                  fontSize:20,
-                  boxShadow:earned?`0 0 12px ${badge.color}30`:"none" }}>
-                  {earned?badge.emoji:"🔒"}
-                </div>
-                <div style={{ flex:1,minWidth:0 }}>
-                  <div style={{ fontSize:12,fontWeight:700,
-                    color:earned?badge.color:"#475569",lineHeight:1.2,marginBottom:2 }}>
-                    {badge.name}
-                  </div>
-                  <div style={{ fontSize:10,color:earned?"#64748b":"#334155",lineHeight:1.35 }}>
-                    {badge.desc}
-                  </div>
-                </div>
+
+        {Object.entries(BADGE_CATS).map(([catKey, catMeta])=>{
+          const catBadges = BADGES_DEF.filter(b=>b.cat===catKey);
+          const catEarned = catBadges.filter(b=>earnedBadges.includes(b.id)).length;
+          return (
+            <div key={catKey} style={{ marginBottom:20 }}>
+              {/* Category header */}
+              <div style={{ display:"flex",alignItems:"center",gap:6,marginBottom:9 }}>
+                <span style={{ fontSize:13 }}>{catMeta.emoji}</span>
+                <span style={{ fontSize:10,fontWeight:700,color:"#64748b",
+                  textTransform:"uppercase",letterSpacing:"0.1em",fontFamily:"'DM Mono',monospace" }}>
+                  {catMeta.label}
+                </span>
+                <span style={{ marginLeft:"auto",fontSize:9,color:"#334155",
+                  fontFamily:"'DM Mono',monospace" }}>
+                  {catEarned}/{catBadges.length}
+                </span>
               </div>
-            );
-          })}
-        </div>
+
+              {/* Badge grid for this category */}
+              <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:8 }}>
+                {catBadges.map(badge=>{
+                  const earned    = earnedBadges.includes(badge.id);
+                  const earnDate  = badgeDates?.[badge.id];
+                  const fmtDate   = earnDate
+                    ? new Date(earnDate+"T12:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})
+                    : null;
+                  return (
+                    <div key={badge.id} style={{
+                      display:"flex",alignItems:"flex-start",gap:10,
+                      padding:"12px 12px",borderRadius:13,
+                      background:earned?`${badge.color}0e`:"rgba(255,255,255,0.025)",
+                      border:`1px solid ${earned?badge.color+"28":"rgba(255,255,255,0.05)"}`,
+                      opacity:earned?1:0.4,
+                      transition:"all 0.3s",
+                    }}>
+                      {/* Icon */}
+                      <div style={{ width:38,height:38,borderRadius:11,flexShrink:0,
+                        background:earned?`${badge.color}16`:"rgba(255,255,255,0.04)",
+                        border:`1.5px solid ${earned?badge.color+"38":"rgba(255,255,255,0.06)"}`,
+                        display:"flex",alignItems:"center",justifyContent:"center",
+                        fontSize:19,
+                        boxShadow:earned?`0 0 14px ${badge.color}28`:"none" }}>
+                        {earned ? badge.emoji : "🔒"}
+                      </div>
+                      {/* Text */}
+                      <div style={{ flex:1,minWidth:0 }}>
+                        <div style={{ fontSize:11,fontWeight:700,lineHeight:1.25,
+                          color:earned?badge.color:"#334155",marginBottom:2 }}>
+                          {badge.name}
+                        </div>
+                        <div style={{ fontSize:9,color:earned?"#475569":"#1e293b",lineHeight:1.4 }}>
+                          {badge.desc}
+                        </div>
+                        {earned && fmtDate && (
+                          <div style={{ fontSize:8,color:"#334155",marginTop:3,
+                            fontFamily:"'DM Mono',monospace" }}>
+                            {fmtDate}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* Progression Tracks ─────────────────────────────── */}
@@ -3291,6 +3392,10 @@ export default function SummerTrainingApp() {
     try{return new Set(JSON.parse(localStorage.getItem("fkh-celebrated-badges")||"[]"));}catch{return new Set();}
   });
   const [celebrationQueue, setCelebrationQueue] = useState([]);
+  const [badgeDates, setBadgeDates] = useState(()=>{
+    try{return JSON.parse(localStorage.getItem("fkh-badge-dates")||"{}");}catch{return {};}
+  });
+  const [lastEarnedBadge, setLastEarnedBadge] = useState(null);
   const [completed, setCompleted] = useState(()=>{ try{return JSON.parse(localStorage.getItem("s_done")||"{}")}catch{return{}} });
   const [strDay, setStrDay] = useState(()=>localStorage.getItem('s_strday')||'Day 1');
   const [onboardName, setOnboardName] = useState('');
@@ -3372,15 +3477,24 @@ export default function SummerTrainingApp() {
   const currentLevel = useMemo(()=>getLevel(xpData.total),[xpData.total]);
   const earnedBadges = useMemo(()=>getEarnedBadges(completed),[completed]);
 
-  // Detect newly unlocked badges → queue celebration
+  // Detect newly unlocked badges → queue celebration + record dates
   useEffect(()=>{
     const newBadges = earnedBadges.filter(id=>!celebratedBadges.has(id));
     if (newBadges.length===0) return;
     const defs = newBadges.map(id=>BADGES_DEF.find(b=>b.id===id)).filter(Boolean);
     setCelebrationQueue(q=>[...q,...defs]);
+    if (defs.length>0) setLastEarnedBadge(defs[defs.length-1]);
     const updated = new Set([...celebratedBadges,...newBadges]);
     setCelebratedBadges(updated);
     try { localStorage.setItem("fkh-celebrated-badges",JSON.stringify([...updated])); } catch {}
+    // Record earn date for each new badge (first-time only)
+    const today = new Date().toLocaleDateString("en-CA");
+    setBadgeDates(prev=>{
+      const next={...prev};
+      for (const id of newBadges) { if (!next[id]) next[id]=today; }
+      try{ localStorage.setItem("fkh-badge-dates",JSON.stringify(next)); }catch{}
+      return next;
+    });
   },[earnedBadges]);
 
   const catColor = key => key==="strength" ? ST : key==="speed"||key==="balance" ? P : S;
@@ -3437,6 +3551,7 @@ export default function SummerTrainingApp() {
       <ProfileView
         settings={settings} totalXP={xpData.total} xpData={xpData}
         currentLevel={currentLevel} earnedBadges={earnedBadges} completed={completed}
+        badgeDates={badgeDates}
         P={P} S={S} ST={ST} BG={BG} SF={SF} bd={bd} lbl={lbl}
         onOpenSettings={()=>setShowSettings(true)}/>
       {renderBottomNav()}
@@ -3573,6 +3688,43 @@ export default function SummerTrainingApp() {
             )}
           </div>
           <button onClick={dismissInstall} style={{ background:"none",border:"none",color:"#475569",fontSize:16,cursor:"pointer",padding:0,lineHeight:1,flexShrink:0 }}>✕</button>
+        </div>
+      )}
+
+      {/* Badge Earned Notification Banner (home screen) */}
+      {lastEarnedBadge && view==="home" && (
+        <div style={{ margin:"10px 20px 0",padding:"12px 14px",borderRadius:14,
+          background:`${lastEarnedBadge.color}12`,
+          border:`1px solid ${lastEarnedBadge.color}35`,
+          display:"flex",alignItems:"center",gap:12,
+          animation:"fkh-fade-up 0.35s ease both" }}>
+          <div style={{ width:38,height:38,borderRadius:12,flexShrink:0,
+            background:`${lastEarnedBadge.color}20`,
+            border:`1.5px solid ${lastEarnedBadge.color}50`,
+            display:"flex",alignItems:"center",justifyContent:"center",
+            fontSize:20,animation:"fkh-bounce 0.6s ease-out 0.1s both" }}>
+            {lastEarnedBadge.emoji}
+          </div>
+          <div style={{ flex:1,minWidth:0 }}>
+            <div style={{ fontSize:11,fontWeight:800,color:lastEarnedBadge.color,
+              textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:2 }}>
+              Badge Unlocked!
+            </div>
+            <div style={{ fontSize:13,fontWeight:700,color:"#f1f5f9",lineHeight:1.2 }}>
+              {lastEarnedBadge.name}
+            </div>
+          </div>
+          <button onClick={()=>{ setView("profile"); setLastEarnedBadge(null); }}
+            style={{ background:lastEarnedBadge.color,border:"none",color:"#000",fontSize:10,
+              fontWeight:800,cursor:"pointer",borderRadius:20,padding:"5px 12px",
+              whiteSpace:"nowrap",flexShrink:0 }}>
+            View →
+          </button>
+          <button onClick={()=>setLastEarnedBadge(null)}
+            style={{ background:"none",border:"none",color:"#475569",fontSize:16,
+              cursor:"pointer",padding:0,lineHeight:1,flexShrink:0 }}>
+            ✕
+          </button>
         </div>
       )}
 
