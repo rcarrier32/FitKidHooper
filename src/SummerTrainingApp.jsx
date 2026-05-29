@@ -1368,6 +1368,44 @@ const AGE_RULES = {
 };
 
 /* ═══════════════════════════════════════════════════════════════
+   POSITION PROFILES
+   Guard / Wing / Post — each defines score boosts + spotlight IDs
+═══════════════════════════════════════════════════════════════ */
+const POSITION_PROFILES = {
+  guard: {
+    label:"Guard", emoji:"🏃",
+    desc:"Handle pressure, attack off the dribble, and hit shots off movement.",
+    boostCats:["ballhandling","shootingdrills","footwork","speed"],
+    boostTags:["ball-handling","attacking","change-of-direction","shot-creation","handles",
+               "quickness","footwork","change-of-pace","pressure-handling","off-dribble"],
+    spotlight:["bh-attack-cross","sh-jab-reset","fw-jab-series","sh-beat-pro","bh-combo"],
+  },
+  wing: {
+    label:"Wing", emoji:"🏀",
+    desc:"Score in transition, finish at the rim, and knock down catch-and-shoot looks.",
+    boostCats:["finishing","footwork","shootingdrills","explosion"],
+    boostTags:["finishing","cutting","layups","shot-creation","explosion","jumping",
+               "catch-and-shoot","euro","avoiding-contact","balance","anti-block"],
+    spotlight:["fin-euro","fin-floater","fw-rip-through","sh-spot","fin-pro-hop"],
+  },
+  post: {
+    label:"Post", emoji:"💪",
+    desc:"Get deep position, use your body, and finish over defenders at the rim.",
+    boostCats:["postmoves","finishing","footwork","strength"],
+    boostTags:["post-footwork","post-position","finishing","power-move","sealing","strength",
+               "rebounding","contact-finishing","post-shooting","touch","shot-fake"],
+    spotlight:["pm-drop-step","pm-hook","pm-up-under","fin-power-layup","pm-spin"],
+  },
+  any: {
+    label:"All-Around", emoji:"⭐",
+    desc:"Balanced training across all skills.",
+    boostCats:[],
+    boostTags:[],
+    spotlight:[],
+  },
+};
+
+/* ═══════════════════════════════════════════════════════════════
    WORKOUT TEMPLATES + GENERATOR
 ═══════════════════════════════════════════════════════════════ */
 const WORKOUT_TEMPLATES = {
@@ -1389,6 +1427,9 @@ function generateWorkout(settings, templateKey, recentIds=[]) {
   const dRank  = {beginner:0,intermediate:1,advanced:2};
   const pRank  = dRank[settings.experience||"beginner"]??0;
   const goals  = settings.goals||[];
+  const posProfile = POSITION_PROFILES[settings.playStyle||"any"] || POSITION_PROFILES.any;
+  const posCats = new Set(posProfile.boostCats);
+  const posTags = new Set(posProfile.boostTags);
 
   // Build pool from template categories, enrich with metadata
   const pool = tmpl.cats.flatMap(cat =>
@@ -1402,11 +1443,13 @@ function generateWorkout(settings, templateKey, recentIds=[]) {
     return (dRank[m.difficulty]??0) <= pRank + 1;
   });
 
-  // Score: funScore + goal match + anti-repeat + randomness
+  // Score: funScore + goal match + position fit + anti-repeat + randomness
   const scored = eligible.map(ex => {
     const m = ex.meta;
     let s = m.funScore || 5;
     if (goals.some(g => (m.basketballTransfer||[]).includes(g))) s += 2;
+    if (posCats.has(ex._cat)) s += 2.5;                                          // position cat boost
+    if ((m.basketballTransfer||[]).some(t => posTags.has(t))) s += 1.5;          // position tag boost
     if (age <= 11) s += (m.funScore||5) * 0.15; // weight fun more for young athletes
     if (recentIds.includes(ex.id)) s -= 4;
     s += Math.random() * 1.8;
@@ -5032,6 +5075,60 @@ export default function SummerTrainingApp() {
                     transition:"all 0.2s" }}>
                   {isAlreadySelected ? "✓ Already loaded" : "Load for Today →"}
                 </button>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* ── Position Spotlight ────────────────────────────────── */}
+        {(()=>{
+          const pos = settings.playStyle || "any";
+          const prof = POSITION_PROFILES[pos];
+          if (!prof || pos === "any" || !prof.spotlight.length) return null;
+          const ALL = Object.fromEntries(
+            Object.entries(WORKOUTS).flatMap(([cat,exs])=>
+              exs.map(ex=>[ex.id,{...ex,_cat:cat,meta:EXERCISE_META[ex.id]||{}}])
+            )
+          );
+          const spotExs = prof.spotlight.map(id=>ALL[id]).filter(Boolean).slice(0,3);
+          if (!spotExs.length) return null;
+          const posColor = pos==="guard"?"#3b82f6":pos==="wing"?"#a855f7":"#f97316";
+          return (
+            <div style={{ padding:"0 20px 16px" }}>
+              <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8 }}>
+                <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",
+                  color:`${posColor}99`,textTransform:"uppercase" }}>
+                  {prof.emoji} {prof.label} Spotlight
+                </div>
+                <button onClick={()=>setShowSettings(true)}
+                  style={{ background:"none",border:"none",fontSize:10,color:"#334155",cursor:"pointer",padding:0 }}>
+                  change position
+                </button>
+              </div>
+              <div style={{ fontSize:11,color:"#475569",marginBottom:10,lineHeight:1.5 }}>{prof.desc}</div>
+              <div style={{ display:"flex",gap:8,overflowX:"auto",scrollbarWidth:"none",WebkitOverflowScrolling:"touch" }}>
+                {spotExs.map(ex=>{
+                  const c = catColor(ex._cat);
+                  const done2 = isDone(ex.id);
+                  return (
+                    <button key={ex.id} onClick={()=>setActiveExercise(ex)}
+                      style={{ flexShrink:0,width:148,textAlign:"left",padding:"12px",borderRadius:14,cursor:"pointer",
+                        background:done2?`${c}18`:`${posColor}0b`,
+                        border:`1.5px solid ${done2?c:posColor}30`,
+                        position:"relative",overflow:"hidden" }}>
+                      {done2&&<div style={{ position:"absolute",top:6,right:8,fontSize:10,color:c,fontWeight:800 }}>✓</div>}
+                      <div style={{ fontSize:10,color:`${posColor}99`,marginBottom:4,fontWeight:600,
+                        textTransform:"uppercase",letterSpacing:"0.07em" }}>{ex.tag}</div>
+                      <div style={{ fontSize:12,fontWeight:800,color:done2?c:posColor,lineHeight:1.25,marginBottom:5 }}>
+                        {ex.name}
+                      </div>
+                      <div style={{ fontSize:10,color:"#475569",lineHeight:1.4,
+                        display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden" }}>
+                        {ex.desc}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           );
