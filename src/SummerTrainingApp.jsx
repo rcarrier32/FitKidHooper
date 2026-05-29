@@ -3168,7 +3168,163 @@ function HistoryView({ completed, badgeDates, settings, P, S, ST, BG, SF, bd, lb
 }
 
 /* ═══════════════════════ PROFILE VIEW ══════════════════════ */
-function ProfileView({ settings, totalXP, xpData, currentLevel, earnedBadges, completed, badgeDates, P, S, ST, BG, SF, bd, lbl, onOpenSettings, onViewHistory }) {
+/* ═══════════════════════ BADGES VIEW ══════════════════════ */
+function BadgesView({ earnedBadges, badgeDates, completed, P, S, BG, SF, bd, lbl }) {
+  const chainsComplete = PROGRESSION_CHAINS.filter(c => {
+    const { progress, total } = getChainStatus(c, completed);
+    return progress === total;
+  }).length;
+
+  return (
+    <div style={{ padding:"0 20px 100px" }}>
+
+      {/* Summary hero */}
+      <div style={{ display:"flex",gap:10,marginBottom:22,marginTop:4 }}>
+        <div style={{ flex:1,textAlign:"center",background:`${P}0d`,border:`1px solid ${P}20`,borderRadius:14,padding:"16px 8px" }}>
+          <div style={{ fontFamily:"'DM Mono',monospace",fontSize:32,fontWeight:800,color:P,lineHeight:1 }}>
+            {earnedBadges.length}
+          </div>
+          <div style={{ fontSize:10,color:"#475569",marginTop:4 }}>of {BADGES_DEF.length} badges</div>
+        </div>
+        <div style={{ flex:1,textAlign:"center",background:`${S}0d`,border:`1px solid ${S}20`,borderRadius:14,padding:"16px 8px" }}>
+          <div style={{ fontFamily:"'DM Mono',monospace",fontSize:32,fontWeight:800,color:S,lineHeight:1 }}>
+            {chainsComplete}
+          </div>
+          <div style={{ fontSize:10,color:"#475569",marginTop:4 }}>of {PROGRESSION_CHAINS.length} tracks</div>
+        </div>
+      </div>
+
+      {/* Badge Collection ───────────────────────────────────── */}
+      <div style={{ marginBottom:24 }}>
+        <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14 }}>
+          <div style={lbl}>Badges</div>
+          <div style={{ fontSize:10,color:"#475569",fontFamily:"'DM Mono',monospace" }}>
+            {earnedBadges.length}/{BADGES_DEF.length} earned
+          </div>
+        </div>
+
+        {Object.entries(BADGE_CATS).map(([catKey, catMeta])=>{
+          const catBadges = BADGES_DEF.filter(b=>b.cat===catKey);
+          const catEarned = catBadges.filter(b=>earnedBadges.includes(b.id)).length;
+          return (
+            <div key={catKey} style={{ marginBottom:20 }}>
+              <div style={{ display:"flex",alignItems:"center",gap:6,marginBottom:9 }}>
+                <span style={{ fontSize:13 }}>{catMeta.emoji}</span>
+                <span style={{ fontSize:10,fontWeight:700,color:"#64748b",
+                  textTransform:"uppercase",letterSpacing:"0.1em",fontFamily:"'DM Mono',monospace" }}>
+                  {catMeta.label}
+                </span>
+                <span style={{ marginLeft:"auto",fontSize:9,color:"#334155",
+                  fontFamily:"'DM Mono',monospace" }}>
+                  {catEarned}/{catBadges.length}
+                </span>
+              </div>
+              <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:8 }}>
+                {catBadges.map(badge=>{
+                  const earned   = earnedBadges.includes(badge.id);
+                  const earnDate = badgeDates?.[badge.id];
+                  const fmtDate  = earnDate
+                    ? new Date(earnDate+"T12:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})
+                    : null;
+                  return (
+                    <div key={badge.id} style={{
+                      display:"flex",alignItems:"flex-start",gap:10,padding:"12px 12px",borderRadius:13,
+                      background:earned?`${badge.color}0e`:"rgba(255,255,255,0.025)",
+                      border:`1px solid ${earned?badge.color+"28":"rgba(255,255,255,0.05)"}`,
+                      opacity:earned?1:0.4,transition:"all 0.3s",
+                    }}>
+                      <div style={{ width:38,height:38,borderRadius:11,flexShrink:0,
+                        background:earned?`${badge.color}16`:"rgba(255,255,255,0.04)",
+                        border:`1.5px solid ${earned?badge.color+"38":"rgba(255,255,255,0.06)"}`,
+                        display:"flex",alignItems:"center",justifyContent:"center",
+                        fontSize:19,boxShadow:earned?`0 0 14px ${badge.color}28`:"none" }}>
+                        {earned ? badge.emoji : "🔒"}
+                      </div>
+                      <div style={{ flex:1,minWidth:0 }}>
+                        <div style={{ fontSize:11,fontWeight:700,lineHeight:1.25,
+                          color:earned?badge.color:"#334155",marginBottom:2 }}>
+                          {badge.name}
+                        </div>
+                        <div style={{ fontSize:9,color:earned?"#475569":"#1e293b",lineHeight:1.4 }}>
+                          {badge.desc}
+                        </div>
+                        {earned && fmtDate && (
+                          <div style={{ fontSize:8,color:"#334155",marginTop:3,
+                            fontFamily:"'DM Mono',monospace" }}>
+                            {fmtDate}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Progression Tracks ─────────────────────────────── */}
+      <div>
+        <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10 }}>
+          <div style={lbl}>Progression Tracks</div>
+          <div style={{ fontSize:10,color:"#475569",fontFamily:"'DM Mono',monospace" }}>
+            {chainsComplete}/{PROGRESSION_CHAINS.length} complete
+          </div>
+        </div>
+        <div style={{ display:"flex",flexDirection:"column",gap:9 }}>
+          {PROGRESSION_CHAINS.map(chain=>{
+            const { steps, progress, total } = getChainStatus(chain, completed);
+            const catC = CAT_DOT_COLORS[chain.cat] || P;
+            const done = progress === total;
+            const activeStep = steps.find(s => s.unlocked && !s.mastered);
+            return (
+              <div key={chain.id} style={{
+                borderRadius:13,padding:"13px 14px",
+                background:done?`${catC}0c`:"rgba(255,255,255,0.03)",
+                border:`1px solid ${done?catC+"30":"rgba(255,255,255,0.06)"}`,
+              }}>
+                <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:8 }}>
+                  <span style={{ fontSize:20,lineHeight:1 }}>{chain.emoji}</span>
+                  <div style={{ flex:1,minWidth:0 }}>
+                    <div style={{ fontSize:13,fontWeight:700,
+                      color:done?catC:"#e2e8f0",lineHeight:1.2,marginBottom:1 }}>
+                      {chain.name}
+                    </div>
+                    <div style={{ fontSize:10,color:"#475569" }}>{progress}/{total} mastered</div>
+                  </div>
+                  {done
+                    ? <span style={{ fontSize:11,color:"#22c55e",fontWeight:800 }}>✓ Done</span>
+                    : progress > 0
+                      ? <span style={{ fontSize:10,color:catC,fontFamily:"'DM Mono',monospace",
+                          background:`${catC}12`,padding:"2px 8px",borderRadius:20 }}>In Progress</span>
+                      : null}
+                </div>
+                <div style={{ display:"flex",gap:4,marginBottom:activeStep?8:0 }}>
+                  {steps.map(step=>(
+                    <div key={step.exId} style={{ flex:1,height:4,borderRadius:99,
+                      background:step.mastered?catC:step.unlocked?"rgba(255,255,255,0.12)":"rgba(255,255,255,0.04)",
+                      transition:"background 0.3s" }}/>
+                  ))}
+                </div>
+                {activeStep && (
+                  <div style={{ fontSize:10,color:"#64748b",fontFamily:"'DM Mono',monospace",lineHeight:1.4 }}>
+                    {activeStep.count > 0
+                      ? `${activeStep.ex?.name||activeStep.exId} — ${activeStep.count}/${activeStep.unlocksAt} sessions`
+                      : `Next: ${activeStep.ex?.name||activeStep.exId}`}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+    </div>
+  );
+}
+
+function ProfileView({ settings, totalXP, xpData, currentLevel, earnedBadges, completed, badgeDates, P, S, ST, BG, SF, bd, lbl, onOpenSettings, onViewHistory, onViewBadges }) {
   const nextLevel = LEVELS.find(l=>l.rank===currentLevel.rank+1);
   const xpInLevel  = totalXP - currentLevel.xpMin;
   const xpSpan     = nextLevel ? nextLevel.xpMin - currentLevel.xpMin : 500;
@@ -3291,155 +3447,35 @@ function ProfileView({ settings, totalXP, xpData, currentLevel, earnedBadges, co
         </div>
       )}
 
-      {/* Badge Collection ───────────────────────────────────── */}
-      <div>
-        <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14 }}>
-          <div style={lbl}>Badges</div>
-          <div style={{ fontSize:10,color:"#475569",fontFamily:"'DM Mono',monospace" }}>
-            {earnedBadges.length}/{BADGES_DEF.length} earned
-          </div>
+      {/* Badges & Progression teaser ──────────────────────── */}
+      <button onClick={onViewBadges}
+        style={{ width:"100%",borderRadius:14,padding:"14px 16px",
+          background:`${P}08`,border:`1px solid ${P}1c`,cursor:"pointer",
+          textAlign:"left",marginBottom:4 }}>
+        <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12 }}>
+          <span style={{ fontSize:13,fontWeight:700,color:P }}>🏅 Badges & Progression</span>
+          <span style={{ fontSize:13,color:"#475569" }}>→</span>
         </div>
-
-        {Object.entries(BADGE_CATS).map(([catKey, catMeta])=>{
-          const catBadges = BADGES_DEF.filter(b=>b.cat===catKey);
-          const catEarned = catBadges.filter(b=>earnedBadges.includes(b.id)).length;
-          return (
-            <div key={catKey} style={{ marginBottom:20 }}>
-              {/* Category header */}
-              <div style={{ display:"flex",alignItems:"center",gap:6,marginBottom:9 }}>
-                <span style={{ fontSize:13 }}>{catMeta.emoji}</span>
-                <span style={{ fontSize:10,fontWeight:700,color:"#64748b",
-                  textTransform:"uppercase",letterSpacing:"0.1em",fontFamily:"'DM Mono',monospace" }}>
-                  {catMeta.label}
-                </span>
-                <span style={{ marginLeft:"auto",fontSize:9,color:"#334155",
-                  fontFamily:"'DM Mono',monospace" }}>
-                  {catEarned}/{catBadges.length}
-                </span>
-              </div>
-
-              {/* Badge grid for this category */}
-              <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:8 }}>
-                {catBadges.map(badge=>{
-                  const earned    = earnedBadges.includes(badge.id);
-                  const earnDate  = badgeDates?.[badge.id];
-                  const fmtDate   = earnDate
-                    ? new Date(earnDate+"T12:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})
-                    : null;
-                  return (
-                    <div key={badge.id} style={{
-                      display:"flex",alignItems:"flex-start",gap:10,
-                      padding:"12px 12px",borderRadius:13,
-                      background:earned?`${badge.color}0e`:"rgba(255,255,255,0.025)",
-                      border:`1px solid ${earned?badge.color+"28":"rgba(255,255,255,0.05)"}`,
-                      opacity:earned?1:0.4,
-                      transition:"all 0.3s",
-                    }}>
-                      {/* Icon */}
-                      <div style={{ width:38,height:38,borderRadius:11,flexShrink:0,
-                        background:earned?`${badge.color}16`:"rgba(255,255,255,0.04)",
-                        border:`1.5px solid ${earned?badge.color+"38":"rgba(255,255,255,0.06)"}`,
-                        display:"flex",alignItems:"center",justifyContent:"center",
-                        fontSize:19,
-                        boxShadow:earned?`0 0 14px ${badge.color}28`:"none" }}>
-                        {earned ? badge.emoji : "🔒"}
-                      </div>
-                      {/* Text */}
-                      <div style={{ flex:1,minWidth:0 }}>
-                        <div style={{ fontSize:11,fontWeight:700,lineHeight:1.25,
-                          color:earned?badge.color:"#334155",marginBottom:2 }}>
-                          {badge.name}
-                        </div>
-                        <div style={{ fontSize:9,color:earned?"#475569":"#1e293b",lineHeight:1.4 }}>
-                          {badge.desc}
-                        </div>
-                        {earned && fmtDate && (
-                          <div style={{ fontSize:8,color:"#334155",marginTop:3,
-                            fontFamily:"'DM Mono',monospace" }}>
-                            {fmtDate}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+        <div style={{ display:"flex",gap:10 }}>
+          {/* Badges count */}
+          <div style={{ flex:1,background:`${P}12`,borderRadius:10,padding:"10px 0",textAlign:"center" }}>
+            <div style={{ fontFamily:"'DM Mono',monospace",fontSize:24,fontWeight:800,color:P,lineHeight:1 }}>
+              {earnedBadges.length}
             </div>
-          );
-        })}
-      </div>
-
-      {/* Progression Tracks ─────────────────────────────── */}
-      <div style={{ marginTop:22 }}>
-        <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10 }}>
-          <div style={lbl}>Progression Tracks</div>
-          <div style={{ fontSize:10,color:"#475569",fontFamily:"'DM Mono',monospace" }}>
-            {PROGRESSION_CHAINS.filter(c=>{
-              const { progress, total } = getChainStatus(c, completed);
-              return progress === total;
-            }).length}/{PROGRESSION_CHAINS.length} complete
+            <div style={{ fontSize:9,color:"#475569",marginTop:3 }}>of {BADGES_DEF.length} badges</div>
+          </div>
+          {/* Tracks count */}
+          <div style={{ flex:1,background:`${P}12`,borderRadius:10,padding:"10px 0",textAlign:"center" }}>
+            <div style={{ fontFamily:"'DM Mono',monospace",fontSize:24,fontWeight:800,color:P,lineHeight:1 }}>
+              {PROGRESSION_CHAINS.filter(c=>{
+                const { progress, total } = getChainStatus(c, completed);
+                return progress===total;
+              }).length}
+            </div>
+            <div style={{ fontSize:9,color:"#475569",marginTop:3 }}>of {PROGRESSION_CHAINS.length} tracks</div>
           </div>
         </div>
-        <div style={{ display:"flex",flexDirection:"column",gap:9 }}>
-          {PROGRESSION_CHAINS.map(chain=>{
-            const { steps, progress, total } = getChainStatus(chain, completed);
-            const catC = CAT_DOT_COLORS[chain.cat] || P;
-            const done = progress === total;
-            // Find the current "active" step (first unlocked + not mastered)
-            const activeStep = steps.find(s => s.unlocked && !s.mastered);
-            return (
-              <div key={chain.id} style={{
-                borderRadius:13,padding:"13px 14px",
-                background:done?`${catC}0c`:"rgba(255,255,255,0.03)",
-                border:`1px solid ${done?catC+"30":"rgba(255,255,255,0.06)"}`,
-              }}>
-                {/* Header row */}
-                <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:8 }}>
-                  <span style={{ fontSize:20,lineHeight:1 }}>{chain.emoji}</span>
-                  <div style={{ flex:1,minWidth:0 }}>
-                    <div style={{ fontSize:13,fontWeight:700,
-                      color:done?catC:"#e2e8f0",lineHeight:1.2,marginBottom:1 }}>
-                      {chain.name}
-                    </div>
-                    <div style={{ fontSize:10,color:"#475569" }}>
-                      {progress}/{total} mastered
-                    </div>
-                  </div>
-                  {done
-                    ? <span style={{ fontSize:11,color:"#22c55e",fontWeight:800 }}>✓ Done</span>
-                    : progress > 0
-                      ? <span style={{ fontSize:10,color:catC,fontFamily:"'DM Mono',monospace",
-                          background:`${catC}12`,padding:"2px 8px",borderRadius:20 }}>
-                          In Progress
-                        </span>
-                      : null
-                  }
-                </div>
-
-                {/* Step progress bar */}
-                <div style={{ display:"flex",gap:4,marginBottom:activeStep?8:0 }}>
-                  {steps.map((step)=>(
-                    <div key={step.exId} style={{ flex:1,height:4,borderRadius:99,
-                      background:step.mastered?catC:step.unlocked?"rgba(255,255,255,0.12)":"rgba(255,255,255,0.04)",
-                      transition:"background 0.3s" }}/>
-                  ))}
-                </div>
-
-                {/* Next action hint */}
-                {activeStep && (
-                  <div style={{ fontSize:10,color:"#64748b",
-                    fontFamily:"'DM Mono',monospace",lineHeight:1.4 }}>
-                    {activeStep.count > 0
-                      ? `${activeStep.ex?.name||activeStep.exId} — ${activeStep.count}/${activeStep.unlocksAt} sessions`
-                      : `Next: ${activeStep.ex?.name||activeStep.exId}`
-                    }
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      </button>
 
       {/* Settings link */}
       <div style={{ marginTop:24,textAlign:"center" }}>
@@ -3987,6 +4023,7 @@ export default function SummerTrainingApp() {
     {id:"home",    emoji:"🏠",label:"Home"},
     {id:"shots",   emoji:"🏀",label:"Shots"},
     {id:"schedule",emoji:"📅",label:"Calendar"},
+    {id:"badges",  emoji:"🏅",label:"Badges"},
     {id:"profile", emoji:"👤",label:"Profile"},
   ];
 
@@ -4009,6 +4046,24 @@ export default function SummerTrainingApp() {
       {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]}
         onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
       <ShotTracker P={P} S={S} BG={BG} athleteName={settings.athleteName}/>
+      {renderBottomNav()}
+    </div>
+  );
+
+  /* BADGES */
+  if (view==="badges") return (
+    <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"#e2e8f0",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
+      {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]}
+        onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
+      <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 20px",borderBottom:`1px solid ${P}14`,position:"sticky",top:0,background:BG,backdropFilter:"blur(10px)",zIndex:10 }}>
+        <h1 style={{ fontSize:16,fontWeight:800,margin:0,color:P }}>🏅 Badges</h1>
+        <div style={{ fontSize:10,color:"#475569",fontFamily:"'DM Mono',monospace" }}>
+          {earnedBadges.length}/{BADGES_DEF.length} earned
+        </div>
+      </div>
+      <BadgesView
+        earnedBadges={earnedBadges} badgeDates={badgeDates} completed={completed}
+        P={P} S={S} BG={BG} SF={SF} bd={bd} lbl={lbl}/>
       {renderBottomNav()}
     </div>
   );
@@ -4042,7 +4097,8 @@ export default function SummerTrainingApp() {
         badgeDates={badgeDates}
         P={P} S={S} ST={ST} BG={BG} SF={SF} bd={bd} lbl={lbl}
         onOpenSettings={()=>setShowSettings(true)}
-        onViewHistory={()=>setView("history")}/>
+        onViewHistory={()=>setView("history")}
+        onViewBadges={()=>setView("badges")}/>
       {renderBottomNav()}
     </div>
   );
@@ -4203,7 +4259,7 @@ export default function SummerTrainingApp() {
               {lastEarnedBadge.name}
             </div>
           </div>
-          <button onClick={()=>{ setView("profile"); setLastEarnedBadge(null); }}
+          <button onClick={()=>{ setView("badges"); setLastEarnedBadge(null); }}
             style={{ background:lastEarnedBadge.color,border:"none",color:"#000",fontSize:10,
               fontWeight:800,cursor:"pointer",borderRadius:20,padding:"5px 12px",
               whiteSpace:"nowrap",flexShrink:0 }}>
