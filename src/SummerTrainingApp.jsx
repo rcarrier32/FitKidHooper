@@ -9,8 +9,31 @@ const DEFAULT = {
   bgHue:222, bgSat:47, bgLight:6,
   accentHue:158, accentSat:85, accentLight:50,
   athleteName:"Champ", avatar:null,
-  athleteAge:12, experience:"beginner", goals:[], playStyle:"any",
+  dateOfBirth:null, experience:"beginner", goals:[], playStyle:"any",
 };
+
+/**
+ * Calculate current age from an ISO date-of-birth string ("YYYY-MM-DD").
+ * Returns 12 when dob is absent (safe fallback for new/migrated profiles).
+ * Age updates automatically every time the function is called — no manual updates needed.
+ */
+function calcAge(dob) {
+  if (!dob) return 12;
+  const birth = new Date(dob + "T00:00:00");
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+  return age;
+}
+
+/** True only on the athlete's birthday. */
+function isBirthday(dob) {
+  if (!dob) return false;
+  const birth = new Date(dob + "T00:00:00");
+  const today = new Date();
+  return birth.getMonth() === today.getMonth() && birth.getDate() === today.getDate();
+}
 const hsl  = (h,s,l) => `hsl(${h},${s}%,${l}%)`;
 const pri  = s => hsl(s.primaryHue,   s.primarySat,   s.primaryLight);
 const sec  = s => hsl(s.secondaryHue, s.secondarySat, s.secondaryLight);
@@ -935,7 +958,7 @@ const SCHED_TO_TEMPLATE = { explosion:"jump",deceleration:"jump",speed:"quickFee
 function generateWorkout(settings, templateKey, recentIds=[]) {
   const tmpl = WORKOUT_TEMPLATES[templateKey];
   if (!tmpl) return null;
-  const age    = Math.min(14, Math.max(9, settings.athleteAge||12));
+  const age    = Math.min(14, Math.max(9, calcAge(settings.dateOfBirth)));
   const rule   = AGE_RULES[age];
   const dRank  = {beginner:0,intermediate:1,advanced:2};
   const pRank  = dRank[settings.experience||"beginner"]??0;
@@ -1304,7 +1327,7 @@ const GOAL_NAMES = {
 };
 
 function computeRecommendation(settings, completed, currentTemplate) {
-  const age   = settings.athleteAge || 12;
+  const age   = calcAge(settings.dateOfBirth);
   const goals = settings.goals || [];
   const today = new Date().toLocaleDateString("en-CA");
 
@@ -1585,21 +1608,38 @@ function SettingsSheet({ settings, setSettings, onClose }) {
         <div style={{ padding:"0 20px 16px" }}>
           <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:"#334155",marginBottom:12,textTransform:"uppercase" }}>Training Profile</div>
 
-          {/* Age */}
-          <div style={{ marginBottom:14 }}>
-            <div style={{ fontSize:11,color:"#475569",fontWeight:600,marginBottom:7 }}>Age</div>
-            <div style={{ display:"flex",gap:5,flexWrap:"wrap" }}>
-              {[9,10,11,12,13,14,15,16].map(a=>(
-                <button key={a} onClick={()=>setSettings(p=>({...p,athleteAge:a}))}
-                  style={{ padding:"6px 12px",borderRadius:8,fontSize:13,fontWeight:700,cursor:"pointer",
-                    background:settings.athleteAge===a?P:"rgba(255,255,255,0.05)",
-                    border:`1px solid ${settings.athleteAge===a?P:"rgba(255,255,255,0.1)"}`,
-                    color:settings.athleteAge===a?"#000":"#64748b" }}>
-                  {a}
-                </button>
-              ))}
-            </div>
-          </div>
+          {/* Date of Birth */}
+          {(()=>{
+            const today = new Date();
+            const maxDOB = new Date(today.getFullYear()-8, today.getMonth(), today.getDate()).toLocaleDateString("en-CA");
+            const minDOB = new Date(today.getFullYear()-18,today.getMonth(), today.getDate()).toLocaleDateString("en-CA");
+            const age    = settings.dateOfBirth ? calcAge(settings.dateOfBirth) : null;
+            const bday   = settings.dateOfBirth && isBirthday(settings.dateOfBirth);
+            return (
+              <div style={{ marginBottom:14 }}>
+                <div style={{ fontSize:11,color:"#475569",fontWeight:600,marginBottom:6 }}>Date of Birth</div>
+                <input type="date"
+                  value={settings.dateOfBirth||''}
+                  min={minDOB} max={maxDOB}
+                  onChange={e=>setSettings(p=>({...p,dateOfBirth:e.target.value||null}))}
+                  style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.05)",
+                    border:`1.5px solid ${P}44`,borderRadius:10,padding:"8px 12px",
+                    fontSize:14,color:"#e2e8f0",outline:"none",colorScheme:"dark" }}/>
+                <div style={{ marginTop:7,display:"flex",alignItems:"center",gap:8 }}>
+                  {age!==null
+                    ? <span style={{ fontSize:12,color:"#94a3b8" }}>
+                        {bday
+                          ? <span style={{ color:P,fontWeight:700 }}>🎂 Happy Birthday! Age {age}</span>
+                          : `Age ${age} years old — updates automatically on each birthday`}
+                      </span>
+                    : <span style={{ fontSize:11,color:"#475569" }}>
+                        Enter DOB — age adjusts automatically every birthday
+                      </span>
+                  }
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Experience */}
           <div style={{ marginBottom:14 }}>
@@ -2503,9 +2543,19 @@ function ProfileView({ settings, totalXP, xpData, currentLevel, earnedBadges, P,
         <div style={{ fontSize:24,fontWeight:800,color:"#f1f5f9",marginBottom:4 }}>
           {settings.athleteName}
         </div>
-        <div style={{ fontSize:14,color:P,fontWeight:700 }}>
+        <div style={{ fontSize:14,color:P,fontWeight:700,marginBottom:4 }}>
           {currentLevel.emoji} {currentLevel.name}
         </div>
+        {settings.dateOfBirth ? (
+          <div style={{ fontSize:12,color:"#475569" }}>
+            {isBirthday(settings.dateOfBirth)
+              ? <span style={{ color:P,fontWeight:700 }}>🎂 Happy Birthday! Age {calcAge(settings.dateOfBirth)}</span>
+              : `Age ${calcAge(settings.dateOfBirth)}`
+            }
+          </div>
+        ) : (
+          <div style={{ fontSize:11,color:"#334155" }}>Set your birthday in Settings</div>
+        )}
       </div>
 
       {/* XP Bar ──────────────────────────────────────────────── */}
@@ -2943,7 +2993,20 @@ function DrillCard({ w, color, bg2, brd, isDone, onToggle, onViewDetail }) {
 
 /* ═══════════════════════ MAIN APP ═══════════════════════ */
 export default function SummerTrainingApp() {
-  const [settings, setSettings] = useState(()=>{ try{return{...DEFAULT,...JSON.parse(localStorage.getItem("s_settings")||"{}")}}catch{return DEFAULT} });
+  const [settings, setSettings] = useState(()=>{
+    try {
+      const raw = JSON.parse(localStorage.getItem("s_settings")||"{}");
+      // ── Migration: athleteAge (legacy) → dateOfBirth ──────────────
+      if (raw.athleteAge && !raw.dateOfBirth) {
+        // Estimate DOB as June 15 of (currentYear - athleteAge).
+        // Approximate but far better than losing the data entirely.
+        const year = new Date().getFullYear() - Number(raw.athleteAge);
+        raw.dateOfBirth = `${year}-06-15`;
+      }
+      delete raw.athleteAge; // remove stale key regardless
+      return { ...DEFAULT, ...raw };
+    } catch { return DEFAULT; }
+  });
   const [showSettings, setShowSettings] = useState(false);
   const [view, setView] = useState("home");
   const [prevView, setPrevView] = useState("home");
@@ -3025,7 +3088,7 @@ export default function SummerTrainingApp() {
     setTodaysWorkout(generateWorkout(settings, selectedTemplate, recentExIds));
   },[settings, selectedTemplate, recentExIds]);
 
-  useEffect(()=>{ refreshWorkout(); },[selectedTemplate, settings.athleteAge, settings.experience]);
+  useEffect(()=>{ refreshWorkout(); },[selectedTemplate, settings.dateOfBirth, settings.experience]);
 
   const recommendation = useMemo(()=>
     computeRecommendation(settings, completed, selectedTemplate),
