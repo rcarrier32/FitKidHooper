@@ -1048,6 +1048,152 @@ function getChallengeProgress(def, completed) {
   return { cur:0, target:def.target };
 }
 
+/* ═══════════════════════ RECOMMENDATION ENGINE ══════════════ */
+
+// What template naturally follows each template (recovery rotation)
+const RECOVERY_AFTER = {
+  jump:      "recovery",
+  quickFeet: "handles",
+  fullBody:  "shooting",
+  recovery:  "quickFeet",
+  handles:   "jump",
+  shooting:  "fullBody",
+};
+
+// Which challenge urgency maps to which template
+const CHALLENGE_TEMPLATE_MAP = {
+  "jump-5":    "jump",
+  "shots-50":  "shooting",
+  "handles-5": "handles",
+  "speed-5":   "quickFeet",
+  "coord-5":   "quickFeet",
+};
+
+// Goal → template preference
+const GOAL_TEMPLATE_MAP = {
+  jump_higher:  "jump",
+  quickness:    "quickFeet",
+  handles:      "handles",
+  shooting:     "shooting",
+  get_stronger: "fullBody",
+  conditioning: "fullBody",
+};
+
+const GOAL_NAMES = {
+  jump_higher:"Jump Higher", quickness:"Get Quicker", handles:"Ball Handling",
+  shooting:"Shooting", get_stronger:"Get Stronger", conditioning:"Conditioning",
+};
+
+function computeRecommendation(settings, completed, currentTemplate) {
+  const age   = settings.athleteAge || 12;
+  const goals = settings.goals || [];
+  const today = new Date().toLocaleDateString("en-CA");
+
+  // ── How many days since last training session ──────────────────
+  let daysSinceTrained = 0;
+  const checkD = new Date(); checkD.setDate(checkD.getDate() - 1);
+  for (let i = 0; i < 7; i++) {
+    const k = checkD.toLocaleDateString("en-CA");
+    if (Object.keys(completed).some(c => c.startsWith(k) && completed[c])) break;
+    daysSinceTrained++;
+    checkD.setDate(checkD.getDate() - 1);
+  }
+
+  // ── Current streak ─────────────────────────────────────────────
+  let streak = 0;
+  const sd = new Date();
+  for (let i = 0; i < 14; i++) {
+    const k = sd.toLocaleDateString("en-CA");
+    if (Object.keys(completed).some(c => c.startsWith(k) && completed[c])) {
+      streak++; sd.setDate(sd.getDate() - 1);
+    } else break;
+  }
+
+  // ── Which challenge is most urgently close to completion ───────
+  let urgentChallenge = null, urgentTemplate = null;
+  // Sort by (cur/target) descending so the "closest" one wins
+  const sorted = [...CHALLENGES_DEF]
+    .filter(d => CHALLENGE_TEMPLATE_MAP[d.id])
+    .map(d => ({ def:d, ...getChallengeProgress(d, completed) }))
+    .sort((a,b) => (b.cur/b.target) - (a.cur/a.target));
+  for (const { def, cur, target } of sorted) {
+    const pct = cur / target;
+    if (pct >= 0.4 && pct < 1) {
+      urgentChallenge = def;
+      urgentTemplate  = CHALLENGE_TEMPLATE_MAP[def.id];
+      break;
+    }
+  }
+
+  // ── Decision tree ──────────────────────────────────────────────
+  let recommendedTemplate = RECOVERY_AFTER[currentTemplate] || "quickFeet";
+  const reasons = [];
+
+  // Priority 1 — close to completing a challenge
+  if (urgentChallenge && urgentTemplate) {
+    const { cur, target } = getChallengeProgress(urgentChallenge, completed);
+    const remaining = target - cur;
+    recommendedTemplate = urgentTemplate;
+    const word = remaining === 1 ? "1 more session" : `${remaining} more`;
+    reasons.push(`You're ${word} away from completing "${urgentChallenge.name}" — let's finish it.`);
+  }
+
+  // Priority 2 — recovery after a hard session
+  if (!reasons.length && currentTemplate === "jump") {
+    recommendedTemplate = "recovery";
+    reasons.push("You trained explosion today — recovery work tomorrow protects your joints and keeps you fresh.");
+  }
+  if (!reasons.length && currentTemplate === "fullBody") {
+    recommendedTemplate = "shooting";
+    reasons.push("Skill work the day after strength training is the perfect combo — let your muscles recover while your game grows.");
+  }
+
+  // Priority 3 — coming back from a gap
+  if (!reasons.length && daysSinceTrained >= 2) {
+    recommendedTemplate = age <= 11 ? "quickFeet" : "handles";
+    const dayWord = daysSinceTrained + 1 === 3 ? "3 days" : `${daysSinceTrained + 1} days`;
+    reasons.push(`It's been ${dayWord} — a short, high-energy session is the perfect way to get back in rhythm.`);
+  }
+
+  // Priority 4 — streak maintenance
+  if (!reasons.length && streak >= 2) {
+    reasons.push(`You're on a ${streak}-day streak — keep the momentum going tomorrow.`);
+  }
+
+  // Priority 5 — goal alignment
+  if (!reasons.length && goals.length > 0) {
+    const matchedGoal = goals.find(g => GOAL_TEMPLATE_MAP[g]);
+    if (matchedGoal) {
+      recommendedTemplate = GOAL_TEMPLATE_MAP[matchedGoal];
+      reasons.push(`This workout targets your "${GOAL_NAMES[matchedGoal]}" goal — stay locked in.`);
+    }
+  }
+
+  // Priority 6 — age-based variety / focus
+  if (!reasons.length) {
+    if (age <= 10) {
+      const funOpts = ["quickFeet","handles","recovery"];
+      recommendedTemplate = funOpts[new Date().getDay() % funOpts.length];
+      reasons.push("Mix it up and keep it fun — variety is the secret weapon at your age.");
+    } else if (age >= 13) {
+      const hardOpts = ["jump","fullBody","quickFeet"];
+      recommendedTemplate = hardOpts[new Date().getDay() % hardOpts.length];
+      reasons.push("Consistent, progressive training is how the best get better.");
+    } else {
+      reasons.push("A balanced session tomorrow keeps your body developing from every angle.");
+    }
+  }
+
+  const tmpl = WORKOUT_TEMPLATES[recommendedTemplate] || WORKOUT_TEMPLATES.quickFeet;
+  return {
+    templateKey:   recommendedTemplate,
+    templateName:  tmpl.name,
+    templateEmoji: tmpl.emoji,
+    templateDesc:  tmpl.desc,
+    reason:        reasons[0] || "Tomorrow is another chance to level up.",
+  };
+}
+
 /* ═══════════════════════ SHOT TRACKER DATA ═══════════════════ */
 const SHOT_TYPES = [
   { id:"layup",        label:"Layup",          emoji:"🏃", locations:null },
@@ -1917,6 +2063,10 @@ export default function SummerTrainingApp() {
 
   useEffect(()=>{ refreshWorkout(); },[selectedTemplate, settings.athleteAge, settings.experience]);
 
+  const recommendation = useMemo(()=>
+    computeRecommendation(settings, completed, selectedTemplate),
+  [settings, completed, selectedTemplate]);
+
   const catColor = key => key==="strength" ? ST : key==="speed"||key==="balance" ? P : S;
   const catBg    = key => `${catColor(key)}16`;
   const catBrd   = key => `${catColor(key)}2e`;
@@ -2165,6 +2315,54 @@ export default function SummerTrainingApp() {
             <div style={{ fontSize:13,color:"#475569" }}>Generating workout…</div>
           </div>
         )}
+
+        {/* ── Recommended Tomorrow ───────────────────────────────── */}
+        {recommendation && (()=>{
+          const A = str3(settings); // accent color (teal)
+          const isAlreadySelected = recommendation.templateKey === selectedTemplate;
+          return (
+            <div style={{ margin:"0 20px 16px",borderRadius:16,
+              background:`${A}0d`,border:`1px solid ${A}28`,overflow:"hidden" }}>
+              {/* Label row */}
+              <div style={{ padding:"11px 14px 0",display:"flex",alignItems:"center",justifyContent:"space-between" }}>
+                <span style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",
+                  color:`${A}90`,textTransform:"uppercase" }}>
+                  Tomorrow's Rec
+                </span>
+                <span style={{ fontSize:9,color:"#334155",fontFamily:"'DM Mono',monospace" }}>Coach FKH</span>
+              </div>
+              {/* Main content */}
+              <div style={{ padding:"10px 14px 12px",display:"flex",alignItems:"center",gap:11 }}>
+                <div style={{ width:44,height:44,borderRadius:12,background:`${A}18`,
+                  border:`1px solid ${A}30`,display:"flex",alignItems:"center",
+                  justifyContent:"center",fontSize:22,flexShrink:0,lineHeight:1 }}>
+                  {recommendation.templateEmoji}
+                </div>
+                <div style={{ flex:1,minWidth:0 }}>
+                  <div style={{ fontSize:14,fontWeight:800,color:A,lineHeight:1.2,marginBottom:3 }}>
+                    {recommendation.templateName}
+                  </div>
+                  <div style={{ fontSize:11,color:"#94a3b8",lineHeight:1.45 }}>
+                    {recommendation.reason}
+                  </div>
+                </div>
+              </div>
+              {/* Action */}
+              <div style={{ padding:"0 14px 13px" }}>
+                <button
+                  onClick={()=>{ if(!isAlreadySelected) setSelectedTemplate(recommendation.templateKey); }}
+                  style={{ width:"100%",padding:"9px",borderRadius:10,fontSize:12,fontWeight:700,
+                    cursor: isAlreadySelected?"default":"pointer",
+                    background: isAlreadySelected?`${A}18`:`${A}22`,
+                    border:`1px solid ${isAlreadySelected?`${A}30`:`${A}50`}`,
+                    color: isAlreadySelected?`${A}70`:A,
+                    transition:"all 0.2s" }}>
+                  {isAlreadySelected ? "✓ Already loaded" : "Load for Today →"}
+                </button>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ── Active Challenges ──────────────────────────────────── */}
         <div style={{ padding:"0 20px 16px" }}>
