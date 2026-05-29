@@ -1089,6 +1089,282 @@ const W_POST_MOVES = [
     trainer:"Saddi Washington / My Basketball", videoId:"GOqBvniupY4", videoTitle:"Post Moves with Saddi Washington — Univ. of Michigan" },
 ];
 
+/* ═══════════════════════════════════════════════════════════════
+   FINISHING SCHOOL — Verified layup + finishing curriculum
+═══════════════════════════════════════════════════════════════ */
+const W_FINISHING_SCHOOL = [
+  { id:"fs-mikan",         name:"Mikan Drill",               tag:"Foundation",  difficulty:"beginner",     ageRange:[9,14],  funScore:9,  estimatedDuration:120,
+    sets:"3×20 reps (10 each side)", rest:"30 s",
+    transferTags:["layups","timing","basket-finishing"],
+    progressionTrack:"Step 1 — Close-Range Foundation",
+    desc:"Alternate baby hooks under the basket — catch off the glass on the right, hook left; catch left, hook right — without letting the ball touch the floor. The greatest finishing drill ever invented.",
+    cues:["Ball comes off the glass directly — no bounces","High release point — shoot up and over the rim","Two-foot gather on each catch, one-foot finish","Find the rhythm first, then add speed"],
+    trainer:"Howcast", videoId:"jMegqIaYunI", videoTitle:"Basketball Drills: Mikan Layup Drill" },
+
+  { id:"fs-power-finish",  name:"Two-Foot Power Finish",      tag:"Foundation",  difficulty:"beginner",     ageRange:[9,14],  funScore:7,  estimatedDuration:90,
+    sets:"3×10 each side", rest:"30 s",
+    transferTags:["contact-finishing","strength","drawing-fouls"],
+    progressionTrack:"Step 1 — Close-Range Foundation",
+    desc:"Jump-stop gather on both feet before going up — adds balance, strength, and the ability to draw contact at the rim. The most reliable finish under pressure for youth players.",
+    cues:["Jump stop with both feet simultaneously","Use two-foot power to absorb contact","Keep eyes on the target through the finish","Land in the same spot you took off from"],
+    trainer:"TeachHoops", videoId:"YzSXr6uNNVQ", videoTitle:"Basketball Drill for Better Layups - Play Off Two Feet" },
+
+  { id:"fs-reverse-layup", name:"Reverse Layup",              tag:"Intermediate",difficulty:"intermediate", ageRange:[10,14], funScore:8,  estimatedDuration:90,
+    sets:"3×10 each side", rest:"30 s",
+    transferTags:["defender-avoidance","finishing","baseline-drive"],
+    progressionTrack:"Step 2 — Reverse Side Finishing",
+    desc:"Drive past the block and use the far side of the backboard — uses the rim itself as a shield against the shot-blocker. Essential weapon when attacking baseline.",
+    cues:["Drive PAST the block line — don't stop under the rim","Use the far hand to reach over the rim","Soft touch on the glass — high arc","Protect ball with your body from the shot-blocker"],
+    trainer:"TeachHoops", videoId:"L20XpSTKLLg", videoTitle:"Basketball Reverse Layup Drill" },
+
+  { id:"fs-euro-step",     name:"Euro Step",                  tag:"Intermediate",difficulty:"intermediate", ageRange:[10,14], funScore:10, estimatedDuration:120,
+    sets:"3×8 each direction", rest:"45 s",
+    transferTags:["avoiding-contact","finishing","creativity"],
+    progressionTrack:"Step 3 — Advanced Footwork Finishes",
+    desc:"Gather on one foot stepping one direction, then take the second step decisively in the opposite direction — legally sidesteps the shot-blocker. One of the most effective tools for a high-percentage finish in the lane.",
+    cues:["Take a big gather step to commit the defender","Second step sweeps HARD in the opposite direction","Ball is protected throughout — low and close","Finish soft — this is a touch finish, not power"],
+    trainer:"ILoveBasketballTV", videoId:"JYsSnC1Pp8U", videoTitle:"MASTER The EUROSTEP LAYUP!!" },
+
+  { id:"fs-hop-step",      name:"Hop Step (Pro Hop)",          tag:"Intermediate",difficulty:"intermediate", ageRange:[10,14], funScore:9,  estimatedDuration:120,
+    sets:"3×8 each side", rest:"45 s",
+    transferTags:["balance","finishing","space-creation"],
+    progressionTrack:"Step 3 — Advanced Footwork Finishes",
+    desc:"Gather on one foot then hop into a two-foot landing before finishing — creates extra space and balance against closing defenders. The most versatile finish for any position.",
+    cues:["The hop creates space — land wide before you finish","Two-foot landing gives options: shoot, pass, or reset","Stay balanced on landing — don't drift toward the defender","Practice the footwork without a ball first"],
+    trainer:"TeachHoops", videoId:"p88Tll8I_Tk", videoTitle:"Step-Hop to Layup: Basketball Finishing Drill" },
+
+  { id:"fs-floater",       name:"Floater / Teardrop",          tag:"Advanced",    difficulty:"advanced",     ageRange:[11,14], funScore:9,  estimatedDuration:120,
+    sets:"3×8 each hand", rest:"45 s",
+    transferTags:["anti-block","spacing","shot-creation"],
+    progressionTrack:"Step 4 — Advanced Finishes",
+    desc:"One-foot pull-up with a high-arc soft shot that floats over the outstretched arms of a bigger defender. Neutralizes taller interior defenders — the go-to scoring weapon for smaller guards.",
+    cues:["Release early — before you reach the defender","Arc is EVERYTHING — this is not a regular layup","One-foot takeoff gives more separation","Soft wrist: imagine dropping the ball over a fence"],
+    trainer:"Fundamental Hoops", videoId:"Na4Ekg1Nibo", videoTitle:"Best drills to master the Floater / Teardrop" },
+
+  { id:"fs-floater-series",name:"Floater Drill Series",        tag:"Advanced",    difficulty:"advanced",     ageRange:[11,14], funScore:9,  estimatedDuration:150,
+    sets:"3 drills, 5 reps each side", rest:"45 s",
+    transferTags:["anti-block","muscle-memory","finishing"],
+    progressionTrack:"Step 4 — Advanced Finishes",
+    desc:"Three dedicated floater drills from NBA trainer DJ Sackmann — develop consistent touch off both sides and lock in the release point. Deliberate repetition builds the muscle memory to finish over bigger defenders.",
+    cues:["Develop consistent touch with repetition off both sides","Train the same release point every single rep","Practice at game speed once mechanics are solid","Soft finish — never overpower the floater"],
+    trainer:"HoopStudy (DJ Sackmann)", videoId:"qsMmkkoiN8o", videoTitle:"3 DRILLS TO MASTER YOUR FLOATER with NBA Trainer DJ Sackmann! #hoopstudy" },
+
+  { id:"fs-contact-finish",name:"Finish Through Contact",      tag:"Advanced",    difficulty:"advanced",     ageRange:[11,14], funScore:8,  estimatedDuration:120,
+    sets:"3×10 reps", rest:"45 s",
+    transferTags:["contact-finishing","drawing-fouls","toughness"],
+    progressionTrack:"Step 4 — Advanced Finishes",
+    desc:"Three moves specifically designed to convert layups when defenders make contact — stay strong through it rather than avoiding it. Learning this directly converts more attempts into made baskets and free-throw opportunities.",
+    cues:["Expect contact — stay strong through it, not around it","Use a low, protected dribble into the lane","Extend fully on the finish even when hit","Keep the elbow in — don't lose ball control on contact"],
+    trainer:"Breakthrough Basketball", videoId:"ujG00ywWO_A", videoTitle:"3 Moves To Finish THROUGH CONTACT! Make More Lay ups" },
+];
+
+/* ═══════════════════════════════════════════════════════════════
+   FOOTWORK LAB — Verified footwork and move curriculum
+═══════════════════════════════════════════════════════════════ */
+const W_FOOTWORK_LAB = [
+  { id:"flab-jump-stop",   name:"Jump Stop & Pivot",           tag:"Foundation",  difficulty:"beginner",     ageRange:[9,14],  funScore:5,  estimatedDuration:90,
+    sets:"3×10 reps", rest:"20 s",
+    transferTags:["pivoting","legal-play","footwork"],
+    progressionTrack:"Step 1 — Movement Foundation",
+    desc:"Land simultaneously on both feet to establish a jump stop, then pivot on the ball of the foot to find the open player. The most important fundamental in youth basketball that almost nobody teaches.",
+    cues:["Both feet land at the SAME TIME — not one then the other","Pivot on the ball of the foot, not the heel","Keep the head up to find the open teammate","Either foot can become the pivot on a jump stop"],
+    trainer:"Jr. NBA", videoId:"jgqdv9ySjYM", videoTitle:"Jump Stop, Pivot, & Pass Drill" },
+
+  { id:"flab-triple-threat",name:"Triple Threat + Jab",        tag:"Foundation",  difficulty:"beginner",     ageRange:[9,14],  funScore:6,  estimatedDuration:90,
+    sets:"5×10 reps each option", rest:"20 s",
+    transferTags:["shot-creation","driving","triple-threat"],
+    progressionTrack:"Step 1 — Movement Foundation",
+    desc:"Ball at the hip, knees bent, weight on the balls of the feet — simultaneously threatening to shoot, pass, or drive. The jab step freezes the defender so you can read their reaction and attack.",
+    cues:["Stay on the balls of your feet in triple threat","Jab step decisively — a soft jab gets ignored","Keep eyes up and read the defense's reaction","Every catch should land in triple threat automatically"],
+    trainer:"Baller Boot Camp", videoId:"pjV78JTtqI0", videoTitle:"Basketball Fundamentals and Tips - How To Triple Threat | Jab Step | Footwork | Offense" },
+
+  { id:"flab-jab-series",  name:"Full Jab Step Series",        tag:"Intermediate",difficulty:"intermediate", ageRange:[10,14], funScore:8,  estimatedDuration:90,
+    sets:"3×5 each variation each foot", rest:"30 s",
+    transferTags:["shot-creation","driving","footwork"],
+    progressionTrack:"Step 2 — Perimeter Footwork",
+    desc:"Three jab options chained from the same setup — jab and shoot, jab and drive, jab and spin. A complete jab series gives perimeter players three distinct attack paths, making them much harder to guard.",
+    cues:["Make the jab sharp and low to threaten the defender","Read whether they step back (shoot) or hold (drive)","Chain the full series — jab, drive, spin are all connected","First dribble goes past their front foot on the drive"],
+    trainer:"Basketball HQ", videoId:"IZWZIIiqQ-4", videoTitle:"Basketball Footwork - Jab Series" },
+
+  { id:"flab-shot-fake",   name:"Shot Fake + 1-Dribble Pull-Up",tag:"Intermediate",difficulty:"intermediate", ageRange:[10,14], funScore:9,  estimatedDuration:90,
+    sets:"3×10 each side", rest:"30 s",
+    transferTags:["drawing-fouls","shot-creation","basketball-IQ"],
+    progressionTrack:"Step 2 — Perimeter Footwork",
+    desc:"Sell the shot fake all the way up — wait for the defender to leave their feet — take exactly one hard dribble and stop into a balanced jump stop for the pull-up. A high-percentage mid-range weapon that exploits over-contesting defenders.",
+    cues:["Bring the ball all the way up to sell the fake","Wait for the defender to LEAVE their feet — patience wins","Take exactly one dribble and stop balanced","Hold the follow-through on every make"],
+    trainer:"Jr. NBA feat. C.J. McCollum", videoId:"Auzwv0cDHIc", videoTitle:"The Shot Fake 1-Dribble Pull-Up Drill" },
+
+  { id:"flab-step-through", name:"Step-Through Move",           tag:"Intermediate",difficulty:"intermediate", ageRange:[10,14], funScore:8,  estimatedDuration:90,
+    sets:"3×8 each side", rest:"30 s",
+    transferTags:["drawing-fouls","post-footwork","finishing"],
+    progressionTrack:"Step 2 — Perimeter Footwork",
+    desc:"After a convincing shot fake, step through on the side the defender's arm went up — converting the fake into an easy basket. Especially useful when shot-blockers overreact to fakes in the post or mid-range.",
+    cues:["Shot fake must be completely convincing — full lift","Step through on the side their arm goes up","Keep low and protect the ball throughout","Finish with a power layup or two-foot stop"],
+    trainer:"General Coaching", videoId:"McDPlk1DaRc", videoTitle:"Must Have Basketball Footwork: The Step Through" },
+
+  { id:"flab-duck-in",     name:"Duck-In & Seal",               tag:"Intermediate",difficulty:"intermediate", ageRange:[10,14], funScore:7,  estimatedDuration:120,
+    sets:"3×30 s holds each side", rest:"30 s",
+    transferTags:["post-position","sealing","body-control"],
+    progressionTrack:"Step 3 — Post & Interior Footwork",
+    desc:"Time the duck-in when the defender is in help position, then use your backside to seal and create deep post position. Getting deep position is what separates players who score in the post from those who receive the ball too far from the basket.",
+    cues:["Time the duck-in when the defender loses sight of you","Use your backside to seal — not your hands (foul)","Call for the ball with a high target hand","Stay low throughout the hold — wide base"],
+    trainer:"Pro Tips by DICK'S Sporting Goods", videoId:"dTzfpwqW8Yo", videoTitle:"The Fundamentals of the Duck In and Seal" },
+
+  { id:"flab-drop-step",   name:"Drop Step Post Move",          tag:"Foundation",  difficulty:"beginner",     ageRange:[9,14],  funScore:8,  estimatedDuration:120,
+    sets:"3×10 each side", rest:"30 s",
+    transferTags:["post-footwork","finishing","power-move"],
+    progressionTrack:"Step 3 — Post & Interior Footwork",
+    desc:"Catch on the block in low post on two feet so either foot can pivot — feel where the defender is, then drop the foot on the baseline side behind them in one explosive step and finish with a power layup.",
+    cues:["Catch on two feet so you can pivot either direction","Drop the foot decisively — one explosive swing, not a shuffle","Same-side shoulder drives through on the drop","Chin up, two hands on the ball as you finish"],
+    trainer:"Howcast", videoId:"kcwCvwCBU-A", videoTitle:"How to Do a Drop-Step | Basketball Moves" },
+
+  { id:"flab-rocker-step", name:"Rocker Step",                   tag:"Advanced",    difficulty:"intermediate", ageRange:[11,14], funScore:8,  estimatedDuration:90,
+    sets:"3×5 each direction", rest:"30 s",
+    transferTags:["shot-creation","driving","footwork"],
+    progressionTrack:"Step 4 — Advanced Perimeter Moves",
+    desc:"Quick forward-back rocking motion in triple threat gets the defender shifting — then attack in the opposite direction of their lean. The most deceptive triple-threat move without picking up the dribble.",
+    cues:["Use a quick forward-back rock to get the defender moving","Stay in triple threat throughout the whole sequence","Attack opposite the direction the defender leans","Inside shoulder drops before the explosion step"],
+    trainer:"Pro Training Basketball", videoId:"NbOqnSj6lN8", videoTitle:"Rocker Step - Shiftiest Move Ever (Footwork Mastery)" },
+];
+
+/* ═══════════════════════════════════════════════════════════════
+   GAME HANDLES — Verified ball-handling drill curriculum
+═══════════════════════════════════════════════════════════════ */
+const W_GAME_HANDLES = [
+  { id:"gh-spider",        name:"Spider Dribble",              tag:"Foundation",  difficulty:"beginner",     ageRange:[9,14],  funScore:7,  estimatedDuration:90,
+    sets:"3×30 s", rest:"15 s",
+    transferTags:["hand-coordination","ball-security","foundation"],
+    progressionTrack:"Step 1 — Ball Control Foundation",
+    desc:"Four-touch sequence (front-front, back-back) around both feet without stopping. Builds hand coordination, finger strength, and ball security — the core physical attributes that make all other dribble moves possible.",
+    cues:["Use all four dribbles in sequence without stopping","Stay on the balls of your feet — athletic stance","Never look down — trust your hands","Gradually increase speed as coordination improves"],
+    trainer:"Youth Basketball", videoId:"DKoSlCczggA", videoTitle:"Spider Dribbling Drill for Youth Basketball" },
+
+  { id:"gh-stationary-cross",name:"Stationary Crossover",      tag:"Foundation",  difficulty:"beginner",     ageRange:[9,14],  funScore:7,  estimatedDuration:90,
+    sets:"3×30 s", rest:"15 s",
+    transferTags:["crossover","change-of-direction","ball-handling"],
+    progressionTrack:"Step 1 — Ball Control Foundation",
+    desc:"Controlled alternating crossover dribbles at below-knee height — pushes through the ball rather than slapping it. Builds the hand strength and coordination that makes live-dribble crossovers quick and deceptive.",
+    cues:["Keep the dribble BELOW the knee","Push through — don't slap — on the crossover","Stay in an athletic stance with knees bent throughout","Eyes up the entire time"],
+    trainer:"Jr. NBA", videoId:"fuCNf4nmDpM", videoTitle:"Stationary Crossover Drill" },
+
+  { id:"gh-change-pace",   name:"Change-of-Pace Dribble",      tag:"Foundation",  difficulty:"beginner",     ageRange:[9,14],  funScore:8,  estimatedDuration:90,
+    sets:"5×full court or 5 reps", rest:"20 s",
+    transferTags:["deception","first-step","attacking"],
+    progressionTrack:"Step 2 — Attacking Moves",
+    desc:"Drive hard, then slow to near-stop to freeze the defender, then explode out of the pause. Defenders can't react to bursts they didn't see coming — changing pace is the most deceptive weapon a ball-handler has.",
+    cues:["Drive hard first — the slowdown is only valuable after you've shown speed","Stay LOW during the hesitation — don't rise up","Explode out of the pause — don't just jog","Eyes on the rim to sell the threat"],
+    trainer:"Howcast", videoId:"0Wwv5nDpL6k", videoTitle:"How to Do a Change-of-Pace Dribble | Basketball Moves" },
+
+  { id:"gh-cross-btl",     name:"Crossover + Between-the-Legs",tag:"Foundation",  difficulty:"beginner",     ageRange:[9,14],  funScore:8,  estimatedDuration:90,
+    sets:"3×45 s", rest:"20 s",
+    transferTags:["crossover","between-the-legs","combo-moves"],
+    progressionTrack:"Step 2 — Attacking Moves",
+    desc:"Learn both fundamental change-of-direction moves in one drill. Mastering these in combination builds the two foundational skills that underpin all advanced ball-handling sequences.",
+    cues:["Learn each move in isolation before combining","Stagger the feet properly for between-the-legs","Keep the ball at an angle — don't reach back for it","Clean slow beats sloppy fast"],
+    trainer:"Hawks Basketball Academy", videoId:"h7s31K0kPh4", videoTitle:"Stationary Crossover & Between the Legs (Beginner Dribble Moves)" },
+
+  { id:"gh-behind-back",   name:"Behind-the-Back Dribble",     tag:"Intermediate",difficulty:"intermediate", ageRange:[10,14], funScore:9,  estimatedDuration:90,
+    sets:"3×60 s", rest:"20 s",
+    transferTags:["behind-the-back","deception","change-of-direction"],
+    progressionTrack:"Step 3 — Advanced Moves",
+    desc:"Step the lead foot forward as you wrap the ball behind your back — receive on the other side with fingers pointing down. A deceptive direction change that keeps defenders off-balance, particularly when changing speed during a drive.",
+    cues:["Step the lead foot forward as you wrap","Receive with fingers pointing DOWN on the other side","Practice slowly before adding speed","Don't rush the receive — control beats speed early on"],
+    trainer:"Jr. NBA", videoId:"cGQ7dXW0jCA", videoTitle:"Behind The Back Wrap Breakdown Drill" },
+
+  { id:"gh-two-ball",      name:"Two-Ball Dribble",             tag:"Intermediate",difficulty:"intermediate", ageRange:[10,14], funScore:8,  estimatedDuration:90,
+    sets:"3×45 s each variation", rest:"20 s",
+    transferTags:["weak-hand","ambidextrous","coordination"],
+    progressionTrack:"Step 3 — Advanced Moves",
+    desc:"Both hands simultaneously — simultaneous pound, alternating, staggered timing. Two-ball drills simultaneously develop both hands, dramatically accelerating weak-hand development.",
+    cues:["Both dribbles at the same height and tempo","Eyes FORWARD — never down at the balls","Challenge yourself by alternating the dribble timing","Shoulders relaxed — don't tense up trying to control both"],
+    trainer:"Shot Science Basketball", videoId:"iBNxK5t96fI", videoTitle:"BASKETBALL DRIBBLE DRILL : Two Ball Drill \"Stationary Double Dribble\"" },
+
+  { id:"gh-hesitation",    name:"Hesitation Move",              tag:"Intermediate",difficulty:"intermediate", ageRange:[10,14], funScore:9,  estimatedDuration:90,
+    sets:"3×5 each variation each side", rest:"30 s",
+    transferTags:["hesitation","shot-creation","deception"],
+    progressionTrack:"Step 3 — Advanced Moves",
+    desc:"Step-by-step progression — basic hesitation, then hesitation to between-the-legs, then full combo at game speed. Building progressively ensures the footwork fundamentals that make the move effective in games.",
+    cues:["Use a staggered stance to simulate game posture","Simulate the shot or pass threat during the hesitation","Slow-slow-FAST — sell the slow before the burst","Add the between-the-legs exit only after the basic hesi is solid"],
+    trainer:"Basketball Skills", videoId:"xsqzvSgYyFM", videoTitle:"Hesitation Move Progressions | Step by Step" },
+
+  { id:"gh-dribble-drive", name:"Dribble-Drive Attack",         tag:"Advanced",    difficulty:"intermediate", ageRange:[11,14], funScore:9,  estimatedDuration:90,
+    sets:"5 reps each side", rest:"30 s",
+    transferTags:["attacking","first-step","scoring"],
+    progressionTrack:"Step 4 — Game-Speed Attacking",
+    desc:"Attack the defender's front foot to force them to give ground — stay low and use your body to protect the ball, make your decision at the rim before you get there. The most direct route to the basket.",
+    cues:["Attack the defender's front foot — force them to give ground","Stay low and protect the ball with your body","Make your rim decision BEFORE you arrive — not at the last second","Explode out of your dribble move — don't coast"],
+    trainer:"General Coaching", videoId:"w7Vkpj88edI", videoTitle:"Dribble Drive Attack Basketball Drill" },
+];
+
+/* ═══════════════════════════════════════════════════════════════
+   SHOOTING LAB — Verified shooting drill curriculum
+═══════════════════════════════════════════════════════════════ */
+const W_SHOOTING_LAB = [
+  { id:"slab-form",        name:"Form Shooting",                tag:"Foundation",  difficulty:"beginner",     ageRange:[9,14],  funScore:5,  estimatedDuration:300,
+    sets:"50 makes from 3–5 feet", rest:"N/A",
+    transferTags:["mechanics","muscle-memory","shooting"],
+    progressionTrack:"Step 1 — Shooting Foundation",
+    desc:"Start 2–3 feet from the basket and focus entirely on wrist snap, elbow alignment, and follow-through. Make 10 in a row before moving back — form at close range creates the neuromuscular pattern that produces consistent shooting forever.",
+    cues:["Align shooting hand, elbow, and knee in a straight line to the basket","Wrist snaps completely — fingers point at the rim on follow-through","Eyes on the back of the rim — not the whole basket","Hold follow-through until the ball hits the net — every single rep"],
+    trainer:"Breakthrough Basketball", videoId:"2hY6fQmPJQ8", videoTitle:"10 Best Basketball Form Shooting Drills You Need To Know" },
+
+  { id:"slab-ft-routine",  name:"Free Throw Routine",           tag:"Foundation",  difficulty:"beginner",     ageRange:[9,14],  funScore:5,  estimatedDuration:300,
+    sets:"Shoot until 10 in a row", rest:"N/A",
+    transferTags:["free-throws","routine","pressure-shooting"],
+    progressionTrack:"Step 1 — Shooting Foundation",
+    desc:"Build and lock in a consistent pre-shot routine — same number of dribbles, same spin, same breath — then shoot. The routine removes thinking so mechanics can execute. Games are regularly decided at the charity stripe.",
+    cues:["Same routine EXACTLY the same every single rep","1–2 dribbles max — more is a distraction","Deep breath out before the shot to release tension","Align your shooting foot with the nail in the floor"],
+    trainer:"TeachHoops", videoId:"upNWZsCtGE8", videoTitle:"Basketball Free Throw Drill" },
+
+  { id:"slab-catch-shoot", name:"Catch-and-Shoot",              tag:"Foundation",  difficulty:"beginner",     ageRange:[9,14],  funScore:7,  estimatedDuration:180,
+    sets:"3×10 each side", rest:"30 s",
+    transferTags:["catch-and-shoot","spacing","team-shooting"],
+    progressionTrack:"Step 2 — Catch & Shoot",
+    desc:"Get your feet set BEFORE the catch — don't adjust after receiving. Square your shoulders as you catch and release immediately without extra dribbles. One of the most valuable skills in modern basketball.",
+    cues:["Feet set before the catch — not after","Square shoulders to the basket as you receive","Shoot immediately — no extra dribbles","Come off a screen or jog to a spot to simulate game conditions"],
+    trainer:"Jr. NBA", videoId:"O5b5HaxCE3U", videoTitle:"Catch, Turn, & Shoot Drill" },
+
+  { id:"slab-curl-cut",    name:"Shot Off a Screen (Curl Cut)",  tag:"Intermediate",difficulty:"intermediate", ageRange:[10,14], funScore:8,  estimatedDuration:120,
+    sets:"3×10 each option", rest:"30 s",
+    transferTags:["coming-off-screens","team-offense","catch-and-shoot"],
+    progressionTrack:"Step 2 — Catch & Shoot",
+    desc:"Read the defender's position to decide whether to curl, pop, or flare off the screen. Keep the ball at chin level as you come off. Coming off screens is how players get open in half-court sets.",
+    cues:["Read whether to curl, pop, or flare based on defender's position","Keep ball at chin level as you come off the screen","Catch ready to shoot — hands up before the ball arrives","Feet square to the basket before the catch lands"],
+    trainer:"Jr. NBA", videoId:"kWEiiUfGqYM", videoTitle:"Fundamentals Of The Curl Cut" },
+
+  { id:"slab-pullup",      name:"1-Dribble Pull-Up",             tag:"Intermediate",difficulty:"intermediate", ageRange:[10,14], funScore:8,  estimatedDuration:120,
+    sets:"3×10 each side", rest:"30 s",
+    transferTags:["off-the-dribble","mid-range","pull-up"],
+    progressionTrack:"Step 3 — Off-the-Dribble",
+    desc:"One hard dribble, then jump stop with feet aligned — square up in the air and don't drift sideways. One of the highest-value mid-range shots in the game because it's efficient, hard to contest, and usable at every position.",
+    cues:["One HARD dribble — not a soft push","Jump stop with feet aligned to the basket","Square up in the air — don't drift sideways","Land in the same spot you jumped from"],
+    trainer:"TeachHoops", videoId:"i3Cq0s2pnWY", videoTitle:"One Dribble Pull-Up Drill - Basketball Shooting" },
+
+  { id:"slab-elbow",       name:"Elbow Mid-Range",               tag:"Intermediate",difficulty:"intermediate", ageRange:[10,14], funScore:8,  estimatedDuration:120,
+    sets:"10 makes each elbow", rest:"30 s",
+    transferTags:["mid-range","elbow","half-court"],
+    progressionTrack:"Step 3 — Off-the-Dribble",
+    desc:"Arrive at the elbow on the move and catch ready to shoot — elbow in, not flared, and shoot with arc aimed at the back of the rim. The most reliable pull-up shot in the half-court — mastering it from both elbows gives you a high-percentage option whenever defenses sag off.",
+    cues:["Arrive at the elbow moving — not stationary","Elbow in, not flared — keeps the shot straight","Shoot with arc — aim for the back of the rim at this distance","10 makes each elbow before moving"],
+    trainer:"Basketball Shooting Drills", videoId:"ajOtGtnuYks", videoTitle:"Basketball Shooting Drill: Elbow Jump Shots | Improve Your Mid Range Game (Pt 2)" },
+
+  { id:"slab-corner-3",    name:"Corner Three Mechanics",        tag:"Intermediate",difficulty:"intermediate", ageRange:[11,14], funScore:8,  estimatedDuration:120,
+    sets:"10 makes each corner", rest:"30 s",
+    transferTags:["three-point","corner","team-shooting"],
+    progressionTrack:"Step 4 — Range Extension",
+    desc:"Square your feet to the basket from the corner angle and catch with your feet already set. The corner three is the highest-value shot in modern basketball by points-per-shot math — mastering it pays dividends at every level of play.",
+    cues:["Square your feet to the BASKET — not the sideline","Catch with feet already set toward your target","Keep elbow in and use full wrist snap","Set your feet before the catch — same as all catch-and-shoot situations"],
+    trainer:"LethalShooter", videoId:"BjOGkKeZVi4", videoTitle:"The Art of Shooting Lesson #3 (Corner 3)" },
+
+  { id:"slab-step-back",   name:"Step-Back Jumper Basics",       tag:"Advanced",    difficulty:"advanced",     ageRange:[12,14], funScore:9,  estimatedDuration:120,
+    sets:"3×8 each side", rest:"45 s",
+    transferTags:["step-back","shot-creation","separation"],
+    progressionTrack:"Step 5 — Step-Back & Separation",
+    desc:"Attack hard first so the step-back is believable — push back on the same foot as the dribble hand and land balanced with knees bent, not falling backward. Creates built-in separation from the defender and is one of the most common ways elite guards create their own shot.",
+    cues:["Attack hard FIRST — the step-back is only effective after you've shown drive","Push back on the same foot as your dribble hand","Land balanced with knees bent — not falling backward","Eyes on the rim through the entire sequence"],
+    trainer:"The Skill Academy", videoId:"hVSdd79maCw", videoTitle:"Basketball 101: How To Teach The Step Back Jumper" },
+];
+
 const WORKOUTS = {
   speed:        W_SPEED,
   balance:      W_BALANCE,
@@ -1106,6 +1382,10 @@ const WORKOUTS = {
   finishing:    W_FINISHING,
   shootingdrills: W_SHOOTING_DRILLS,
   postmoves:      W_POST_MOVES,
+  finishing_school: W_FINISHING_SCHOOL,
+  footwork_lab:     W_FOOTWORK_LAB,
+  game_handles:     W_GAME_HANDLES,
+  shooting_lab:     W_SHOOTING_LAB,
 };
 
 const CATS = {
@@ -1125,6 +1405,10 @@ const CATS = {
   finishing:      { label:"Finishing",               emoji:"🏁" },
   shootingdrills: { label:"Shooting Drills",         emoji:"🎯" },
   postmoves:      { label:"Post Moves",              emoji:"🏋️" },
+  finishing_school: { label:"Finishing School",      emoji:"🎯" },
+  footwork_lab:     { label:"Footwork Lab",          emoji:"👟" },
+  game_handles:     { label:"Game Handles",          emoji:"🤲" },
+  shooting_lab:     { label:"Shooting Lab",          emoji:"🏀" },
 };
 
 const SCHEDULE = [
@@ -1549,11 +1833,11 @@ function getChallengeProgress(def, completed) {
 /* ═══════════════════════ XP + LEVELS + BADGES ═══════════════ */
 
 const LEVELS = [
-  { rank:1, name:"Rookie",       emoji:"🌱", xpMin:0,    xpNext:250  },
-  { rank:2, name:"Starter",      emoji:"⭐", xpMin:250,  xpNext:1000 },
-  { rank:3, name:"All-Star",     emoji:"🌟", xpMin:1000, xpNext:3000 },
-  { rank:4, name:"Varsity",      emoji:"🏆", xpMin:3000, xpNext:7500 },
-  { rank:5, name:"Elite Hooper", emoji:"👑", xpMin:7500, xpNext:null },
+  { rank:1, name:"Rookie",       emoji:"🌱", xpMin:0,     xpNext:1000  },
+  { rank:2, name:"Starter",      emoji:"⭐", xpMin:1000,  xpNext:2500  },
+  { rank:3, name:"All-Star",     emoji:"🌟", xpMin:2500,  xpNext:5000  },
+  { rank:4, name:"Varsity",      emoji:"🏆", xpMin:5000,  xpNext:10000 },
+  { rank:5, name:"Elite Hooper", emoji:"👑", xpMin:10000, xpNext:null  },
 ];
 
 function getLevel(xp) {
