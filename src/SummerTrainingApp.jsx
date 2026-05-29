@@ -942,7 +942,7 @@ const W_SHOOTING_DRILLS = [
     progressionTrack:"Step 1 — Shooting Foundation",
     desc:"BEEF at close range: Balance, Eyes, Elbow, Follow-through. The only drill where repetition of perfect form creates the neuromuscular pattern that lasts forever. Do not move back until form is automatic.",
     cues:["Ball at the forehead — shooting pocket on the way up","Elbow under the ball — not flaring out to the side","Eyes on the back of the rim — not the whole basket","Hold follow-through until the ball hits the net — every single rep"],
-    videoUrl:"" },
+    trainer:"PGC Basketball", videoId:"LkkGPDSJfpk", videoTitle:"Basketball Shooting Drills That Build Better Habits — PGC" },
 
   { id:"sh-one-hand",     name:"One Hand Form Shooting",  tag:"Foundation",      difficulty:"intermediate", ageRange:[10,14], funScore:5,  estimatedDuration:180,
     sets:"30 makes from 3–5 feet", rest:"N/A",
@@ -950,7 +950,7 @@ const W_SHOOTING_DRILLS = [
     progressionTrack:"Step 1 — Shooting Foundation",
     desc:"Guide hand removed from the ball — strong hand only shoots and follows through. Immediately exposes any compensation in the mechanics. If it looks different with one hand, the form has a flaw.",
     cues:["Guide hand comes completely off before the shot begins","Strong hand: elbow lines up with the basket","Wrist flicks through completely — full follow-through","If the ball goes anywhere but straight: diagnose the flaw and fix it"],
-    videoUrl:"" },
+    trainer:"Pro Skills Basketball", videoId:"drjHBtMgbF4", videoTitle:"One Hand Form Shot — PSB Drills & Skills" },
 
   { id:"sh-spot",         name:"Spot Shooting",           tag:"Volume",          difficulty:"intermediate", ageRange:[10,14], funScore:8,  estimatedDuration:600,
     sets:"10 makes x 5 spots", rest:"Move between spots",
@@ -958,7 +958,7 @@ const W_SHOOTING_DRILLS = [
     progressionTrack:"Step 2 — Range Extension",
     desc:"5 marked spots around the arc — left corner, left wing, top of key, right wing, right corner. 10 makes from each before moving. Track total makes per session.",
     cues:["Feet set before the catch — not after","Same shot every time: same pocket, same rhythm, same follow-through","Track your makes — improvement is the measure, not just attempts","Closest spot before you earn the farther spots"],
-    videoUrl:"" },
+    trainer:"Basketball Drills", videoId:"1RQPTBFduwc", videoTitle:"7 Spot Basketball Shooting Drill" },
 
   { id:"sh-atw",          name:"Around The World",        tag:"Game",            difficulty:"beginner",     ageRange:[9,14],  funScore:10, estimatedDuration:300,
     sets:"1–3 full rounds", rest:"Between rounds",
@@ -966,7 +966,7 @@ const W_SHOOTING_DRILLS = [
     progressionTrack:"Step 2 — Range Extension",
     desc:"7 classic spots in sequence from right corner to left corner. Make it to move on, miss twice and go back to start (or stay on that spot). The timeless youth shooting game that never gets old.",
     cues:["Set your feet before every single shot — no rush","Each spot has the same form — do not adjust based on angle","Call your score out loud — makes it a competition even solo","Try to beat your personal best number of makes per round"],
-    videoUrl:"" },
+    trainer:"Teach Hoops", videoId:"KCJHGqWZRLU", videoTitle:"Around the World Basketball Shooting Drill — Teach Hoops" },
 
   { id:"sh-ft-routine",   name:"Free Throw Routine",      tag:"Foundation",      difficulty:"beginner",     ageRange:[9,14],  funScore:5,  estimatedDuration:300,
     sets:"Shoot until 10 in a row", rest:"N/A",
@@ -974,7 +974,7 @@ const W_SHOOTING_DRILLS = [
     progressionTrack:"Step 1 — Shooting Foundation",
     desc:"Build and repeat a locked pre-shot routine: same number of dribbles, same ball spin, same breath, then shoot. The routine removes the thinking so the mechanics can execute.",
     cues:["Same routine — EXACTLY the same — every single rep","1 or 2 dribbles max: more is a distraction, not a help","Deep breath out before the shot — releases tension","10 in a row is the standard: 9 then a miss means start over"],
-    videoUrl:"" },
+    trainer:"PGC Basketball", videoId:"0kj_B1za0U0", videoTitle:"Make More Free Throws — PGC Basketball" },
 
   { id:"sh-beat-pro",     name:"Beat The Pro",            tag:"Game",            difficulty:"intermediate", ageRange:[10,14], funScore:10, estimatedDuration:300,
     sets:"5–10 rounds", rest:"Between rounds",
@@ -982,7 +982,7 @@ const W_SHOOTING_DRILLS = [
     progressionTrack:"Step 3 — Game-Speed Shooting",
     desc:"You need to score more than an imaginary pro player over a round of shooting. Make = 1 point for you; miss = 1 point for the Pro. First to 7 wins. Develops clutch shooting under self-imposed pressure.",
     cues:["Treat every shot like it matters — because in this game it does","If the Pro is winning, feel that pressure — that is the whole point","Shoot at the same pace you would in a game — no slow-down to aim","Track your win/loss record over weeks — improvement is the trend"],
-    videoUrl:"" },
+    trainer:"PGC Basketball", videoId:"LlPdpW6l1SQ", videoTitle:"Beat the Pro — PGC Basketball" },
 ];
 
 const WORKOUTS = {
