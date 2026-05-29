@@ -34,7 +34,13 @@ function isBirthday(dob) {
   const today = new Date();
   return birth.getMonth() === today.getMonth() && birth.getDate() === today.getDate();
 }
-const hsl  = (h,s,l) => `hsl(${h},${s}%,${l}%)`;
+const hsl  = (h,s,l) => {
+  // Output #rrggbb hex so that ${color}XX alpha-suffix trick produces valid 8-char hex (#rrggbbaa)
+  const _s = s/100, _l = l/100;
+  const a = _s * Math.min(_l, 1-_l);
+  const f = n => { const k=(n+h/30)%12; const c=_l-a*Math.max(Math.min(k-3,9-k,1),-1); return Math.round(255*c).toString(16).padStart(2,'0'); };
+  return `#${f(0)}${f(8)}${f(4)}`;
+};
 const pri  = s => hsl(s.primaryHue,   s.primarySat,   s.primaryLight);
 const sec  = s => hsl(s.secondaryHue, s.secondarySat, s.secondaryLight);
 const bg   = s => hsl(s.bgHue, s.bgSat, s.bgLight);
@@ -2701,26 +2707,26 @@ function Donut({ data, size=128 }) {
 function CourtMap({ priColor, onZoneSelect, lastShot }) {
   const zones = [
     // Under the basket
-    {id:"layup",        label:"Layup",   x:113, y:42,  r:17},
+    {id:"layup",        label:"Layup",  short:"LYP", x:113, y:42,  r:17},
     // Blocks — lane sides at low-post depth (~y=52, lane edges x=70/156)
-    {id:"block_bank",   label:"Block",   x:70,  y:52,  r:13},
-    {id:"block_bank",   label:"Block",   x:156, y:52,  r:13},
+    {id:"block_bank",   label:"Block",  short:"BLK", x:70,  y:52,  r:13},
+    {id:"block_bank",   label:"Block",  short:"BLK", x:156, y:52,  r:13},
     // Free throw — center of the FT line (y=122)
-    {id:"free_throw",   label:"FT",      x:113, y:122, r:15},
+    {id:"free_throw",   label:"FT",                  x:113, y:122, r:15},
     // Elbows — exactly where FT line meets lane edge (x=72/154, y=122)
-    {id:"mid_bank",     label:"Elbow",   x:72,  y:122, r:13},
-    {id:"mid_bank",     label:"Elbow",   x:154, y:122, r:13},
+    {id:"mid_bank",     label:"Elbow",  short:"ELB", x:72,  y:122, r:13},
+    {id:"mid_bank",     label:"Elbow",  short:"ELB", x:154, y:122, r:13},
     // Mid-range wings (inside the 3-pt arc)
-    {id:"mid",          label:"Wing",    x:42,  y:148, r:12},
-    {id:"mid",          label:"Wing",    x:184, y:148, r:12},
+    {id:"mid",          label:"Wing",                x:42,  y:148, r:12},
+    {id:"mid",          label:"Wing",                x:184, y:148, r:12},
     // Corner 3 — ON the corner line (x=18/207), mid-height
-    {id:"three_corner", label:"Corner",  x:18,  y:90,  r:12},
-    {id:"three_corner", label:"Corner",  x:208, y:90,  r:12},
+    {id:"three_corner", label:"Corner", short:"COR", x:18,  y:90,  r:12},
+    {id:"three_corner", label:"Corner", short:"COR", x:208, y:90,  r:12},
     // Slot / wing 3 — just beyond the arc at ~30° offset from top
-    {id:"three_slot",   label:"Slot",    x:40,  y:157, r:12},
-    {id:"three_slot",   label:"Slot",    x:186, y:157, r:12},
+    {id:"three_slot",   label:"Slot",                x:40,  y:157, r:12},
+    {id:"three_slot",   label:"Slot",                x:186, y:157, r:12},
     // Top of the key 3 — at the arc peak (basket y=20 + r=150 → y=170)
-    {id:"three_center", label:"Top 3",   x:113, y:172, r:14},
+    {id:"three_center", label:"Top 3",  short:"T3",  x:113, y:172, r:14},
   ];
   return (
     <svg viewBox="0 0 226 200" style={{ width:"100%",maxWidth:310,display:"block",margin:"0 auto" }}>
@@ -2742,7 +2748,7 @@ function CourtMap({ priColor, onZoneSelect, lastShot }) {
             <circle cx={z.x} cy={z.y} r={z.r} fill={hit?col:`${col}25`} stroke={col} strokeWidth={hit?2.5:1.5}/>
             <text x={z.x} y={z.y+1} textAnchor="middle" dominantBaseline="middle"
               style={{ fontSize:z.r*0.72,fill:hit?"#000":col,fontWeight:700,pointerEvents:"none",fontFamily:"DM Sans,sans-serif" }}>
-              {z.label.length>4?z.label.slice(0,4):z.label}
+              {z.short || z.label}
             </text>
           </g>
         );
@@ -4169,7 +4175,7 @@ function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onTogg
   const diffColor = { beginner:"#22c55e", intermediate:"#f59e0b", advanced:"#ef4444" }[meta.difficulty] || "#64748b";
   const diffLabel = { beginner:"Beginner", intermediate:"Intermediate", advanced:"Advanced" }[meta.difficulty] || "All Levels";
   const mins      = meta.estimatedDuration ? Math.max(1,Math.round(meta.estimatedDuration/60)) : null;
-  const eqLabel   = { none:"No Equipment", cones:"Cones", dumbbells:"Dumbbells", box:"Box / Step", bosu:"BOSU", jump_rope:"Jump Rope", ball:"Basketball", resistance_band:"Band" }[meta.equipment] || meta.equipment || "None";
+  const eqLabel   = { none:"No Equipment", cones:"Cones", dumbbells:"Dumbbells", box:"Box / Step", bosu:"BOSU", jump_rope:"Jump Rope", ball:"Basketball", basketball:"Basketball", tennis_ball:"Tennis Ball", basketball_x2:"Two Basketballs", partner:"Partner", resistance_band:"Band" }[meta.equipment] || meta.equipment || "None";
   const spLabel   = { small:"Small Space", medium:"Medium Space", large:"Open Space" }[meta.spaceRequired] || meta.spaceRequired || "";
 
   const benefits = [...new Set(meta.basketballTransfer||[])].map(b=>BENEFIT_MAP[b]).filter(Boolean);
