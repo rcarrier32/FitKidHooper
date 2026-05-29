@@ -983,6 +983,38 @@ const W_SHOOTING_DRILLS = [
     desc:"You need to score more than an imaginary pro player over a round of shooting. Make = 1 point for you; miss = 1 point for the Pro. First to 7 wins. Develops clutch shooting under self-imposed pressure.",
     cues:["Treat every shot like it matters — because in this game it does","If the Pro is winning, feel that pressure — that is the whole point","Shoot at the same pace you would in a game — no slow-down to aim","Track your win/loss record over weeks — improvement is the trend"],
     trainer:"PGC Basketball", videoId:"LlPdpW6l1SQ", videoTitle:"Beat the Pro — PGC Basketball" },
+
+  { id:"sh-knee-roll",    name:"Knee Roll Ups",              tag:"Foundation",      difficulty:"beginner",     ageRange:[9,14],  funScore:6,  estimatedDuration:120,
+    sets:"3x20 makes", rest:"N/A",
+    transferTags:["mechanics","wrist","muscle-memory"],
+    progressionTrack:"Step 1 — Shooting Foundation",
+    desc:"Start kneeling on your shooting-side knee with the off-foot planted flat — ball in the shooting pocket, guide hand off. Roll up from the knee to standing, releasing at the top of the rise. Eliminates leg power entirely to isolate wrist and hand mechanics. Created by Miami Heat shooting coach Rob Fodor.",
+    cues:["Shooting-side knee down, off-foot flat — keep your back straight","Ball stays in the pocket through the roll — never drop it on the way up","Guide hand completely off from the start — strong hand only","Release at the peak of the rise and hold the follow-through"],
+    trainer:"Basketball Immersion", videoId:"cpWL5s5XG0g", videoTitle:"Roll Ups — Beyond Static Form Shooting Drills" },
+
+  { id:"sh-hop-shot",     name:"2 Hop Shots",                tag:"Foundation",      difficulty:"beginner",     ageRange:[9,14],  funScore:7,  estimatedDuration:120,
+    sets:"3x20 reps", rest:"N/A",
+    transferTags:["footwork","rhythm","catch-and-shoot"],
+    progressionTrack:"Step 1 — Shooting Foundation",
+    desc:"Toss the ball out to yourself, catch it mid-air and land on both feet simultaneously in a small hop-gather — knees loaded — then rise immediately into your shot. Trains the rhythm and balance of the hop footwork used in catch-and-shoot situations. The hop keeps your body square and loads your legs faster than a 1-2 step.",
+    cues:["Hop is SMALL — 2 inches off the ground, not a jump","Both feet land at the exact same time — simultaneous, not one then the other","Knees load on the landing — use that energy straight into the shot","Catch the ball before you land — hands ready in the air"],
+    trainer:"Shoot a Basketball Better", videoId:"NIk4KtykIOE", videoTitle:"How to Shoot a Basketball Better — The Hop vs. 1-2 Gather (Beginners)" },
+
+  { id:"sh-single-leg",   name:"Single Leg Hop & Step Back", tag:"Advanced",        difficulty:"intermediate", ageRange:[10,14], funScore:7,  estimatedDuration:120,
+    sets:"3x10 each leg", rest:"30 s",
+    transferTags:["balance","off-dribble","step-back"],
+    progressionTrack:"Step 3 — Game-Speed Shooting",
+    desc:"Step back on one leg as if creating space off the dribble — land balanced on that single foot, hold the balance briefly, then shoot from the one-legged support position. Builds the stability needed for real step-back jumpers. Elite guards shoot off one leg constantly; this drill builds that foundation.",
+    cues:["Step back far enough to feel the balance challenge — not a tiny step","Land on the ball of the foot — not the heel — and absorb the landing","Hold the single-leg balance for a full beat before shooting — no rushing","Eyes on the rim the entire time — not watching your feet"],
+    trainer:"Alan Stein", videoId:"_lbOIWvqP50", videoTitle:"Basketball Shooting Drill: The Balance Series — Alan Stein" },
+
+  { id:"sh-jab-reset",    name:"Jab Step Reset & Shoot",     tag:"Game",            difficulty:"intermediate", ageRange:[10,14], funScore:9,  estimatedDuration:120,
+    sets:"3x10 each side", rest:"30 s",
+    transferTags:["shot-creation","footwork","decision-making"],
+    progressionTrack:"Step 3 — Game-Speed Shooting",
+    desc:"From triple threat, jab hard toward the defender to read their reaction. If they stand their ground and do not retreat — pull the jab back, reset your feet square to the basket, and shoot. This is the most common shot-creation sequence in half-court basketball and the foundation of every great mid-range scorer.",
+    cues:["Jab must be sharp and long — a soft jab is not a threat and will be ignored","Read the feet: if they do not move, shoot; if they back up, go","Reset is ONE motion — back foot comes in, weight loads forward, shot releases","Hold the follow-through — you are shooting over a defender who is standing still"],
+    trainer:"Ryan Razooky", videoId:"bmUmNPRfrWo", videoTitle:"Basketball Shooting Drills: Jab Step Series — Ryan Razooky" },
 ];
 
 const WORKOUTS = {
@@ -1242,6 +1274,10 @@ const EXERCISE_META = {
   "sh-atw":              { difficulty:"beginner",     impactLevel:"low",    intensityLevel:"low",    movementType:"skill",        bodyFocus:["hands","wrists","feet"],           basketballTransfer:["shooting","pressure","competition"],          equipment:"basketball",   spaceRequired:"large",      ageRange:[9,14],  estimatedDuration:300, funScore:10, workoutRole:["main"],          progressionTrack:"Step 2 — Range Extension" },
   "sh-ft-routine":       { difficulty:"beginner",     impactLevel:"low",    intensityLevel:"low",    movementType:"skill",        bodyFocus:["hands","wrists","legs"],           basketballTransfer:["free-throws","routine","pressure-shooting"],  equipment:"basketball",   spaceRequired:"small",      ageRange:[9,14],  estimatedDuration:300, funScore:5,  workoutRole:["main"],          progressionTrack:"Step 1 — Shooting Foundation" },
   "sh-beat-pro":         { difficulty:"intermediate", impactLevel:"low",    intensityLevel:"medium", movementType:"skill",        bodyFocus:["hands","wrists","feet","mind"],    basketballTransfer:["competition","pressure-shooting","shooting"],  equipment:"basketball",   spaceRequired:"large",      ageRange:[10,14], estimatedDuration:300, funScore:10, workoutRole:["main","finisher"],progressionTrack:"Step 3 — Game-Speed Shooting" },
+  "sh-knee-roll":        { difficulty:"beginner",     impactLevel:"low",    intensityLevel:"low",    movementType:"skill",        bodyFocus:["hands","wrists","fingers"],        basketballTransfer:["mechanics","wrist","muscle-memory"],           equipment:"basketball",   spaceRequired:"small",      ageRange:[9,14],  estimatedDuration:120, funScore:6,  workoutRole:["warmup","main"],  progressionTrack:"Step 1 — Shooting Foundation" },
+  "sh-hop-shot":         { difficulty:"beginner",     impactLevel:"low",    intensityLevel:"low",    movementType:"skill",        bodyFocus:["legs","feet","hands"],             basketballTransfer:["footwork","rhythm","catch-and-shoot"],         equipment:"basketball",   spaceRequired:"medium",     ageRange:[9,14],  estimatedDuration:120, funScore:7,  workoutRole:["main"],          progressionTrack:"Step 1 — Shooting Foundation" },
+  "sh-single-leg":       { difficulty:"intermediate", impactLevel:"low",    intensityLevel:"medium", movementType:"skill",        bodyFocus:["legs","core","feet"],              basketballTransfer:["balance","off-dribble","step-back"],           equipment:"basketball",   spaceRequired:"medium",     ageRange:[10,14], estimatedDuration:120, funScore:7,  workoutRole:["main"],          progressionTrack:"Step 3 — Game-Speed Shooting" },
+  "sh-jab-reset":        { difficulty:"intermediate", impactLevel:"low",    intensityLevel:"medium", movementType:"skill",        bodyFocus:["legs","feet","hands","mind"],      basketballTransfer:["shot-creation","footwork","decision-making"],  equipment:"basketball",   spaceRequired:"medium",     ageRange:[10,14], estimatedDuration:120, funScore:9,  workoutRole:["main"],          progressionTrack:"Step 3 — Game-Speed Shooting" },
 };
 
 /* Age-based workout generation rules */
