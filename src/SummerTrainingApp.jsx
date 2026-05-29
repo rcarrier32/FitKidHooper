@@ -1048,6 +1048,38 @@ function getChallengeProgress(def, completed) {
   return { cur:0, target:def.target };
 }
 
+/* ═══════════════════════ BENEFIT MAP ════════════════════════ */
+// Maps basketballTransfer ids → user-facing labels for the detail view
+const BENEFIT_MAP = {
+  jumping:       { label:"Jump Higher",        emoji:"💥" },
+  quickness:     { label:"Quicker First Step", emoji:"⚡" },
+  defense:       { label:"Better Defense",     emoji:"🛡" },
+  cutting:       { label:"Sharper Cuts",       emoji:"🔪" },
+  "first-step":  { label:"Explosive First Step",emoji:"⚡"},
+  landing:       { label:"Safe Landings",      emoji:"🛑" },
+  footwork:      { label:"Elite Footwork",     emoji:"👟" },
+  stability:     { label:"Solid Balance",      emoji:"🎯" },
+  strength:      { label:"Body Strength",      emoji:"💪" },
+  conditioning:  { label:"Game Fitness",       emoji:"🔥" },
+  speed:         { label:"Top Speed",          emoji:"💨" },
+  rebounding:    { label:"Grab More Boards",   emoji:"🏀" },
+  reaction:      { label:"React Faster",       emoji:"⚡" },
+  all:           { label:"Complete Athlete",   emoji:"🏃" },
+  shooting:      { label:"Better Shooting",    emoji:"🎯" },
+  power:         { label:"Explosive Power",    emoji:"💥" },
+  explosion:     { label:"Pure Explosion",     emoji:"💥" },
+  safety:        { label:"Stay Healthy",       emoji:"🛡" },
+  sprinting:     { label:"Sprint Faster",      emoji:"💨" },
+  running:       { label:"Better Running",     emoji:"🏃" },
+};
+
+// Flat lookup: exerciseId → { ...exercise, _cat, meta }
+const ALL_EXERCISES = Object.fromEntries(
+  Object.entries(WORKOUTS).flatMap(([cat, exs]) =>
+    exs.map(ex => [ex.id, { ...ex, _cat:cat, meta:EXERCISE_META[ex.id]||{} }])
+  )
+);
+
 /* ═══════════════════════ RECOMMENDATION ENGINE ══════════════ */
 
 // What template naturally follows each template (recovery rotation)
@@ -1949,15 +1981,277 @@ function ShotTracker({ P, S, BG, athleteName }) {
   );
 }
 
+/* ═══════════════════════ EXERCISE DETAIL SHEET ════════════ */
+function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onToggle, onClose, onNext, completed }) {
+  const meta      = exercise.meta || {};
+  const cat       = exercise._cat || "speed";
+  const catInfo   = CATS[cat] || { label:cat, emoji:"⚡" };
+
+  /* Progress from completed ─────────────────────────────── */
+  const timesCompleted = Object.keys(completed).filter(k => {
+    const exId = k.split("-").slice(3).join("-");
+    return exId === exercise.id && completed[k];
+  }).length;
+
+  const lastDate = Object.keys(completed)
+    .filter(k => { const exId = k.split("-").slice(3).join("-"); return exId === exercise.id && completed[k]; })
+    .map(k => k.split("-").slice(0,3).join("-"))
+    .sort().at(-1);
+
+  const fmtLast = lastDate
+    ? new Date(lastDate+"T12:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric"})
+    : null;
+
+  const level = timesCompleted >= 10 ? "Advanced" : timesCompleted >= 4 ? "Building" : "Learning";
+
+  /* Badges / labels ─────────────────────────────────────── */
+  const diffColor = { beginner:"#22c55e", intermediate:"#f59e0b", advanced:"#ef4444" }[meta.difficulty] || "#64748b";
+  const diffLabel = { beginner:"Beginner", intermediate:"Intermediate", advanced:"Advanced" }[meta.difficulty] || "All Levels";
+  const mins      = meta.estimatedDuration ? Math.max(1,Math.round(meta.estimatedDuration/60)) : null;
+  const eqLabel   = { none:"No Equipment", cones:"Cones", dumbbells:"Dumbbells", box:"Box / Step", bosu:"BOSU", jump_rope:"Jump Rope", ball:"Basketball", resistance_band:"Band" }[meta.equipment] || meta.equipment || "None";
+  const spLabel   = { small:"Small Space", medium:"Medium Space", large:"Open Space" }[meta.spaceRequired] || meta.spaceRequired || "";
+
+  const benefits = [...new Set(meta.basketballTransfer||[])].map(b=>BENEFIT_MAP[b]).filter(Boolean);
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div onClick={onClose}
+        style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",zIndex:200,backdropFilter:"blur(3px)" }}/>
+
+      {/* Panel */}
+      <div style={{ position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",
+        width:"100%",maxWidth:680,height:"93vh",zIndex:201,
+        display:"flex",flexDirection:"column",
+        borderRadius:"20px 20px 0 0",background:BG,
+        border:`1px solid ${color}22`,overflow:"hidden" }}>
+
+        {/* Header */}
+        <div style={{ display:"flex",alignItems:"center",gap:10,
+          padding:"14px 16px",borderBottom:`1px solid ${color}20`,
+          background:BG,flexShrink:0 }}>
+          <button onClick={onClose}
+            style={{ padding:"6px 12px",borderRadius:8,border:`1px solid ${color}30`,
+              background:`${color}14`,color,fontSize:12,fontWeight:700,cursor:"pointer" }}>
+            ← Back
+          </button>
+          <span style={{ flex:1,fontSize:12,fontWeight:700,color:`${color}cc`,
+            textAlign:"center",letterSpacing:"0.02em" }}>
+            {catInfo.emoji} {catInfo.label}
+          </span>
+          {isDone
+            ? <span style={{ fontSize:11,fontWeight:700,color:"#22c55e",
+                padding:"4px 10px",background:"rgba(34,197,94,0.1)",
+                border:"1px solid rgba(34,197,94,0.2)",borderRadius:20 }}>✓ Done</span>
+            : <div style={{ width:56 }}/>}
+        </div>
+
+        {/* Scrollable body */}
+        <div style={{ flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch" }}>
+
+          {/* Video */}
+          <a href={`https://www.youtube.com/watch?v=${exercise.videoId}`}
+            target="_blank" rel="noopener noreferrer"
+            style={{ display:"block",position:"relative",background:"#000",aspectRatio:"16/9",overflow:"hidden",textDecoration:"none" }}>
+            <img src={`https://img.youtube.com/vi/${exercise.videoId}/hqdefault.jpg`}
+              alt={exercise.videoTitle}
+              style={{ width:"100%",height:"100%",objectFit:"cover",display:"block" }}/>
+            {/* gradient */}
+            <div style={{ position:"absolute",inset:0,
+              background:"linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 55%)" }}/>
+            {/* play btn */}
+            <div style={{ position:"absolute",top:"50%",left:"50%",
+              transform:"translate(-50%,-50%)",
+              width:64,height:64,borderRadius:"50%",
+              background:"rgba(0,0,0,0.72)",border:`2.5px solid ${color}`,
+              display:"flex",alignItems:"center",justifyContent:"center" }}>
+              <span style={{ color,fontSize:24,marginLeft:5 }}>▶</span>
+            </div>
+            {/* title overlay */}
+            <div style={{ position:"absolute",bottom:10,left:12,right:12,
+              fontSize:11,color:"rgba(255,255,255,0.85)",fontWeight:600,
+              textShadow:"0 1px 3px rgba(0,0,0,0.9)" }}>
+              📺 {exercise.videoTitle}
+            </div>
+          </a>
+
+          <div style={{ padding:"18px 18px 8px" }}>
+
+            {/* Title + badges */}
+            <div style={{ marginBottom:14 }}>
+              <div style={{ display:"flex",alignItems:"center",gap:7,marginBottom:8,flexWrap:"wrap" }}>
+                <span style={{ fontSize:10,padding:"3px 10px",borderRadius:20,fontWeight:800,
+                  background:`${color}18`,color,border:`1px solid ${color}30` }}>
+                  {exercise.tag}
+                </span>
+                <span style={{ fontSize:10,padding:"3px 10px",borderRadius:20,fontWeight:700,
+                  background:`${diffColor}16`,color:diffColor,border:`1px solid ${diffColor}30` }}>
+                  {diffLabel}
+                </span>
+                {mins&&<span style={{ fontSize:10,padding:"3px 10px",borderRadius:20,fontWeight:700,
+                  background:"rgba(255,255,255,0.06)",color:"#94a3b8",border:"1px solid rgba(255,255,255,0.1)" }}>
+                  🕐 {mins} min
+                </span>}
+              </div>
+              <h2 style={{ fontSize:22,fontWeight:800,color:"#f1f5f9",margin:0,lineHeight:1.2 }}>
+                {exercise.name}
+              </h2>
+            </div>
+
+            {/* Stat chips */}
+            <div style={{ display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:7,marginBottom:18 }}>
+              {[
+                { label:"Sets",  value:exercise.sets },
+                { label:"Rest",  value:exercise.rest==="N/A"?"None":exercise.rest },
+                { label:"Gear",  value:eqLabel },
+                { label:"Space", value:spLabel },
+              ].map(({ label, value }) => (
+                <div key={label} style={{ background:SF,borderRadius:10,padding:"10px 6px",
+                  textAlign:"center",border:"1px solid rgba(255,255,255,0.07)" }}>
+                  <div style={{ fontSize:8,color:"#475569",fontFamily:"'DM Mono',monospace",
+                    letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:4 }}>{label}</div>
+                  <div style={{ fontSize:10,fontWeight:700,color:"#cbd5e1",lineHeight:1.3 }}>{value}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Description */}
+            {exercise.desc&&(
+              <p style={{ fontSize:13,color:"#94a3b8",lineHeight:1.65,margin:"0 0 18px" }}>
+                {exercise.desc}
+              </p>
+            )}
+
+            {/* Coach FKH Tips */}
+            {exercise.cues?.length>0&&(
+              <div style={{ marginBottom:18 }}>
+                <div style={{ display:"flex",alignItems:"center",gap:7,marginBottom:9 }}>
+                  <span style={{ fontSize:15 }}>🎓</span>
+                  <span style={{ fontFamily:"'DM Mono',monospace",fontSize:9,
+                    letterSpacing:"0.18em",color:`${color}80`,textTransform:"uppercase" }}>
+                    Coach FKH Tips
+                  </span>
+                </div>
+                <div style={{ display:"flex",flexDirection:"column",gap:9,
+                  background:bg2,borderRadius:12,padding:"13px 14px",border:`1px solid ${brd}` }}>
+                  {exercise.cues.map((cue,i)=>(
+                    <div key={i} style={{ display:"flex",gap:10,alignItems:"flex-start" }}>
+                      <span style={{ color,fontWeight:800,fontSize:13,flexShrink:0,lineHeight:1.55 }}>→</span>
+                      <span style={{ fontSize:13,color:"#e2e8f0",lineHeight:1.55,fontWeight:500 }}>{cue}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Athlete Benefits */}
+            {benefits.length>0&&(
+              <div style={{ marginBottom:18 }}>
+                <div style={{ display:"flex",alignItems:"center",gap:7,marginBottom:9 }}>
+                  <span style={{ fontSize:15 }}>⚡</span>
+                  <span style={{ fontFamily:"'DM Mono',monospace",fontSize:9,
+                    letterSpacing:"0.18em",color:`${color}80`,textTransform:"uppercase" }}>
+                    Athlete Benefits
+                  </span>
+                </div>
+                <div style={{ display:"flex",flexWrap:"wrap",gap:7 }}>
+                  {benefits.map((b,i)=>(
+                    <div key={i} style={{ display:"flex",alignItems:"center",gap:6,
+                      padding:"7px 13px",borderRadius:20,
+                      background:`${color}10`,border:`1px solid ${color}28` }}>
+                      <span style={{ fontSize:14 }}>{b.emoji}</span>
+                      <span style={{ fontSize:12,fontWeight:700,color }}>{b.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Progress tracking */}
+            <div style={{ marginBottom:18 }}>
+              <div style={{ display:"flex",alignItems:"center",gap:7,marginBottom:9 }}>
+                <span style={{ fontSize:15 }}>📈</span>
+                <span style={{ fontFamily:"'DM Mono',monospace",fontSize:9,
+                  letterSpacing:"0.18em",color:`${color}80`,textTransform:"uppercase" }}>
+                  Your Progress
+                </span>
+              </div>
+              <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8 }}>
+                {[
+                  { label:"Times Done", value:timesCompleted>0?`${timesCompleted}×`:"—" },
+                  { label:"Last Done",  value:fmtLast||"—" },
+                  { label:"Level",      value:level },
+                ].map(({ label, value })=>(
+                  <div key={label} style={{ background:SF,borderRadius:10,padding:"12px 8px",
+                    textAlign:"center",border:"1px solid rgba(255,255,255,0.07)" }}>
+                    <div style={{ fontFamily:"'DM Mono',monospace",fontSize:18,fontWeight:800,color,lineHeight:1 }}>
+                      {value}
+                    </div>
+                    <div style={{ fontSize:8,color:"#334155",marginTop:4,
+                      textTransform:"uppercase",letterSpacing:"0.08em" }}>{label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Future Ready */}
+            <div style={{ borderRadius:12,border:"1px dashed rgba(255,255,255,0.08)",
+              background:"rgba(255,255,255,0.02)",padding:"13px 15px",opacity:0.6,marginBottom:6 }}>
+              <div style={{ display:"flex",alignItems:"center",gap:7,marginBottom:8 }}>
+                <span style={{ fontSize:13 }}>🏆</span>
+                <span style={{ fontFamily:"'DM Mono',monospace",fontSize:9,
+                  letterSpacing:"0.18em",color:"#334155",textTransform:"uppercase" }}>
+                  Coming Soon
+                </span>
+              </div>
+              <div style={{ display:"flex",gap:7,flexWrap:"wrap" }}>
+                {["XP Earned","Badges Unlocked","Next Progression"].map(label=>(
+                  <div key={label} style={{ padding:"4px 11px",borderRadius:20,
+                    border:"1px dashed rgba(255,255,255,0.1)",fontSize:10,color:"#334155" }}>
+                    {label}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+          </div>
+          <div style={{ height:20 }}/>
+        </div>
+
+        {/* Sticky footer */}
+        <div style={{ padding:"12px 16px",
+          paddingBottom:"calc(12px + env(safe-area-inset-bottom, 0px))",
+          borderTop:`1px solid ${color}20`,background:BG,
+          display:"flex",gap:10,flexShrink:0 }}>
+          <button onClick={onToggle}
+            style={{ flex:1,padding:"13px",borderRadius:12,fontSize:14,fontWeight:800,cursor:"pointer",
+              background:isDone?"rgba(34,197,94,0.12)":color,
+              border:isDone?"1px solid rgba(34,197,94,0.3)":"none",
+              color:isDone?"#22c55e":"#000",transition:"all 0.2s" }}>
+            {isDone?"✓ Completed — Undo?":"Mark Complete ✓"}
+          </button>
+          <button onClick={onNext||onClose}
+            style={{ padding:"13px 18px",borderRadius:12,fontSize:13,fontWeight:700,cursor:"pointer",
+              background:SF,border:"1px solid rgba(255,255,255,0.09)",color:"#94a3b8" }}>
+            {onNext?"Next →":"Close"}
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
 /* ═══════════════════════ DRILL CARD ═══════════════════════ */
-function DrillCard({ w, color, bg2, brd, isDone, onToggle }) {
+function DrillCard({ w, color, bg2, brd, isDone, onToggle, onViewDetail }) {
   // color-derived helpers local to this card
   const metaBg  = `${color}12`;
   const metaBrd = `${color}28`;
   const cueTxt  = `${color}cc`;
   return (
-    <div style={{ background:`${color}08`,border:`1px solid ${isDone?color:metaBrd}`,borderRadius:16,overflow:"hidden",marginBottom:14,display:"flex",transition:"border-color 0.2s" }}>
+    <div onClick={onViewDetail}
+      style={{ background:`${color}08`,border:`1px solid ${isDone?color:metaBrd}`,borderRadius:16,overflow:"hidden",marginBottom:14,display:"flex",transition:"border-color 0.2s",cursor:onViewDetail?"pointer":"default" }}>
       <a href={`https://www.youtube.com/watch?v=${w.videoId}`} target="_blank" rel="noopener noreferrer"
+        onClick={e=>e.stopPropagation()}
         style={{ flexShrink:0,width:128,position:"relative",display:"block",background:"#0f172a" }}>
         <img src={`https://img.youtube.com/vi/${w.videoId}/mqdefault.jpg`} alt="" style={{ width:128,height:90,objectFit:"cover",display:"block" }}/>
         <div style={{ position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-55%)",width:26,height:26,borderRadius:"50%",background:`${color}cc`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#000",fontWeight:700,border:`1px solid ${color}` }}>▶</div>
@@ -1969,7 +2263,7 @@ function DrillCard({ w, color, bg2, brd, isDone, onToggle }) {
             {w.trainer && <span style={{ fontSize:9,padding:"2px 8px",borderRadius:20,display:"inline-block",marginBottom:4,marginLeft:4,background:metaBg,color,border:`1px solid ${metaBrd}`,opacity:0.8 }}>📹 {w.trainer}</span>}
             <div style={{ fontSize:13,fontWeight:700,color:"#f1f5f9",lineHeight:1.2 }}>{w.name}</div>
           </div>
-          <button onClick={onToggle} style={{ flexShrink:0,width:44,height:44,borderRadius:"50%",border:`2px solid ${isDone?color:metaBrd}`,background:isDone?color:metaBg,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:13,fontWeight:800,color:isDone?"#000":color }}>
+          <button onClick={e=>{e.stopPropagation();onToggle();}} style={{ flexShrink:0,width:44,height:44,borderRadius:"50%",border:`2px solid ${isDone?color:metaBrd}`,background:isDone?color:metaBg,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:13,fontWeight:800,color:isDone?"#000":color }}>
             {isDone?"✓":"○"}
           </button>
         </div>
@@ -1986,6 +2280,7 @@ function DrillCard({ w, color, bg2, brd, isDone, onToggle }) {
           ))}
         </div>
         <a href={`https://www.youtube.com/watch?v=${w.videoId}`} target="_blank" rel="noopener noreferrer"
+          onClick={e=>e.stopPropagation()}
           style={{ display:"flex",alignItems:"center",gap:6,fontSize:11,padding:"7px 12px",borderRadius:10,textDecoration:"none",fontWeight:700,background:bg2,color,border:`1px solid ${brd}`,letterSpacing:"0.01em" }}>
           <span style={{ fontSize:13 }}>▶</span> {w.videoTitle}
         </a>
@@ -2001,6 +2296,8 @@ export default function SummerTrainingApp() {
   const [view, setView] = useState("home");
   const [prevView, setPrevView] = useState("home");
   const [activeCat, setActiveCat] = useState(null);
+  const [activeExercise, setActiveExercise] = useState(null);
+  const [detailList, setDetailList] = useState([]);
   const [completed, setCompleted] = useState(()=>{ try{return JSON.parse(localStorage.getItem("s_done")||"{}")}catch{return{}} });
   const [strDay, setStrDay] = useState(()=>localStorage.getItem('s_strday')||'Day 1');
   const [onboardName, setOnboardName] = useState('');
@@ -2041,6 +2338,16 @@ export default function SummerTrainingApp() {
   const toggle  = id => setCompleted(p=>({...p,[`${today}-${id}`]:!p[`${today}-${id}`]}));
   const setStrDayPersist = day => { setStrDay(day); localStorage.setItem('s_strday',day); };
   const doneCnt = Object.keys(completed).filter(k=>k.startsWith(today)).length;
+
+  /* Exercise Detail helpers ────────────────────────────────── */
+  const openDetail = useCallback((ex, list=[]) => {
+    const enrich = e => ({ ...e, _cat:e._cat||"speed", meta:e.meta||EXERCISE_META[e.id]||{} });
+    setActiveExercise(enrich(ex));
+    setDetailList(list.map(enrich));
+  }, []);
+  const detailIdx  = activeExercise ? detailList.findIndex(e=>e.id===activeExercise.id) : -1;
+  const nextExDetail = detailIdx>=0 && detailIdx<detailList.length-1 ? detailList[detailIdx+1] : null;
+  const closeDetail  = () => setActiveExercise(null);
 
   const todayIdx  = new Date().getDay()===0?6:new Date().getDay()-1;
   const todayPlan = SCHEDULE[todayIdx];
@@ -2130,9 +2437,18 @@ export default function SummerTrainingApp() {
 
         <div style={{ padding:"0 16px 80px" }}>
           {filteredWorkouts.map(w => (
-            <DrillCard key={w.id} w={w} color={color} bg2={bg2} brd={brd} isDone={isDone(w.id)} onToggle={()=>toggle(w.id)}/>
+            <DrillCard key={w.id} w={w} color={color} bg2={bg2} brd={brd} isDone={isDone(w.id)} onToggle={()=>toggle(w.id)}
+              onViewDetail={()=>openDetail(w, filteredWorkouts)}/>
           ))}
         </div>
+        {activeExercise&&<ExerciseDetailSheet
+          exercise={activeExercise} color={catColor(activeExercise._cat)}
+          bg2={catBg(activeExercise._cat)} brd={catBrd(activeExercise._cat)}
+          BG={BG} SF={SF} isDone={isDone(activeExercise.id)}
+          onToggle={()=>toggle(activeExercise.id)}
+          onClose={closeDetail}
+          onNext={nextExDetail?()=>setActiveExercise(nextExDetail):null}
+          completed={completed}/>}
         {renderBottomNav()}
       </div>
     );
@@ -2142,6 +2458,14 @@ export default function SummerTrainingApp() {
   return (
     <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"#e2e8f0",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
       {showSettings&&<SettingsSheet settings={settings} setSettings={setSettings} onClose={()=>setShowSettings(false)}/>}
+      {activeExercise&&<ExerciseDetailSheet
+        exercise={activeExercise} color={catColor(activeExercise._cat)}
+        bg2={catBg(activeExercise._cat)} brd={catBrd(activeExercise._cat)}
+        BG={BG} SF={SF} isDone={isDone(activeExercise.id)}
+        onToggle={()=>toggle(activeExercise.id)}
+        onClose={closeDetail}
+        onNext={nextExDetail?()=>setActiveExercise(nextExDetail):null}
+        completed={completed}/>}
       {showOnboarding&&(
         <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.88)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:20 }}>
           <div style={{ background:"#0d1627",borderRadius:20,padding:28,width:"100%",maxWidth:360,border:"1px solid #f9731640" }}>
@@ -2275,7 +2599,7 @@ export default function SummerTrainingApp() {
                       const done2=isDone(ex.id);
                       return (
                         <div key={ex.id}
-                          onClick={()=>{ setActiveCat(ex._cat||"explosion"); setPrevView("home"); setView("cat"); }}
+                          onClick={()=>openDetail(ex, todaysWorkout.exercises)}
                           style={{ display:"flex",alignItems:"center",gap:8,padding:"7px 8px",borderRadius:10,marginBottom:3,cursor:"pointer",
                             background:done2?"rgba(34,197,94,0.08)":"rgba(255,255,255,0.03)",
                             border:`1px solid ${done2?"rgba(34,197,94,0.15)":"transparent"}` }}>
