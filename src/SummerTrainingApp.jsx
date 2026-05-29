@@ -1186,6 +1186,128 @@ function getEarnedBadges(completed) {
   return [...earned];
 }
 
+/* ═══════════════════════ PROGRESSION CHAINS ════════════════ */
+
+/**
+ * Linear exercise sequences. Each step's `unlocksAt` is the number of
+ * completions of THAT step required to unlock the NEXT step.
+ * Step 0 is always unlocked.
+ */
+const PROGRESSION_CHAINS = [
+  {
+    id:"pogo-mastery", name:"Pogo Mastery", emoji:"🦘", cat:"explosion",
+    steps:[
+      { exId:"pogo-jumps",        unlocksAt:3 },
+      { exId:"reactive-pogos",    unlocksAt:3 },
+      { exId:"pogo-hops",         unlocksAt:5 },
+      { exId:"tuck-jumps",        unlocksAt:5 },
+    ]
+  },
+  {
+    id:"jump-power", name:"Jump Power", emoji:"💥", cat:"explosion",
+    steps:[
+      { exId:"snap-downs",        unlocksAt:3 },
+      { exId:"broad-jump-stick",  unlocksAt:3 },
+      { exId:"squat-jumps",       unlocksAt:3 },
+      { exId:"box-jump",          unlocksAt:5 },
+      { exId:"drop-jump",         unlocksAt:5 },
+    ]
+  },
+  {
+    id:"landing-control", name:"Landing Control", emoji:"🛑", cat:"deceleration",
+    steps:[
+      { exId:"jump-stop-hold",        unlocksAt:3 },
+      { exId:"drop-athletic-stance",  unlocksAt:3 },
+      { exId:"sl-stick-landing",      unlocksAt:5 },
+      { exId:"depth-landing-hold",    unlocksAt:5 },
+      { exId:"sprint-to-stick",       unlocksAt:5 },
+    ]
+  },
+  {
+    id:"single-leg", name:"Single-Leg Strength", emoji:"🦵", cat:"balance",
+    steps:[
+      { exId:"sl-hold",           unlocksAt:3 },
+      { exId:"sl-balance-reach",  unlocksAt:3 },
+      { exId:"sl-squat",          unlocksAt:5 },
+      { exId:"triple-lat-hops",   unlocksAt:5 },
+    ]
+  },
+  {
+    id:"strength-found", name:"Strength Foundation", emoji:"💪", cat:"strength",
+    steps:[
+      { exId:"bw-squats",   unlocksAt:3 },
+      { exId:"goblet-sq",   unlocksAt:3 },
+      { exId:"split-sq",    unlocksAt:5 },
+      { exId:"db-deadlift", unlocksAt:5 },
+    ]
+  },
+  {
+    id:"footwork-found", name:"Footwork Foundation", emoji:"👟", cat:"coordination",
+    steps:[
+      { exId:"rhythm-line-hops",       unlocksAt:3 },
+      { exId:"alternating-line-hops",  unlocksAt:3 },
+      { exId:"quick-step-matrix",      unlocksAt:5 },
+      { exId:"carioca",                unlocksAt:5 },
+    ]
+  },
+  {
+    id:"agility-speed", name:"Agility Speed", emoji:"⚡", cat:"speed",
+    steps:[
+      { exId:"ladder",    unlocksAt:3 },
+      { exId:"cone-cod",  unlocksAt:3 },
+      { exId:"def-slide", unlocksAt:5 },
+      { exId:"5-10-5",    unlocksAt:5 },
+      { exId:"lat-bounds",unlocksAt:5 },
+    ]
+  },
+  {
+    id:"defensive-movement", name:"Defensive Movement", emoji:"🛡️", cat:"athletic",
+    steps:[
+      { exId:"defensive-hip-flip",    unlocksAt:3 },
+      { exId:"retreat-sprint",        unlocksAt:3 },
+      { exId:"backpedal-sprint",      unlocksAt:5 },
+      { exId:"lateral-sprint-combo",  unlocksAt:5 },
+      { exId:"defensive-recovery",    unlocksAt:5 },
+    ]
+  },
+];
+
+/** How many times has an athlete completed a given exercise? */
+function getCompletionCount(exId, completed) {
+  return Object.entries(completed)
+    .filter(([k, v]) => v && k.split("-").slice(3).join("-") === exId)
+    .length;
+}
+
+/** Returns the chain that contains this exercise, or null. */
+function getChainForExercise(exId) {
+  return PROGRESSION_CHAINS.find(c => c.steps.some(s => s.exId === exId)) || null;
+}
+
+/**
+ * Returns enriched step list + overall progress counters.
+ *
+ * Each step gets:
+ *   count     — completions recorded
+ *   unlocked  — true if the athlete can do this step
+ *   mastered  — true if done enough to unlock the NEXT step
+ *   ex        — full exercise object (or undefined)
+ */
+function getChainStatus(chain, completed) {
+  const counts = chain.steps.map(s => getCompletionCount(s.exId, completed));
+
+  const steps = chain.steps.map((step, i) => {
+    const count   = counts[i];
+    const ex      = ALL_EXERCISES[step.exId];
+    const unlocked = i === 0 || counts[i - 1] >= chain.steps[i - 1].unlocksAt;
+    const mastered = count >= step.unlocksAt;
+    return { ...step, count, ex, unlocked, mastered };
+  });
+
+  const progress = steps.filter(s => s.mastered).length;
+  return { steps, progress, total: steps.length };
+}
+
 /* ═══════════════════════ CALENDAR DATA ══════════════════════ */
 
 // Fixed per-category dot colors (theme-independent so they're always readable)
@@ -2506,7 +2628,7 @@ function CalendarView({ completed, P, S, BG, SF, bd, lbl }) {
 }
 
 /* ═══════════════════════ PROFILE VIEW ══════════════════════ */
-function ProfileView({ settings, totalXP, xpData, currentLevel, earnedBadges, P, S, ST, BG, SF, bd, lbl, onOpenSettings }) {
+function ProfileView({ settings, totalXP, xpData, currentLevel, earnedBadges, completed, P, S, ST, BG, SF, bd, lbl, onOpenSettings }) {
   const nextLevel = LEVELS.find(l=>l.rank===currentLevel.rank+1);
   const xpInLevel  = totalXP - currentLevel.xpMin;
   const xpSpan     = nextLevel ? nextLevel.xpMin - currentLevel.xpMin : 500;
@@ -2671,6 +2793,78 @@ function ProfileView({ settings, totalXP, xpData, currentLevel, earnedBadges, P,
         </div>
       </div>
 
+      {/* Progression Tracks ─────────────────────────────── */}
+      <div style={{ marginTop:22 }}>
+        <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10 }}>
+          <div style={lbl}>Progression Tracks</div>
+          <div style={{ fontSize:10,color:"#475569",fontFamily:"'DM Mono',monospace" }}>
+            {PROGRESSION_CHAINS.filter(c=>{
+              const { progress, total } = getChainStatus(c, completed);
+              return progress === total;
+            }).length}/{PROGRESSION_CHAINS.length} complete
+          </div>
+        </div>
+        <div style={{ display:"flex",flexDirection:"column",gap:9 }}>
+          {PROGRESSION_CHAINS.map(chain=>{
+            const { steps, progress, total } = getChainStatus(chain, completed);
+            const catC = CAT_DOT_COLORS[chain.cat] || P;
+            const done = progress === total;
+            // Find the current "active" step (first unlocked + not mastered)
+            const activeStep = steps.find(s => s.unlocked && !s.mastered);
+            return (
+              <div key={chain.id} style={{
+                borderRadius:13,padding:"13px 14px",
+                background:done?`${catC}0c`:"rgba(255,255,255,0.03)",
+                border:`1px solid ${done?catC+"30":"rgba(255,255,255,0.06)"}`,
+              }}>
+                {/* Header row */}
+                <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:8 }}>
+                  <span style={{ fontSize:20,lineHeight:1 }}>{chain.emoji}</span>
+                  <div style={{ flex:1,minWidth:0 }}>
+                    <div style={{ fontSize:13,fontWeight:700,
+                      color:done?catC:"#e2e8f0",lineHeight:1.2,marginBottom:1 }}>
+                      {chain.name}
+                    </div>
+                    <div style={{ fontSize:10,color:"#475569" }}>
+                      {progress}/{total} mastered
+                    </div>
+                  </div>
+                  {done
+                    ? <span style={{ fontSize:11,color:"#22c55e",fontWeight:800 }}>✓ Done</span>
+                    : progress > 0
+                      ? <span style={{ fontSize:10,color:catC,fontFamily:"'DM Mono',monospace",
+                          background:`${catC}12`,padding:"2px 8px",borderRadius:20 }}>
+                          In Progress
+                        </span>
+                      : null
+                  }
+                </div>
+
+                {/* Step progress bar */}
+                <div style={{ display:"flex",gap:4,marginBottom:activeStep?8:0 }}>
+                  {steps.map((step)=>(
+                    <div key={step.exId} style={{ flex:1,height:4,borderRadius:99,
+                      background:step.mastered?catC:step.unlocked?"rgba(255,255,255,0.12)":"rgba(255,255,255,0.04)",
+                      transition:"background 0.3s" }}/>
+                  ))}
+                </div>
+
+                {/* Next action hint */}
+                {activeStep && (
+                  <div style={{ fontSize:10,color:"#64748b",
+                    fontFamily:"'DM Mono',monospace",lineHeight:1.4 }}>
+                    {activeStep.count > 0
+                      ? `${activeStep.ex?.name||activeStep.exId} — ${activeStep.count}/${activeStep.unlocksAt} sessions`
+                      : `Next: ${activeStep.ex?.name||activeStep.exId}`
+                    }
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Settings link */}
       <div style={{ marginTop:24,textAlign:"center" }}>
         <button onClick={onOpenSettings}
@@ -2705,6 +2899,10 @@ function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onTogg
     : null;
 
   const level = timesCompleted >= 10 ? "Advanced" : timesCompleted >= 4 ? "Building" : "Learning";
+
+  /* Progression chain ────────────────────────────────────── */
+  const chain       = getChainForExercise(exercise.id);
+  const chainStatus = chain ? getChainStatus(chain, completed) : null;
 
   /* Badges / labels ─────────────────────────────────────── */
   const diffColor = { beginner:"#22c55e", intermediate:"#f59e0b", advanced:"#ef4444" }[meta.difficulty] || "#64748b";
@@ -2896,25 +3094,100 @@ function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onTogg
               </div>
             </div>
 
-            {/* Future Ready */}
-            <div style={{ borderRadius:12,border:"1px dashed rgba(255,255,255,0.08)",
-              background:"rgba(255,255,255,0.02)",padding:"13px 15px",opacity:0.6,marginBottom:6 }}>
-              <div style={{ display:"flex",alignItems:"center",gap:7,marginBottom:8 }}>
-                <span style={{ fontSize:13 }}>🏆</span>
-                <span style={{ fontFamily:"'DM Mono',monospace",fontSize:9,
-                  letterSpacing:"0.18em",color:"#334155",textTransform:"uppercase" }}>
-                  Coming Soon
-                </span>
+            {/* Progression Track */}
+            {chain && chainStatus ? (
+              <div style={{ marginBottom:6 }}>
+                <div style={{ display:"flex",alignItems:"center",gap:6,marginBottom:10 }}>
+                  <span style={{ fontSize:15 }}>{chain.emoji}</span>
+                  <span style={{ fontFamily:"'DM Mono',monospace",fontSize:9,
+                    letterSpacing:"0.18em",color:"#475569",textTransform:"uppercase" }}>
+                    {chain.name}
+                  </span>
+                  <span style={{ marginLeft:"auto",fontSize:9,color:"#334155",
+                    fontFamily:"'DM Mono',monospace" }}>
+                    {chainStatus.progress}/{chainStatus.total}
+                  </span>
+                </div>
+                <div style={{ display:"flex",flexDirection:"column",gap:7 }}>
+                  {chainStatus.steps.map((step, i) => {
+                    const isThis   = step.exId === exercise.id;
+                    const lockPct  = step.unlocksAt > 0 ? Math.min(1, step.count / step.unlocksAt) : 1;
+                    const stepName = step.ex?.name || step.exId;
+                    return (
+                      <div key={step.exId} style={{
+                        borderRadius:10,padding:"10px 12px",
+                        border: isThis ? `1.5px solid ${color}55`
+                              : step.unlocked ? "1px solid rgba(255,255,255,0.08)"
+                              : "1px dashed rgba(255,255,255,0.04)",
+                        background: isThis ? `${color}0e`
+                                  : step.unlocked ? "rgba(255,255,255,0.025)"
+                                  : "rgba(0,0,0,0.2)",
+                        opacity: step.unlocked ? 1 : 0.4,
+                        transition:"all 0.2s",
+                      }}>
+                        <div style={{ display:"flex",alignItems:"flex-start",gap:9 }}>
+                          <span style={{ fontSize:14,lineHeight:1.4,flexShrink:0 }}>
+                            {!step.unlocked ? "🔒"
+                              : step.mastered ? "✅"
+                              : isThis ? "▶"
+                              : "○"}
+                          </span>
+                          <div style={{ flex:1,minWidth:0 }}>
+                            <div style={{ display:"flex",alignItems:"center",gap:6,flexWrap:"wrap" }}>
+                              <span style={{ fontSize:12,fontWeight:700,lineHeight:1.25,
+                                color: isThis ? color
+                                     : step.mastered ? "#22c55e"
+                                     : step.unlocked ? "#e2e8f0"
+                                     : "#475569" }}>
+                                {stepName}
+                              </span>
+                              {isThis && (
+                                <span style={{ fontSize:9,color,fontFamily:"'DM Mono',monospace",
+                                  background:`${color}15`,padding:"1px 7px",borderRadius:20 }}>
+                                  you are here
+                                </span>
+                              )}
+                            </div>
+                            {step.unlocked && !step.mastered && (
+                              <div style={{ marginTop:6 }}>
+                                <div style={{ height:3,background:"rgba(255,255,255,0.07)",
+                                  borderRadius:99,overflow:"hidden",marginBottom:3 }}>
+                                  <div style={{ height:"100%",borderRadius:99,
+                                    background:isThis ? color : "#475569",
+                                    width:`${lockPct*100}%`,transition:"width 0.6s ease" }}/>
+                                </div>
+                                <div style={{ fontSize:9,color:"#475569",
+                                  fontFamily:"'DM Mono',monospace" }}>
+                                  {step.count}/{step.unlocksAt} sessions → unlocks next
+                                </div>
+                              </div>
+                            )}
+                            {step.mastered && (
+                              <div style={{ fontSize:9,color:"#22c55e",marginTop:2,
+                                fontFamily:"'DM Mono',monospace" }}>
+                                ✓ {step.count} sessions complete
+                              </div>
+                            )}
+                            {!step.unlocked && (
+                              <div style={{ fontSize:9,color:"#334155",marginTop:2 }}>
+                                Complete the previous exercise to unlock
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-              <div style={{ display:"flex",gap:7,flexWrap:"wrap" }}>
-                {["XP Earned","Badges Unlocked","Next Progression"].map(label=>(
-                  <div key={label} style={{ padding:"4px 11px",borderRadius:20,
-                    border:"1px dashed rgba(255,255,255,0.1)",fontSize:10,color:"#334155" }}>
-                    {label}
-                  </div>
-                ))}
+            ) : (
+              <div style={{ borderRadius:12,border:"1px dashed rgba(255,255,255,0.07)",
+                background:"rgba(255,255,255,0.02)",padding:"11px 14px",opacity:0.5,marginBottom:6 }}>
+                <div style={{ fontSize:10,color:"#334155" }}>
+                  📈 This exercise isn't part of a tracked progression track yet.
+                </div>
               </div>
-            </div>
+            )}
 
           </div>
           <div style={{ height:20 }}/>
@@ -3163,7 +3436,7 @@ export default function SummerTrainingApp() {
       </div>
       <ProfileView
         settings={settings} totalXP={xpData.total} xpData={xpData}
-        currentLevel={currentLevel} earnedBadges={earnedBadges}
+        currentLevel={currentLevel} earnedBadges={earnedBadges} completed={completed}
         P={P} S={S} ST={ST} BG={BG} SF={SF} bd={bd} lbl={lbl}
         onOpenSettings={()=>setShowSettings(true)}/>
       {renderBottomNav()}
