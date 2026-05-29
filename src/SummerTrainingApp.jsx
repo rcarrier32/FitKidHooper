@@ -810,7 +810,7 @@ const W_FOOTWORK = [
     progressionTrack:"Step 1 — Movement Foundation",
     desc:"Catch or gather into a two-foot simultaneous landing — establishes the pivot foot and legal basketball play. The most important skill in basketball that no one teaches.",
     cues:["Both feet land at the SAME TIME — not one then the other","Land wide with knees bent — athletic base","Freeze completely on landing before any movement","Either foot can become the pivot foot on a jump stop"],
-    videoUrl:"" },
+    trainer:"Jr. NBA", videoId:"jgqdv9ySjYM", videoTitle:"Jump Stop, Pivot & Pass Drill — Jr. NBA" },
 
   { id:"fw-front-pivot",  name:"Front Pivot",             tag:"Foundation",      difficulty:"beginner",     ageRange:[9,14],  funScore:5,  estimatedDuration:60,
     sets:"3x10 each foot", rest:"15 s",
@@ -818,7 +818,7 @@ const W_FOOTWORK = [
     progressionTrack:"Step 2 — Pivot Mastery",
     desc:"Step forward with the non-pivot foot, rotating to face a new direction. Opens the ball-handler toward the basket or a passing lane — used on nearly every post touch.",
     cues:["Pivot foot stays planted — zero lift","Swing the free foot forward and around","Stay low through the entire pivot — do not rise up","End in a new triple-threat facing a new direction"],
-    videoUrl:"" },
+    trainer:"Jr. NBA", videoId:"3GPNfqIzs9Y", videoTitle:"Forward Pivot Drill — Jr. NBA" },
 
   { id:"fw-rev-pivot",    name:"Reverse Pivot",           tag:"Intermediate",    difficulty:"intermediate", ageRange:[10,14], funScore:6,  estimatedDuration:60,
     sets:"3x10 each foot", rest:"15 s",
@@ -826,7 +826,7 @@ const W_FOOTWORK = [
     progressionTrack:"Step 2 — Pivot Mastery",
     desc:"Step backward with the non-pivot foot to turn away from pressure. Shields the ball from defenders and is the foundation of the drop step and post backing-down.",
     cues:["Swing the free foot backward — not sideways","Keep the ball protected close to your body","Stay low — never rise on a pivot","Eyes over the shoulder — locate the defense"],
-    videoUrl:"" },
+    trainer:"Jr. NBA", videoId:"5DgXrx7ZkHU", videoTitle:"Reverse Pivot Drill — Jr. NBA" },
 
   { id:"fw-triple-threat", name:"Triple Threat",          tag:"Foundation",      difficulty:"beginner",     ageRange:[9,14],  funScore:5,  estimatedDuration:60,
     sets:"Hold 5 s x 10 reps", rest:"10 s",
@@ -834,7 +834,7 @@ const W_FOOTWORK = [
     progressionTrack:"Step 1 — Movement Foundation",
     desc:"Ball cocked at the hip, knees bent, weight on balls of feet — simultaneously threatening to shoot, pass, or drive. Every catch should land here automatically.",
     cues:["Ball at the hip — not the chest, not the shoulder","Knees bent, hips back — ready to explode","Eyes read the defense: gap? shoot. sagging? drive.","Chin stays level — do not look at the ball"],
-    videoUrl:"" },
+    trainer:"Cramer Basketball", videoId:"dg9y9-PuQNE", videoTitle:"Triple Threat Combo Shot Fake Jab Step — Cramer Basketball" },
 
   { id:"fw-jab-series",   name:"Jab Step Series",         tag:"Intermediate",    difficulty:"intermediate", ageRange:[10,14], funScore:8,  estimatedDuration:90,
     sets:"3x5 each variation each foot", rest:"30 s",
@@ -842,7 +842,7 @@ const W_FOOTWORK = [
     progressionTrack:"Step 3 — Off-The-Dribble Moves",
     desc:"One aggressive step toward the defender to read their reaction: if they back up, pull back and shoot; if they hold, drive past their foot; if they reach, shoot over the retreat.",
     cues:["Jab step is SHARP and aggressive — tentative jabs get ignored","Read the defender's feet: did they move back? Did they reach?","Jab and go: your first dribble is past their front foot","Jab and shoot: pull back into your shot pocket in one motion"],
-    videoUrl:"" },
+    trainer:"ShotMechanics", videoId:"eE2Vp10Sqko", videoTitle:"Stephen Curry Jab Step Back Move — ShotMechanics" },
 
   { id:"fw-rip-through",  name:"Rip Through",             tag:"Intermediate",    difficulty:"intermediate", ageRange:[10,14], funScore:7,  estimatedDuration:90,
     sets:"3x8 each side", rest:"30 s",
@@ -850,7 +850,7 @@ const W_FOOTWORK = [
     progressionTrack:"Step 3 — Off-The-Dribble Moves",
     desc:"Swing the ball in a low arc from one side of the body to the other to rip through an outstretched defender arm — initiates contact and creates driving lanes.",
     cues:["Ball path goes LOW — through the defender's arms, not over them","Rip with both hands — do not let go with the guide hand until through","Lead with the elbow to clear the path","Immediately attack off the rip — do not reset"],
-    videoUrl:"" },
+    trainer:"Teach Hoops", videoId:"7dxMH7aP6_Y", videoTitle:"Rip Through & Drive — Great Basketball Moves" },
 
   { id:"fw-sweep-go",     name:"Sweep & Go",              tag:"Intermediate",    difficulty:"intermediate", ageRange:[10,14], funScore:7,  estimatedDuration:90,
     sets:"3x8 each direction", rest:"30 s",
@@ -858,7 +858,7 @@ const W_FOOTWORK = [
     progressionTrack:"Step 3 — Off-The-Dribble Moves",
     desc:"Sweep the ball from one side of the body to the other in a protective motion paired with an explosive first step — protects the ball while immediately attacking the defense.",
     cues:["Sweep low and fast — keep the ball protected close to the body","First step is simultaneous with the sweep — not after","Eyes on the rim or defender — not the ball","Use when the defender's hands are active and reaching"],
-    videoUrl:"" },
+    trainer:"Basketball HQ", videoId:"gzdweY9uYA8", videoTitle:"1 Minute Basketball Drills: Sweep and Go" },
 
   { id:"fw-shot-fake",    name:"Shot Fake Series",         tag:"Advanced",        difficulty:"intermediate", ageRange:[10,14], funScore:9,  estimatedDuration:90,
     sets:"3x8 each variation", rest:"30 s",
@@ -866,7 +866,7 @@ const W_FOOTWORK = [
     progressionTrack:"Step 4 — Game Skill Integration",
     desc:"Lift the ball as if shooting to get the defender airborne, then attack past them or rise for a real shot over their recovery. Requires patience — do not rush after the fake.",
     cues:["Sell the shot completely — knees bend, ball rises, eyes go to rim","WAIT for the defender to leave their feet — patient players draw fouls","Attack the moment they land — do not hesitate","Shot fake to drive, shot fake to shoot, shot fake to pass — know all three"],
-    videoUrl:"" },
+    trainer:"Basketball HQ", videoId:"CGnkzd9wV6g", videoTitle:"How To Use The Shot Fake To Score More Points In Basketball" },
 ];
 
 const W_FINISHING = [
