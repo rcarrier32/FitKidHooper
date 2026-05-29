@@ -2231,14 +2231,27 @@ function Donut({ data, size=128 }) {
 
 function CourtMap({ priColor, onZoneSelect, lastShot }) {
   const zones = [
-    {id:"layup",        label:"Layup",   x:113,y:42, r:17},
-    {id:"block_bank",   label:"Block",   x:68, y:78, r:14},{id:"block_bank",  label:"Block",  x:157,y:78, r:14},
-    {id:"free_throw",   label:"FT",      x:113,y:108,r:15},
-    {id:"mid_bank",     label:"Elbow",   x:64, y:122,r:13},{id:"mid_bank",    label:"Elbow",  x:161,y:122,r:13},
-    {id:"mid",          label:"Wing",    x:42, y:148,r:12},{id:"mid",         label:"Wing",   x:184,y:148,r:12},
-    {id:"three_corner", label:"Corner",  x:14, y:68, r:12},{id:"three_corner",label:"Corner", x:212,y:68, r:12},
-    {id:"three_slot",   label:"Slot",    x:48, y:170,r:12},{id:"three_slot",  label:"Slot",   x:178,y:170,r:12},
-    {id:"three_center", label:"Top 3",   x:113,y:182,r:14},
+    // Under the basket
+    {id:"layup",        label:"Layup",   x:113, y:42,  r:17},
+    // Blocks — lane sides at low-post depth (~y=52, lane edges x=70/156)
+    {id:"block_bank",   label:"Block",   x:70,  y:52,  r:13},
+    {id:"block_bank",   label:"Block",   x:156, y:52,  r:13},
+    // Free throw — center of the FT line (y=122)
+    {id:"free_throw",   label:"FT",      x:113, y:122, r:15},
+    // Elbows — exactly where FT line meets lane edge (x=72/154, y=122)
+    {id:"mid_bank",     label:"Elbow",   x:72,  y:122, r:13},
+    {id:"mid_bank",     label:"Elbow",   x:154, y:122, r:13},
+    // Mid-range wings (inside the 3-pt arc)
+    {id:"mid",          label:"Wing",    x:42,  y:148, r:12},
+    {id:"mid",          label:"Wing",    x:184, y:148, r:12},
+    // Corner 3 — ON the corner line (x=18/207), mid-height
+    {id:"three_corner", label:"Corner",  x:18,  y:90,  r:12},
+    {id:"three_corner", label:"Corner",  x:208, y:90,  r:12},
+    // Slot / wing 3 — just beyond the arc at ~30° offset from top
+    {id:"three_slot",   label:"Slot",    x:40,  y:157, r:12},
+    {id:"three_slot",   label:"Slot",    x:186, y:157, r:12},
+    // Top of the key 3 — at the arc peak (basket y=20 + r=150 → y=170)
+    {id:"three_center", label:"Top 3",   x:113, y:172, r:14},
   ];
   return (
     <svg viewBox="0 0 226 200" style={{ width:"100%",maxWidth:310,display:"block",margin:"0 auto" }}>
