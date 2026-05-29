@@ -2660,11 +2660,12 @@ function ShotTracker({ P, S, BG, athleteName }) {
           )}
           <div style={{ background:sf,border:`1px solid ${bd}`,borderRadius:14,padding:"14px 12px",marginBottom:14 }}>
             <div style={{ ...lbl,marginBottom:12 }}>Daily Makes — Stacked by Shot Type</div>
-            <StackedBars data={histData} priColor={P} height={104} selDate={selDate} onSelect={setSelDate}/>
-            <div style={{ display:"flex",flexWrap:"wrap",gap:6,marginTop:10 }}>
+            <StackedBars data={histData} priColor={P} height={160} selDate={selDate} onSelect={setSelDate}/>
+            <div style={{ display:"flex",flexWrap:"wrap",gap:8,marginTop:12 }}>
               {SHOT_TYPES.filter(t=>histData.some(d=>(d.byShotType[t.id]||0)>0)).map(t=>(
-                <div key={t.id} style={{ display:"flex",alignItems:"center",gap:4 }}>
-                  <div style={{ width:8,height:8,borderRadius:2,background:SHOT_COLORS[t.id] }}/><span style={{ fontSize:9,color:"#475569" }}>{t.label}</span>
+                <div key={t.id} style={{ display:"flex",alignItems:"center",gap:5 }}>
+                  <div style={{ width:9,height:9,borderRadius:2,background:SHOT_COLORS[t.id],flexShrink:0 }}/>
+                  <span style={{ fontSize:10,fontWeight:600,color:P }}>{t.label}</span>
                 </div>
               ))}
             </div>
