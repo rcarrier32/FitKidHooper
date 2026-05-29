@@ -1469,6 +1469,217 @@ const ALL_EXERCISES = Object.fromEntries(
   )
 );
 
+/* ═══════════════════════ HISTORY DATA BUILDER ══════════════ */
+
+function buildHistoryData(completed, badgeDates) {
+  // ── Group completed entries by date ────────────────────────────
+  const dayExMap = {};
+  for (const [k, v] of Object.entries(completed)) {
+    if (!v) continue;
+    const parts = k.split("-");
+    const date  = parts.slice(0, 3).join("-");
+    const exId  = parts.slice(3).join("-");
+    if (!dayExMap[date]) dayExMap[date] = [];
+    dayExMap[date].push(exId);
+  }
+
+  const sortedDays = Object.keys(dayExMap).sort();
+
+  // ── Totals ────────────────────────────────────────────────────
+  const totalWorkoutDays = sortedDays.length;
+  let totalExercises = 0;
+  let totalMinutes   = 0;
+  for (const [, exIds] of Object.entries(dayExMap)) {
+    totalExercises += exIds.length;
+    for (const exId of exIds) {
+      totalMinutes += Math.round((ALL_EXERCISES[exId]?.meta?.estimatedDuration || 180) / 60);
+    }
+  }
+
+  // ── Streak computation ────────────────────────────────────────
+  const todayStr = new Date().toLocaleDateString("en-CA");
+  const yestD    = new Date(); yestD.setDate(yestD.getDate() - 1);
+  const yestStr  = yestD.toLocaleDateString("en-CA");
+
+  // Current streak: consecutive days ending today or yesterday
+  let currentStreak = 0;
+  const csStart = new Date();
+  // If today not trained, try from yesterday
+  if (!dayExMap[todayStr]) csStart.setDate(csStart.getDate() - 1);
+  for (let i = 0; i < 400; i++) {
+    const ds = csStart.toLocaleDateString("en-CA");
+    if (dayExMap[ds]) { currentStreak++; csStart.setDate(csStart.getDate() - 1); }
+    else break;
+  }
+  // If we started from yesterday and yesterday is empty, streak is 0
+  if (!dayExMap[todayStr] && !dayExMap[yestStr]) currentStreak = 0;
+
+  // Longest streak: scan all days
+  let longestStreak = 0;
+  let runStreak     = 0;
+  let prevDate      = null;
+  for (const d of sortedDays) {
+    if (!prevDate) { runStreak = 1; }
+    else {
+      const prev = new Date(prevDate + "T12:00:00");
+      prev.setDate(prev.getDate() + 1);
+      if (prev.toLocaleDateString("en-CA") === d) { runStreak++; }
+      else { runStreak = 1; }
+    }
+    if (runStreak > longestStreak) longestStreak = runStreak;
+    prevDate = d;
+  }
+
+  // ── Day streak map ────────────────────────────────────────────
+  // dayStreakMap[date] = the streak number at that day
+  const dayStreakMap = {};
+  let rs2 = 0; let pd2 = null;
+  for (const d of sortedDays) {
+    if (!pd2) { rs2 = 1; }
+    else {
+      const prev = new Date(pd2 + "T12:00:00");
+      prev.setDate(prev.getDate() + 1);
+      rs2 = prev.toLocaleDateString("en-CA") === d ? rs2 + 1 : 1;
+    }
+    dayStreakMap[d] = rs2;
+    pd2 = d;
+  }
+
+  // ── Total shots from localStorage ────────────────────────────
+  let totalShots = 0;
+  try {
+    const raw = JSON.parse(localStorage.getItem("shot_log_v2") || "[]");
+    totalShots = raw.filter(s => s.made !== false).length;
+  } catch { totalShots = 0; }
+
+  // ── Weekly data (last 8 ISO weeks, Monday-start) ──────────────
+  function getMonWeek(dateStr) {
+    const d = new Date(dateStr + "T12:00:00");
+    const day = d.getDay(); // 0=Sun
+    const diff = (day === 0 ? -6 : 1 - day);
+    const mon = new Date(d); mon.setDate(d.getDate() + diff);
+    return mon.toLocaleDateString("en-CA");
+  }
+
+  const weekMap = {};
+  for (const [date, exIds] of Object.entries(dayExMap)) {
+    const wk = getMonWeek(date);
+    if (!weekMap[wk]) weekMap[wk] = { workouts: 0, exercises: 0, minutes: 0 };
+    weekMap[wk].workouts++;
+    weekMap[wk].exercises += exIds.length;
+    for (const exId of exIds) {
+      weekMap[wk].minutes += Math.round((ALL_EXERCISES[exId]?.meta?.estimatedDuration || 180) / 60);
+    }
+  }
+
+  // Build last 8 weeks ending this week
+  const thisMonday = getMonWeek(todayStr);
+  const weeklyData = [];
+  for (let i = 7; i >= 0; i--) {
+    const d = new Date(thisMonday + "T12:00:00");
+    d.setDate(d.getDate() - i * 7);
+    const wkStr = d.toLocaleDateString("en-CA");
+    const label = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const info  = weekMap[wkStr] || { workouts: 0, exercises: 0, minutes: 0 };
+    weeklyData.push({ label, weekStart: wkStr, ...info });
+  }
+
+  // ── Category stats ────────────────────────────────────────────
+  const catRaw = {};
+  for (const [date, exIds] of Object.entries(dayExMap)) {
+    const catsThisDay = new Set();
+    for (const exId of exIds) {
+      const cat = ALL_EXERCISES[exId]?._cat;
+      if (!cat) continue;
+      if (!catRaw[cat]) catRaw[cat] = { count: 0, sessionDays: 0, lastDate: null, days: new Set() };
+      catRaw[cat].count++;
+      catsThisDay.add(cat);
+      if (!catRaw[cat].lastDate || date > catRaw[cat].lastDate) catRaw[cat].lastDate = date;
+    }
+    for (const cat of catsThisDay) {
+      catRaw[cat].days.add(date);
+    }
+  }
+  const categoryStats = Object.entries(catRaw)
+    .map(([cat, v]) => [cat, { count: v.count, sessionDays: v.days.size, lastDate: v.lastDate }])
+    .sort((a, b) => b[1].count - a[1].count);
+
+  // ── Recent activity feed ──────────────────────────────────────
+  const recentActivity = [];
+
+  for (const [date, exIds] of Object.entries(dayExMap)) {
+    const cats = [...new Set(exIds.map(id => ALL_EXERCISES[id]?._cat).filter(Boolean))];
+    recentActivity.push({ type: "workout", date, exCount: exIds.length, cats, key: `workout-${date}` });
+  }
+
+  if (badgeDates) {
+    for (const [badgeId, dateStr] of Object.entries(badgeDates)) {
+      const badge = BADGES_DEF.find(b => b.id === badgeId);
+      if (badge && dateStr) {
+        recentActivity.push({ type: "badge", date: dateStr, badge, key: `badge-${badgeId}` });
+      }
+    }
+  }
+
+  recentActivity.sort((a, b) => b.date.localeCompare(a.date));
+  const recentActivitySliced = recentActivity.slice(0, 25);
+
+  // ── Coach insights ─────────────────────────────────────────────
+  const coachInsights = [];
+  const todayD = new Date(todayStr + "T12:00:00");
+
+  // 1. Most trained category
+  if (categoryStats.length > 0) {
+    const [topCat, topInfo] = categoryStats[0];
+    const catLabel = CATS[topCat]?.label || topCat;
+    coachInsights.push({ emoji: CATS[topCat]?.emoji || "🏋️", text: `${catLabel} is your most completed category with ${topInfo.count} sessions.` });
+  }
+
+  // 2. Any category not trained in ≥8 days
+  for (const [cat, info] of categoryStats) {
+    if (coachInsights.length >= 5) break;
+    if (!info.lastDate) continue;
+    const lastD = new Date(info.lastDate + "T12:00:00");
+    const daysDiff = Math.floor((todayD - lastD) / 86400000);
+    if (daysDiff >= 8) {
+      const catLabel = CATS[cat]?.label || cat;
+      coachInsights.push({ emoji: CATS[cat]?.emoji || "📅", text: `You haven't trained ${catLabel} in ${daysDiff} days.` });
+      break;
+    }
+  }
+
+  // 3. Streak ≥ 3
+  if (currentStreak >= 3) {
+    coachInsights.push({ emoji: "🔥", text: `You're on a ${currentStreak}-day streak! Consistency is what separates good athletes from great ones.` });
+  }
+
+  // 4. Streak === 0 but has trained before
+  if (currentStreak === 0 && totalWorkoutDays > 0) {
+    coachInsights.push({ emoji: "💪", text: `You've trained ${totalWorkoutDays} days total. Lace up and start a new streak today.` });
+  }
+
+  // 5. Best week
+  const bestWeek = [...weeklyData].sort((a, b) => b.exercises - a.exercises)[0];
+  if (bestWeek && bestWeek.exercises > 0) {
+    coachInsights.push({ emoji: "⭐", text: `Your best week was the one starting ${bestWeek.label} with ${bestWeek.exercises} exercises completed.` });
+  }
+
+  return {
+    totalWorkoutDays,
+    totalExercises,
+    totalMinutes,
+    currentStreak,
+    longestStreak,
+    totalShots,
+    weeklyData,
+    categoryStats,
+    recentActivity: recentActivitySliced,
+    coachInsights: coachInsights.slice(0, 5),
+    dayExMap,
+    dayStreakMap,
+  };
+}
+
 /* ═══════════════════════ RECOMMENDATION ENGINE ══════════════ */
 
 // What template naturally follows each template (recovery rotation)
@@ -2692,8 +2903,272 @@ function CalendarView({ completed, P, S, BG, SF, bd, lbl }) {
   );
 }
 
+/* ═══════════════════════ HISTORY VIEW ══════════════════════ */
+function HistoryView({ completed, badgeDates, settings, P, S, ST, BG, SF, bd, lbl, onBack }) {
+  const data = useMemo(() => buildHistoryData(completed, badgeDates), [completed, badgeDates]);
+  const {
+    totalWorkoutDays, totalExercises, totalMinutes,
+    currentStreak, longestStreak, totalShots,
+    weeklyData, categoryStats, recentActivity, coachInsights,
+    dayExMap, dayStreakMap,
+  } = data;
+
+  const todayStr = new Date().toLocaleDateString("en-CA");
+  const [calMonth, setCalMonth] = useState(() => {
+    const n = new Date();
+    return new Date(n.getFullYear(), n.getMonth(), 1);
+  });
+
+  // ── Calendar helpers ──────────────────────────────────────────
+  const calYear  = calMonth.getFullYear();
+  const calMon   = calMonth.getMonth();
+  const firstDay = new Date(calYear, calMon, 1);
+  const lastDay  = new Date(calYear, calMon + 1, 0);
+  // Mon=0 offset
+  const startOffset = (firstDay.getDay() + 6) % 7;
+  const daysInMonth = lastDay.getDate();
+  const calCells = [];
+  for (let i = 0; i < startOffset; i++) calCells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) calCells.push(d);
+  while (calCells.length % 7 !== 0) calCells.push(null);
+
+  const nowForCal = new Date();
+  const currentMonthKey = `${nowForCal.getFullYear()}-${String(nowForCal.getMonth()+1).padStart(2,"0")}`;
+  const thisCalKey = `${calYear}-${String(calMon+1).padStart(2,"0")}`;
+  const canGoForward = thisCalKey < currentMonthKey;
+
+  // ── Weekly chart helpers ──────────────────────────────────────
+  const maxWorkouts = Math.max(1, ...weeklyData.map(w => w.workouts));
+  const totalWeekWorkouts = weeklyData.reduce((a, w) => a + w.workouts, 0);
+  const totalWeekMins     = weeklyData.reduce((a, w) => a + w.minutes, 0);
+
+  // ── Category stats helpers ────────────────────────────────────
+  const maxCatCount = categoryStats.length > 0 ? categoryStats[0][1].count : 1;
+  const totalCatCount = categoryStats.reduce((a, [, v]) => a + v.count, 0);
+
+  const calMonLabel = calMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+
+  return (
+    <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif", background:BG, color:"#e2e8f0", minHeight:"100vh", maxWidth:680, margin:"0 auto", display:"flex", flexDirection:"column" }}>
+
+      {/* ── Fixed Header ──────────────────────────────────────── */}
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 20px", borderBottom:`1px solid ${P}14`, position:"sticky", top:0, background:BG, backdropFilter:"blur(10px)", zIndex:10, flexShrink:0 }}>
+        <button onClick={onBack} style={{ background:`${P}14`, border:`1px solid ${P}30`, borderRadius:8, color:P, fontSize:12, fontWeight:700, cursor:"pointer", padding:"5px 10px" }}>← Back</button>
+        <div style={{ textAlign:"center" }}>
+          <div style={{ fontSize:15, fontWeight:800, color:"#f1f5f9" }}>Training History</div>
+          <div style={{ fontSize:10, color:`${P}99`, fontFamily:"'DM Mono',monospace" }}>{settings.athleteName}</div>
+        </div>
+        <span style={{ fontSize:20 }}>📊</span>
+      </div>
+
+      {/* ── Scrollable Body ────────────────────────────────────── */}
+      <div style={{ flex:1, overflowY:"auto", padding:"0 20px 100px" }}>
+
+        {/* ── Stats Grid ──────────────────────────────────────── */}
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, marginTop:18, marginBottom:18 }}>
+          {[
+            { val: totalWorkoutDays,                  label: "Workout Days" },
+            { val: totalExercises,                    label: "Exercises Done" },
+            { val: totalMinutes,                      label: "Training Mins" },
+            { val: currentStreak + "🔥",              label: "Current Streak" },
+            { val: longestStreak + "⭐",              label: "Longest Streak" },
+            { val: totalShots.toLocaleString(),       label: "Total Shots" },
+          ].map(({ val, label }) => (
+            <div key={label} style={{ background:SF, border:`1px solid ${bd}`, borderRadius:13, padding:"14px 10px", textAlign:"center" }}>
+              <div style={{ fontFamily:"'DM Mono',monospace", fontSize:22, fontWeight:800, color:P, lineHeight:1, marginBottom:5 }}>{val}</div>
+              <div style={{ fontSize:9, color:"#475569", letterSpacing:"0.1em", textTransform:"uppercase" }}>{label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Training Calendar ────────────────────────────────── */}
+        <div style={{ background:SF, border:`1px solid ${bd}`, borderRadius:16, padding:"16px", marginBottom:16 }}>
+          {/* Month nav */}
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+            <button onClick={()=>setCalMonth(m=>new Date(m.getFullYear(), m.getMonth()-1, 1))}
+              style={{ background:`${P}14`, border:`1px solid ${P}30`, borderRadius:8, color:P, fontSize:14, fontWeight:700, cursor:"pointer", padding:"4px 10px", lineHeight:1 }}>‹</button>
+            <div style={{ fontSize:13, fontWeight:700, color:"#e2e8f0" }}>{calMonLabel}</div>
+            <button onClick={()=>{ if(canGoForward) setCalMonth(m=>new Date(m.getFullYear(), m.getMonth()+1, 1)); }}
+              style={{ background:canGoForward?`${P}14`:"rgba(255,255,255,0.03)", border:`1px solid ${canGoForward?P+"30":"rgba(255,255,255,0.05)"}`, borderRadius:8, color:canGoForward?P:"#334155", fontSize:14, fontWeight:700, cursor:canGoForward?"pointer":"default", padding:"4px 10px", lineHeight:1 }}>›</button>
+          </div>
+
+          {/* Weekday header */}
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:2, marginBottom:4 }}>
+            {["Mo","Tu","We","Th","Fr","Sa","Su"].map(d=>(
+              <div key={d} style={{ textAlign:"center", fontSize:9, color:"#475569", fontFamily:"'DM Mono',monospace", padding:"2px 0" }}>{d}</div>
+            ))}
+          </div>
+
+          {/* Day cells */}
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:2 }}>
+            {calCells.map((dayNum, i) => {
+              if (!dayNum) return <div key={`e-${i}`}/>;
+              const ds = `${calYear}-${String(calMon+1).padStart(2,"0")}-${String(dayNum).padStart(2,"0")}`;
+              const isToday   = ds === todayStr;
+              const isFuture  = ds > todayStr;
+              const count     = dayExMap[ds]?.length || 0;
+              const streakNum = dayStreakMap[ds] || 0;
+              const heat = count === 0 ? "transparent" : count <= 2 ? `${P}22` : count <= 5 ? `${P}44` : `${P}70`;
+              const bg   = isToday ? P : heat;
+              const txt  = isToday ? "#000" : "#e2e8f0";
+              const bord = (!isToday && streakNum > 1 && count > 0) ? `1px solid ${P}50` : `1px solid transparent`;
+              return (
+                <div key={ds} style={{ aspectRatio:"1", borderRadius:6, background:bg, border:bord, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", opacity:isFuture?0.25:1, position:"relative" }}>
+                  <div style={{ fontSize:10, fontWeight:isToday?800:500, color:txt, lineHeight:1 }}>{dayNum}</div>
+                  {count > 0 && !isToday && <div style={{ width:4, height:4, borderRadius:"50%", background:P, marginTop:2 }}/>}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Legend */}
+          <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:10, justifyContent:"flex-end" }}>
+            <span style={{ fontSize:9, color:"#475569" }}>Light</span>
+            {[`${P}22`, `${P}44`, `${P}70`].map((c, i) => (
+              <div key={i} style={{ width:12, height:12, borderRadius:3, background:c }}/>
+            ))}
+            <span style={{ fontSize:9, color:"#475569" }}>Heavy</span>
+          </div>
+        </div>
+
+        {/* ── Weekly Activity Chart ─────────────────────────────── */}
+        <div style={{ background:SF, border:`1px solid ${bd}`, borderRadius:16, padding:"16px", marginBottom:16 }}>
+          <div style={lbl}>Weekly Activity</div>
+          <div style={{ display:"flex", alignItems:"flex-end", gap:4, height:80, marginBottom:8 }}>
+            {weeklyData.map(w => {
+              const isCurrent = w.weekStart === new Date().toLocaleDateString("en-CA").slice(0,7).replace(/-(\d+)$/,"") || (() => {
+                // check if this week contains today
+                const wStart = new Date(w.weekStart + "T12:00:00");
+                const wEnd   = new Date(w.weekStart + "T12:00:00"); wEnd.setDate(wEnd.getDate() + 6);
+                const tDay   = new Date(todayStr + "T12:00:00");
+                return tDay >= wStart && tDay <= wEnd;
+              })();
+              const barH = maxWorkouts === 0 ? 0 : Math.max(w.workouts > 0 ? 4 : 0, Math.round((w.workouts / maxWorkouts) * 64));
+              return (
+                <div key={w.weekStart} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:0 }}>
+                  <div style={{ flex:1, display:"flex", alignItems:"flex-end", width:"100%" }}>
+                    <div style={{ width:"100%", height:barH, borderRadius:"3px 3px 0 0", background:isCurrent ? P : `${P}70` }}/>
+                  </div>
+                  <div style={{ fontSize:8, color:isCurrent?P:"#475569", fontFamily:"'DM Mono',monospace", marginTop:4, textAlign:"center", lineHeight:1.2, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", maxWidth:"100%" }}>{w.label}</div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ fontSize:10, color:"#475569", textAlign:"center", marginTop:4 }}>
+            {totalWeekWorkouts} workout days · {totalWeekMins} min trained <span style={{ fontSize:9, color:"#334155" }}>(last 8 weeks)</span>
+          </div>
+        </div>
+
+        {/* ── Category Breakdown ───────────────────────────────── */}
+        {categoryStats.length > 0 && (
+          <div style={{ background:SF, border:`1px solid ${bd}`, borderRadius:16, padding:"16px", marginBottom:16 }}>
+            <div style={lbl}>Category Breakdown</div>
+            <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+              {categoryStats.map(([cat, info]) => {
+                const catInfo  = CATS[cat] || { label: cat, emoji:"🏋️" };
+                const dotColor = CAT_DOT_COLORS[cat] || P;
+                const pct      = totalCatCount === 0 ? 0 : info.count / totalCatCount;
+                const lastD    = info.lastDate ? new Date(info.lastDate + "T12:00:00") : null;
+                const daysAgo  = lastD ? Math.floor((new Date(todayStr + "T12:00:00") - lastD) / 86400000) : null;
+                return (
+                  <div key={cat}>
+                    <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
+                      <span style={{ fontSize:14 }}>{catInfo.emoji}</span>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:12, fontWeight:600, color:"#e2e8f0" }}>{catInfo.label}</div>
+                        {daysAgo !== null && <div style={{ fontSize:9, color:"#475569" }}>last trained {daysAgo === 0 ? "today" : daysAgo === 1 ? "yesterday" : `${daysAgo} days ago`}</div>}
+                      </div>
+                      <div style={{ textAlign:"right", flexShrink:0 }}>
+                        <div style={{ fontFamily:"'DM Mono',monospace", fontSize:13, fontWeight:700, color:dotColor }}>{info.count}</div>
+                        <div style={{ fontSize:9, color:"#475569" }}>{Math.round(pct * 100)}%</div>
+                      </div>
+                    </div>
+                    <div style={{ height:3, background:"rgba(255,255,255,0.06)", borderRadius:99, overflow:"hidden" }}>
+                      <div style={{ height:"100%", width:`${pct*100}%`, background:dotColor, borderRadius:99 }}/>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── Coach FKH Insights ───────────────────────────────── */}
+        {coachInsights.length > 0 && (
+          <div style={{ background:SF, border:`1px solid ${bd}`, borderRadius:16, padding:"16px", marginBottom:16 }}>
+            <div style={lbl}>Coach FKH Insights</div>
+            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+              {coachInsights.map((insight, i) => (
+                <div key={i} style={{ background:`${P}0d`, border:`1px solid ${P}1e`, borderRadius:10, padding:"10px 12px", display:"flex", alignItems:"flex-start", gap:10 }}>
+                  <span style={{ fontSize:18, lineHeight:1, flexShrink:0, marginTop:1 }}>{insight.emoji}</span>
+                  <div style={{ fontSize:12, color:"#94a3b8", lineHeight:1.5 }}>{insight.text}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Recent Activity Feed ──────────────────────────────── */}
+        {recentActivity.length > 0 && (
+          <div style={{ background:SF, border:`1px solid ${bd}`, borderRadius:16, padding:"16px", marginBottom:16 }}>
+            <div style={lbl}>Recent Activity</div>
+            <div style={{ position:"relative" }}>
+              {/* Vertical timeline line */}
+              <div style={{ position:"absolute", left:19, top:16, bottom:16, width:1, background:`${P}20` }}/>
+              <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+                {recentActivity.map(event => {
+                  const fmtD = new Date(event.date + "T12:00:00").toLocaleDateString("en-US", { month:"short", day:"numeric", year:"numeric" });
+                  if (event.type === "workout") {
+                    return (
+                      <div key={event.key} style={{ display:"flex", alignItems:"flex-start", gap:12, position:"relative", zIndex:1 }}>
+                        <div style={{ width:32, height:32, borderRadius:"50%", background:`${P}18`, border:`1.5px solid ${P}30`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:15, flexShrink:0 }}>🏋️</div>
+                        <div style={{ flex:1, paddingTop:2 }}>
+                          <div style={{ fontSize:12, fontWeight:700, color:"#e2e8f0", marginBottom:2 }}>{event.exCount} exercise{event.exCount!==1?"s":""} completed</div>
+                          <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginBottom:3 }}>
+                            {event.cats.map(cat => (
+                              <span key={cat} style={{ fontSize:9, padding:"2px 6px", borderRadius:20, background:`${CAT_DOT_COLORS[cat]||P}18`, color:CAT_DOT_COLORS[cat]||P, fontWeight:600 }}>
+                                {CATS[cat]?.emoji} {CATS[cat]?.label || cat}
+                              </span>
+                            ))}
+                          </div>
+                          <div style={{ fontSize:9, color:"#475569", fontFamily:"'DM Mono',monospace" }}>{fmtD}</div>
+                        </div>
+                      </div>
+                    );
+                  } else {
+                    return (
+                      <div key={event.key} style={{ display:"flex", alignItems:"flex-start", gap:12, position:"relative", zIndex:1 }}>
+                        <div style={{ width:32, height:32, borderRadius:"50%", background:`${event.badge.color}16`, border:`1.5px solid ${event.badge.color}40`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:15, flexShrink:0 }}>{event.badge.emoji}</div>
+                        <div style={{ flex:1, paddingTop:2 }}>
+                          <div style={{ fontSize:9, fontWeight:700, color:event.badge.color, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:1 }}>Badge Unlocked!</div>
+                          <div style={{ fontSize:12, fontWeight:700, color:"#e2e8f0", marginBottom:1 }}>{event.badge.name}</div>
+                          <div style={{ fontSize:9, color:"#475569", fontFamily:"'DM Mono',monospace" }}>{fmtD}</div>
+                        </div>
+                      </div>
+                    );
+                  }
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Empty state */}
+        {totalWorkoutDays === 0 && (
+          <div style={{ textAlign:"center", padding:"60px 20px" }}>
+            <div style={{ fontSize:48, marginBottom:16 }}>📊</div>
+            <div style={{ fontSize:16, fontWeight:700, color:"#475569", marginBottom:8 }}>No training history yet</div>
+            <div style={{ fontSize:12, color:"#334155" }}>Complete exercises to start building your history.</div>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
 /* ═══════════════════════ PROFILE VIEW ══════════════════════ */
-function ProfileView({ settings, totalXP, xpData, currentLevel, earnedBadges, completed, badgeDates, P, S, ST, BG, SF, bd, lbl, onOpenSettings }) {
+function ProfileView({ settings, totalXP, xpData, currentLevel, earnedBadges, completed, badgeDates, P, S, ST, BG, SF, bd, lbl, onOpenSettings, onViewHistory }) {
   const nextLevel = LEVELS.find(l=>l.rank===currentLevel.rank+1);
   const xpInLevel  = totalXP - currentLevel.xpMin;
   const xpSpan     = nextLevel ? nextLevel.xpMin - currentLevel.xpMin : 500;
@@ -2972,6 +3447,11 @@ function ProfileView({ settings, totalXP, xpData, currentLevel, earnedBadges, co
           style={{ padding:"12px 28px",borderRadius:12,fontSize:13,fontWeight:700,cursor:"pointer",
             background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",color:"#64748b" }}>
           ⚙ Settings & Customization
+        </button>
+        <button onClick={onViewHistory}
+          style={{ marginTop:10, padding:"12px 28px", borderRadius:12, fontSize:13, fontWeight:700,
+            cursor:"pointer", background:`${P}14`, border:`1px solid ${P}30`, color:P, display:"block", margin:"10px auto 0" }}>
+          📊 Training History
         </button>
       </div>
     </div>
@@ -3533,6 +4013,14 @@ export default function SummerTrainingApp() {
     </div>
   );
 
+  /* HISTORY */
+  if (view==="history") return (
+    <HistoryView
+      completed={completed} badgeDates={badgeDates} settings={settings}
+      P={P} S={S} ST={ST} BG={BG} SF={SF} bd={bd} lbl={lbl}
+      onBack={()=>setView("profile")}/>
+  );
+
   /* PROFILE */
   if (view==="profile") return (
     <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"#e2e8f0",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
@@ -3553,7 +4041,8 @@ export default function SummerTrainingApp() {
         currentLevel={currentLevel} earnedBadges={earnedBadges} completed={completed}
         badgeDates={badgeDates}
         P={P} S={S} ST={ST} BG={BG} SF={SF} bd={bd} lbl={lbl}
-        onOpenSettings={()=>setShowSettings(true)}/>
+        onOpenSettings={()=>setShowSettings(true)}
+        onViewHistory={()=>setView("history")}/>
       {renderBottomNav()}
     </div>
   );
