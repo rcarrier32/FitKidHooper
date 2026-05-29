@@ -1017,6 +1017,72 @@ const W_SHOOTING_DRILLS = [
     trainer:"Ryan Razooky", videoId:"bmUmNPRfrWo", videoTitle:"Basketball Shooting Drills: Jab Step Series — Ryan Razooky" },
 ];
 
+const W_POST_MOVES = [
+  { id:"pm-seal",        name:"Post Seal & Get Position",      tag:"Foundation",      difficulty:"beginner",     ageRange:[9,14],  funScore:6,  estimatedDuration:150,
+    sets:"3×30 s holds", rest:"30 s",
+    transferTags:["post-position","sealing","body-control"],
+    progressionTrack:"Step 1 — Post Fundamentals",
+    desc:"The seal is the foundation of every post move — without deep position, nothing else works. Practice getting and holding the block using your backside, forearm, and wide base to pin the defender behind you. Work both the left and right block.",
+    cues:["Wide base — feet outside shoulder width, knees bent deep and loaded","Pin with the hip and forearm — not the hands (that's a foul)","Keep eyes on the ball — call for it with your target hand extended","Stay low throughout the hold — the defender wants to push you baseline or middle"],
+    trainer:"Shot Science Basketball", videoId:"t2dJ6EpQIgk", videoTitle:"Sealing in the Post (Like Shaq and Yao Ming) — Shot Science Basketball" },
+
+  { id:"pm-drop-step",   name:"Drop Step",                     tag:"Foundation",      difficulty:"beginner",     ageRange:[9,14],  funScore:8,  estimatedDuration:150,
+    sets:"3×10 each side", rest:"30 s",
+    transferTags:["post-footwork","finishing","power-move"],
+    progressionTrack:"Step 2 — Post Moves Basics",
+    desc:"The most fundamental post move in basketball. Catch on the block, feel where the defender's body is, then swing one foot decisively toward the baseline or middle — that single explosive step clears space and puts you on a straight line to the rim for a power layup or hook shot.",
+    cues:["Catch and feel the defender — where are their feet and hips before you move?","Drop step is ONE explosive foot swing — not a shuffle or a bounce","Same-side shoulder drives through on the drop — turn your whole body, not just the foot","Chin up, two hands on the ball as you finish — don't lose it in traffic"],
+    trainer:"Howcast", videoId:"kcwCvwCBU-A", videoTitle:"How to Do a Drop-Step | Basketball Moves — Howcast" },
+
+  { id:"pm-hook",        name:"Jump Hook Shot",                 tag:"Foundation",      difficulty:"beginner",     ageRange:[9,14],  funScore:8,  estimatedDuration:150,
+    sets:"3×10 each side", rest:"30 s",
+    transferTags:["finishing","post-shooting","touch"],
+    progressionTrack:"Step 2 — Post Moves Basics",
+    desc:"The hook shot is the most unguardable finish in basketball. Catch near the block, take one gather step toward the lane, jump off the inside foot, and release high over the defender's reach with a soft wrist flip. Practice from both sides until both hands feel comfortable.",
+    cues:["Jump off the foot closest to the basket — drive that knee up for height","Shooting arm extends full — elbow to the ceiling, ball as far from the defender as possible","Soft wrist flip at the peak — this is a touch shot, not a power throw","Inside hip swings away from the defender as you go up — create space with your body"],
+    trainer:"Shot Science Basketball", videoId:"Oq2V-7cv0R4", videoTitle:"JUMP HOOK Basketball Shot! Low Post Move Tutorial — Shot Science Basketball" },
+
+  { id:"pm-up-under",    name:"Up and Under",                  tag:"Intermediate",    difficulty:"intermediate", ageRange:[10,14], funScore:9,  estimatedDuration:150,
+    sets:"3×8 each side", rest:"30 s",
+    transferTags:["footwork","finishing","shot-fake"],
+    progressionTrack:"Step 3 — Post Combo Moves",
+    desc:"A two-move sequence that rewards reading your defender. Catch on the block, go up convincingly for your shot fake — when the defender jumps or steps in to contest, swing the ball under their outstretched arms and step through for an easy finish at the rim. Requires a patient, convincing fake.",
+    cues:["Fake must be a real shot — weight shifts up on your toes, ball rises to chin or forehead, eyes look at the rim","Wait for the defender to go UP — step through the instant you feel their momentum leave the floor","Step through with the outside foot to swing your body past theirs","Stay low through the step — go straight to the glass or finish with a hook"],
+    trainer:"Grizzlies Youth Basketball", videoId:"PIqvdG1HpoA", videoTitle:"Master The Up & Under Post Move — Grizzlies Youth Basketball" },
+
+  { id:"pm-spin",        name:"Post Spin Move",                 tag:"Intermediate",    difficulty:"intermediate", ageRange:[10,14], funScore:9,  estimatedDuration:150,
+    sets:"3×8 each side", rest:"30 s",
+    transferTags:["footwork","finishing","post-footwork"],
+    progressionTrack:"Step 3 — Post Combo Moves",
+    desc:"When the defender is pressing hard into your back, use their pressure against them. Plant the inside foot, reverse pivot explosively to spin away from their body, and attack straight to the basket for a power layup or hook. The spin is a counter move — it only works when the defender is pushing.",
+    cues:["Plant foot is your pivot foot — never lift it before the spin is complete","Shoulder leads the spin — get your chest through first, the rest of the body follows","Ball stays tight to your chest during the spin — protect it with both hands, elbows out","Come out of the spin low and in attack mode — don't pop upright before you finish"],
+    trainer:"ShotMechanics", videoId:"Ug3uvtnC8KI", videoTitle:"How To Perfect the Spin Move: Basketball Moves Mastery — ShotMechanics" },
+
+  { id:"pm-face-up",     name:"Face-Up from the Post",         tag:"Intermediate",    difficulty:"intermediate", ageRange:[10,14], funScore:8,  estimatedDuration:150,
+    sets:"3×8 each side", rest:"30 s",
+    transferTags:["footwork","shot-creation","decision-making"],
+    progressionTrack:"Step 3 — Post Combo Moves",
+    desc:"Catch with your back to the basket, then pivot quickly to face up and read the defender in one smooth motion. If they give space, shoot. If they crowd you, drive baseline or middle. This is the move that separates post players who can only score on their back from post players who can score from anywhere.",
+    cues:["Choose your pivot foot before you turn — commit immediately on the catch","Face up quickly — don't let the defender recover position while you're still spinning","Read their stance: sag = catch-and-shoot, crowd = drive to the open side","Land in triple threat when you face up — ball ready to shoot, pass, or drive instantly"],
+    trainer:"ShotMechanics", videoId:"LX5Kl0_Agj0", videoTitle:"3 Killer Face Up Post Moves: Basketball Post Moves for Big Men — ShotMechanics" },
+
+  { id:"pm-step-through", name:"Shot Fake & Step Through",     tag:"Game",            difficulty:"intermediate", ageRange:[10,14], funScore:9,  estimatedDuration:120,
+    sets:"3×10 each side", rest:"30 s",
+    transferTags:["shot-fake","finishing","footwork"],
+    progressionTrack:"Step 3 — Post Combo Moves",
+    desc:"A deliberate, high shot fake from any post position draws the defender into the air — then one long step through their body creates a clear path to the basket. Works from the low block, mid-post, or even facing up on the elbow. Patience is the key: you must wait for the defender to fully commit before you step.",
+    cues:["Shot fake is SLOW and HIGH — ball rises all the way up, eyes look at the rim, body rises on toes","Wait — you must actually wait long enough for the defender to react and jump","Step through WIDE and decisive — a small shuffle won't clear their body","Protect the ball with your off-arm as you step through — they will swipe at it"],
+    trainer:"Coach Frikki", videoId:"Uf1M17qudj4", videoTitle:"DEADLY Finishing Move (Step Through Tutorial) — Coach Frikki" },
+
+  { id:"pm-saddi-combo",  name:"Post Moves Combo (Saddi Washington)", tag:"Game",     difficulty:"intermediate", ageRange:[10,14], funScore:10, estimatedDuration:180,
+    sets:"2 rounds each side", rest:"60 s",
+    transferTags:["post-footwork","finishing","post-shooting","decision-making"],
+    progressionTrack:"Step 4 — Full Post Game",
+    desc:"Full post move sequencing drill from University of Michigan coach Saddi Washington. Catch, seal, and attack in rotation — mixing drop steps, hooks, spins, and up-unders so you're reading and reacting, not just running one pattern. This is game-realistic post play, not just isolated reps.",
+    cues:["Every catch starts with a read — feel where the defender is before you move","Vary the move on every rep — don't just do drop steps every time you touch it","Finish every move completely, including when you miss — pursue the rebound","Start at 60% speed and earn your way to full speed over multiple rounds"],
+    trainer:"Saddi Washington / My Basketball", videoId:"GOqBvniupY4", videoTitle:"Post Moves with Saddi Washington — Univ. of Michigan" },
+];
+
 const WORKOUTS = {
   speed:        W_SPEED,
   balance:      W_BALANCE,
@@ -1033,6 +1099,7 @@ const WORKOUTS = {
   footwork:     W_FOOTWORK,
   finishing:    W_FINISHING,
   shootingdrills: W_SHOOTING_DRILLS,
+  postmoves:      W_POST_MOVES,
 };
 
 const CATS = {
@@ -1051,6 +1118,7 @@ const CATS = {
   footwork:       { label:"Footwork",                emoji:"👟" },
   finishing:      { label:"Finishing",               emoji:"🏁" },
   shootingdrills: { label:"Shooting Drills",         emoji:"🎯" },
+  postmoves:      { label:"Post Moves",              emoji:"🏋️" },
 };
 
 const SCHEDULE = [
@@ -1278,6 +1346,15 @@ const EXERCISE_META = {
   "sh-hop-shot":         { difficulty:"beginner",     impactLevel:"low",    intensityLevel:"low",    movementType:"skill",        bodyFocus:["legs","feet","hands"],             basketballTransfer:["footwork","rhythm","catch-and-shoot"],         equipment:"basketball",   spaceRequired:"medium",     ageRange:[9,14],  estimatedDuration:120, funScore:7,  workoutRole:["main"],          progressionTrack:"Step 1 — Shooting Foundation" },
   "sh-single-leg":       { difficulty:"intermediate", impactLevel:"low",    intensityLevel:"medium", movementType:"skill",        bodyFocus:["legs","core","feet"],              basketballTransfer:["balance","off-dribble","step-back"],           equipment:"basketball",   spaceRequired:"medium",     ageRange:[10,14], estimatedDuration:120, funScore:7,  workoutRole:["main"],          progressionTrack:"Step 3 — Game-Speed Shooting" },
   "sh-jab-reset":        { difficulty:"intermediate", impactLevel:"low",    intensityLevel:"medium", movementType:"skill",        bodyFocus:["legs","feet","hands","mind"],      basketballTransfer:["shot-creation","footwork","decision-making"],  equipment:"basketball",   spaceRequired:"medium",     ageRange:[10,14], estimatedDuration:120, funScore:9,  workoutRole:["main"],          progressionTrack:"Step 3 — Game-Speed Shooting" },
+
+  "pm-seal":             { difficulty:"beginner",     impactLevel:"low",    intensityLevel:"low",    movementType:"skill",        bodyFocus:["hips","legs","core","back"],       basketballTransfer:["post-position","sealing","body-control"],      equipment:"basketball",   spaceRequired:"small",      ageRange:[9,14],  estimatedDuration:150, funScore:6,  workoutRole:["warmup","main"],  progressionTrack:"Step 1 — Post Fundamentals" },
+  "pm-drop-step":        { difficulty:"beginner",     impactLevel:"medium", intensityLevel:"medium", movementType:"skill",        bodyFocus:["legs","hips","core"],              basketballTransfer:["post-footwork","finishing","power-move"],       equipment:"basketball",   spaceRequired:"medium",     ageRange:[9,14],  estimatedDuration:150, funScore:8,  workoutRole:["main"],          progressionTrack:"Step 2 — Post Moves Basics" },
+  "pm-hook":             { difficulty:"beginner",     impactLevel:"medium", intensityLevel:"medium", movementType:"skill",        bodyFocus:["legs","arms","wrists","hands"],    basketballTransfer:["finishing","post-shooting","touch"],            equipment:"basketball",   spaceRequired:"medium",     ageRange:[9,14],  estimatedDuration:150, funScore:8,  workoutRole:["main"],          progressionTrack:"Step 2 — Post Moves Basics" },
+  "pm-up-under":         { difficulty:"intermediate", impactLevel:"medium", intensityLevel:"medium", movementType:"skill",        bodyFocus:["legs","feet","core","arms"],       basketballTransfer:["footwork","finishing","shot-fake"],             equipment:"basketball",   spaceRequired:"medium",     ageRange:[10,14], estimatedDuration:150, funScore:9,  workoutRole:["main"],          progressionTrack:"Step 3 — Post Combo Moves" },
+  "pm-spin":             { difficulty:"intermediate", impactLevel:"medium", intensityLevel:"medium", movementType:"skill",        bodyFocus:["legs","hips","core","shoulders"],  basketballTransfer:["footwork","finishing","post-footwork"],         equipment:"basketball",   spaceRequired:"medium",     ageRange:[10,14], estimatedDuration:150, funScore:9,  workoutRole:["main"],          progressionTrack:"Step 3 — Post Combo Moves" },
+  "pm-face-up":          { difficulty:"intermediate", impactLevel:"low",    intensityLevel:"medium", movementType:"skill",        bodyFocus:["legs","feet","hips","mind"],       basketballTransfer:["footwork","shot-creation","decision-making"],   equipment:"basketball",   spaceRequired:"medium",     ageRange:[10,14], estimatedDuration:150, funScore:8,  workoutRole:["main"],          progressionTrack:"Step 3 — Post Combo Moves" },
+  "pm-step-through":     { difficulty:"intermediate", impactLevel:"low",    intensityLevel:"medium", movementType:"skill",        bodyFocus:["legs","feet","hands","mind"],      basketballTransfer:["shot-fake","finishing","footwork"],             equipment:"basketball",   spaceRequired:"medium",     ageRange:[10,14], estimatedDuration:120, funScore:9,  workoutRole:["main"],          progressionTrack:"Step 3 — Post Combo Moves" },
+  "pm-saddi-combo":      { difficulty:"intermediate", impactLevel:"medium", intensityLevel:"high",   movementType:"skill",        bodyFocus:["legs","feet","core","arms","mind"],basketballTransfer:["post-footwork","finishing","post-shooting","decision-making"], equipment:"basketball", spaceRequired:"medium", ageRange:[10,14], estimatedDuration:180, funScore:10, workoutRole:["main","finisher"],progressionTrack:"Step 4 — Full Post Game" },
 };
 
 /* Age-based workout generation rules */
