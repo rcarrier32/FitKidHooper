@@ -728,7 +728,7 @@ const W_BALL_HANDLING = [
     progressionTrack:"Step 1 — Ball Handling Foundation",
     desc:"The absolute starting point. Hip-height stationary dribble with each hand, fingertips only, eyes up. Every elite ball handler still does this daily.",
     cues:["Fingertips — never the palm","Dribble at hip height, not knee or ankle","Push the ball, do not slap it","Eyes forward — trust your hands"],
-    videoUrl:"" },
+    trainer:"Pure Sweat Basketball", videoId:"xaOeh5CEc68", videoTitle:"Pound Dribbles — Pure Sweat Basketball" },
 
   { id:"bh-crossover",    name:"Crossovers",              tag:"Basic Moves",     difficulty:"beginner",     ageRange:[9,14],  funScore:8,  estimatedDuration:90,
     sets:"3x20 reps", rest:"20 s",
@@ -736,7 +736,7 @@ const W_BALL_HANDLING = [
     progressionTrack:"Step 2 — Basic Move Package",
     desc:"Bounce the ball low and fast across the body from hand to hand. The first move every defender has to respect — the foundation of every combo.",
     cues:["Keep the ball BELOW the knee — high crossovers get stolen","Eyes up, sell with your shoulder first","Snap it across — not a lazy float","Alternate slow-to-fast rhythm"],
-    videoUrl:"" },
+    trainer:"ILoveBasketballTV", videoId:"lZR6U0kG1oU", videoTitle:"How to Crossover Dribble — Four Variations" },
 
   { id:"bh-btl",          name:"Between Legs",            tag:"Intermediate",    difficulty:"intermediate", ageRange:[10,14], funScore:9,  estimatedDuration:90,
     sets:"3x30 s alternating", rest:"20 s",
@@ -744,7 +744,7 @@ const W_BALL_HANDLING = [
     progressionTrack:"Step 3 — Advanced Stationary Moves",
     desc:"Dribble the ball through the legs while stationary or on the move. Protects the ball from a reaching defender and sets up combo moves.",
     cues:["Wide stance — ball needs space to fit through","Lead with the receiving hand reaching across","Don't rush — clean slow reps beat sloppy fast","Build to walking, then running"],
-    videoUrl:"" },
+    trainer:"Cramer Basketball", videoId:"Y7PjqLcIhXw", videoTitle:"Between Your Legs Dribble — Cramer Basketball" },
 
   { id:"bh-in-out",       name:"In & Out Dribble",        tag:"Basic Moves",     difficulty:"beginner",     ageRange:[9,14],  funScore:7,  estimatedDuration:90,
     sets:"3x20 reps each hand", rest:"20 s",
@@ -752,7 +752,7 @@ const W_BALL_HANDLING = [
     progressionTrack:"Step 2 — Basic Move Package",
     desc:"Attack toward the defender, dip the ball inside as if crossing, then pull it back out in the original direction. The sell makes this move — not the hands.",
     cues:["Sell with your eyes AND shoulder — look where you are faking","Dip the ball inside sharply — half-measure fakes do not work","Snap back out of it: change of pace — slow to FAST","Stay low throughout"],
-    videoUrl:"" },
+    trainer:"Cramer Basketball", videoId:"LMy9MUEd0Q0", videoTitle:"V Dribble Series — Cramer Basketball" },
 
   { id:"bh-hesi",         name:"Hesitation Dribble",      tag:"Intermediate",    difficulty:"intermediate", ageRange:[10,14], funScore:9,  estimatedDuration:90,
     sets:"3x8 reps each hand", rest:"30 s",
@@ -760,7 +760,7 @@ const W_BALL_HANDLING = [
     progressionTrack:"Step 3 — Advanced Stationary Moves",
     desc:"Slow your dribble dramatically to freeze the defender, then burst past them at full speed. The most effective move in basketball at every level — slow to FAST.",
     cues:["The pause is the move — sell the stop completely","Eyes find the rim on the pause — freeze the defender's feet","First step after the hesi is the longest step of your day","Change of pace: 30% to 100% — no middle"],
-    videoUrl:"" },
+    trainer:"By Any Means Basketball", videoId:"k4yuKrQKNUY", videoTitle:"Dribbling Drills That Build Better Handles" },
 
   { id:"bh-retreat",      name:"Retreat Dribble",         tag:"Intermediate",    difficulty:"intermediate", ageRange:[10,14], funScore:7,  estimatedDuration:90,
     sets:"3x8 reps each direction", rest:"30 s",
@@ -768,7 +768,7 @@ const W_BALL_HANDLING = [
     progressionTrack:"Step 3 — Advanced Stationary Moves",
     desc:"Step backward one or two dribbles while keeping the ball alive — creates space against aggressive defenders. The escape move that resets possessions.",
     cues:["Keep the dribble on the outside foot — away from pressure","Stay low as you retreat — do not stand up","Chin stays down, eyes find the court","Two retreat dribbles MAX — then make a decision"],
-    videoUrl:"" },
+    trainer:"By Any Means Basketball", videoId:"FYZcpwOBzyQ", videoTitle:"Essential Steps to Dribbling a Basketball" },
 
   { id:"bh-figure8",      name:"Figure 8",                tag:"Foundation",      difficulty:"beginner",     ageRange:[9,14],  funScore:8,  estimatedDuration:90,
     sets:"3x30 s each direction", rest:"15 s",
@@ -776,7 +776,7 @@ const W_BALL_HANDLING = [
     progressionTrack:"Step 1 — Ball Handling Foundation",
     desc:"Continuous figure-8 pattern weaving the ball around and through both legs. Builds hand speed, wrist flexibility, and ball feel simultaneously.",
     cues:["Wide stance with deep knee bend","Smooth rhythm first — add speed after 10 seconds","Eyes up the entire time, feel the ball","Reverse direction each set — both hands must get the same reps"],
-    videoUrl:"" },
+    trainer:"Jr. NBA at Home", videoId:"YFHuQ44oOXA", videoTitle:"Windshield Wipers — Jr. NBA at Home" },
 
   { id:"bh-spider",       name:"Spider Dribble",          tag:"Intermediate",    difficulty:"intermediate", ageRange:[10,14], funScore:8,  estimatedDuration:90,
     sets:"3x30 s", rest:"20 s",
@@ -784,7 +784,7 @@ const W_BALL_HANDLING = [
     progressionTrack:"Step 2 — Basic Move Package",
     desc:"Four-point dribble: front-right, front-left, back-right, back-left in rapid sequence. Builds incredible hand speed, ball feel, and ambidextrous control.",
     cues:["Ball stays in front of you — do not let it drift","Rapid alternating taps — both hands get equal work","Keep it low — this is a feel drill, not a height drill","Speed up once the pattern is memorized"],
-    videoUrl:"" },
+    trainer:"Jr. NBA at Home", videoId:"VN2nSOFwCIQ", videoTitle:"Seated Dribbling Drill — Jr. NBA at Home" },
 
   { id:"bh-attack-cross", name:"Attack Cross",            tag:"Advanced Moves",  difficulty:"intermediate", ageRange:[10,14], funScore:10, estimatedDuration:120,
     sets:"3x8 reps each direction", rest:"30 s",
@@ -792,7 +792,7 @@ const W_BALL_HANDLING = [
     progressionTrack:"Step 4 — Combo Moves",
     desc:"Hard attack dribble in one direction to draw the defender's momentum, then explode across with a full-speed crossover. The most direct path to getting past a defender.",
     cues:["Attack with purpose — make the defender commit","Time the cross to their weight shift — that is the moment","Cross LOW and fast — do not give them time to recover","Finish with a hard first step through the lane"],
-    videoUrl:"" },
+    trainer:"ShotMechanics", videoId:"WokdWEYZ7GU", videoTitle:"Kyrie Irving Dribbling Drills — ShotMechanics" },
 
   { id:"bh-combo",        name:"Combo Series",            tag:"Advanced Moves",  difficulty:"advanced",     ageRange:[11,14], funScore:10, estimatedDuration:120,
     sets:"3x5 full combos each side", rest:"45 s",
@@ -800,7 +800,7 @@ const W_BALL_HANDLING = [
     progressionTrack:"Step 5 — Game-Speed Combos",
     desc:"Two or three moves chained together at full pace — crossover to between-legs, hesi to in-and-out to crossover. This is what defenders see in games.",
     cues:["Each move sets up the next — they are not random","Stay in a low athletic position the entire combo","Speed up across the combo — setup move is slower, finish is explosive","Make one move when one works — do not over-dribble"],
-    videoUrl:"" },
+    trainer:"Pro Skills Basketball", videoId:"xyZNJoctA9w", videoTitle:"Best Fun Youth Basketball Drill — Improve Dribbling" },
 ];
 
 const W_FOOTWORK = [
