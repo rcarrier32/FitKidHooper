@@ -1163,6 +1163,78 @@ function getEarnedBadges(completed) {
   return [...earned];
 }
 
+/* ═══════════════════════ CALENDAR DATA ══════════════════════ */
+
+// Fixed per-category dot colors (theme-independent so they're always readable)
+const CAT_DOT_COLORS = {
+  explosion:    "#fb923c",
+  deceleration: "#60a5fa",
+  strength:     "#22c55e",
+  speed:        "#f59e0b",
+  balance:      "#34d399",
+  coordination: "#a78bfa",
+  conditioning: "#ef4444",
+  athletic:     "#e879f9",
+  handles:      "#7c3aed",
+  basketball:   "#3b82f6",
+  shooting:     "#f97316",
+};
+
+function buildCalendarData(completed) {
+  const dayMap = {};
+
+  // Group completed exercises by date
+  for (const [k, v] of Object.entries(completed)) {
+    if (!v) continue;
+    const date  = k.split("-").slice(0,3).join("-");
+    const exId  = k.split("-").slice(3).join("-");
+    if (!dayMap[date]) dayMap[date] = { exs:[], cats:new Set(), shots:0 };
+    const ex = ALL_EXERCISES[exId];
+    if (ex) {
+      dayMap[date].exs.push(ex);
+      dayMap[date].cats.add(ex._cat);
+    } else {
+      dayMap[date].exs.push({ id:exId, name:exId, _cat:"unknown" });
+    }
+  }
+
+  // Layer in shot data
+  try {
+    const sl = JSON.parse(localStorage.getItem("shot_log_v2")||"{}");
+    for (const [date, shots] of Object.entries(sl)) {
+      const makes = (shots||[]).filter(s=>s.made!==false).length;
+      if (makes === 0) continue;
+      if (!dayMap[date]) dayMap[date] = { exs:[], cats:new Set(), shots:0 };
+      dayMap[date].shots  = makes;
+      dayMap[date].cats.add("shooting");
+    }
+  } catch {}
+
+  // Compute per-day XP and finalise cats → array
+  for (const [, data] of Object.entries(dayMap)) {
+    data.cats      = [...data.cats];
+    const exXP     = data.exs.length * 5;
+    const wBonus   = data.exs.length >= 3 && data.cats.length >= 2 ? 25 : 0;
+    const shotXP   = Math.floor((data.shots||0)/10) * 5;
+    data.xp        = exXP + wBonus + shotXP;
+    data.totalDrills = data.exs.length;
+  }
+
+  // Compute running streak per day
+  const sorted = Object.keys(dayMap).sort();
+  let streak = 0;
+  for (let i=0; i<sorted.length; i++) {
+    if (i===0) { streak=1; }
+    else {
+      const diff=(new Date(sorted[i]+"T12:00:00")-new Date(sorted[i-1]+"T12:00:00"))/86400000;
+      if(diff<=1.5) streak++; else streak=1;
+    }
+    dayMap[sorted[i]].streakDay = streak;
+  }
+
+  return dayMap;
+}
+
 /* ═══════════════════════ BENEFIT MAP ════════════════════════ */
 // Maps basketballTransfer ids → user-facing labels for the detail view
 const BENEFIT_MAP = {
@@ -2150,6 +2222,249 @@ function BadgeCelebration({ badge, onDismiss }) {
   );
 }
 
+/* ═══════════════════════ CALENDAR VIEW ═════════════════════ */
+const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const DOW_HEADERS = ["M","T","W","T","F","S","S"];
+
+function CalendarView({ completed, P, S, BG, SF, bd, lbl }) {
+  const now = new Date();
+  const [viewDate, setViewDate] = useState(()=>new Date(now.getFullYear(),now.getMonth(),1));
+  const [selDate,  setSelDate]  = useState(now.toLocaleDateString("en-CA"));
+
+  const calData = useMemo(()=>buildCalendarData(completed),[completed]);
+
+  const year = viewDate.getFullYear();
+  const mon  = viewDate.getMonth();
+  const monthKey = `${year}-${String(mon+1).padStart(2,"0")}`;
+
+  // Mon-first calendar cells
+  const firstDow   = new Date(year,mon,1).getDay();         // 0=Sun
+  const startPad   = (firstDow+6)%7;                        // Mon=0 offset
+  const daysInMon  = new Date(year,mon+1,0).getDate();
+  const cells = [];
+  for (let i=0;i<startPad;i++) cells.push(null);
+  for (let d=1;d<=daysInMon;d++) cells.push(d);
+
+  const todayStr = now.toLocaleDateString("en-CA");
+
+  // Month-level stats
+  const monthEntries = Object.entries(calData).filter(([d])=>d.startsWith(monthKey));
+  const monthXP      = monthEntries.reduce((s,[,v])=>s+v.xp,0);
+  const monthDays    = monthEntries.length;
+  const monthDrills  = monthEntries.reduce((s,[,v])=>s+v.totalDrills,0);
+  const monthMaxStr  = monthEntries.length>0 ? Math.max(...monthEntries.map(([,v])=>v.streakDay||0)) : 0;
+
+  const selData      = calData[selDate];
+  const selInMonth   = selDate.startsWith(monthKey);
+  const isNowMonth   = year===now.getFullYear() && mon===now.getMonth();
+
+  // intensity → opacity suffix (same pattern used app-wide)
+  const intensityBg = (count) => {
+    if (count===0) return "rgba(255,255,255,0.03)";
+    if (count<=2)  return "rgba(255,255,255,0.07)";
+    if (count<=5)  return "rgba(255,255,255,0.12)";
+    return "rgba(255,255,255,0.20)";
+  };
+
+  return (
+    <div style={{ padding:"4px 20px 20px" }}>
+
+      {/* ── Month nav ──────────────────────────────────────────── */}
+      <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14 }}>
+        <button onClick={()=>setViewDate(d=>new Date(d.getFullYear(),d.getMonth()-1,1))}
+          style={{ width:36,height:36,borderRadius:8,border:`1px solid ${bd}`,
+            background:"transparent",color:"#64748b",fontSize:20,cursor:"pointer",fontWeight:300 }}>‹</button>
+        <div style={{ textAlign:"center" }}>
+          <div style={{ fontSize:16,fontWeight:800,color:"#f1f5f9" }}>{MONTH_NAMES[mon]}</div>
+          <div style={{ fontSize:10,color:"#475569",fontFamily:"'DM Mono',monospace" }}>{year}</div>
+        </div>
+        <button onClick={()=>setViewDate(d=>new Date(d.getFullYear(),d.getMonth()+1,1))}
+          disabled={isNowMonth}
+          style={{ width:36,height:36,borderRadius:8,border:`1px solid ${bd}`,
+            background:"transparent",color:isNowMonth?"#1e293b":"#64748b",
+            fontSize:20,cursor:isNowMonth?"default":"pointer",fontWeight:300 }}>›</button>
+      </div>
+
+      {/* ── Day headers ───────────────────────────────────────── */}
+      <div style={{ display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3,marginBottom:4 }}>
+        {DOW_HEADERS.map((d,i)=>(
+          <div key={i} style={{ textAlign:"center",fontSize:9,fontWeight:700,
+            color:"#334155",fontFamily:"'DM Mono',monospace",padding:"3px 0",letterSpacing:"0.06em" }}>
+            {d}
+          </div>
+        ))}
+      </div>
+
+      {/* ── Calendar grid ─────────────────────────────────────── */}
+      <div style={{ display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3,marginBottom:14 }}>
+        {cells.map((day,i)=>{
+          if (!day) return <div key={`p${i}`}/>;
+          const dateStr = `${year}-${String(mon+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+          const data    = calData[dateStr];
+          const isToday = dateStr===todayStr;
+          const isFuture= new Date(dateStr+"T12:00:00")>now;
+          const isSel   = dateStr===selDate && selInMonth;
+          const cnt     = data?.totalDrills||0;
+
+          return (
+            <div key={i} onClick={()=>{ if(!isFuture) setSelDate(dateStr); }}
+              style={{
+                borderRadius:8,padding:"5px 3px 4px",
+                minHeight:50,display:"flex",flexDirection:"column",
+                alignItems:"center",justifyContent:"space-between",
+                background: isSel ? `${P}28` : intensityBg(cnt),
+                border:`1.5px solid ${isSel?P:isToday?`${P}60`:"transparent"}`,
+                cursor:isFuture?"default":"pointer",
+                opacity:isFuture?0.2:1,
+                transition:"background 0.15s, border 0.15s",
+              }}>
+
+              {/* Day number */}
+              <div style={{ fontSize:11,fontWeight:isToday?800:500,lineHeight:1,
+                color:isSel?P:isToday?P:cnt>0?"#cbd5e1":"#475569" }}>
+                {day}
+              </div>
+
+              {/* Category dots */}
+              {data?.cats.length>0&&(
+                <div style={{ display:"flex",gap:2,flexWrap:"wrap",justifyContent:"center" }}>
+                  {data.cats.slice(0,4).map((cat,ci)=>(
+                    <div key={ci} style={{ width:5,height:5,borderRadius:"50%",
+                      background:CAT_DOT_COLORS[cat]||"#64748b",flexShrink:0 }}/>
+                  ))}
+                </div>
+              )}
+
+              {/* XP micro-label */}
+              {data?.xp>0&&(
+                <div style={{ fontSize:7,fontFamily:"'DM Mono',monospace",
+                  color:isSel?P:"#475569",lineHeight:1,marginTop:1 }}>
+                  {data.xp}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ── Month summary ─────────────────────────────────────── */}
+      {monthDays>0&&(
+        <div style={{ display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:14 }}>
+          {[
+            { v:monthDays,   l:"Days" },
+            { v:monthDrills, l:"Drills" },
+            { v:monthXP,     l:"XP" },
+            { v:monthMaxStr>0?`${monthMaxStr}🔥`:"—", l:"Best Streak" },
+          ].map(({ v,l })=>(
+            <div key={l} style={{ background:SF,border:`1px solid ${bd}`,borderRadius:10,
+              padding:"9px 6px",textAlign:"center" }}>
+              <div style={{ fontFamily:"'DM Mono',monospace",fontSize:16,fontWeight:800,
+                color:P,lineHeight:1 }}>{v}</div>
+              <div style={{ fontSize:8,color:"#334155",marginTop:3,
+                textTransform:"uppercase",letterSpacing:"0.07em" }}>{l}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Selected day detail ───────────────────────────────── */}
+      {selInMonth&&selData ? (
+        <div style={{ background:`${P}0d`,border:`1px solid ${P}22`,borderRadius:14,
+          padding:"14px 16px",animation:"fkh-fade-up 0.22s ease both" }}>
+
+          {/* Day header */}
+          <div style={{ display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:10 }}>
+            <div>
+              <div style={{ fontSize:14,fontWeight:800,color:"#f1f5f9",lineHeight:1.2 }}>
+                {new Date(selDate+"T12:00:00").toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"})}
+              </div>
+              <div style={{ fontSize:11,color:"#64748b",marginTop:4,display:"flex",gap:8,flexWrap:"wrap" }}>
+                {selData.totalDrills>0&&<span>{selData.totalDrills} drill{selData.totalDrills!==1?"s":""}</span>}
+                {selData.shots>0&&<span>🏀 {selData.shots} shots</span>}
+                {selData.streakDay>1&&<span style={{ color:"#f97316" }}>Day {selData.streakDay} streak 🔥</span>}
+              </div>
+            </div>
+            <div style={{ textAlign:"right",flexShrink:0 }}>
+              <div style={{ fontFamily:"'DM Mono',monospace",fontSize:22,fontWeight:800,color:P,lineHeight:1 }}>
+                {selData.xp}
+              </div>
+              <div style={{ fontSize:9,color:"#475569",letterSpacing:"0.08em" }}>XP</div>
+            </div>
+          </div>
+
+          {/* Category chips */}
+          {selData.cats.length>0&&(
+            <div style={{ display:"flex",gap:6,flexWrap:"wrap",marginBottom:10 }}>
+              {selData.cats.map(cat=>{
+                const c=CAT_DOT_COLORS[cat]||"#64748b";
+                return (
+                  <span key={cat} style={{ display:"flex",alignItems:"center",gap:4,
+                    padding:"3px 9px",borderRadius:20,fontSize:11,fontWeight:600,
+                    background:`${c}18`,color:c,border:`1px solid ${c}30` }}>
+                    {CATS[cat]?.emoji||"•"} {CATS[cat]?.label.split(" ")[0]||cat}
+                  </span>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Exercise list */}
+          <div style={{ display:"flex",flexDirection:"column",gap:4 }}>
+            {selData.exs.map((ex,i)=>{
+              const c=CAT_DOT_COLORS[ex._cat]||"#64748b";
+              return (
+                <div key={i} style={{ display:"flex",alignItems:"center",gap:8,
+                  padding:"7px 9px",borderRadius:8,
+                  background:"rgba(255,255,255,0.03)",
+                  border:"1px solid rgba(255,255,255,0.06)" }}>
+                  <div style={{ width:6,height:6,borderRadius:"50%",background:c,flexShrink:0 }}/>
+                  <span style={{ fontSize:12,color:"#e2e8f0",flex:1,fontWeight:500,
+                    whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{ex.name}</span>
+                  <span style={{ fontSize:9,color:"#334155",fontFamily:"'DM Mono',monospace",flexShrink:0 }}>+5 XP</span>
+                  <span style={{ color:"#22c55e",fontSize:13,flexShrink:0 }}>✓</span>
+                </div>
+              );
+            })}
+            {selData.shots>0&&(
+              <div style={{ display:"flex",alignItems:"center",gap:8,
+                padding:"7px 9px",borderRadius:8,
+                background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)" }}>
+                <div style={{ width:6,height:6,borderRadius:"50%",background:"#f97316",flexShrink:0 }}/>
+                <span style={{ fontSize:12,color:"#e2e8f0",flex:1,fontWeight:500 }}>🏀 {selData.shots} shots made</span>
+                <span style={{ fontSize:9,color:"#334155",fontFamily:"'DM Mono',monospace",flexShrink:0 }}>
+                  +{Math.floor(selData.shots/10)*5} XP
+                </span>
+                <span style={{ color:"#22c55e",fontSize:13,flexShrink:0 }}>✓</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+      ) : selInMonth ? (
+        <div style={{ textAlign:"center",padding:"18px 0",color:"#334155" }}>
+          <div style={{ fontSize:13,marginBottom:4 }}>
+            {new Date(selDate+"T12:00:00").toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"})}
+          </div>
+          <div style={{ fontSize:11,color:"#1e293b" }}>No training logged this day</div>
+        </div>
+      ) : null}
+
+      {/* ── Empty month state ─────────────────────────────────── */}
+      {monthDays===0&&(
+        <div style={{ textAlign:"center",padding:"36px 0" }}>
+          <div style={{ fontSize:36,marginBottom:12 }}>📅</div>
+          <div style={{ fontSize:14,fontWeight:600,color:"#475569",marginBottom:4 }}>
+            No workouts logged this month
+          </div>
+          <div style={{ fontSize:12,color:"#334155" }}>
+            Complete exercises to build your training history.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ═══════════════════════ PROFILE VIEW ══════════════════════ */
 function ProfileView({ settings, totalXP, xpData, currentLevel, earnedBadges, P, S, ST, BG, SF, bd, lbl, onOpenSettings }) {
   const nextLevel = LEVELS.find(l=>l.rank===currentLevel.rank+1);
@@ -2635,6 +2950,7 @@ export default function SummerTrainingApp() {
   const [activeCat, setActiveCat] = useState(null);
   const [activeExercise, setActiveExercise] = useState(null);
   const [detailList, setDetailList] = useState([]);
+  const [schedTab, setSchedTab] = useState("week");
   const [celebratedBadges, setCelebratedBadges] = useState(()=>{
     try{return new Set(JSON.parse(localStorage.getItem("fkh-celebrated-badges")||"[]"));}catch{return new Set();}
   });
@@ -2740,7 +3056,7 @@ export default function SummerTrainingApp() {
   const NAV = [
     {id:"home",    emoji:"🏠",label:"Home"},
     {id:"shots",   emoji:"🏀",label:"Shots"},
-    {id:"schedule",emoji:"📅",label:"Schedule"},
+    {id:"schedule",emoji:"📅",label:"Calendar"},
     {id:"profile", emoji:"👤",label:"Profile"},
   ];
 
@@ -3141,31 +3457,77 @@ export default function SummerTrainingApp() {
       </>)}
 
       {view==="schedule" && (
-        <div style={{ padding:"14px 20px" }}>
-          <div style={lbl}>Weekly Schedule</div>
-          {SCHEDULE.map((d,i)=>{
-            const isToday = i===todayIdx;
-            const hasWork = d.cats.length > 0;
-            return (
-            <div key={i}
-              onClick={hasWork ? ()=>{ setActiveCat(d.cats[0]); setPrevView("schedule"); setView("cat"); } : undefined}
-              style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:10,marginBottom:4,background:isToday?`${P}0e`:"transparent",border:`1px solid ${isToday?`${P}30`:"transparent"}`,cursor:hasWork?"pointer":undefined }}>
-              <div style={{ fontFamily:"'DM Mono',monospace",fontSize:11,color:isToday?P:`${P}99`,width:32,flexShrink:0,fontWeight:isToday?800:400 }}>{d.day}</div>
-              <div style={{ fontSize:13,color:isToday?P:`${P}dd`,flex:1,fontWeight:600 }}>{d.label}</div>
-              {isToday&&<span style={{ fontSize:9,fontWeight:800,color:P,letterSpacing:"0.06em" }}>TODAY</span>}
-              <div style={{ display:"flex",gap:5 }}>
-                {d.cats.map(c=>(
-                  <button key={c}
-                    onClick={e=>{ e.stopPropagation(); setActiveCat(c); setPrevView("schedule"); setView("cat"); }}
-                    style={{ fontSize:11,padding:"3px 9px",borderRadius:20,background:catBg(c),color:catColor(c),border:`1px solid ${catBrd(c)}`,fontWeight:600,cursor:"pointer" }}>
-                    {CATS[c].emoji} {CATS[c].label.split(' ')[0]}
-                  </button>
-                ))}
-              </div>
-              {hasWork&&<span style={{ fontSize:16,color:`${P}80`,flexShrink:0,lineHeight:1 }}>›</span>}
+        <div>
+          {/* ── Sub-tab switcher ─────────────────────────────── */}
+          <div style={{ display:"flex",gap:8,padding:"12px 20px 10px" }}>
+            {[
+              { id:"week",     label:"📋 This Week" },
+              { id:"calendar", label:"🗓 History"   },
+            ].map(t=>(
+              <button key={t.id} onClick={()=>setSchedTab(t.id)}
+                style={{ flex:1,padding:"9px 0",borderRadius:10,fontSize:12,fontWeight:700,cursor:"pointer",
+                  background:schedTab===t.id?P:"rgba(255,255,255,0.05)",
+                  border:`1px solid ${schedTab===t.id?P:"rgba(255,255,255,0.09)"}`,
+                  color:schedTab===t.id?"#000":"#64748b" }}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {/* ── This Week ─────────────────────────────────────── */}
+          {schedTab==="week"&&(
+            <div style={{ padding:"4px 20px 20px" }}>
+              <div style={lbl}>Weekly Training Plan</div>
+              {SCHEDULE.map((d,i)=>{
+                const isToday = i===todayIdx;
+                const hasWork = d.cats.length > 0;
+                const dayData = Object.entries(buildCalendarData(completed))
+                  .filter(([k])=>{
+                    const date=new Date(k+"T12:00:00");
+                    return date.getDay()===(i+1)%7 && (new Date()-date)<7*86400000;
+                  })[0]?.[1];
+                return (
+                  <div key={i}
+                    onClick={hasWork?()=>{ setActiveCat(d.cats[0]); setPrevView("schedule"); setView("cat"); }:undefined}
+                    style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:10,
+                      marginBottom:4,
+                      background:isToday?`${P}0e`:"transparent",
+                      border:`1px solid ${isToday?`${P}30`:"transparent"}`,
+                      cursor:hasWork?"pointer":undefined }}>
+                    <div style={{ fontFamily:"'DM Mono',monospace",fontSize:11,
+                      color:isToday?P:`${P}99`,width:32,flexShrink:0,fontWeight:isToday?800:400 }}>
+                      {d.day}
+                    </div>
+                    <div style={{ fontSize:13,color:isToday?P:`${P}dd`,flex:1,fontWeight:600 }}>{d.label}</div>
+                    {dayData?.xp>0&&(
+                      <span style={{ fontSize:9,fontFamily:"'DM Mono',monospace",color:"#22c55e",
+                        background:"rgba(34,197,94,0.1)",border:"1px solid rgba(34,197,94,0.2)",
+                        borderRadius:20,padding:"2px 7px",flexShrink:0 }}>
+                        +{dayData.xp} XP
+                      </span>
+                    )}
+                    {isToday&&!dayData&&<span style={{ fontSize:9,fontWeight:800,color:P,letterSpacing:"0.06em" }}>TODAY</span>}
+                    <div style={{ display:"flex",gap:5 }}>
+                      {d.cats.map(c=>(
+                        <button key={c}
+                          onClick={e=>{ e.stopPropagation(); setActiveCat(c); setPrevView("schedule"); setView("cat"); }}
+                          style={{ fontSize:11,padding:"3px 9px",borderRadius:20,background:catBg(c),
+                            color:catColor(c),border:`1px solid ${catBrd(c)}`,fontWeight:600,cursor:"pointer" }}>
+                          {CATS[c].emoji} {CATS[c].label.split(' ')[0]}
+                        </button>
+                      ))}
+                    </div>
+                    {hasWork&&<span style={{ fontSize:16,color:`${P}80`,flexShrink:0,lineHeight:1 }}>›</span>}
+                  </div>
+                );
+              })}
             </div>
-            );
-          })}
+          )}
+
+          {/* ── History calendar ──────────────────────────────── */}
+          {schedTab==="calendar"&&(
+            <CalendarView completed={completed} P={P} S={S} BG={BG} SF={SF} bd={bd} lbl={lbl}/>
+          )}
         </div>
       )}
 
