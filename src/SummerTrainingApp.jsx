@@ -1718,6 +1718,32 @@ function getEarnedBadges(completed) {
   return [...earned];
 }
 
+/** Returns {cur, target} progress toward a badge — used by Upcoming Unlocks and Next Badge card. */
+function getBadgeProgress(badge, completed) {
+  const days = [...new Set(
+    Object.keys(completed).filter(k=>completed[k]).map(k=>k.split("-").slice(0,3).join("-"))
+  )];
+  const workoutDays = days.length;
+  let streak = 0; const dw = new Date();
+  for (let i = 0; i < 60; i++) {
+    const k = dw.toLocaleDateString("en-CA");
+    if (days.includes(k)) { streak++; dw.setDate(dw.getDate()-1); } else break;
+  }
+  let makes = 0;
+  try { const sl=JSON.parse(localStorage.getItem("shot_log_v2")||"{}"); makes=Object.values(sl).flatMap(v=>v).filter(s=>s.made!==false).length; } catch {}
+  const MAP = {
+    "workouts-1":{cur:workoutDays,target:1},"workouts-10":{cur:workoutDays,target:10},
+    "workouts-25":{cur:workoutDays,target:25},"workouts-50":{cur:workoutDays,target:50},
+    "workouts-100":{cur:workoutDays,target:100},
+    "streak-3":{cur:streak,target:3},"streak-7":{cur:streak,target:7},
+    "streak-14":{cur:streak,target:14},"streak-30":{cur:streak,target:30},
+    "shots-100":{cur:makes,target:100},"shots-1k":{cur:makes,target:1000},
+    "shots-2500":{cur:makes,target:2500},"shots-5k":{cur:makes,target:5000},
+    "shots-10k":{cur:makes,target:10000},
+  };
+  return MAP[badge.id] || { cur:0, target:1 };
+}
+
 /* ═══════════════════════ PROGRESSION CHAINS ════════════════ */
 
 /**
@@ -3844,6 +3870,59 @@ function BadgesView({ earnedBadges, badgeDates, completed, P, S, BG, SF, bd, lbl
         </div>
       </div>
 
+      {/* Upcoming Unlocks ───────────────────────────────────── */}
+      {(()=>{
+        const upcoming = BADGES_DEF
+          .filter(b => !earnedBadges.includes(b.id))
+          .map(b => { const { cur, target } = getBadgeProgress(b, completed); return { ...b, cur, target, pct: Math.min(1, cur / target) }; })
+          .sort((a, b) => b.pct - a.pct || a.target - b.target)
+          .slice(0, 3);
+        if (!upcoming.length) return null;
+        return (
+          <div style={{ marginBottom:24 }}>
+            <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12 }}>
+              <div style={lbl}>Upcoming Unlocks</div>
+              <div style={{ fontSize:9,color:"#475569",fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.08em" }}>almost there</div>
+            </div>
+            <div style={{ display:"flex",flexDirection:"column",gap:9 }}>
+              {upcoming.map(badge => {
+                const pctDisplay = Math.round(badge.pct * 100);
+                const remaining  = badge.target - badge.cur;
+                return (
+                  <div key={badge.id} style={{
+                    padding:"13px 14px",borderRadius:14,
+                    background:`${badge.color}10`,
+                    border:`1px solid ${badge.color}2a`,
+                  }}>
+                    <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:9 }}>
+                      <div style={{
+                        width:36,height:36,borderRadius:10,flexShrink:0,
+                        background:`${badge.color}1a`,border:`1.5px solid ${badge.color}40`,
+                        display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,
+                      }}>🔓</div>
+                      <div style={{ flex:1,minWidth:0 }}>
+                        <div style={{ fontSize:12,fontWeight:700,color:badge.color,lineHeight:1.2,marginBottom:2 }}>{badge.name}</div>
+                        <div style={{ fontSize:10,color:"#64748b",lineHeight:1.3 }}>{badge.desc}</div>
+                      </div>
+                      <div style={{ fontFamily:"'DM Mono',monospace",fontSize:13,fontWeight:800,color:badge.color,flexShrink:0 }}>
+                        {pctDisplay}%
+                      </div>
+                    </div>
+                    {/* Progress bar */}
+                    <div style={{ height:5,borderRadius:99,background:"rgba(255,255,255,0.07)",overflow:"hidden" }}>
+                      <div style={{ height:"100%",borderRadius:99,background:badge.color,width:`${pctDisplay}%`,transition:"width 0.5s ease" }} />
+                    </div>
+                    <div style={{ marginTop:5,fontSize:9,color:"#475569",textAlign:"right",fontFamily:"'DM Mono',monospace" }}>
+                      {badge.cur}/{badge.target} · {remaining} to go
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Badge Collection ───────────────────────────────────── */}
       <div style={{ marginBottom:24 }}>
         <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14 }}>
@@ -4574,6 +4653,8 @@ export default function SummerTrainingApp() {
   const [showInstallBanner, setShowInstallBanner] = useState(()=>{
     if (isStandalone) return false;
     if (localStorage.getItem('fkh-install-dismissed')) return false;
+    const snoozeUntil = parseInt(localStorage.getItem('fkh-install-snooze-until')||'0');
+    if (snoozeUntil > Date.now()) return false;
     return true;
   });
   useEffect(()=>{
@@ -4581,7 +4662,13 @@ export default function SummerTrainingApp() {
     window.addEventListener('installpromptready', handler);
     return ()=>window.removeEventListener('installpromptready', handler);
   },[]);
-  const dismissInstall = ()=>{ setShowInstallBanner(false); localStorage.setItem('fkh-install-dismissed','1'); };
+  const dismissInstall = ()=>{
+    setShowInstallBanner(false);
+    const count = parseInt(localStorage.getItem('fkh-install-dismiss-count')||'0') + 1;
+    localStorage.setItem('fkh-install-dismiss-count', String(count));
+    if (count >= 3) { localStorage.setItem('fkh-install-dismissed','1'); }
+    else { localStorage.setItem('fkh-install-snooze-until', String(Date.now()+7*86400000)); }
+  };
   const triggerInstall = ()=>{ if (installPrompt){ installPrompt.prompt(); installPrompt.userChoice.then(()=>dismissInstall()); } };
 
   const calcWeek = startDate => {
@@ -4925,30 +5012,94 @@ export default function SummerTrainingApp() {
 
       {view==="home" && (<>
 
-        {/* ── Stat Row ───────────────────────────────────────────── */}
-        <div style={{ display:"flex",gap:8,padding:"12px 20px 8px" }}>
-          {[[doneCnt,"done today",P], trainingWeek?[`Wk ${trainingWeek}`,"training",S]:null].filter(Boolean).map(([n,l,c])=>(
-            <div key={l} style={{ flex:1,background:`${c}10`,border:`1px solid ${c}35`,borderRadius:12,padding:"10px 8px",textAlign:"center" }}>
-              <div style={{ fontSize:20,fontWeight:800,fontFamily:"'DM Mono',monospace",color:c,lineHeight:1 }}>{n}</div>
-              <div style={{ fontSize:9,color:"#334155",marginTop:3,letterSpacing:"0.06em",textTransform:"uppercase" }}>{l}</div>
-            </div>
-          ))}
-          {!trainingWeek&&<div style={{ flex:1,background:`${S}10`,border:`1px solid ${S}35`,borderRadius:12,padding:"10px 8px",textAlign:"center",cursor:"pointer" }} onClick={()=>setShowSettings(true)}>
-            <div style={{ fontSize:11,color:S,fontWeight:700 }}>Set start date</div>
-            <div style={{ fontSize:9,color:"#334155",marginTop:2 }}>in ⚙ settings</div>
-          </div>}
-          <div style={{ flex:1,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:12,padding:"10px 8px",textAlign:"center" }}>
-            <div style={{ fontSize:20,fontWeight:800,fontFamily:"'DM Mono',monospace",color:"#475569",lineHeight:1 }}>
-              {Object.keys(completed).filter(k=>{ const d=k.split("-").slice(0,3).join("-"), cutoff=new Date(Date.now()-6*86400000).toLocaleDateString("en-CA"); return d>=cutoff&&completed[k]; }).length > 0
-                ? (() => { let s=0,d=new Date(); for(let i=0;i<14;i++){const k=d.toLocaleDateString("en-CA");if(Object.keys(completed).some(c=>c.startsWith(k)&&completed[c])){s++;d.setDate(d.getDate()-1);}else break;} return s; })()
-                : 0}
-            </div>
-            <div style={{ fontSize:9,color:"#334155",marginTop:3,letterSpacing:"0.06em",textTransform:"uppercase" }}>streak</div>
-          </div>
-        </div>
+        {/* ── Game Dashboard ──────────────────────────────────────── */}
+        {(()=>{
+          const streak = (()=>{ let s=0,d=new Date(); for(let i=0;i<60;i++){const k=d.toLocaleDateString("en-CA"); if(Object.keys(completed).some(c=>c.startsWith(k)&&completed[c])){s++;d.setDate(d.getDate()-1);}else break;} return s; })();
+          const nextLv = LEVELS.find(l=>l.xpMin>xpData.total)||null;
+          const xpPct  = nextLv&&currentLevel.xpNext ? Math.min(100,Math.round(((xpData.total-currentLevel.xpMin)/(currentLevel.xpNext-currentLevel.xpMin))*100)) : 100;
+          const xpLeft = nextLv ? nextLv.xpMin-xpData.total : 0;
+          const weekMakesNow = (()=>{ try{ const sl=JSON.parse(localStorage.getItem("shot_log_v2")||"{}"), ws=_ws(); return Object.keys(sl).filter(k=>k>=ws).flatMap(k=>sl[k]||[]).filter(s=>s.made!==false).length; }catch{return 0;} })();
+          const weekShotGoal = (()=>{ try{return parseInt(localStorage.getItem("shot_week_goal")||"100");}catch{return 100;} })();
+          const nextBadge = BADGES_DEF.filter(b=>!earnedBadges.includes(b.id)).map(b=>{ const {cur,target}=getBadgeProgress(b,completed); return {...b,cur,target,pct:cur/target}; }).sort((a,b)=>b.pct-a.pct||a.target-b.target)[0]||null;
+          const doneToday = Object.keys(completed).filter(k=>k.startsWith(new Date().toLocaleDateString("en-CA"))&&completed[k]).length;
+          let coachMsg = "";
+          if (streak>=3&&doneToday===0)          coachMsg=`🔥 ${streak}-day streak on the line — train today!`;
+          else if (doneToday===0&&streak===0)    coachMsg="Every champion started at zero. Let's get your first rep in. 🏀";
+          else if (doneToday===0)                coachMsg="Great work yesterday. Ready to build on it today? 💪";
+          else if (nextBadge&&nextBadge.target-nextBadge.cur===1) coachMsg=`One more and you unlock the ${nextBadge.name} badge! 🏆`;
+          else if (nextLv&&xpLeft<=15)           coachMsg=`Only ${xpLeft} XP away from ${nextLv.name}. Finish strong! 🌟`;
+          else if (doneToday>=3)                 coachMsg=`${doneToday} drills today — you're locked in. Keep stacking! 🔥`;
+          else                                   coachMsg="Stay consistent. Every rep builds the player you're becoming. 📈";
+          return (
+            <>
+              <div style={{ padding:"10px 20px 6px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:8 }}>
+                {/* Streak */}
+                <div style={{ background:`${P}12`,border:`1px solid ${P}28`,borderRadius:14,padding:"12px 14px",display:"flex",alignItems:"center",gap:10 }}>
+                  <div style={{ fontSize:28,lineHeight:1 }}>{streak>=7?"🔥":streak>=3?"🔥":"🔥"}</div>
+                  <div>
+                    <div style={{ fontSize:24,fontWeight:800,fontFamily:"'DM Mono',monospace",color:P,lineHeight:1 }}>{streak}</div>
+                    <div style={{ fontSize:9,color:"#475569",textTransform:"uppercase",letterSpacing:"0.06em",marginTop:2 }}>Day Streak</div>
+                  </div>
+                </div>
+                {/* XP / Level */}
+                <div style={{ background:`${S}0e`,border:`1px solid ${S}25`,borderRadius:14,padding:"12px 14px" }}>
+                  <div style={{ display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:5 }}>
+                    <div style={{ fontSize:11,fontWeight:800,color:S }}>{currentLevel.emoji} {currentLevel.name}</div>
+                    <div style={{ fontSize:11,fontFamily:"'DM Mono',monospace",fontWeight:700,color:S }}>{xpData.total}<span style={{ fontSize:8,color:"#475569" }}> xp</span></div>
+                  </div>
+                  <div style={{ height:4,borderRadius:2,background:"rgba(255,255,255,0.07)",overflow:"hidden",marginBottom:4 }}>
+                    <div style={{ height:"100%",width:`${xpPct}%`,background:S,borderRadius:2,transition:"width 0.6s ease" }}/>
+                  </div>
+                  <div style={{ fontSize:9,color:"#475569" }}>{nextLv?`${xpLeft} XP → ${nextLv.name}`:"Max Level 👑"}</div>
+                </div>
+                {/* Shot Challenge */}
+                <div onClick={()=>setView("shots")} style={{ background:"rgba(96,165,250,0.07)",border:"1px solid rgba(96,165,250,0.18)",borderRadius:14,padding:"12px 14px",cursor:"pointer" }}>
+                  <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:5 }}>
+                    <span style={{ fontSize:20 }}>🏀</span>
+                    <div style={{ fontSize:11,fontWeight:800,color:"#60a5fa" }}>Shot Challenge</div>
+                  </div>
+                  <div style={{ fontSize:18,fontWeight:800,fontFamily:"'DM Mono',monospace",color:"#60a5fa",lineHeight:1,marginBottom:4 }}>
+                    {weekMakesNow}<span style={{ fontSize:10,color:"#475569",fontWeight:400 }}> / {weekShotGoal}</span>
+                  </div>
+                  <div style={{ height:3,borderRadius:2,background:"rgba(255,255,255,0.07)",overflow:"hidden" }}>
+                    <div style={{ height:"100%",width:`${Math.min(100,Math.round((weekMakesNow/weekShotGoal)*100))}%`,background:"#60a5fa",borderRadius:2 }}/>
+                  </div>
+                </div>
+                {/* Next Badge */}
+                {nextBadge?(
+                  <div onClick={()=>setView("badges")} style={{ background:`${nextBadge.color}0a`,border:`1px solid ${nextBadge.color}22`,borderRadius:14,padding:"12px 14px",cursor:"pointer" }}>
+                    <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:5 }}>
+                      <span style={{ fontSize:20 }}>🏆</span>
+                      <div style={{ fontSize:11,fontWeight:800,color:nextBadge.color,lineHeight:1.2 }}>{nextBadge.name}</div>
+                    </div>
+                    <div style={{ fontSize:18,fontWeight:800,fontFamily:"'DM Mono',monospace",color:nextBadge.color,lineHeight:1,marginBottom:4 }}>
+                      {nextBadge.cur}<span style={{ fontSize:10,color:"#475569",fontWeight:400 }}> / {nextBadge.target}</span>
+                    </div>
+                    <div style={{ height:3,borderRadius:2,background:"rgba(255,255,255,0.07)",overflow:"hidden" }}>
+                      <div style={{ height:"100%",width:`${Math.min(100,Math.round(nextBadge.pct*100))}%`,background:nextBadge.color,borderRadius:2 }}/>
+                    </div>
+                  </div>
+                ):(
+                  <div style={{ background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:14,padding:"12px 14px",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:4 }}>
+                    <span style={{ fontSize:24 }}>🏆</span>
+                    <div style={{ fontSize:10,color:"#475569",textAlign:"center" }}>All badges<br/>earned!</div>
+                  </div>
+                )}
+              </div>
+
+              {/* ── Coach FKH ──────────────────────────────────────── */}
+              <div style={{ margin:"2px 20px 8px",padding:"9px 14px",borderRadius:12,background:`${P}0a`,border:`1px solid ${P}18`,display:"flex",alignItems:"center",gap:9 }}>
+                <span style={{ fontSize:15,flexShrink:0 }}>🏀</span>
+                <span style={{ fontSize:12,color:"#94a3b8",lineHeight:1.4 }}>
+                  <span style={{ fontWeight:800,color:P }}>Coach FKH: </span>{coachMsg}
+                </span>
+              </div>
+            </>
+          );
+        })()}
 
         {/* ── Template Picker ────────────────────────────────────── */}
-        <div style={{ padding:"10px 20px 4px" }}>
+        <div style={{ padding:"6px 20px 4px" }}>
           <div style={lbl}>Today's Mission</div>
         </div>
         <div style={{ display:"flex",gap:7,overflowX:"auto",padding:"0 20px 10px",scrollbarWidth:"none",WebkitOverflowScrolling:"touch" }}>
