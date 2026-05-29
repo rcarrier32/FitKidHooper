@@ -2571,6 +2571,7 @@ function ShotTracker({ P, S, BG, athleteName }) {
                     type="number" inputMode="numeric" min="0"
                     value={shotCount.made}
                     onChange={e=>setShotCount(c=>({...c,made:Math.max(0,parseInt(e.target.value)||0)}))}
+                    onFocus={e=>e.target.select()}
                     style={{ width:52,textAlign:"center",fontSize:26,fontWeight:800,color:"#22c55e",
                       fontFamily:"'DM Mono',monospace",background:"transparent",border:"none",
                       outline:"none",WebkitAppearance:"none",MozAppearance:"textfield",padding:0 }}
@@ -2585,6 +2586,7 @@ function ShotTracker({ P, S, BG, athleteName }) {
                     type="number" inputMode="numeric" min="0"
                     value={shotCount.missed}
                     onChange={e=>setShotCount(c=>({...c,missed:Math.max(0,parseInt(e.target.value)||0)}))}
+                    onFocus={e=>e.target.select()}
                     style={{ width:52,textAlign:"center",fontSize:26,fontWeight:800,color:"#ef4444",
                       fontFamily:"'DM Mono',monospace",background:"transparent",border:"none",
                       outline:"none",WebkitAppearance:"none",MozAppearance:"textfield",padding:0 }}
