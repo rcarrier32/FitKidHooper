@@ -710,16 +710,6 @@ const W_SHOOTING = [
     desc:"DJ Sackmann drill connecting ball handling to shooting — hesitate the defender then rise for the shot.",
     cues:["The hesitation earns the shot — do not skip the setup","One foot anchored on the gather — do not drift","Balance on the catch: weight centered, ready to shoot"],
     trainer:"DJ Sackmann · HoopStudy", videoId:"IUy1jilyT3w", videoTitle:"Shoot Out of Hesitations — DJ Sackmann" },
-  { id:"relph-partner",  name:"Partner Fire Drill",                tag:"Tyler Relph",
-    sets:"10 min with a partner", rest:"N/A",
-    desc:"Tyler Relph catch-and-shoot off a pass from a partner. The passer rebounds and feeds right back. Game-speed reps.",
-    cues:["Call for the ball — communication is part of the drill","Feet moving toward the pass before it arrives","Eyes: passer to rim — not passer to ball to rim"],
-    trainer:"Tyler Relph · Hoop Dynamic", videoId:"Z8D7OUwdkp4", videoTitle:"Partner Fire Drill — Tyler Relph" },
-  { id:"otter-60min",    name:"60-Min Full Summer Workout",        tag:"Jason Otter",
-    sets:"Full session", rest:"As directed",
-    desc:"Jason Otter complete 60-minute summer workout covering shooting, dribbling, ball handling, and foot speed.",
-    cues:["Use this on full training days — not as a warmup","Pause between sections if needed","Note which sections feel weakest and return to those"],
-    trainer:"Jason Otter · OtterBasketball", videoId:"ONV_1_VES-8", videoTitle:"Full Court Basketball Conditioning Drill" },
 ];
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1156,6 +1146,31 @@ const W_FINISHING_SCHOOL = [
     desc:"Three moves specifically designed to convert layups when defenders make contact — stay strong through it rather than avoiding it. Learning this directly converts more attempts into made baskets and free-throw opportunities.",
     cues:["Expect contact — stay strong through it, not around it","Use a low, protected dribble into the lane","Extend fully on the finish even when hit","Keep the elbow in — don't lose ball control on contact"],
     trainer:"Breakthrough Basketball", videoId:"ujG00ywWO_A", videoTitle:"3 Moves To Finish THROUGH CONTACT! Make More Lay ups" },
+
+  /* ── Redistributed from Basketball Skills ── */
+  { id:"relph-scoop",    name:"Scoop Layups",                    tag:"Advanced",    difficulty:"intermediate", ageRange:[10,14], funScore:7,  estimatedDuration:120,
+    sets:"10 each side", rest:"20 s",
+    transferTags:["finishing","layups","anti-block"],
+    progressionTrack:"Step 4 — Advanced Finishes",
+    desc:"Tyler Relph scoop layup breakdown — most underused finishing move, especially effective against taller defenders. Release point is out in front, not overhead, so it floats over shot-blockers.",
+    cues:["Release point is out in front — not above your head","Soft touch — not power","Reach under and through the contact","Use off the glass or directly for different angles"],
+    trainer:"Tyler Relph · Hoop Dynamic", videoId:"J3RYUety18M", videoTitle:"Scoop Layups — Tyler Relph Hoop Dynamic" },
+
+  { id:"sackmann-finish", name:"Footwork and Finishes",          tag:"Advanced",    difficulty:"intermediate", ageRange:[10,14], funScore:7,  estimatedDuration:180,
+    sets:"5 reps each finish each side", rest:"30 s",
+    transferTags:["finishing","footwork","creativity"],
+    progressionTrack:"Step 4 — Advanced Finishes",
+    desc:"DJ Sackmann covering layup footwork and finishing variations. Two-step, Euro step, and one-foot gather — each has a specific situation where it's the right choice.",
+    cues:["Footwork first — get the steps right before the finish","Euro step: big step away, gather, finish opposite","Each finish has a situation — learn which to use when"],
+    trainer:"DJ Sackmann · HoopStudy", videoId:"U-mvPrKRsWE", videoTitle:"Footwork and Finishes — DJ Sackmann" },
+
+  { id:"youth-finishing", name:"7 Must-Know Finishing Drills",   tag:"Foundation",  difficulty:"beginner",     ageRange:[9,14],  funScore:8,  estimatedDuration:600,
+    sets:"10 each drill", rest:"30 s",
+    transferTags:["finishing","layups","basket-finishing"],
+    progressionTrack:"Step 1 — Close-Range Foundation",
+    desc:"Seven finishing drills designed specifically for youth — basic layups, reverse layups, two-foot power, and contact finishes. The complete beginner finishing toolkit.",
+    cues:["Two-foot power layup first — most reliable at this age","Reverse layup: extend ball to far side of the board","Contact drill: do not shy away — embrace it"],
+    trainer:"Youth Basketball Coach", videoId:"JaHxR1yeo-k", videoTitle:"7 Must-Know Finishing Drills — Youth Basketball" },
 ];
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1225,6 +1240,23 @@ const W_FOOTWORK_LAB = [
     desc:"Quick forward-back rocking motion in triple threat gets the defender shifting — then attack in the opposite direction of their lean. The most deceptive triple-threat move without picking up the dribble.",
     cues:["Use a quick forward-back rock to get the defender moving","Stay in triple threat throughout the whole sequence","Attack opposite the direction the defender leans","Inside shoulder drops before the explosion step"],
     trainer:"Pro Training Basketball", videoId:"NbOqnSj6lN8", videoTitle:"Rocker Step - Shiftiest Move Ever (Footwork Mastery)" },
+
+  /* ── Redistributed from Basketball Skills ── */
+  { id:"defense",        name:"Defensive Footwork",               tag:"Foundation",  difficulty:"beginner",     ageRange:[9,14],  funScore:6,  estimatedDuration:180,
+    sets:"3×1 min", rest:"30 s",
+    transferTags:["defense","footwork","lateral-movement"],
+    progressionTrack:"Step 1 — Movement Foundation",
+    desc:"Athletic stance, slides, drop step recovery. Athletic kids who cannot defend get benched. Build this defensive foundation now.",
+    cues:["Wide base — feet wider than shoulders","Never cross feet on slides","React — do not guess","Stay low the entire possession"],
+    trainer:"Joey Bergles Training", videoId:"ZoV6F6Zdz8s", videoTitle:"Youth Basketball Training — Speed, Strength and Quickness" },
+
+  { id:"sackmann-footwork", name:"Footwork Foundation",           tag:"Intermediate",difficulty:"intermediate", ageRange:[10,14], funScore:6,  estimatedDuration:180,
+    sets:"3x each pattern", rest:"30 s",
+    transferTags:["footwork","handles","attacking"],
+    progressionTrack:"Step 2 — Perimeter Footwork",
+    desc:"DJ Sackmann breaks down drop-step footwork that gives more attacking options off the dribble — the fundamental patterns behind all perimeter creation.",
+    cues:["Drop means the heel drops — not the whole foot","Stay low through the drop","Speed of thought before speed of feet"],
+    trainer:"DJ Sackmann · HoopStudy", videoId:"Y3RZTBlAT_E", videoTitle:"Basketball Footwork Focus — DJ Sackmann" },
 ];
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1294,6 +1326,55 @@ const W_GAME_HANDLES = [
     desc:"Attack the defender's front foot to force them to give ground — stay low and use your body to protect the ball, make your decision at the rim before you get there. The most direct route to the basket.",
     cues:["Attack the defender's front foot — force them to give ground","Stay low and protect the ball with your body","Make your rim decision BEFORE you arrive — not at the last second","Explode out of your dribble move — don't coast"],
     trainer:"General Coaching", videoId:"w7Vkpj88edI", videoTitle:"Dribble Drive Attack Basketball Drill" },
+
+  /* ── Redistributed from Basketball Skills ── */
+  { id:"dribble-basics", name:"Dribbling Fundamentals",           tag:"Foundation",  difficulty:"beginner",     ageRange:[9,14],  funScore:6,  estimatedDuration:120,
+    sets:"2x each drill", rest:"30 s",
+    transferTags:["ball-handling","footwork","foundation"],
+    progressionTrack:"Step 1 — Ball Control Foundation",
+    desc:"Stationary pound dribbles, between-legs, behind-back intro. Do every session before anything else.",
+    cues:["Dribble at hip height — not knee","Fingertips, never palm","Eyes up — not watching the ball"],
+    trainer:"Get Handles · Jesse Muench", videoId:"MRrNi7uHmaY", videoTitle:"6 Best Dribbling Drills for Kids — Get Handles" },
+
+  { id:"handles",        name:"Ball Handling Combos",              tag:"Foundation",  difficulty:"beginner",     ageRange:[9,14],  funScore:6,  estimatedDuration:600,
+    sets:"Follow along 10 min", rest:"N/A",
+    transferTags:["ball-handling","footwork","handles"],
+    progressionTrack:"Step 2 — Attacking Moves",
+    desc:"Tyler Relph takes youngsters through a ball handling and footwork workout. Perfect follow-along for the 10–12 age range.",
+    cues:["Change of pace — slow to fast","Protect ball with body","Move with purpose — no jogging"],
+    trainer:"Tyler Relph · Hoop Dynamic", videoId:"RRfgpohtnrI", videoTitle:"10 Min Teaching Workout — Tyler Relph Youth Handles + Footwork" },
+
+  { id:"otter-firststep", name:"First Step Speed Workout",         tag:"Intermediate",difficulty:"intermediate", ageRange:[10,14], funScore:7,  estimatedDuration:900,
+    sets:"Follow along real-time", rest:"As directed",
+    transferTags:["attacking","first-step","game-moves"],
+    progressionTrack:"Step 4 — Game-Speed Attacking",
+    desc:"Jason Otter real-time workout building first-step quickness with the basketball. The first step wins the possession — this drill builds it.",
+    cues:["Low start position before every rep","Eyes see the target before the feet move","Maximum effort on every burst — not 80%"],
+    trainer:"Jason Otter · OtterBasketball", videoId:"OjszzpwkBSo", videoTitle:"First Step Workout — Jason Otter" },
+
+  { id:"relph-5drills",  name:"Tyler Relph 5 Hoops Drills",        tag:"Intermediate",difficulty:"intermediate", ageRange:[10,14], funScore:7,  estimatedDuration:600,
+    sets:"10 reps each drill", rest:"30 s",
+    transferTags:["ball-handling","footwork","game-moves"],
+    progressionTrack:"Step 4 — Game-Speed Attacking",
+    desc:"Tyler Relph go-to 5-drill sequence covering every major skill in one session. Great standalone workout that hits handles, footwork, and finishing.",
+    cues:["Do them in order — they build on each other","Max effort on every rep","Note which drill feels hardest and spend extra time there"],
+    trainer:"Tyler Relph · Hoop Dynamic", videoId:"PBDkRpt-RIc", videoTitle:"Tyler Relph's 5 Hoops Drills" },
+
+  { id:"gethandles-combo", name:"Combo Crossover — Beat Defenders", tag:"Advanced",    difficulty:"advanced",     ageRange:[11,14], funScore:7,  estimatedDuration:180,
+    sets:"5 reps each combo each side", rest:"30 s",
+    transferTags:["attacking","change-of-direction","game-moves"],
+    progressionTrack:"Step 4 — Game-Speed Attacking",
+    desc:"Jesse Muench breaks down between-legs into behind-back combo — go-to sequence for breaking down an aggressive defender. Two-move chain that works because each move sets up the next.",
+    cues:["Set up the combo with a hard drive the opposite direction first","Between legs is the fake — behind back is the attack","Do not telegraph — same speed on setup as the move"],
+    trainer:"Get Handles · Jesse Muench", videoId:"i1bQI_esIIw", videoTitle:"Combo Crossover Beat Defenders — Get Handles" },
+
+  { id:"full-bball",     name:"10 Best Drills — 10 Year Olds",     tag:"Foundation",  difficulty:"beginner",     ageRange:[9,14],  funScore:8,  estimatedDuration:1200,
+    sets:"Full video", rest:"As directed",
+    transferTags:["ball-handling","footwork","all-skills"],
+    progressionTrack:"Step 1 — Ball Control Foundation",
+    desc:"Complete guided session: dribbling, passing, shooting, footwork. Great for solo practice days when you want a structured full workout.",
+    cues:["Rep each drill before moving on","10 reps before next drill","Come back to weak areas at end"],
+    trainer:"MOJO Basketball", videoId:"wOwM4mONQNY", videoTitle:"10 Best Basketball Drills for 10 Year Olds — MOJO" },
 ];
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1365,6 +1446,61 @@ const W_SHOOTING_LAB = [
     trainer:"The Skill Academy", videoId:"hVSdd79maCw", videoTitle:"Basketball 101: How To Teach The Step Back Jumper" },
 ];
 
+/* ═══════════════════════════════════════════════════════════════
+   BASKETBALL IQ — Decision-making, reads, spacing, and awareness.
+   Teaches the mental layer of the game solo players can study
+   and immediately apply in practice and games.
+═══════════════════════════════════════════════════════════════ */
+const W_BASKETBALL_IQ = [
+  { id:"iq-closeout",    name:"Attack the Closeout",              tag:"Reads",       difficulty:"beginner",     ageRange:[9,14],  funScore:8,  estimatedDuration:120,
+    sets:"5 reps each read (shoot / drive / reset)", rest:"30 s",
+    transferTags:["decision-making","shot-creation","basketball-IQ"],
+    progressionTrack:"Step 1 — Read & React",
+    desc:"When a defender sprints to close you out, you have three options based on their momentum: shoot if they're airborne, drive the side they're vacating, or reset if they recover. This is the most common scoring opportunity in basketball — learning to read it in real time separates players who score from players who pass back.",
+    cues:["Read the momentum: which direction is the defender moving?","Feet leave the floor = shoot immediately — do not hesitate","Defender sprinting past you = drive the opposite direction","Defender recovers well = pull back to triple threat and read again"],
+    trainer:"Basketball Education", videoId:"FqF7sq6fe8k", videoTitle:"Basketball Education: Attack Closeout" },
+
+  { id:"iq-shot-drive",  name:"Shot or Drive Read",               tag:"Reads",       difficulty:"beginner",     ageRange:[9,14],  funScore:8,  estimatedDuration:120,
+    sets:"3×8 reads — shoot reps AND drive reps", rest:"30 s",
+    transferTags:["decision-making","shooting","attacking","basketball-IQ"],
+    progressionTrack:"Step 1 — Read & React",
+    desc:"From triple threat, read the defender's distance before making any move. Arm's length or more of space = shoot. Defender crowding tight = drive their front foot. This single read should happen every time you catch the ball — before any dribble. Players who skip this read waste possessions.",
+    cues:["Arms-length gap or more = immediate shot — don't hesitate","Defender within arm's length = attack their front foot","Eyes on the defender's feet — weight tells you where to attack","Make ONE decision and commit — do not change your mind mid-rep"],
+    trainer:"Championship Productions", videoId:"Dupz4awdQGI", videoTitle:"Improve Your Offense by Learning to Read the Defender!" },
+
+  { id:"iq-read-def",    name:"Reading Defensive Positioning",    tag:"Reads",       difficulty:"intermediate", ageRange:[10,14], funScore:7,  estimatedDuration:120,
+    sets:"Concept study — 3 read situations × 5 reps", rest:"30 s",
+    transferTags:["decision-making","basketball-IQ","spacing","passing"],
+    progressionTrack:"Step 2 — Off-Ball Intelligence",
+    desc:"Elite defenders use gap positioning — they sit between you and the ball to deny passes AND help on drives. Understanding WHERE defenders set up tells you where the open player is, when a drive will succeed, and when to cut. Every smart offensive decision comes from reading the defense first.",
+    cues:["Identify: is your defender in deny or gap coverage?","Gap defender = you are open for a backdoor cut — go immediately","Ball-side defender sagging = catch and shoot before they close","Head on a swivel on every possession — never watch just one spot"],
+    trainer:"Basketball IQ", videoId:"jnJHFtUgO58", videoTitle:"Basketball Training: Close Out to Attack Drill" },
+
+  { id:"iq-spacing",     name:"Floor Spacing Basics",             tag:"Concepts",    difficulty:"beginner",     ageRange:[9,14],  funScore:7,  estimatedDuration:120,
+    sets:"Concept study + court walkthrough", rest:"N/A",
+    transferTags:["spacing","basketball-IQ","team-offense","off-ball"],
+    progressionTrack:"Step 2 — Off-Ball Intelligence",
+    desc:"Where you stand when you do NOT have the ball is as important as what you do with it. Spread to corners and wings — never bunch around the ball. When your teammate drives, stay wide or cut to the basket. Good spacing makes drives easier, passes cleaner, and defenses miserable.",
+    cues:["Ball-handler's rule: give them room — spread to a corner or wing","Never stand next to the player with the ball — you eliminate their driving lane","When the driver penetrates, spot up for a catch-and-shoot or cut baseline","One simple standard: every player should be 12–15 feet from every other player"],
+    trainer:"JP Productions", videoId:"ySbLZmFWnSw", videoTitle:"Basketball Spacing Made For Beginners! *Learn How To Space The Floor*" },
+
+  { id:"iq-help-side",   name:"Help Side Defense Principles",     tag:"Concepts",    difficulty:"intermediate", ageRange:[10,14], funScore:7,  estimatedDuration:120,
+    sets:"Concept study + solo shadow reps", rest:"N/A",
+    transferTags:["defense","basketball-IQ","help-defense","team-defense"],
+    progressionTrack:"Step 3 — Defensive IQ",
+    desc:"The most important defensive skill nobody teaches: where to be when the ball is NOT near you. Learn the ball-you-man triangle — always see both the ball and your player. Know when to step into the lane to stop a drive and when to recover to your assignment.",
+    cues:["See the ball AND your player at all times — head on a swivel","One pass away: deny your player from catching","Two passes away: move to the help line so you can see both ball and your player","Call 'Help!' when stepping up to stop the drive — then sprint back"],
+    trainer:"Basketball HQ", videoId:"QQ7qPKeynhY", videoTitle:"How To Play Gap Help Defense In Basketball" },
+
+  { id:"iq-transition",  name:"Transition Decision-Making",       tag:"Concepts",    difficulty:"intermediate", ageRange:[10,14], funScore:9,  estimatedDuration:120,
+    sets:"Concept study + visualization", rest:"N/A",
+    transferTags:["transition","basketball-IQ","decision-making","team-offense"],
+    progressionTrack:"Step 3 — Defensive IQ",
+    desc:"The best scoring chances in basketball happen in transition — but only for players making fast, smart decisions. Learn: when to push vs. when to set up, how to fill the correct lane, and how to read numbers advantages to get the right shot every time.",
+    cues:["After a stop: outlet to the guard immediately, then sprint to fill a wing lane","Run WIDE — stay outside the three-point line to stretch the defense","2-on-1: attack hard to make the defender commit, then decide: score or pass","3-on-2: middle ball-handler draws both defenders, wings get open layups"],
+    trainer:"Smart Offense Basketball", videoId:"1LxBSNKO26o", videoTitle:"Using The Whole Floor In Transition | Smart Offense for Basketball Coaches" },
+];
+
 const WORKOUTS = {
   speed:        W_SPEED,
   balance:      W_BALANCE,
@@ -1375,7 +1511,6 @@ const WORKOUTS = {
   deceleration: W_DECELERATION,
   athletic:     W_ATHLETIC,
   handles:      W_HANDLES,
-  basketball:   W_BASKETBALL,
   shooting:     W_SHOOTING,
   ballhandling: W_BALL_HANDLING,
   footwork:     W_FOOTWORK,
@@ -1386,6 +1521,7 @@ const WORKOUTS = {
   footwork_lab:     W_FOOTWORK_LAB,
   game_handles:     W_GAME_HANDLES,
   shooting_lab:     W_SHOOTING_LAB,
+  basketball_iq:    W_BASKETBALL_IQ,
 };
 
 const CATS = {
@@ -1398,7 +1534,6 @@ const CATS = {
   deceleration:   { label:"Deceleration & Landing",  emoji:"🛑" },
   athletic:       { label:"Athletic Movement",       emoji:"🏃" },
   handles:        { label:"Ball Handling",           emoji:"🤲" },
-  basketball:     { label:"Basketball Skills",       emoji:"🏀" },
   shooting:       { label:"Shooting Reps",           emoji:"🎯" },
   ballhandling:   { label:"Ball Handling Moves",     emoji:"🏀" },
   footwork:       { label:"Footwork",                emoji:"👟" },
@@ -1409,6 +1544,7 @@ const CATS = {
   footwork_lab:     { label:"Footwork Lab",          emoji:"👟" },
   game_handles:     { label:"Game Handles",          emoji:"🤲" },
   shooting_lab:     { label:"Shooting Lab",          emoji:"🏀" },
+  basketball_iq:    { label:"Basketball IQ",         emoji:"🧠" },
 };
 
 const SCHEDULE = [
@@ -1594,8 +1730,6 @@ const EXERCISE_META = {
   "relph-5spot":         { difficulty:"intermediate", impactLevel:"low",    intensityLevel:"low",    movementType:"skill",        bodyFocus:["hands","wrists","feet"],           basketballTransfer:["shooting"],                equipment:"basketball",   spaceRequired:"large",      ageRange:[10,14], estimatedDuration:900, funScore:7, workoutRole:["main"] },
   "relph-42pt":          { difficulty:"intermediate", impactLevel:"medium", intensityLevel:"medium", movementType:"skill",        bodyFocus:["hands","wrists","feet","hips"],    basketballTransfer:["shooting","handles"],       equipment:"basketball",   spaceRequired:"large",      ageRange:[10,14], estimatedDuration:900, funScore:7, workoutRole:["main"] },
   "sackmann-hesi-shot":  { difficulty:"intermediate", impactLevel:"medium", intensityLevel:"medium", movementType:"skill",        bodyFocus:["hands","feet","hips"],             basketballTransfer:["shooting","handles"],       equipment:"basketball",   spaceRequired:"large",      ageRange:[10,14], estimatedDuration:180, funScore:7, workoutRole:["main"] },
-  "relph-partner":       { difficulty:"intermediate", impactLevel:"low",    intensityLevel:"low",    movementType:"skill",        bodyFocus:["hands","wrists","feet"],           basketballTransfer:["shooting"],                equipment:"basketball",   spaceRequired:"large",      ageRange:[10,14], estimatedDuration:600, funScore:8, workoutRole:["main"] },
-  "otter-60min":         { difficulty:"advanced",     impactLevel:"medium", intensityLevel:"medium", movementType:"skill",        bodyFocus:["full-body","coordination"],        basketballTransfer:["all-skills"],              equipment:"basketball",   spaceRequired:"large",      ageRange:[10,14], estimatedDuration:3600, funScore:8, workoutRole:["main","finisher"] },
   /* ─── BALL HANDLING MOVES ─── */
   "bh-pound":            { difficulty:"beginner",     impactLevel:"low",    intensityLevel:"low",    movementType:"skill",        bodyFocus:["hands","wrists","fingers"],        basketballTransfer:["ball-control","off-hand","touch"],           equipment:"basketball",   spaceRequired:"small",      ageRange:[9,14],  estimatedDuration:90,  funScore:5,  workoutRole:["warmup","main"], progressionTrack:"Step 1 — Ball Handling Foundation" },
   "bh-crossover":        { difficulty:"beginner",     impactLevel:"low",    intensityLevel:"low",    movementType:"skill",        bodyFocus:["hands","wrists","coordination"],   basketballTransfer:["attacking","change-of-direction","handles"],  equipment:"basketball",   spaceRequired:"small",      ageRange:[9,14],  estimatedDuration:90,  funScore:8,  workoutRole:["warmup","main"], progressionTrack:"Step 2 — Basic Move Package" },
@@ -1645,6 +1779,13 @@ const EXERCISE_META = {
   "pm-face-up":          { difficulty:"intermediate", impactLevel:"low",    intensityLevel:"medium", movementType:"skill",        bodyFocus:["legs","feet","hips","mind"],       basketballTransfer:["footwork","shot-creation","decision-making"],   equipment:"basketball",   spaceRequired:"medium",     ageRange:[10,14], estimatedDuration:150, funScore:8,  workoutRole:["main"],          progressionTrack:"Step 3 — Post Combo Moves" },
   "pm-step-through":     { difficulty:"intermediate", impactLevel:"low",    intensityLevel:"medium", movementType:"skill",        bodyFocus:["legs","feet","hands","mind"],      basketballTransfer:["shot-fake","finishing","footwork"],             equipment:"basketball",   spaceRequired:"medium",     ageRange:[10,14], estimatedDuration:120, funScore:9,  workoutRole:["main"],          progressionTrack:"Step 3 — Post Combo Moves" },
   "pm-saddi-combo":      { difficulty:"intermediate", impactLevel:"medium", intensityLevel:"high",   movementType:"skill",        bodyFocus:["legs","feet","core","arms","mind"],basketballTransfer:["post-footwork","finishing","post-shooting","decision-making"], equipment:"basketball", spaceRequired:"medium", ageRange:[10,14], estimatedDuration:180, funScore:10, workoutRole:["main","finisher"],progressionTrack:"Step 4 — Full Post Game" },
+  /* ─── BASKETBALL IQ ─── */
+  "iq-closeout":         { difficulty:"beginner",     impactLevel:"low",    intensityLevel:"low",    movementType:"skill",        bodyFocus:["mind","feet","hands"],             basketballTransfer:["decision-making","shot-creation","basketball-IQ"], equipment:"basketball", spaceRequired:"medium", ageRange:[9,14],  estimatedDuration:120, funScore:8,  workoutRole:["main"],          progressionTrack:"Step 1 — Read & React" },
+  "iq-shot-drive":       { difficulty:"beginner",     impactLevel:"low",    intensityLevel:"low",    movementType:"skill",        bodyFocus:["mind","feet","hands"],             basketballTransfer:["decision-making","shooting","attacking","basketball-IQ"], equipment:"basketball", spaceRequired:"medium", ageRange:[9,14], estimatedDuration:120, funScore:8, workoutRole:["main"],           progressionTrack:"Step 1 — Read & React" },
+  "iq-read-def":         { difficulty:"intermediate", impactLevel:"low",    intensityLevel:"low",    movementType:"skill",        bodyFocus:["mind","eyes","coordination"],      basketballTransfer:["decision-making","basketball-IQ","spacing","passing"], equipment:"basketball", spaceRequired:"medium", ageRange:[10,14], estimatedDuration:120, funScore:7, workoutRole:["main"],           progressionTrack:"Step 2 — Off-Ball Intelligence" },
+  "iq-spacing":          { difficulty:"beginner",     impactLevel:"low",    intensityLevel:"low",    movementType:"skill",        bodyFocus:["mind","feet","coordination"],      basketballTransfer:["spacing","basketball-IQ","team-offense","off-ball"], equipment:"basketball",  spaceRequired:"large",  ageRange:[9,14],  estimatedDuration:120, funScore:7,  workoutRole:["main"],          progressionTrack:"Step 2 — Off-Ball Intelligence" },
+  "iq-help-side":        { difficulty:"intermediate", impactLevel:"low",    intensityLevel:"low",    movementType:"skill",        bodyFocus:["mind","feet","coordination"],      basketballTransfer:["defense","basketball-IQ","help-defense","team-defense"], equipment:"none",      spaceRequired:"large",  ageRange:[10,14], estimatedDuration:120, funScore:7,  workoutRole:["main"],          progressionTrack:"Step 3 — Defensive IQ" },
+  "iq-transition":       { difficulty:"intermediate", impactLevel:"low",    intensityLevel:"low",    movementType:"skill",        bodyFocus:["mind","feet","coordination"],      basketballTransfer:["transition","basketball-IQ","decision-making","team-offense"], equipment:"basketball", spaceRequired:"large", ageRange:[10,14], estimatedDuration:120, funScore:9, workoutRole:["main"],           progressionTrack:"Step 3 — Defensive IQ" },
 };
 
 /* Age-based workout generation rules */
@@ -1703,11 +1844,11 @@ const WORKOUT_TEMPLATES = {
   quickFeet: { name:"Quick Feet",        emoji:"⚡", desc:"Foot speed, agility, and reaction time.",  cats:["speed","coordination","athletic"],          structure:{warmup:2,main:3,finisher:1,recovery:0}, ageMin:9  },
   fullBody:  { name:"Full Body Athlete", emoji:"🏃", desc:"Strength, speed, and conditioning.",       cats:["strength","conditioning","athletic"],       structure:{warmup:1,main:3,finisher:1,recovery:1}, ageMin:9  },
   recovery:  { name:"Recovery Day",      emoji:"🔄", desc:"Light movement, balance, and mobility.",   cats:["balance","coordination"],                   structure:{warmup:2,main:2,finisher:0,recovery:2}, ageMin:9  },
-  handles:   { name:"Ball Handling",     emoji:"🤲", desc:"Dribbling, footwork, and court IQ.",       cats:["handles","basketball","coordination"],      structure:{warmup:1,main:4,finisher:1,recovery:0}, ageMin:9  },
-  shooting:  { name:"Shooting Session",  emoji:"🎯", desc:"Form, range, and shooting consistency.",   cats:["shooting","basketball"],                    structure:{warmup:1,main:3,finisher:1,recovery:0}, ageMin:9  },
+  handles:   { name:"Ball Handling",     emoji:"🤲", desc:"Dribbling, footwork, and court IQ.",       cats:["handles","game_handles","coordination"],    structure:{warmup:1,main:4,finisher:1,recovery:0}, ageMin:9  },
+  shooting:  { name:"Shooting Session",  emoji:"🎯", desc:"Form, range, and shooting consistency.",   cats:["shooting","shooting_lab"],                  structure:{warmup:1,main:3,finisher:1,recovery:0}, ageMin:9  },
 };
 
-const SCHED_TO_TEMPLATE = { explosion:"jump",deceleration:"jump",speed:"quickFeet",coordination:"quickFeet",athletic:"quickFeet",strength:"fullBody",conditioning:"fullBody",balance:"recovery",handles:"handles",basketball:"handles",shooting:"shooting" };
+const SCHED_TO_TEMPLATE = { explosion:"jump",deceleration:"jump",speed:"quickFeet",coordination:"quickFeet",athletic:"quickFeet",strength:"fullBody",conditioning:"fullBody",balance:"recovery",handles:"handles",game_handles:"handles",basketball_iq:"handles",shooting:"shooting",shooting_lab:"shooting" };
 
 function generateWorkout(settings, templateKey, recentIds=[]) {
   const tmpl = WORKOUT_TEMPLATES[templateKey];
@@ -2168,7 +2309,7 @@ const CAT_DOT_COLORS = {
   conditioning: "#ef4444",
   athletic:     "#e879f9",
   handles:      "#7c3aed",
-  basketball:   "#3b82f6",
+  basketball_iq:"#3b82f6",
   shooting:     "#f97316",
 };
 
