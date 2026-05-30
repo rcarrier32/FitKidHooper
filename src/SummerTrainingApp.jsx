@@ -4492,31 +4492,72 @@ function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onTogg
         {/* Scrollable body */}
         <div style={{ flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch" }}>
 
-          {/* Video */}
-          <a href={`https://www.youtube.com/watch?v=${exercise.videoId}`}
-            target="_blank" rel="noopener noreferrer"
-            style={{ display:"block",position:"relative",background:"#000",aspectRatio:"16/9",overflow:"hidden",textDecoration:"none" }}>
-            <img src={`https://img.youtube.com/vi/${exercise.videoId}/hqdefault.jpg`}
-              alt={exercise.videoTitle}
-              style={{ width:"100%",height:"100%",objectFit:"cover",display:"block" }}/>
-            {/* gradient */}
-            <div style={{ position:"absolute",inset:0,
-              background:"linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 55%)" }}/>
-            {/* play btn */}
-            <div style={{ position:"absolute",top:"50%",left:"50%",
-              transform:"translate(-50%,-50%)",
-              width:64,height:64,borderRadius:"50%",
-              background:"rgba(0,0,0,0.72)",border:`2.5px solid ${color}`,
-              display:"flex",alignItems:"center",justifyContent:"center" }}>
-              <span style={{ color,fontSize:24,marginLeft:5 }}>▶</span>
-            </div>
-            {/* title overlay */}
-            <div style={{ position:"absolute",bottom:10,left:12,right:12,
-              fontSize:11,color:"rgba(255,255,255,0.85)",fontWeight:600,
-              textShadow:"0 1px 3px rgba(0,0,0,0.9)" }}>
-              📺 {exercise.videoTitle}
-            </div>
-          </a>
+          {/* Video — FKH original or YouTube fallback */}
+          {exercise.videoSource === "fkh" ? (
+            /* ── FKH Original Video ── */
+            <a href={exercise.videoUrl || "#"}
+              target="_blank" rel="noopener noreferrer"
+              style={{ display:"block",position:"relative",background:"#000",aspectRatio:"16/9",overflow:"hidden",textDecoration:"none" }}>
+              {exercise.thumbnailUrl
+                ? <img src={exercise.thumbnailUrl} alt={exercise.name}
+                    style={{ width:"100%",height:"100%",objectFit:"cover",display:"block" }}/>
+                : <div style={{ width:"100%",height:"100%",background:"linear-gradient(135deg,#0f2027,#203a43,#2c5364)",display:"flex",alignItems:"center",justifyContent:"center" }}>
+                    <span style={{ fontSize:48 }}>🏀</span>
+                  </div>
+              }
+              {/* gradient */}
+              <div style={{ position:"absolute",inset:0,
+                background:"linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 55%)" }}/>
+              {/* play btn */}
+              <div style={{ position:"absolute",top:"50%",left:"50%",
+                transform:"translate(-50%,-50%)",
+                width:64,height:64,borderRadius:"50%",
+                background:"rgba(0,0,0,0.72)",border:`2.5px solid ${color}`,
+                display:"flex",alignItems:"center",justifyContent:"center" }}>
+                <span style={{ color,fontSize:24,marginLeft:5 }}>▶</span>
+              </div>
+              {/* FKH badge */}
+              <div style={{ position:"absolute",top:10,right:10,
+                background:"linear-gradient(135deg,#16a34a,#15803d)",
+                color:"#fff",fontSize:9,fontWeight:800,letterSpacing:"0.12em",
+                padding:"4px 9px",borderRadius:6,textTransform:"uppercase",
+                boxShadow:"0 2px 8px rgba(0,0,0,0.5)",border:"1px solid rgba(255,255,255,0.2)" }}>
+                ✦ FKH Original
+              </div>
+              {/* title overlay */}
+              <div style={{ position:"absolute",bottom:10,left:12,right:12,
+                fontSize:11,color:"rgba(255,255,255,0.9)",fontWeight:600,
+                textShadow:"0 1px 3px rgba(0,0,0,0.9)" }}>
+                🎬 {exercise.name}
+              </div>
+            </a>
+          ) : (
+            /* ── YouTube Video ── */
+            <a href={`https://www.youtube.com/watch?v=${exercise.videoId}`}
+              target="_blank" rel="noopener noreferrer"
+              style={{ display:"block",position:"relative",background:"#000",aspectRatio:"16/9",overflow:"hidden",textDecoration:"none" }}>
+              <img src={`https://img.youtube.com/vi/${exercise.videoId}/hqdefault.jpg`}
+                alt={exercise.videoTitle}
+                style={{ width:"100%",height:"100%",objectFit:"cover",display:"block" }}/>
+              {/* gradient */}
+              <div style={{ position:"absolute",inset:0,
+                background:"linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 55%)" }}/>
+              {/* play btn */}
+              <div style={{ position:"absolute",top:"50%",left:"50%",
+                transform:"translate(-50%,-50%)",
+                width:64,height:64,borderRadius:"50%",
+                background:"rgba(0,0,0,0.72)",border:`2.5px solid ${color}`,
+                display:"flex",alignItems:"center",justifyContent:"center" }}>
+                <span style={{ color,fontSize:24,marginLeft:5 }}>▶</span>
+              </div>
+              {/* title overlay */}
+              <div style={{ position:"absolute",bottom:10,left:12,right:12,
+                fontSize:11,color:"rgba(255,255,255,0.85)",fontWeight:600,
+                textShadow:"0 1px 3px rgba(0,0,0,0.9)" }}>
+                📺 {exercise.videoTitle}
+              </div>
+            </a>
+          )}
 
           <div style={{ padding:"18px 18px 8px" }}>
 
@@ -4581,6 +4622,71 @@ function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onTogg
                     <div key={i} style={{ display:"flex",gap:10,alignItems:"flex-start" }}>
                       <span style={{ color,fontWeight:800,fontSize:13,flexShrink:0,lineHeight:1.55 }}>→</span>
                       <span style={{ fontSize:13,color:"#e2e8f0",lineHeight:1.55,fontWeight:500 }}>{cue}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Coach Tips (coachNotes — FKH first-party string) */}
+            {exercise.coachNotes&&(
+              <div style={{ marginBottom:18 }}>
+                <div style={{ display:"flex",alignItems:"center",gap:7,marginBottom:9 }}>
+                  <span style={{ fontSize:15 }}>💡</span>
+                  <span style={{ fontFamily:"'DM Mono',monospace",fontSize:9,
+                    letterSpacing:"0.18em",color:`${color}80`,textTransform:"uppercase" }}>
+                    Coach Tips
+                  </span>
+                </div>
+                <div style={{ background:`${color}0d`,borderRadius:12,padding:"13px 14px",
+                  border:`1px solid ${color}28`,borderLeft:`3px solid ${color}` }}>
+                  <p style={{ margin:0,fontSize:13,color:"#e2e8f0",lineHeight:1.65,fontWeight:500 }}>
+                    {exercise.coachNotes}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Common Mistakes */}
+            {exercise.commonMistakes?.length>0&&(
+              <div style={{ marginBottom:18 }}>
+                <div style={{ display:"flex",alignItems:"center",gap:7,marginBottom:9 }}>
+                  <span style={{ fontSize:15 }}>⚠️</span>
+                  <span style={{ fontFamily:"'DM Mono',monospace",fontSize:9,
+                    letterSpacing:"0.18em",color:"#f59e0b80",textTransform:"uppercase" }}>
+                    Common Mistakes
+                  </span>
+                </div>
+                <div style={{ display:"flex",flexDirection:"column",gap:9,
+                  background:"rgba(245,158,11,0.05)",borderRadius:12,padding:"13px 14px",
+                  border:"1px solid rgba(245,158,11,0.18)" }}>
+                  {exercise.commonMistakes.map((m,i)=>(
+                    <div key={i} style={{ display:"flex",gap:10,alignItems:"flex-start" }}>
+                      <span style={{ color:"#f59e0b",fontWeight:800,fontSize:13,flexShrink:0,lineHeight:1.55 }}>✕</span>
+                      <span style={{ fontSize:13,color:"#fcd34d",lineHeight:1.55,fontWeight:500 }}>{m}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* How To Progress */}
+            {exercise.progressionTips?.length>0&&(
+              <div style={{ marginBottom:18 }}>
+                <div style={{ display:"flex",alignItems:"center",gap:7,marginBottom:9 }}>
+                  <span style={{ fontSize:15 }}>🚀</span>
+                  <span style={{ fontFamily:"'DM Mono',monospace",fontSize:9,
+                    letterSpacing:"0.18em",color:"#a78bfa80",textTransform:"uppercase" }}>
+                    How To Progress
+                  </span>
+                </div>
+                <div style={{ display:"flex",flexDirection:"column",gap:9,
+                  background:"rgba(167,139,250,0.06)",borderRadius:12,padding:"13px 14px",
+                  border:"1px solid rgba(167,139,250,0.2)" }}>
+                  {exercise.progressionTips.map((tip,i)=>(
+                    <div key={i} style={{ display:"flex",gap:10,alignItems:"flex-start" }}>
+                      <span style={{ color:"#a78bfa",fontWeight:800,fontSize:13,flexShrink:0,lineHeight:1.55 }}>→</span>
+                      <span style={{ fontSize:13,color:"#c4b5fd",lineHeight:1.55,fontWeight:500 }}>{tip}</span>
                     </div>
                   ))}
                 </div>
