@@ -3079,6 +3079,13 @@ function SettingsSheet({ settings, setSettings, onClose }) {
   const importRef = useRef(null);
   const P = pri(settings), S = sec(settings), B = bg(settings);
 
+  // Escape key closes the sheet
+  useEffect(() => {
+    const handler = e => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
   const exportData = () => {
     const keys = ['shot_log_v2','s_done','s_settings','s_strday'];
     const data = { _exported: new Date().toISOString() };
@@ -3125,7 +3132,8 @@ function SettingsSheet({ settings, setSettings, onClose }) {
         </div>
         <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 20px 14px",borderBottom:"1px solid rgba(255,255,255,0.07)",position:"sticky",top:0,background:"#0d1526",zIndex:10 }}>
           <span style={{ fontSize:16,fontWeight:700,color:"#f1f5f9" }}>Customize Your App</span>
-          <button onClick={onClose} style={{ background:"none",border:"none",color:"#64748b",fontSize:20,cursor:"pointer" }}>✕</button>
+          <button onClick={onClose} aria-label="Close Settings"
+            style={{ background:"none",border:"none",color:"#64748b",fontSize:22,cursor:"pointer",padding:"6px 10px",borderRadius:8,lineHeight:1 }}>✕</button>
         </div>
 
         {/* Profile */}
@@ -4951,7 +4959,7 @@ function ProfileView({ settings, totalXP, xpData, currentLevel, earnedBadges, co
 }
 
 /* ═══════════════════════ EXERCISE DETAIL SHEET ════════════ */
-function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onToggle, onClose, onNext, completed, favored, onToggleFav }) {
+function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onToggle, onClose, onNext, completed, favored, onToggleFav, navLabel }) {
   const meta      = exercise.meta || {};
   const cat       = exercise._cat || "speed";
   const catInfo   = CATS[cat] || { label:cat, emoji:"⚡" };
@@ -5010,7 +5018,7 @@ function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onTogg
           </button>
           <span style={{ flex:1,fontSize:12,fontWeight:700,color:`${color}cc`,
             textAlign:"center",letterSpacing:"0.02em" }}>
-            {catInfo.emoji} {catInfo.label}
+            {navLabel || `${catInfo.emoji} ${catInfo.label}`}
           </span>
           <div style={{ display:"flex",alignItems:"center",gap:6 }}>
             {onToggleFav&&(
@@ -5506,6 +5514,7 @@ export default function SummerTrainingApp() {
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
   const [installPrompt, setInstallPrompt] = useState(()=>window._installPrompt||null);
+  const [templateScrolledEnd, setTemplateScrolledEnd] = useState(false);
   const [showInstallBanner, setShowInstallBanner] = useState(()=>{
     if (isStandalone) return false;
     if (localStorage.getItem('fkh-install-dismissed')) return false;
@@ -6055,7 +6064,8 @@ export default function SummerTrainingApp() {
           onNext={nextExDetail?()=>setActiveExercise(nextExDetail):null}
           completed={completed}
           favored={isFav("exercises",activeExercise.id)}
-          onToggleFav={()=>toggleFav("exercises",activeExercise.id)}/>}
+          onToggleFav={()=>toggleFav("exercises",activeExercise.id)}
+          navLabel={activeCat&&CATS[activeCat]?`${CATS[activeCat].emoji} ${CATS[activeCat].label}`:undefined}/>}
         {renderBottomNav()}
       </div>
     );
@@ -6546,7 +6556,9 @@ export default function SummerTrainingApp() {
         })()}
 
         {/* ── WORKOUT TEMPLATE PICKER ─────────────────────────────── */}
-        <div style={{ display:"flex",gap:7,overflowX:"auto",padding:"0 20px 10px",scrollbarWidth:"none",WebkitOverflowScrolling:"touch" }}>
+        <div style={{ position:"relative" }}>
+        <div onScroll={e=>{const el=e.currentTarget;setTemplateScrolledEnd(el.scrollLeft+el.clientWidth>=el.scrollWidth-4);}}
+          style={{ display:"flex",gap:7,overflowX:"auto",padding:"0 20px 10px",scrollbarWidth:"none",WebkitOverflowScrolling:"touch" }}>
           {Object.entries(WORKOUT_TEMPLATES).map(([key,tmpl])=>(
             <div key={key} style={{ flexShrink:0,display:"flex",alignItems:"center",gap:3 }}>
               <button onClick={()=>setSelectedTemplate(key)}
@@ -6564,6 +6576,8 @@ export default function SummerTrainingApp() {
               </button>
             </div>
           ))}
+        </div>
+        {!templateScrolledEnd&&<div style={{ position:"absolute",right:0,top:0,bottom:"10px",width:48,background:`linear-gradient(to right,transparent,${BG})`,pointerEvents:"none" }}/>}
         </div>
 
         {todaysWorkout ? (
@@ -6824,10 +6838,12 @@ export default function SummerTrainingApp() {
 
               {/* Progress Report teaser */}
               <div onClick={()=>setView("report")}
+                onKeyDown={e=>{if(e.key==="Enter"||e.key===" ")setView("report");}}
+                role="button" tabIndex={0}
                 style={{ margin:"0 20px 10px",padding:"12px 14px",borderRadius:14,cursor:"pointer",
                   background:`${S}0c`,border:`1px solid ${S}28`,display:"flex",alignItems:"center",gap:12 }}>
-                <div style={{ width:36,height:36,borderRadius:10,background:`${S}18`,border:`1px solid ${S}30`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0 }}>📈</div>
-                <div style={{ flex:1,minWidth:0 }}>
+                <div style={{ width:36,height:36,borderRadius:10,background:`${S}18`,border:`1px solid ${S}30`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0,pointerEvents:"none" }}>📈</div>
+                <div style={{ flex:1,minWidth:0,pointerEvents:"none" }}>
                   <div style={{ fontSize:10,fontWeight:800,color:S,letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:3 }}>Progress Report</div>
                   <div style={{ fontSize:12,color:"#94a3b8",lineHeight:1.4 }}>See how you've improved this month →</div>
                 </div>
