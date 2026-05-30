@@ -1254,8 +1254,8 @@ const CATS = {
   coordination:   { label:"Coordination",            emoji:"🎶" },
   deceleration:   { label:"Deceleration & Landing",  emoji:"🛑" },
   athletic:       { label:"Athletic Movement",       emoji:"🏃" },
-  handles:        { label:"Ball Handling",           emoji:"🤲" },
-  shooting:       { label:"Shooting Reps",           emoji:"🎯" },
+  handles:        { label:"Ball Handling Foundations", emoji:"🤲" },
+  shooting:       { label:"Shooting Challenges",      emoji:"🎯" },
   ballhandling:   { label:"Ball Handling Moves",     emoji:"🏀" },
   footwork:       { label:"Footwork",                emoji:"👟" },
   finishing:      { label:"Finishing",               emoji:"🏁" },
@@ -5209,93 +5209,7 @@ export default function SummerTrainingApp() {
 
       {view==="home" && (<>
 
-        {/* ── Game Dashboard ──────────────────────────────────────── */}
-        {(()=>{
-          const streak = (()=>{ let s=0,d=new Date(); for(let i=0;i<60;i++){const k=d.toLocaleDateString("en-CA"); if(Object.keys(completed).some(c=>c.startsWith(k)&&completed[c])){s++;d.setDate(d.getDate()-1);}else break;} return s; })();
-          const nextLv = LEVELS.find(l=>l.xpMin>xpData.total)||null;
-          const xpPct  = nextLv&&currentLevel.xpNext ? Math.min(100,Math.round(((xpData.total-currentLevel.xpMin)/(currentLevel.xpNext-currentLevel.xpMin))*100)) : 100;
-          const xpLeft = nextLv ? nextLv.xpMin-xpData.total : 0;
-          const weekMakesNow = (()=>{ try{ const sl=JSON.parse(localStorage.getItem("shot_log_v2")||"{}"), ws=_ws(); return Object.keys(sl).filter(k=>k>=ws).flatMap(k=>sl[k]||[]).filter(s=>s.made!==false).length; }catch{return 0;} })();
-          const weekShotGoal = (()=>{ try{return parseInt(localStorage.getItem("shot_week_goal")||"100");}catch{return 100;} })();
-          const nextBadge = BADGES_DEF.filter(b=>!earnedBadges.includes(b.id)).map(b=>{ const {cur,target}=getBadgeProgress(b,completed); return {...b,cur,target,pct:cur/target}; }).sort((a,b)=>b.pct-a.pct||a.target-b.target)[0]||null;
-          const doneToday = Object.keys(completed).filter(k=>k.startsWith(new Date().toLocaleDateString("en-CA"))&&completed[k]).length;
-          let coachMsg = "";
-          if (streak>=3&&doneToday===0)          coachMsg=`🔥 ${streak}-day streak on the line — train today!`;
-          else if (doneToday===0&&streak===0)    coachMsg="Every champion started at zero. Let's get your first rep in. 🏀";
-          else if (doneToday===0)                coachMsg="Great work yesterday. Ready to build on it today? 💪";
-          else if (nextBadge&&nextBadge.target-nextBadge.cur===1) coachMsg=`One more and you unlock the ${nextBadge.name} badge! 🏆`;
-          else if (nextLv&&xpLeft<=15)           coachMsg=`Only ${xpLeft} XP away from ${nextLv.name}. Finish strong! 🌟`;
-          else if (doneToday>=3)                 coachMsg=`${doneToday} drills today — you're locked in. Keep stacking! 🔥`;
-          else                                   coachMsg="Stay consistent. Every rep builds the player you're becoming. 📈";
-          return (
-            <>
-              <div style={{ padding:"10px 20px 6px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:8 }}>
-                {/* Streak */}
-                <div style={{ background:`${P}12`,border:`1px solid ${P}28`,borderRadius:14,padding:"12px 14px",display:"flex",alignItems:"center",gap:10 }}>
-                  <div style={{ fontSize:28,lineHeight:1 }}>{streak>=7?"🔥":streak>=3?"🔥":"🔥"}</div>
-                  <div>
-                    <div style={{ fontSize:24,fontWeight:800,fontFamily:"'DM Mono',monospace",color:P,lineHeight:1 }}>{streak}</div>
-                    <div style={{ fontSize:9,color:"#475569",textTransform:"uppercase",letterSpacing:"0.06em",marginTop:2 }}>Day Streak</div>
-                  </div>
-                </div>
-                {/* XP / Level */}
-                <div style={{ background:`${S}0e`,border:`1px solid ${S}25`,borderRadius:14,padding:"12px 14px" }}>
-                  <div style={{ display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:5 }}>
-                    <div style={{ fontSize:11,fontWeight:800,color:S }}>{currentLevel.emoji} {currentLevel.name}</div>
-                    <div style={{ fontSize:11,fontFamily:"'DM Mono',monospace",fontWeight:700,color:S }}>{xpData.total}<span style={{ fontSize:8,color:"#475569" }}> xp</span></div>
-                  </div>
-                  <div style={{ height:4,borderRadius:2,background:"rgba(255,255,255,0.07)",overflow:"hidden",marginBottom:4 }}>
-                    <div style={{ height:"100%",width:`${xpPct}%`,background:S,borderRadius:2,transition:"width 0.6s ease" }}/>
-                  </div>
-                  <div style={{ fontSize:9,color:"#475569" }}>{nextLv?`${xpLeft} XP → ${nextLv.name}`:"Max Level 👑"}</div>
-                </div>
-                {/* Shot Challenge */}
-                <div onClick={()=>setView("shots")} style={{ background:"rgba(96,165,250,0.07)",border:"1px solid rgba(96,165,250,0.18)",borderRadius:14,padding:"12px 14px",cursor:"pointer" }}>
-                  <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:5 }}>
-                    <span style={{ fontSize:20 }}>🏀</span>
-                    <div style={{ fontSize:11,fontWeight:800,color:"#60a5fa" }}>Shot Challenge</div>
-                  </div>
-                  <div style={{ fontSize:18,fontWeight:800,fontFamily:"'DM Mono',monospace",color:"#60a5fa",lineHeight:1,marginBottom:4 }}>
-                    {weekMakesNow}<span style={{ fontSize:10,color:"#475569",fontWeight:400 }}> / {weekShotGoal}</span>
-                  </div>
-                  <div style={{ height:3,borderRadius:2,background:"rgba(255,255,255,0.07)",overflow:"hidden" }}>
-                    <div style={{ height:"100%",width:`${Math.min(100,Math.round((weekMakesNow/weekShotGoal)*100))}%`,background:"#60a5fa",borderRadius:2 }}/>
-                  </div>
-                </div>
-                {/* Next Badge */}
-                {nextBadge?(
-                  <div onClick={()=>setView("badges")} style={{ background:`${nextBadge.color}0a`,border:`1px solid ${nextBadge.color}22`,borderRadius:14,padding:"12px 14px",cursor:"pointer" }}>
-                    <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:5 }}>
-                      <span style={{ fontSize:20 }}>🏆</span>
-                      <div style={{ fontSize:11,fontWeight:800,color:nextBadge.color,lineHeight:1.2 }}>{nextBadge.name}</div>
-                    </div>
-                    <div style={{ fontSize:18,fontWeight:800,fontFamily:"'DM Mono',monospace",color:nextBadge.color,lineHeight:1,marginBottom:4 }}>
-                      {nextBadge.cur}<span style={{ fontSize:10,color:"#475569",fontWeight:400 }}> / {nextBadge.target}</span>
-                    </div>
-                    <div style={{ height:3,borderRadius:2,background:"rgba(255,255,255,0.07)",overflow:"hidden" }}>
-                      <div style={{ height:"100%",width:`${Math.min(100,Math.round(nextBadge.pct*100))}%`,background:nextBadge.color,borderRadius:2 }}/>
-                    </div>
-                  </div>
-                ):(
-                  <div style={{ background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:14,padding:"12px 14px",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:4 }}>
-                    <span style={{ fontSize:24 }}>🏆</span>
-                    <div style={{ fontSize:10,color:"#475569",textAlign:"center" }}>All badges<br/>earned!</div>
-                  </div>
-                )}
-              </div>
-
-              {/* ── Coach FKH ──────────────────────────────────────── */}
-              <div style={{ margin:"2px 20px 8px",padding:"9px 14px",borderRadius:12,background:`${P}0a`,border:`1px solid ${P}18`,display:"flex",alignItems:"center",gap:9 }}>
-                <span style={{ fontSize:15,flexShrink:0 }}>🏀</span>
-                <span style={{ fontSize:12,color:"#94a3b8",lineHeight:1.4 }}>
-                  <span style={{ fontWeight:800,color:P }}>Coach FKH: </span>{coachMsg}
-                </span>
-              </div>
-            </>
-          );
-        })()}
-
-        {/* ── Template Picker ────────────────────────────────────── */}
+        {/* ── TODAY'S MISSION (top priority) ──────────────────────── */}
         <div style={{ padding:"6px 20px 4px" }}>
           <div style={lbl}>Today's Mission</div>
         </div>
@@ -5311,11 +5225,8 @@ export default function SummerTrainingApp() {
           ))}
         </div>
 
-        {/* ── Mission Card ───────────────────────────────────────── */}
         {todaysWorkout ? (
-          <div style={{ margin:"0 20px 16px",borderRadius:16,background:`${P}09`,border:`1px solid ${P}22`,overflow:"hidden" }}>
-
-            {/* Header */}
+          <div style={{ margin:"0 20px 14px",borderRadius:16,background:`${P}09`,border:`1px solid ${P}22`,overflow:"hidden" }}>
             <div style={{ padding:"14px 16px 8px",display:"flex",alignItems:"flex-start",gap:10 }}>
               <span style={{ fontSize:28,lineHeight:1 }}>{todaysWorkout.templateEmoji}</span>
               <div style={{ flex:1,minWidth:0 }}>
@@ -5323,14 +5234,10 @@ export default function SummerTrainingApp() {
                 <div style={{ fontSize:11,color:"#64748b",marginTop:2 }}>{todaysWorkout.templateDesc}</div>
               </div>
               <div style={{ textAlign:"right",flexShrink:0 }}>
-                <div style={{ fontSize:22,fontWeight:800,color:P,fontFamily:"'DM Mono',monospace",lineHeight:1 }}>
-                  {Math.max(1,Math.round(todaysWorkout.totalSecs/60))}
-                </div>
+                <div style={{ fontSize:22,fontWeight:800,color:P,fontFamily:"'DM Mono',monospace",lineHeight:1 }}>{Math.max(1,Math.round(todaysWorkout.totalSecs/60))}</div>
                 <div style={{ fontSize:9,color:"#475569",letterSpacing:"0.07em" }}>MIN</div>
               </div>
             </div>
-
-            {/* Exercise list by role */}
             <div style={{ padding:"4px 12px 10px" }}>
               {["warmup","main","finisher","recovery"].map(role=>{
                 const exs=todaysWorkout.exercises.filter(e=>e.role===role);
@@ -5338,14 +5245,11 @@ export default function SummerTrainingApp() {
                 const [dot,roleName]={warmup:["🟡","Warm-Up"],main:["🔵","Main Block"],finisher:["🔴","Finisher"],recovery:["🟢","Cool Down"]}[role];
                 return (
                   <div key={role} style={{ marginBottom:8 }}>
-                    <div style={{ fontSize:9,fontWeight:700,color:"#475569",letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:5,paddingLeft:4 }}>
-                      {dot} {roleName}
-                    </div>
+                    <div style={{ fontSize:9,fontWeight:700,color:"#475569",letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:5,paddingLeft:4 }}>{dot} {roleName}</div>
                     {exs.map(ex=>{
                       const done2=isDone(ex.id);
                       return (
-                        <div key={ex.id}
-                          onClick={()=>openDetail(ex, todaysWorkout.exercises)}
+                        <div key={ex.id} onClick={()=>openDetail(ex,todaysWorkout.exercises)}
                           style={{ display:"flex",alignItems:"center",gap:8,padding:"7px 8px",borderRadius:10,marginBottom:3,cursor:"pointer",
                             background:done2?"rgba(34,197,94,0.08)":"rgba(255,255,255,0.03)",
                             border:`1px solid ${done2?"rgba(34,197,94,0.15)":"transparent"}` }}>
@@ -5353,9 +5257,7 @@ export default function SummerTrainingApp() {
                             <div style={{ fontSize:12,fontWeight:600,color:done2?"#22c55e":"#e2e8f0",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{ex.name}</div>
                             <div style={{ fontSize:10,color:"#475569" }}>{ex.sets}</div>
                           </div>
-                          <div style={{ fontSize:10,color:"#334155",fontFamily:"'DM Mono',monospace",flexShrink:0 }}>
-                            {Math.round((ex.meta?.estimatedDuration||90)/60)}m
-                          </div>
+                          <div style={{ fontSize:10,color:"#334155",fontFamily:"'DM Mono',monospace",flexShrink:0 }}>{Math.round((ex.meta?.estimatedDuration||90)/60)}m</div>
                           <span style={{ fontSize:14,color:done2?"#22c55e":"#334155",flexShrink:0 }}>{done2?"✓":"›"}</span>
                         </div>
                       );
@@ -5364,161 +5266,219 @@ export default function SummerTrainingApp() {
                 );
               })}
             </div>
-
-            {/* Actions */}
             <div style={{ padding:"8px 14px 14px",borderTop:"1px solid rgba(255,255,255,0.05)",display:"flex",gap:8 }}>
-              <button onClick={()=>{
-                const first=todaysWorkout.exercises[0];
-                if(first){ setActiveCat(first._cat||"explosion"); setPrevView("home"); setView("cat"); }
-              }} style={{ flex:1,padding:"11px",borderRadius:12,background:P,border:"none",color:"#000",fontSize:13,fontWeight:800,cursor:"pointer" }}>
+              <button onClick={()=>{ const first=todaysWorkout.exercises[0]; if(first){ setActiveCat(first._cat||"explosion"); setPrevView("home"); setView("cat"); } }}
+                style={{ flex:1,padding:"11px",borderRadius:12,background:P,border:"none",color:"#000",fontSize:13,fontWeight:800,cursor:"pointer" }}>
                 Start Workout →
               </button>
-              <button onClick={refreshWorkout}
-                title="Shuffle exercises"
+              <button onClick={refreshWorkout} title="Shuffle exercises"
                 style={{ padding:"11px 15px",borderRadius:12,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.09)",color:"#64748b",fontSize:16,cursor:"pointer" }}>
                 🔀
               </button>
             </div>
           </div>
         ) : (
-          <div style={{ margin:"0 20px 16px",padding:"20px",borderRadius:16,background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",textAlign:"center" }}>
+          <div style={{ margin:"0 20px 14px",padding:"20px",borderRadius:16,background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",textAlign:"center" }}>
             <div style={{ fontSize:13,color:"#475569" }}>Generating workout…</div>
           </div>
         )}
 
-        {/* ── Recommended Tomorrow ───────────────────────────────── */}
+        {/* ── COACH FKH + DASHBOARD ────────────────────────────────── */}
+        {(()=>{
+          const streak = (()=>{ let s=0,d=new Date(); for(let i=0;i<60;i++){const k=d.toLocaleDateString("en-CA"); if(Object.keys(completed).some(c=>c.startsWith(k)&&completed[c])){s++;d.setDate(d.getDate()-1);}else break;} return s; })();
+          const nextLv  = LEVELS.find(l=>l.xpMin>xpData.total)||null;
+          const xpPct   = nextLv&&currentLevel.xpNext ? Math.min(100,Math.round(((xpData.total-currentLevel.xpMin)/(currentLevel.xpNext-currentLevel.xpMin))*100)) : 100;
+          const xpLeft  = nextLv ? nextLv.xpMin-xpData.total : 0;
+          const weekMakesNow = (()=>{ try{ const sl=JSON.parse(localStorage.getItem("shot_log_v2")||"{}"),ws=_ws(); return Object.keys(sl).filter(k=>k>=ws).flatMap(k=>sl[k]||[]).filter(s=>s.made!==false).length; }catch{return 0;} })();
+          const weekShotGoal = (()=>{ try{return parseInt(localStorage.getItem("shot_week_goal")||"100");}catch{return 100;} })();
+          const allUnearned  = BADGES_DEF.filter(b=>!earnedBadges.includes(b.id)).map(b=>{ const {cur,target}=getBadgeProgress(b,completed); return {...b,cur,target,pct:cur/target}; }).sort((a,b)=>b.pct-a.pct||a.target-b.target);
+          const nextBadge    = allUnearned[0]||null;
+          const upcomingBadges = allUnearned.slice(0,3);
+          const doneToday    = Object.keys(completed).filter(k=>k.startsWith(new Date().toLocaleDateString("en-CA"))&&completed[k]).length;
+
+          /* ── Training gap: which basketball cat hasn't been hit in 7+ days ── */
+          const bballGapCheck = [
+            {key:"game_handles",label:"Game Handles"},{key:"footwork_lab",label:"Footwork Lab"},
+            {key:"finishing_school",label:"Finishing School"},{key:"shooting_lab",label:"Shooting Lab"},
+            {key:"post_moves",label:"Post Moves"},{key:"basketball_iq",label:"Basketball IQ"},
+          ];
+          let gapCat = null;
+          const nowMs = Date.now();
+          for (const {key,label} of bballGapCheck) {
+            const ids = new Set((WORKOUTS[key]||[]).map(e=>e.id));
+            const lastMs = Object.keys(completed).filter(k=>completed[k]&&[...ids].some(id=>k.includes(id)))
+              .map(k=>new Date(k.split("-").slice(0,3).join("-")+"T12:00:00").getTime()).sort((a,b)=>b-a)[0]||0;
+            if ((nowMs-lastMs)/86400000 >= 7) { gapCat=label; break; }
+          }
+
+          /* ── Closest incomplete challenge (≥60% done) ── */
+          const closeChallenge = CHALLENGES_DEF
+            .map(def=>{ const {cur,target}=getChallengeProgress(def,completed); return {...def,cur,target,pct:cur/target}; })
+            .filter(c=>c.pct<1&&c.pct>=0.6).sort((a,b)=>b.pct-a.pct)[0]||null;
+
+          /* ── Smart coach message (priority order) ── */
+          let coachMsg = "";
+          if      (streak>=3&&doneToday===0)                       coachMsg=`Keep your ${streak}-day streak alive — train today! 🔥`;
+          else if (doneToday===0&&streak===0)                      coachMsg="Every champion started at zero. Let's get your first rep in. 🏀";
+          else if (nextBadge&&nextBadge.target-nextBadge.cur===1)  coachMsg=`One more and you unlock the ${nextBadge.name} badge! 🏆`;
+          else if (nextLv&&xpLeft<=20)                             coachMsg=`Only ${xpLeft} XP away from ${nextLv.name}. Finish strong! 🌟`;
+          else if (closeChallenge)                                  coachMsg=`Only ${closeChallenge.target-closeChallenge.cur} more to complete ${closeChallenge.name}. 🎯`;
+          else if (gapCat&&doneToday===0)                          coachMsg=`You haven't hit ${gapCat} in a week — today's the day. 🏀`;
+          else if (doneToday>=3)                                   coachMsg=`${doneToday} drills today — you're locked in. Keep stacking! 🔥`;
+          else if (doneToday>=1)                                   coachMsg="Good start today. One more session makes the difference. 💪";
+          else                                                     coachMsg="Stay consistent. Every rep builds the player you're becoming. 📈";
+
+          return (
+            <>
+              {/* Coach FKH */}
+              <div style={{ margin:"0 20px 10px",padding:"13px 16px",borderRadius:14,background:`${P}0d`,border:`1px solid ${P}22`,display:"flex",alignItems:"flex-start",gap:12 }}>
+                <div style={{ width:36,height:36,borderRadius:10,background:`${P}1a`,border:`1px solid ${P}35`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:19,flexShrink:0 }}>🏀</div>
+                <div style={{ flex:1,minWidth:0 }}>
+                  <div style={{ fontSize:9,fontWeight:800,color:P,letterSpacing:"0.14em",textTransform:"uppercase",marginBottom:4 }}>Coach FKH</div>
+                  <div style={{ fontSize:12,color:"#cbd5e1",lineHeight:1.55 }}>{coachMsg}</div>
+                </div>
+              </div>
+
+              {/* Quick Stats — streak + shot challenge */}
+              <div style={{ padding:"0 20px 10px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:8 }}>
+                <div style={{ background:`${P}12`,border:`1px solid ${P}28`,borderRadius:14,padding:"12px 14px",display:"flex",alignItems:"center",gap:10 }}>
+                  <div style={{ fontSize:26,lineHeight:1 }}>🔥</div>
+                  <div>
+                    <div style={{ fontSize:24,fontWeight:800,fontFamily:"'DM Mono',monospace",color:P,lineHeight:1 }}>{streak}</div>
+                    <div style={{ fontSize:9,color:"#475569",textTransform:"uppercase",letterSpacing:"0.06em",marginTop:2 }}>Day Streak</div>
+                  </div>
+                </div>
+                <div onClick={()=>setView("shots")} style={{ background:"rgba(96,165,250,0.07)",border:"1px solid rgba(96,165,250,0.18)",borderRadius:14,padding:"12px 14px",cursor:"pointer" }}>
+                  <div style={{ display:"flex",alignItems:"center",gap:6,marginBottom:5 }}>
+                    <span style={{ fontSize:14 }}>🏀</span>
+                    <div style={{ fontSize:9,fontWeight:800,color:"#60a5fa",textTransform:"uppercase",letterSpacing:"0.06em" }}>Shot Challenge</div>
+                  </div>
+                  <div style={{ fontSize:20,fontWeight:800,fontFamily:"'DM Mono',monospace",color:"#60a5fa",lineHeight:1,marginBottom:4 }}>
+                    {weekMakesNow}<span style={{ fontSize:10,color:"#475569",fontWeight:400 }}> / {weekShotGoal}</span>
+                  </div>
+                  <div style={{ height:3,borderRadius:2,background:"rgba(255,255,255,0.07)",overflow:"hidden" }}>
+                    <div style={{ height:"100%",width:`${Math.min(100,Math.round((weekMakesNow/weekShotGoal)*100))}%`,background:"#60a5fa",borderRadius:2 }}/>
+                  </div>
+                </div>
+              </div>
+
+              {/* Active Challenge Progress */}
+              <div style={{ padding:"0 20px 10px" }}>
+                <div style={lbl}>Active Challenges</div>
+                <div style={{ display:"flex",flexDirection:"column",gap:7 }}>
+                  {CHALLENGES_DEF.map(def=>{
+                    const {cur,target}=getChallengeProgress(def,completed);
+                    const pct=Math.min(1,cur/target), done2=pct>=1;
+                    return (
+                      <div key={def.id} style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:12,
+                        background:done2?"rgba(34,197,94,0.08)":"rgba(255,255,255,0.04)",
+                        border:`1px solid ${done2?"rgba(34,197,94,0.2)":"rgba(255,255,255,0.07)"}` }}>
+                        <span style={{ fontSize:18,lineHeight:1 }}>{def.emoji}</span>
+                        <div style={{ flex:1,minWidth:0 }}>
+                          <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4 }}>
+                            <span style={{ fontSize:11,fontWeight:700,color:done2?"#22c55e":"#cbd5e1" }}>{def.name}</span>
+                            <span style={{ fontSize:10,color:done2?"#22c55e":"#475569",fontFamily:"'DM Mono',monospace",flexShrink:0,marginLeft:6 }}>{Math.min(cur,target)}/{target}</span>
+                          </div>
+                          <div style={{ height:4,background:"rgba(255,255,255,0.06)",borderRadius:99,overflow:"hidden" }}>
+                            <div style={{ height:"100%",width:`${pct*100}%`,background:done2?"#22c55e":P,borderRadius:99,transition:"width 0.5s ease" }}/>
+                          </div>
+                          <div style={{ fontSize:9,color:"#334155",marginTop:3 }}>{def.desc}</div>
+                        </div>
+                        {done2&&<span style={{ fontSize:14,flexShrink:0 }}>🏆</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Level Progress */}
+              <div style={{ margin:"0 20px 10px",padding:"14px 16px",borderRadius:16,background:`${S}0e`,border:`1px solid ${S}25` }}>
+                <div style={{ fontSize:9,fontWeight:800,color:`${S}90`,letterSpacing:"0.14em",textTransform:"uppercase",marginBottom:8 }}>⭐ Level Progress</div>
+                <div style={{ display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6 }}>
+                  <div style={{ fontSize:14,fontWeight:800,color:S }}>{currentLevel.emoji} {currentLevel.name}</div>
+                  <div style={{ fontSize:11,fontFamily:"'DM Mono',monospace",fontWeight:700,color:S }}>{xpData.total}<span style={{ fontSize:8,color:"#475569" }}> xp</span></div>
+                </div>
+                <div style={{ height:6,borderRadius:3,background:"rgba(255,255,255,0.07)",overflow:"hidden",marginBottom:5 }}>
+                  <div style={{ height:"100%",width:`${xpPct}%`,background:S,borderRadius:3,transition:"width 0.6s ease" }}/>
+                </div>
+                <div style={{ fontSize:10,color:"#475569" }}>{nextLv?`${xpLeft} XP to reach ${nextLv.name}`:"Max Level reached 👑"}</div>
+                {nextBadge&&(
+                  <div onClick={()=>setView("badges")} style={{ display:"flex",alignItems:"center",gap:10,marginTop:12,paddingTop:10,borderTop:"1px solid rgba(255,255,255,0.06)",cursor:"pointer" }}>
+                    <span style={{ fontSize:18,lineHeight:1 }}>{nextBadge.emoji}</span>
+                    <div style={{ flex:1,minWidth:0 }}>
+                      <div style={{ fontSize:10,fontWeight:700,color:nextBadge.color,marginBottom:3 }}>🏆 Next Badge: {nextBadge.name}</div>
+                      <div style={{ height:3,borderRadius:2,background:"rgba(255,255,255,0.07)",overflow:"hidden" }}>
+                        <div style={{ height:"100%",width:`${Math.min(100,Math.round(nextBadge.pct*100))}%`,background:nextBadge.color,borderRadius:2 }}/>
+                      </div>
+                    </div>
+                    <div style={{ fontSize:11,fontFamily:"'DM Mono',monospace",color:nextBadge.color,fontWeight:700,flexShrink:0 }}>{nextBadge.cur}/{nextBadge.target}</div>
+                  </div>
+                )}
+              </div>
+
+              {/* Upcoming Unlocks */}
+              {upcomingBadges.length>0&&(
+                <div style={{ padding:"0 20px 10px" }}>
+                  <div style={lbl}>Upcoming Unlocks</div>
+                  <div style={{ display:"flex",flexDirection:"column",gap:7 }}>
+                    {upcomingBadges.map(b=>(
+                      <div key={b.id} onClick={()=>setView("badges")} style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:12,
+                        background:`${b.color}08`,border:`1px solid ${b.color}1a`,cursor:"pointer" }}>
+                        <span style={{ fontSize:22,lineHeight:1 }}>{b.emoji}</span>
+                        <div style={{ flex:1,minWidth:0 }}>
+                          <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4 }}>
+                            <span style={{ fontSize:11,fontWeight:700,color:b.color }}>{b.name}</span>
+                            <span style={{ fontSize:10,color:"#475569",fontFamily:"'DM Mono',monospace",flexShrink:0,marginLeft:6 }}>{b.cur}/{b.target}</span>
+                          </div>
+                          <div style={{ height:4,background:"rgba(255,255,255,0.06)",borderRadius:99,overflow:"hidden" }}>
+                            <div style={{ height:"100%",width:`${Math.min(100,Math.round(b.pct*100))}%`,background:b.color,borderRadius:99,transition:"width 0.5s ease" }}/>
+                          </div>
+                          <div style={{ fontSize:9,color:"#334155",marginTop:3 }}>{b.desc}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          );
+        })()}
+
+        {/* ── Tomorrow's Rec (Coach FKH) ──────────────────────────── */}
         {recommendation && (()=>{
-          const A = str3(settings); // accent color (teal)
+          const A = str3(settings);
           const isAlreadySelected = recommendation.templateKey === selectedTemplate;
           return (
-            <div style={{ margin:"0 20px 16px",borderRadius:16,
-              background:`${A}0d`,border:`1px solid ${A}28`,overflow:"hidden" }}>
-              {/* Label row */}
+            <div style={{ margin:"0 20px 14px",borderRadius:16,background:`${A}0d`,border:`1px solid ${A}28`,overflow:"hidden" }}>
               <div style={{ padding:"11px 14px 0",display:"flex",alignItems:"center",justifyContent:"space-between" }}>
-                <span style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",
-                  color:`${A}90`,textTransform:"uppercase" }}>
-                  Tomorrow's Rec
-                </span>
+                <span style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:`${A}90`,textTransform:"uppercase" }}>Tomorrow's Rec</span>
                 <span style={{ fontSize:9,color:"#334155",fontFamily:"'DM Mono',monospace" }}>Coach FKH</span>
               </div>
-              {/* Main content */}
               <div style={{ padding:"10px 14px 12px",display:"flex",alignItems:"center",gap:11 }}>
-                <div style={{ width:44,height:44,borderRadius:12,background:`${A}18`,
-                  border:`1px solid ${A}30`,display:"flex",alignItems:"center",
-                  justifyContent:"center",fontSize:22,flexShrink:0,lineHeight:1 }}>
+                <div style={{ width:44,height:44,borderRadius:12,background:`${A}18`,border:`1px solid ${A}30`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0,lineHeight:1 }}>
                   {recommendation.templateEmoji}
                 </div>
                 <div style={{ flex:1,minWidth:0 }}>
-                  <div style={{ fontSize:14,fontWeight:800,color:A,lineHeight:1.2,marginBottom:3 }}>
-                    {recommendation.templateName}
-                  </div>
-                  <div style={{ fontSize:11,color:"#94a3b8",lineHeight:1.45 }}>
-                    {recommendation.reason}
-                  </div>
+                  <div style={{ fontSize:14,fontWeight:800,color:A,lineHeight:1.2,marginBottom:3 }}>{recommendation.templateName}</div>
+                  <div style={{ fontSize:11,color:"#94a3b8",lineHeight:1.45 }}>{recommendation.reason}</div>
                 </div>
               </div>
-              {/* Action */}
               <div style={{ padding:"0 14px 13px" }}>
-                <button
-                  onClick={()=>{ if(!isAlreadySelected) setSelectedTemplate(recommendation.templateKey); }}
+                <button onClick={()=>{ if(!isAlreadySelected) setSelectedTemplate(recommendation.templateKey); }}
                   style={{ width:"100%",padding:"9px",borderRadius:10,fontSize:12,fontWeight:700,
-                    cursor: isAlreadySelected?"default":"pointer",
-                    background: isAlreadySelected?`${A}18`:`${A}22`,
+                    cursor:isAlreadySelected?"default":"pointer",
+                    background:isAlreadySelected?`${A}18`:`${A}22`,
                     border:`1px solid ${isAlreadySelected?`${A}30`:`${A}50`}`,
-                    color: isAlreadySelected?`${A}70`:A,
-                    transition:"all 0.2s" }}>
-                  {isAlreadySelected ? "✓ Already loaded" : "Load for Today →"}
+                    color:isAlreadySelected?`${A}70`:A,transition:"all 0.2s" }}>
+                  {isAlreadySelected?"✓ Already loaded":"Load for Today →"}
                 </button>
               </div>
             </div>
           );
         })()}
-
-        {/* ── Position Spotlight ────────────────────────────────── */}
-        {(()=>{
-          const pos = settings.playStyle || "any";
-          const prof = POSITION_PROFILES[pos];
-          if (!prof || pos === "any" || !prof.spotlight.length) return null;
-          const ALL = Object.fromEntries(
-            Object.entries(WORKOUTS).flatMap(([cat,exs])=>
-              exs.map(ex=>[ex.id,{...ex,_cat:cat,meta:EXERCISE_META[ex.id]||{}}])
-            )
-          );
-          const spotExs = prof.spotlight.map(id=>ALL[id]).filter(Boolean).slice(0,3);
-          if (!spotExs.length) return null;
-          const posColor = pos==="guard"?"#3b82f6":pos==="wing"?"#a855f7":"#f97316";
-          return (
-            <div style={{ padding:"0 20px 16px" }}>
-              <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8 }}>
-                <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",
-                  color:`${posColor}99`,textTransform:"uppercase" }}>
-                  {prof.emoji} {prof.label} Spotlight
-                </div>
-                <button onClick={()=>setShowSettings(true)}
-                  style={{ background:"none",border:"none",fontSize:10,color:"#334155",cursor:"pointer",padding:0 }}>
-                  change position
-                </button>
-              </div>
-              <div style={{ fontSize:11,color:"#475569",marginBottom:10,lineHeight:1.5 }}>{prof.desc}</div>
-              <div style={{ display:"flex",gap:8,overflowX:"auto",scrollbarWidth:"none",WebkitOverflowScrolling:"touch" }}>
-                {spotExs.map(ex=>{
-                  const c = catColor(ex._cat);
-                  const done2 = isDone(ex.id);
-                  return (
-                    <button key={ex.id} onClick={()=>setActiveExercise(ex)}
-                      style={{ flexShrink:0,width:148,textAlign:"left",padding:"12px",borderRadius:14,cursor:"pointer",
-                        background:done2?`${c}18`:`${posColor}0b`,
-                        border:`1.5px solid ${done2?c:posColor}30`,
-                        position:"relative",overflow:"hidden" }}>
-                      {done2&&<div style={{ position:"absolute",top:6,right:8,fontSize:10,color:c,fontWeight:800 }}>✓</div>}
-                      <div style={{ fontSize:10,color:`${posColor}99`,marginBottom:4,fontWeight:600,
-                        textTransform:"uppercase",letterSpacing:"0.07em" }}>{ex.tag}</div>
-                      <div style={{ fontSize:12,fontWeight:800,color:done2?c:posColor,lineHeight:1.25,marginBottom:5 }}>
-                        {ex.name}
-                      </div>
-                      <div style={{ fontSize:10,color:"#475569",lineHeight:1.4,
-                        display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden" }}>
-                        {ex.desc}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })()}
-
-        {/* ── Active Challenges ──────────────────────────────────── */}
-        <div style={{ padding:"0 20px 16px" }}>
-          <div style={lbl}>Active Challenges</div>
-          <div style={{ display:"flex",flexDirection:"column",gap:7 }}>
-            {CHALLENGES_DEF.map(def=>{
-              const {cur,target}=getChallengeProgress(def,completed);
-              const pct=Math.min(1,cur/target), done2=pct>=1;
-              return (
-                <div key={def.id} style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:12,
-                  background:done2?"rgba(34,197,94,0.08)":"rgba(255,255,255,0.04)",
-                  border:`1px solid ${done2?"rgba(34,197,94,0.2)":"rgba(255,255,255,0.07)"}` }}>
-                  <span style={{ fontSize:18,lineHeight:1 }}>{def.emoji}</span>
-                  <div style={{ flex:1,minWidth:0 }}>
-                    <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4 }}>
-                      <span style={{ fontSize:11,fontWeight:700,color:done2?"#22c55e":"#cbd5e1" }}>{def.name}</span>
-                      <span style={{ fontSize:10,color:done2?"#22c55e":"#475569",fontFamily:"'DM Mono',monospace",flexShrink:0,marginLeft:6 }}>{Math.min(cur,target)}/{target}</span>
-                    </div>
-                    <div style={{ height:4,background:"rgba(255,255,255,0.06)",borderRadius:99,overflow:"hidden" }}>
-                      <div style={{ height:"100%",width:`${pct*100}%`,background:done2?"#22c55e":P,borderRadius:99,transition:"width 0.5s ease" }}/>
-                    </div>
-                    <div style={{ fontSize:9,color:"#334155",marginTop:3 }}>{def.desc}</div>
-                  </div>
-                  {done2&&<span style={{ fontSize:14,flexShrink:0 }}>🏆</span>}
-                </div>
-              );
-            })}
-          </div>
-        </div>
 
         {/* ── Training Modules ───────────────────────────────────── */}
-        <div style={{ padding:"0 20px 16px" }}>
+        <div style={{ padding:"0 20px 14px" }}>
           <div style={lbl}>Training Modules</div>
           <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10 }}>
             {Object.entries(CATS).map(([key,cat])=>{
@@ -5538,6 +5498,43 @@ export default function SummerTrainingApp() {
             })}
           </div>
         </div>
+
+        {/* ── Position Spotlight ─────────────────────────────────── */}
+        {(()=>{
+          const pos = settings.playStyle || "any";
+          const prof = POSITION_PROFILES[pos];
+          if (!prof || pos === "any" || !prof.spotlight.length) return null;
+          const ALL = Object.fromEntries(Object.entries(WORKOUTS).flatMap(([cat,exs])=>exs.map(ex=>[ex.id,{...ex,_cat:cat,meta:EXERCISE_META[ex.id]||{}}])));
+          const spotExs = prof.spotlight.map(id=>ALL[id]).filter(Boolean).slice(0,3);
+          if (!spotExs.length) return null;
+          const posColor = pos==="guard"?"#3b82f6":pos==="wing"?"#a855f7":"#f97316";
+          return (
+            <div style={{ padding:"0 20px 16px" }}>
+              <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8 }}>
+                <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:`${posColor}99`,textTransform:"uppercase" }}>
+                  {prof.emoji} {prof.label} Spotlight
+                </div>
+                <button onClick={()=>setShowSettings(true)} style={{ background:"none",border:"none",fontSize:10,color:"#334155",cursor:"pointer",padding:0 }}>change position</button>
+              </div>
+              <div style={{ fontSize:11,color:"#475569",marginBottom:10,lineHeight:1.5 }}>{prof.desc}</div>
+              <div style={{ display:"flex",gap:8,overflowX:"auto",scrollbarWidth:"none",WebkitOverflowScrolling:"touch" }}>
+                {spotExs.map(ex=>{
+                  const c=catColor(ex._cat), done2=isDone(ex.id);
+                  return (
+                    <button key={ex.id} onClick={()=>setActiveExercise(ex)}
+                      style={{ flexShrink:0,width:148,textAlign:"left",padding:"12px",borderRadius:14,cursor:"pointer",
+                        background:done2?`${c}18`:`${posColor}0b`,border:`1.5px solid ${done2?c:posColor}30`,position:"relative",overflow:"hidden" }}>
+                      {done2&&<div style={{ position:"absolute",top:6,right:8,fontSize:10,color:c,fontWeight:800 }}>✓</div>}
+                      <div style={{ fontSize:10,color:`${posColor}99`,marginBottom:4,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.07em" }}>{ex.tag}</div>
+                      <div style={{ fontSize:12,fontWeight:800,color:done2?c:posColor,lineHeight:1.25,marginBottom:5 }}>{ex.name}</div>
+                      <div style={{ fontSize:10,color:"#475569",lineHeight:1.4,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden" }}>{ex.desc}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
 
       </>)}
 
