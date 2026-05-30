@@ -1725,6 +1725,13 @@ const BADGES_DEF = [
   { id:"workouts-25",  cat:"milestone", name:"25 Workouts",   emoji:"🌟", desc:"Complete 25 workout days",     color:"#a78bfa" },
   { id:"workouts-50",  cat:"milestone", name:"50 Workouts",   emoji:"🏆", desc:"Complete 50 workout days",     color:"#f59e0b" },
   { id:"workouts-100", cat:"milestone", name:"100 Workouts",  emoji:"👑", desc:"Complete 100 workout days",    color:"#f43f5e" },
+
+  /* ── Program Completion ──────────────────────────────── */
+  { id:"pgm-jump-higher",    cat:"program", name:"Vertical Unlocked", emoji:"⬆️", desc:"Complete the Jump Higher program",           color:"#f97316" },
+  { id:"pgm-guard-handles",  cat:"program", name:"Guard Certified",   emoji:"🎮", desc:"Complete Handle Like a Guard",               color:"#06b6d4" },
+  { id:"pgm-become-shooter", cat:"program", name:"Pure Shooter",      emoji:"🎯", desc:"Complete Become a Shooter",                  color:"#8b5cf6" },
+  { id:"pgm-first-step",     cat:"program", name:"First Step Elite",  emoji:"⚡", desc:"Complete First Step Explosion",              color:"#f43f5e" },
+  { id:"pgm-complete-hooper",cat:"program", name:"Complete Hooper",   emoji:"🏆", desc:"Complete the Complete Hooper program",       color:"#f59e0b" },
 ];
 
 function computeXP(completed) {
@@ -1845,6 +1852,11 @@ function getEarnedBadges(completed) {
   if (workoutDays >= 50)  earned.add("workouts-50");
   if (workoutDays >= 100) earned.add("workouts-100");
 
+  /* ── Program completion badges ────────────────────────────── */
+  for (const prog of PROGRAMS) {
+    if (computeProgramProgress(prog, completed) >= 1) earned.add(prog.badgeId);
+  }
+
   return [...earned];
 }
 
@@ -1871,7 +1883,17 @@ function getBadgeProgress(badge, completed) {
     "shots-2500":{cur:makes,target:2500},"shots-5k":{cur:makes,target:5000},
     "shots-10k":{cur:makes,target:10000},
   };
-  return MAP[badge.id] || { cur:0, target:1 };
+  if (MAP[badge.id]) return MAP[badge.id];
+  // Program completion badges
+  const prog = PROGRAMS.find(p => p.badgeId === badge.id);
+  if (prog) {
+    const totalSessions = prog.weeks.reduce((s, w) => s + w.sessions.length, 0);
+    let doneSessions = 0;
+    const exDone = exId => Object.keys(completed).some(k => completed[k] && k.split("-").slice(3).join("-") === exId);
+    for (const week of prog.weeks) for (const session of week.sessions) if (session.exercises.every(exDone)) doneSessions++;
+    return { cur: doneSessions, target: totalSessions };
+  }
+  return { cur:0, target:1 };
 }
 
 /* ═══════════════════════ PROGRESSION CHAINS ════════════════ */
@@ -2099,6 +2121,211 @@ const ALL_EXERCISES = Object.fromEntries(
     exs.map(ex => [ex.id, { ...ex, _cat:cat, meta:EXERCISE_META[ex.id]||{} }])
   )
 );
+
+/* ═══════════════════════ TRAINING PROGRAMS ═════════════════ */
+
+const PROGRAMS = [
+  {
+    id:"jump-higher", name:"Jump Higher", emoji:"⬆️", color:"#f97316",
+    badgeId:"pgm-jump-higher", duration:4, daysPerWeek:3, ageRange:[9,17],
+    desc:"A 4-week plyometric plan to add inches to your vertical and build explosive first-step power.",
+    weeks:[
+      { week:1, goal:"Build ankle stiffness and landing control — the foundation of every jump.",
+        sessions:[
+          { day:"Session 1", focus:"Elasticity Foundation",  exercises:["pogo-jumps","lateral-line-hops","depth-drop"] },
+          { day:"Session 2", focus:"Single-Leg Control",     exercises:["sl-hold","sl-squat","sl-stick-landing"] },
+          { day:"Session 3", focus:"Power Introduction",     exercises:["squat-jumps","snap-downs","broad-jump-stick"] },
+        ]},
+      { week:2, goal:"Develop horizontal and lateral power while reinforcing landing mechanics.",
+        sessions:[
+          { day:"Session 1", focus:"Reactive Elasticity",    exercises:["reactive-pogos","lateral-line-hops","single-leg-hops"] },
+          { day:"Session 2", focus:"Lateral Power",          exercises:["lateral-bounds-pjf","lat-skater-hops","lateral-stick-landing"] },
+          { day:"Session 3", focus:"Power Development",      exercises:["tuck-jumps","broad-jump-stick-dec","pogo-tutorial"] },
+        ]},
+      { week:3, goal:"Reactive power and stretch-shortening cycle training — where vertical gains come from.",
+        sessions:[
+          { day:"Session 1", focus:"Reactive Training",      exercises:["drop-jump","pogo-to-tuck","single-leg-pogo"] },
+          { day:"Session 2", focus:"Combo Power",            exercises:["broad-bounds-sprint","lat-skater-hops","tuck-jumps"] },
+          { day:"Session 3", focus:"Full Plyometric",        exercises:["vj-progression","snap-down-prog","lateral-bounds-pjf"] },
+        ]},
+      { week:4, goal:"Peak power expression — max effort on every rep. Measure your vertical this week.",
+        sessions:[
+          { day:"Session 1", focus:"Max Vertical",           exercises:["drop-jump","squat-jumps","pogo-to-tuck"] },
+          { day:"Session 2", focus:"Full Expression",        exercises:["full-plyo-workout","single-leg-pogo","broad-bounds-sprint"] },
+          { day:"Session 3", focus:"Peak Performance",       exercises:["dunk-training","vj-progression","lateral-line-hops"] },
+        ]},
+    ],
+  },
+
+  {
+    id:"guard-handles", name:"Handle Like a Guard", emoji:"🎮", color:"#06b6d4",
+    badgeId:"pgm-guard-handles", duration:4, daysPerWeek:3, ageRange:[9,17],
+    desc:"Build elite ball-handling skills from stationary foundation through full game-speed combo moves.",
+    weeks:[
+      { week:1, goal:"Master the foundation — ball feel, weak hand, and basic stationary control.",
+        sessions:[
+          { day:"Session 1", focus:"Ball Control",           exercises:["bh-pound","gh-stationary-cross","weak-hand"] },
+          { day:"Session 2", focus:"Hand-Eye",               exercises:["tennis-dribble","tennis-wall","bh-in-out"] },
+          { day:"Session 3", focus:"Foundation Review",      exercises:["bh-pound","bh-crossover","gh-change-pace"] },
+        ]},
+      { week:2, goal:"Learn the core change-of-direction moves — crossover, between legs, and change of pace.",
+        sessions:[
+          { day:"Session 1", focus:"Crossover Mastery",      exercises:["bh-crossover","gh-stationary-cross","gh-cross-btl"] },
+          { day:"Session 2", focus:"Advanced Moves",         exercises:["bh-btl","gh-change-pace","two-ball"] },
+          { day:"Session 3", focus:"Combo Foundation",       exercises:["bh-crossover","bh-in-out","sackmann-hesi"] },
+        ]},
+      { week:3, goal:"Add behind-the-back, hesitation, and two-ball coordination.",
+        sessions:[
+          { day:"Session 1", focus:"Behind the Back",        exercises:["gh-behind-back","bh-btl","relph-twoball"] },
+          { day:"Session 2", focus:"Hesitation Game",        exercises:["sackmann-hesi","bh-retreat","gh-change-pace"] },
+          { day:"Session 3", focus:"Advanced Coordination",  exercises:["two-ball","relph-twoball","bh-combo"] },
+        ]},
+      { week:4, goal:"Game-speed combos, driving attacks, and defeating defenders.",
+        sessions:[
+          { day:"Session 1", focus:"Attack Moves",           exercises:["bh-attack-cross","gh-dribble-drive","bh-retreat"] },
+          { day:"Session 2", focus:"Combo Sequences",        exercises:["bh-combo","gethandles-combo","sackmann-hesi"] },
+          { day:"Session 3", focus:"Full Guard Skills",      exercises:["gh-dribble-drive","bh-attack-cross","bh-combo"] },
+        ]},
+    ],
+  },
+
+  {
+    id:"become-shooter", name:"Become a Shooter", emoji:"🎯", color:"#8b5cf6",
+    badgeId:"pgm-become-shooter", duration:4, daysPerWeek:3, ageRange:[9,17],
+    desc:"Fix your mechanics, build shot consistency, and earn the reputation as the player who never misses.",
+    weeks:[
+      { week:1, goal:"Lock in your shooting mechanics — form shooting, wrist, and free throw routine.",
+        sessions:[
+          { day:"Session 1", focus:"BEEF Mechanics",         exercises:["sh-form","sh-one-hand","sh-knee-roll"] },
+          { day:"Session 2", focus:"Free Throws",            exercises:["slab-ft-routine","sh-ft-routine","sh-hop-shot"] },
+          { day:"Session 3", focus:"Catch & Shoot",          exercises:["slab-catch-shoot","sh-form","sh-atw"] },
+        ]},
+      { week:2, goal:"Extend range and build volume shooting from game spots.",
+        sessions:[
+          { day:"Session 1", focus:"Spot Shooting",          exercises:["sh-spot","sh-atw","slab-catch-shoot"] },
+          { day:"Session 2", focus:"Screen Actions",         exercises:["slab-curl-cut","sh-hop-shot","slab-ft-routine"] },
+          { day:"Session 3", focus:"Pressure Reps",          exercises:["sh-beat-pro","sh-spot","sh-atw"] },
+        ]},
+      { week:3, goal:"Off-the-dribble shooting — pull-ups, mid-range, and game-like situations.",
+        sessions:[
+          { day:"Session 1", focus:"Pull-Up Game",           exercises:["slab-pullup","slab-elbow","sh-jab-reset"] },
+          { day:"Session 2", focus:"Mid-Range",              exercises:["slab-elbow","sh-beat-pro","slab-pullup"] },
+          { day:"Session 3", focus:"Game Shots",             exercises:["sh-jab-reset","slab-curl-cut","sh-single-leg"] },
+        ]},
+      { week:4, goal:"Separation shots, corner threes, and step-backs — the complete shooting game.",
+        sessions:[
+          { day:"Session 1", focus:"Range Extension",        exercises:["slab-corner-3","slab-step-back","sh-spot"] },
+          { day:"Session 2", focus:"Step Back",              exercises:["slab-step-back","sh-single-leg","sh-jab-reset"] },
+          { day:"Session 3", focus:"Compete",                exercises:["sh-beat-pro","slab-corner-3","slab-step-back"] },
+        ]},
+    ],
+  },
+
+  {
+    id:"first-step-explosion", name:"First Step Explosion", emoji:"⚡", color:"#f43f5e",
+    badgeId:"pgm-first-step", duration:4, daysPerWeek:3, ageRange:[9,17],
+    desc:"Build the footwork, pivots, and finishing moves that let you attack the basket with confidence every possession.",
+    weeks:[
+      { week:1, goal:"Establish the movement foundation — triple threat, jump stop, and basic finishing.",
+        sessions:[
+          { day:"Session 1", focus:"Triple Threat & Jump Stop", exercises:["fw-jump-stop","fw-triple-threat","flab-triple-threat"] },
+          { day:"Session 2", focus:"Layup Foundation",          exercises:["fin-power-layup","fin-mikan","fs-power-finish"] },
+          { day:"Session 3", focus:"First Steps",               exercises:["fw-triple-threat","fw-jab-series","flab-jab-series"] },
+        ]},
+      { week:2, goal:"Pivot mastery and reverse finishing — create angles the defense can't cover.",
+        sessions:[
+          { day:"Session 1", focus:"Pivot Work",              exercises:["fw-front-pivot","fw-rev-pivot","fin-rev-mikan"] },
+          { day:"Session 2", focus:"Reverse Finishing",       exercises:["fin-reverse","fs-hop-step","fin-rev-mikan"] },
+          { day:"Session 3", focus:"Jab Series",              exercises:["fw-jab-series","flab-jab-series","fin-mikan"] },
+        ]},
+      { week:3, goal:"Rip through, shot fakes, and step-through moves — counter every defender.",
+        sessions:[
+          { day:"Session 1", focus:"Rip & Drive",             exercises:["fw-rip-through","fw-sweep-go","flab-shot-fake"] },
+          { day:"Session 2", focus:"Shot Fakes",              exercises:["flab-shot-fake","flab-step-through","fw-shot-fake"] },
+          { day:"Session 3", focus:"Counter Moves",           exercises:["fw-sweep-go","fin-euro","fs-contact-finish"] },
+        ]},
+      { week:4, goal:"Advanced finishes and full-speed integration — score from anywhere in the paint.",
+        sessions:[
+          { day:"Session 1", focus:"Advanced Finishes",       exercises:["fin-floater","fin-euro","fin-pro-hop"] },
+          { day:"Session 2", focus:"Elite Moves",             exercises:["fin-wrong-foot","fin-floater","flab-rocker-step"] },
+          { day:"Session 3", focus:"Complete Attack",         exercises:["fin-pro-hop","fin-euro","sackmann-finish"] },
+        ]},
+    ],
+  },
+
+  {
+    id:"complete-hooper", name:"Complete Hooper", emoji:"🏆", color:"#f59e0b",
+    badgeId:"pgm-complete-hooper", duration:6, daysPerWeek:4, ageRange:[10,17],
+    desc:"The full development system — 6 weeks covering handles, footwork, finishing, shooting, post play, and basketball IQ.",
+    weeks:[
+      { week:1, goal:"Foundation week — ball control, triple threat, shot mechanics, and athletic base.",
+        sessions:[
+          { day:"Session 1", focus:"Ball Handling Base",     exercises:["bh-pound","gh-stationary-cross","weak-hand"] },
+          { day:"Session 2", focus:"Shooting Mechanics",     exercises:["sh-form","sh-one-hand","slab-ft-routine"] },
+          { day:"Session 3", focus:"Footwork Foundation",    exercises:["fw-jump-stop","fw-triple-threat","fin-power-layup"] },
+          { day:"Session 4", focus:"Athletic Base",          exercises:["pogo-jumps","squat-jumps","sl-hold"] },
+        ]},
+      { week:2, goal:"Expand your arsenal — add moves in all skill areas simultaneously.",
+        sessions:[
+          { day:"Session 1", focus:"Crossover & Drives",     exercises:["bh-crossover","bh-in-out","gh-change-pace"] },
+          { day:"Session 2", focus:"Spot Shooting",          exercises:["sh-spot","slab-catch-shoot","sh-hop-shot"] },
+          { day:"Session 3", focus:"Pivots & Layups",        exercises:["fw-front-pivot","fw-rev-pivot","fin-mikan"] },
+          { day:"Session 4", focus:"Explosion",              exercises:["single-leg-hops","lateral-bounds-pjf","snap-downs"] },
+        ]},
+      { week:3, goal:"Intermediate skill week — game-like reps in handles, shooting, and IQ.",
+        sessions:[
+          { day:"Session 1", focus:"Intermediate Handles",   exercises:["bh-btl","gh-cross-btl","sackmann-hesi"] },
+          { day:"Session 2", focus:"Off-Dribble Shooting",   exercises:["slab-pullup","slab-elbow","sh-beat-pro"] },
+          { day:"Session 3", focus:"Attack Moves",           exercises:["fw-jab-series","flab-shot-fake","fin-euro"] },
+          { day:"Session 4", focus:"Court Vision",           exercises:["iq-closeout","iq-shot-drive","iq-spacing"] },
+        ]},
+      { week:4, goal:"Advanced moves — step back, combo handles, post plays, and defensive reads.",
+        sessions:[
+          { day:"Session 1", focus:"Advanced Handles",       exercises:["gh-behind-back","bh-attack-cross","gethandles-combo"] },
+          { day:"Session 2", focus:"Advanced Shooting",      exercises:["sh-jab-reset","slab-step-back","slab-corner-3"] },
+          { day:"Session 3", focus:"Post Fundamentals",      exercises:["pm-seal","pm-drop-step","pm-hook"] },
+          { day:"Session 4", focus:"Defensive IQ",           exercises:["iq-help-side","iq-read-def","iq-transition"] },
+        ]},
+      { week:5, goal:"Combo sequences and situational scoring — put it all together.",
+        sessions:[
+          { day:"Session 1", focus:"Handle Combos",          exercises:["bh-combo","relph-twoball","gh-dribble-drive"] },
+          { day:"Session 2", focus:"Full Shooting",          exercises:["slab-step-back","sh-single-leg","sh-beat-pro"] },
+          { day:"Session 3", focus:"Advanced Post",          exercises:["pm-up-under","pm-spin","pm-face-up"] },
+          { day:"Session 4", focus:"Finishing School",        exercises:["fin-floater","fin-pro-hop","fin-wrong-foot"] },
+        ]},
+      { week:6, goal:"Peak week — compete at full speed in every area. You're a Complete Hooper.",
+        sessions:[
+          { day:"Session 1", focus:"Elite Handles",          exercises:["bh-combo","gethandles-combo","sackmann-hesi"] },
+          { day:"Session 2", focus:"Shot Creation",          exercises:["slab-step-back","sh-jab-reset","slab-corner-3"] },
+          { day:"Session 3", focus:"Post Game",              exercises:["pm-saddi-combo","pm-step-through","pm-face-up"] },
+          { day:"Session 4", focus:"Full Integration",       exercises:["iq-closeout","fin-floater","bh-combo"] },
+        ]},
+    ],
+  },
+];
+
+/** Returns 0–1 completion ratio for a program based on completed exercises. */
+function computeProgramProgress(program, completed) {
+  let total = 0, done = 0;
+  const exDone = exId => Object.keys(completed).some(k => {
+    if (!completed[k]) return false;
+    return k.split("-").slice(3).join("-") === exId;
+  });
+  for (const week of program.weeks) {
+    for (const session of week.sessions) {
+      total++;
+      if (session.exercises.every(exDone)) done++;
+    }
+  }
+  return total === 0 ? 0 : done / total;
+}
+
+/** Returns the current week number (1-indexed, capped at duration) for an enrolled program. */
+function programCurrentWeek(startDate, duration) {
+  if (!startDate) return 1;
+  const days = Math.floor((Date.now() - new Date(startDate+"T00:00:00").getTime()) / 86400000);
+  return Math.min(duration, Math.max(1, Math.floor(days / 7) + 1));
+}
 
 /* ═══════════════════════ HISTORY DATA BUILDER ══════════════ */
 
@@ -4945,6 +5172,8 @@ export default function SummerTrainingApp() {
   });
   const [lastEarnedBadge, setLastEarnedBadge] = useState(null);
   const [completed, setCompleted] = useState(()=>{ try{return JSON.parse(localStorage.getItem("s_done")||"{}")}catch{return{}} });
+  const [enrolledPrograms, setEnrolledPrograms] = useState(()=>{ try{return JSON.parse(localStorage.getItem("fkh-programs")||"{}")}catch{return{}} });
+  const [selectedProgram, setSelectedProgram] = useState(null); // programId string when drill-in open
   const [strDay, setStrDay] = useState(()=>localStorage.getItem('s_strday')||'Day 1');
   const [onboardName, setOnboardName] = useState('');
   const [showOnboarding, setShowOnboarding] = useState(()=>!localStorage.getItem('s_onboarded')&&settings.athleteName===DEFAULT.athleteName);
@@ -4983,6 +5212,7 @@ export default function SummerTrainingApp() {
 
   useEffect(()=>{ try{localStorage.setItem("s_settings",JSON.stringify(settings))}catch{} },[settings]);
   useEffect(()=>{ try{localStorage.setItem("s_done",JSON.stringify(completed))}catch{} },[completed]);
+  useEffect(()=>{ try{localStorage.setItem("fkh-programs",JSON.stringify(enrolledPrograms))}catch{} },[enrolledPrograms]);
 
   const today = todayKey();
   const P = pri(settings), S = sec(settings), BG = bg(settings), ST = str3(settings);
@@ -5060,11 +5290,11 @@ export default function SummerTrainingApp() {
   const bd  = "rgba(255,255,255,0.07)";
   const lbl = { fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:`${P}80`,marginBottom:10,textTransform:"uppercase" };
   const NAV = [
-    {id:"home",    emoji:"🏠",label:"Home"},
-    {id:"shots",   emoji:"🏀",label:"Shots"},
-    {id:"schedule",emoji:"📅",label:"Calendar"},
-    {id:"badges",  emoji:"🏅",label:"Badges"},
-    {id:"profile", emoji:"👤",label:"Profile"},
+    {id:"home",     emoji:"🏠",label:"Home"},
+    {id:"shots",    emoji:"🏀",label:"Shots"},
+    {id:"programs", emoji:"📋",label:"Programs"},
+    {id:"badges",   emoji:"🏅",label:"Badges"},
+    {id:"profile",  emoji:"👤",label:"Profile"},
   ];
 
   const renderBottomNav = () => (
@@ -5078,6 +5308,273 @@ export default function SummerTrainingApp() {
       ))}
     </div>
   );
+
+  /* PROGRAMS */
+  if (view==="programs") {
+    const enrollProg = (prog) => {
+      setEnrolledPrograms(p => ({ ...p, [prog.id]: { startDate: new Date().toLocaleDateString("en-CA") } }));
+    };
+    const unenrollProg = (progId) => {
+      setEnrolledPrograms(p => { const n={...p}; delete n[progId]; return n; });
+      if (selectedProgram === progId) setSelectedProgram(null);
+    };
+
+    // ─── Program Detail ──────────────────────────────────────────
+    if (selectedProgram) {
+      const prog = PROGRAMS.find(p => p.id === selectedProgram);
+      if (!prog) { setSelectedProgram(null); }
+      else {
+        const enrollment = enrolledPrograms[prog.id];
+        const curWeekNum = enrollment ? programCurrentWeek(enrollment.startDate, prog.duration) : 1;
+        const pct = Math.round(computeProgramProgress(prog, completed) * 100);
+        const exDone = exId => Object.keys(completed).some(k => completed[k] && k.split("-").slice(3).join("-") === exId);
+        const sessionDone = session => session.exercises.every(exDone);
+        const totalSessions = prog.weeks.reduce((s, w) => s + w.sessions.length, 0);
+        const doneSessions = prog.weeks.reduce((s, w) => s + w.sessions.filter(sessionDone).length, 0);
+
+        return (
+          <div style={{ background:BG,minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:80 }}>
+            {showSettings&&<SettingsSheet settings={settings} setSettings={setSettings} onClose={()=>setShowSettings(false)}/>}
+            {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]} onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
+            {activeExercise&&<ExerciseDetailSheet exercise={activeExercise} color={prog.color}
+              bg2={SF} brd={`${prog.color}22`} BG={BG} SF={SF}
+              isDone={isDone(activeExercise.id)} onToggle={()=>toggle(activeExercise.id)}
+              onClose={closeDetail} onNext={nextExDetail?()=>setActiveExercise(nextExDetail):null}
+              completed={completed}/>}
+
+            {/* Header */}
+            <div style={{ padding:"16px 18px 0" }}>
+              <button onClick={()=>setSelectedProgram(null)}
+                style={{ marginBottom:14,padding:"6px 14px",borderRadius:8,border:`1px solid ${prog.color}30`,background:`${prog.color}14`,color:prog.color,fontSize:12,fontWeight:700,cursor:"pointer" }}>
+                ← Programs
+              </button>
+              <div style={{ display:"flex",alignItems:"center",gap:12,marginBottom:12 }}>
+                <div style={{ width:52,height:52,borderRadius:14,background:`${prog.color}18`,border:`2px solid ${prog.color}40`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:26,flexShrink:0 }}>
+                  {prog.emoji}
+                </div>
+                <div>
+                  <div style={{ fontSize:20,fontWeight:800,color:"#f1f5f9",lineHeight:1.2 }}>{prog.name}</div>
+                  <div style={{ fontSize:11,color:"#64748b",marginTop:2 }}>{prog.duration} weeks · {prog.daysPerWeek}×/week · Ages {prog.ageRange[0]}–{prog.ageRange[1]}</div>
+                </div>
+              </div>
+              <p style={{ fontSize:13,color:"#94a3b8",lineHeight:1.6,margin:"0 0 14px" }}>{prog.desc}</p>
+
+              {/* Progress bar */}
+              <div style={{ background:SF,borderRadius:12,padding:"12px 14px",border:`1px solid ${prog.color}22`,marginBottom:14 }}>
+                <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8 }}>
+                  <span style={{ fontSize:11,fontWeight:700,color:prog.color }}>{pct}% complete</span>
+                  <span style={{ fontSize:11,color:"#475569" }}>{doneSessions}/{totalSessions} sessions</span>
+                </div>
+                <div style={{ height:6,borderRadius:99,background:"rgba(255,255,255,0.06)" }}>
+                  <div style={{ height:"100%",width:`${pct}%`,borderRadius:99,background:`linear-gradient(90deg,${prog.color},${prog.color}bb)`,transition:"width 0.4s" }}/>
+                </div>
+                {enrollment && (
+                  <div style={{ marginTop:8,fontSize:11,color:"#475569" }}>
+                    Currently on <span style={{ color:prog.color,fontWeight:700 }}>Week {curWeekNum}</span> of {prog.duration}
+                  </div>
+                )}
+              </div>
+
+              {/* Enroll / Unenroll */}
+              {enrollment
+                ? <button onClick={()=>{ if(window.confirm("Leave this program? Your exercise progress is kept.")) unenrollProg(prog.id); }}
+                    style={{ width:"100%",padding:"11px",borderRadius:10,border:`1px solid ${prog.color}30`,background:"transparent",color:"#64748b",fontSize:12,fontWeight:600,cursor:"pointer",marginBottom:18 }}>
+                    Leave Program
+                  </button>
+                : <button onClick={()=>enrollProg(prog)}
+                    style={{ width:"100%",padding:"13px",borderRadius:12,border:"none",background:prog.color,color:"#fff",fontSize:14,fontWeight:800,cursor:"pointer",marginBottom:18,boxShadow:`0 4px 16px ${prog.color}50` }}>
+                    Start Program →
+                  </button>
+              }
+            </div>
+
+            {/* Week accordion */}
+            {prog.weeks.map(week => {
+              const isCurrent = enrollment && week.week === curWeekNum;
+              const weekDone = week.sessions.every(sessionDone);
+              const weekPct = Math.round((week.sessions.filter(sessionDone).length / week.sessions.length) * 100);
+              return (
+                <div key={week.week} style={{ margin:"0 18px 12px",borderRadius:14,
+                  border:`1px solid ${isCurrent ? prog.color+"44" : "rgba(255,255,255,0.07)"}`,
+                  background:isCurrent ? `${prog.color}08` : SF,overflow:"hidden" }}>
+                  {/* Week header */}
+                  <div style={{ padding:"13px 14px",display:"flex",alignItems:"center",gap:10 }}>
+                    <div style={{ width:32,height:32,borderRadius:8,
+                      background:weekDone ? `${prog.color}20` : isCurrent ? `${prog.color}18` : "rgba(255,255,255,0.05)",
+                      border:`1px solid ${weekDone ? prog.color+"44" : isCurrent ? prog.color+"33" : "rgba(255,255,255,0.06)"}`,
+                      display:"flex",alignItems:"center",justifyContent:"center",
+                      fontSize:13,fontWeight:800,color:weekDone ? prog.color : isCurrent ? prog.color : "#475569",flexShrink:0 }}>
+                      {weekDone ? "✓" : `W${week.week}`}
+                    </div>
+                    <div style={{ flex:1,minWidth:0 }}>
+                      <div style={{ display:"flex",alignItems:"center",gap:6,marginBottom:2 }}>
+                        <span style={{ fontSize:12,fontWeight:700,color:isCurrent?prog.color:"#e2e8f0" }}>
+                          Week {week.week}
+                        </span>
+                        {isCurrent && <span style={{ fontSize:9,padding:"2px 7px",borderRadius:99,background:prog.color,color:"#fff",fontWeight:700 }}>CURRENT</span>}
+                        {weekDone && <span style={{ fontSize:9,padding:"2px 7px",borderRadius:99,background:"rgba(34,197,94,0.15)",color:"#22c55e",fontWeight:700 }}>DONE</span>}
+                      </div>
+                      <div style={{ fontSize:11,color:"#64748b",lineHeight:1.4,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{week.goal}</div>
+                    </div>
+                    <span style={{ fontSize:11,color:weekDone?"#22c55e":isCurrent?prog.color:"#475569",fontWeight:700,flexShrink:0 }}>{weekPct}%</span>
+                  </div>
+
+                  {/* Sessions (always shown for current week, collapsed for others) */}
+                  {(isCurrent || !enrollment) && week.sessions.map((session, si) => {
+                    const sDone = sessionDone(session);
+                    return (
+                      <div key={si} style={{ margin:"0 12px 10px",borderRadius:10,
+                        background:sDone ? "rgba(34,197,94,0.06)" : "rgba(255,255,255,0.04)",
+                        border:`1px solid ${sDone ? "rgba(34,197,94,0.2)" : "rgba(255,255,255,0.06)"}`,
+                        padding:"11px 13px" }}>
+                        <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:9 }}>
+                          <span style={{ fontSize:12,fontWeight:700,color:sDone?"#22c55e":prog.color }}>{session.day}</span>
+                          <span style={{ fontSize:10,color:"#64748b" }}>· {session.focus}</span>
+                          {sDone && <span style={{ marginLeft:"auto",fontSize:10,color:"#22c55e",fontWeight:700 }}>✓ Done</span>}
+                        </div>
+                        <div style={{ display:"flex",flexDirection:"column",gap:6 }}>
+                          {session.exercises.map(exId => {
+                            const ex = ALL_EXERCISES[exId];
+                            if (!ex) return null;
+                            const done = exDone(exId);
+                            return (
+                              <div key={exId} onClick={()=>{ const enriched={...ex,_cat:ex._cat,meta:ex.meta||EXERCISE_META[exId]||{}}; openDetail(enriched,session.exercises.map(id=>({...ALL_EXERCISES[id],_cat:ALL_EXERCISES[id]?._cat,meta:ALL_EXERCISES[id]?.meta||EXERCISE_META[id]||{}})).filter(Boolean)); }}
+                                style={{ display:"flex",alignItems:"center",gap:9,padding:"7px 9px",borderRadius:8,
+                                  background:done?"rgba(34,197,94,0.08)":"rgba(255,255,255,0.04)",
+                                  border:`1px solid ${done?"rgba(34,197,94,0.18)":"rgba(255,255,255,0.05)"}`,
+                                  cursor:"pointer" }}>
+                                <button onClick={e=>{ e.stopPropagation(); toggle(exId); }}
+                                  style={{ width:20,height:20,borderRadius:6,border:`1.5px solid ${done?"#22c55e":prog.color+"60"}`,
+                                    background:done?"#22c55e":"transparent",color:"#fff",fontSize:10,
+                                    display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,padding:0 }}>
+                                  {done?"✓":""}
+                                </button>
+                                <span style={{ flex:1,fontSize:12,fontWeight:600,color:done?"#22c55e":"#e2e8f0",lineHeight:1.3 }}>{ex.name}</span>
+                                <span style={{ fontSize:9,color:"#475569" }}>{ex.sets}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+
+            {renderBottomNav()}
+          </div>
+        );
+      }
+    }
+
+    // ─── Programs List ───────────────────────────────────────────
+    const activeEnrollments = PROGRAMS.filter(p => enrolledPrograms[p.id]);
+
+    return (
+      <div style={{ background:BG,minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:80 }}>
+        {showSettings&&<SettingsSheet settings={settings} setSettings={setSettings} onClose={()=>setShowSettings(false)}/>}
+        {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]} onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
+        {activeExercise&&<ExerciseDetailSheet exercise={activeExercise} color={P}
+          bg2={SF} brd={bd} BG={BG} SF={SF}
+          isDone={isDone(activeExercise.id)} onToggle={()=>toggle(activeExercise.id)}
+          onClose={closeDetail} onNext={nextExDetail?()=>setActiveExercise(nextExDetail):null}
+          completed={completed}/>}
+
+        {/* Header */}
+        <div style={{ padding:"20px 18px 6px" }}>
+          <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4 }}>
+            <div>
+              <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:`${P}70`,textTransform:"uppercase",marginBottom:4 }}>Training System</div>
+              <h1 style={{ fontSize:22,fontWeight:800,color:"#f1f5f9",margin:0 }}>Programs 📋</h1>
+            </div>
+            <button onClick={()=>setShowSettings(true)} style={{ padding:"8px 10px",borderRadius:10,border:`1px solid ${bd}`,background:SF,color:"#64748b",fontSize:14,cursor:"pointer" }}>⚙️</button>
+          </div>
+          <p style={{ fontSize:12,color:"#64748b",margin:"8px 0 0",lineHeight:1.5 }}>
+            Multi-week development plans built from existing drills. Pick a program and follow it week by week.
+          </p>
+        </div>
+
+        {/* Active enrollments */}
+        {activeEnrollments.length > 0 && (
+          <div style={{ padding:"16px 18px 0" }}>
+            <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:`${P}70`,textTransform:"uppercase",marginBottom:10 }}>Active Programs</div>
+            {activeEnrollments.map(prog => {
+              const enrollment = enrolledPrograms[prog.id];
+              const curWeek = programCurrentWeek(enrollment.startDate, prog.duration);
+              const pct = Math.round(computeProgramProgress(prog, completed) * 100);
+              return (
+                <div key={prog.id} onClick={()=>setSelectedProgram(prog.id)}
+                  style={{ borderRadius:14,border:`1px solid ${prog.color}40`,background:`${prog.color}0c`,
+                    padding:"14px 16px",marginBottom:10,cursor:"pointer" }}>
+                  <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:10 }}>
+                    <span style={{ fontSize:24 }}>{prog.emoji}</span>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontSize:14,fontWeight:800,color:"#f1f5f9" }}>{prog.name}</div>
+                      <div style={{ fontSize:11,color:prog.color,fontWeight:600 }}>Week {curWeek} of {prog.duration}</div>
+                    </div>
+                    <span style={{ fontSize:15,fontWeight:800,color:prog.color }}>{pct}%</span>
+                  </div>
+                  <div style={{ height:5,borderRadius:99,background:"rgba(255,255,255,0.08)" }}>
+                    <div style={{ height:"100%",width:`${pct}%`,borderRadius:99,background:prog.color }}/>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* All programs */}
+        <div style={{ padding:"16px 18px 0" }}>
+          <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:`${P}70`,textTransform:"uppercase",marginBottom:10 }}>
+            {activeEnrollments.length > 0 ? "All Programs" : "Choose a Program"}
+          </div>
+          {PROGRAMS.map(prog => {
+            const enrolled = !!enrolledPrograms[prog.id];
+            const pct = enrolled ? Math.round(computeProgramProgress(prog, completed) * 100) : 0;
+            const completed_badge = earnedBadges.includes(prog.badgeId);
+            return (
+              <div key={prog.id} onClick={()=>setSelectedProgram(prog.id)}
+                style={{ borderRadius:14,border:`1px solid ${enrolled?prog.color+"33":"rgba(255,255,255,0.07)"}`,
+                  background:enrolled?`${prog.color}08`:SF,
+                  padding:"16px",marginBottom:10,cursor:"pointer",
+                  boxShadow:enrolled?`0 2px 12px ${prog.color}18`:"none" }}>
+                <div style={{ display:"flex",gap:12,alignItems:"flex-start" }}>
+                  <div style={{ width:48,height:48,borderRadius:12,
+                    background:`${prog.color}18`,border:`2px solid ${prog.color}${enrolled?"55":"33"}`,
+                    display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0 }}>
+                    {prog.emoji}
+                  </div>
+                  <div style={{ flex:1,minWidth:0 }}>
+                    <div style={{ display:"flex",alignItems:"center",gap:6,marginBottom:3,flexWrap:"wrap" }}>
+                      <span style={{ fontSize:14,fontWeight:800,color:"#f1f5f9" }}>{prog.name}</span>
+                      {enrolled && <span style={{ fontSize:9,padding:"2px 7px",borderRadius:99,background:prog.color,color:"#fff",fontWeight:700 }}>ENROLLED</span>}
+                      {completed_badge && <span style={{ fontSize:9,padding:"2px 7px",borderRadius:99,background:"rgba(34,197,94,0.2)",color:"#22c55e",fontWeight:700 }}>✓ DONE</span>}
+                    </div>
+                    <div style={{ fontSize:11,color:"#64748b",marginBottom:6 }}>{prog.duration} weeks · {prog.daysPerWeek}x/week · Ages {prog.ageRange[0]}–{prog.ageRange[1]}</div>
+                    <div style={{ fontSize:12,color:"#94a3b8",lineHeight:1.4 }}>{prog.desc}</div>
+                    {enrolled && (
+                      <div style={{ marginTop:8 }}>
+                        <div style={{ display:"flex",justifyContent:"space-between",marginBottom:4 }}>
+                          <span style={{ fontSize:10,color:prog.color,fontWeight:600 }}>{pct}% complete</span>
+                        </div>
+                        <div style={{ height:4,borderRadius:99,background:"rgba(255,255,255,0.08)" }}>
+                          <div style={{ height:"100%",width:`${pct}%`,borderRadius:99,background:prog.color }}/>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <span style={{ fontSize:16,color:"#475569",flexShrink:0,marginTop:2 }}>›</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {renderBottomNav()}
+      </div>
+    );
+  }
 
   /* SHOTS */
   if (view==="shots") return (
@@ -5465,6 +5962,39 @@ export default function SummerTrainingApp() {
                   <div style={{ fontSize:12,color:"#cbd5e1",lineHeight:1.55 }}>{coachMsg}</div>
                 </div>
               </div>
+
+              {/* Active Program Widget */}
+              {(()=>{
+                const activeProg = PROGRAMS.find(p => enrolledPrograms[p.id]);
+                if (!activeProg) return null;
+                const enrollment = enrolledPrograms[activeProg.id];
+                const curWeek = programCurrentWeek(enrollment.startDate, activeProg.duration);
+                const pct = Math.round(computeProgramProgress(activeProg, completed) * 100);
+                const exDone = exId => Object.keys(completed).some(k => completed[k] && k.split("-").slice(3).join("-") === exId);
+                const weekData = activeProg.weeks.find(w => w.week === curWeek);
+                const nextSession = weekData?.sessions.find(s => !s.exercises.every(exDone));
+                return (
+                  <div onClick={()=>{ setView("programs"); setSelectedProgram(activeProg.id); }}
+                    style={{ margin:"0 20px 10px",borderRadius:14,border:`1px solid ${activeProg.color}44`,background:`${activeProg.color}0c`,padding:"13px 14px",cursor:"pointer" }}>
+                    <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:9 }}>
+                      <span style={{ fontSize:18 }}>{activeProg.emoji}</span>
+                      <div style={{ flex:1,minWidth:0 }}>
+                        <div style={{ fontSize:9,fontWeight:800,color:activeProg.color,letterSpacing:"0.14em",textTransform:"uppercase",marginBottom:1 }}>Active Program</div>
+                        <div style={{ fontSize:13,fontWeight:700,color:"#f1f5f9",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{activeProg.name}</div>
+                      </div>
+                      <span style={{ fontSize:11,fontWeight:700,color:activeProg.color }}>{pct}%</span>
+                    </div>
+                    <div style={{ height:4,borderRadius:99,background:"rgba(255,255,255,0.08)",marginBottom:8 }}>
+                      <div style={{ height:"100%",width:`${pct}%`,borderRadius:99,background:activeProg.color }}/>
+                    </div>
+                    <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between" }}>
+                      <span style={{ fontSize:11,color:"#64748b" }}>Week {curWeek} of {activeProg.duration}</span>
+                      {nextSession && <span style={{ fontSize:11,color:activeProg.color,fontWeight:600 }}>Next: {nextSession.focus} →</span>}
+                      {!nextSession && <span style={{ fontSize:11,color:"#22c55e",fontWeight:600 }}>Week {curWeek} complete ✓</span>}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Quick Stats — streak + shot challenge */}
               <div style={{ padding:"0 20px 10px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:8 }}>
