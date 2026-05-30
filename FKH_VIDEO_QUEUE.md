@@ -38,16 +38,17 @@ These appear in Training Programs (Phases 11) and are referenced in Daily Missio
 
 | # | Exercise Name | Category | Program | Recorded | Published | Notes |
 |---|--------------|----------|---------|----------|-----------|-------|
-| 1 | Pogo Jumps | Explosion & Jumps | Jump Higher W1 | ☐ | ☐ | Elasticity foundation — most critical Jump Higher exercise |
-| 2 | Lateral Line Hops | Explosion & Jumps | Jump Higher W1 | ☐ | ☐ | Pair with Pogo Jumps video |
-| 3 | Depth Drop Landing | Explosion & Jumps | Jump Higher W1 | ☐ | ☐ | Landing mechanics — safety critical |
-| 4 | Single Leg Hops | Explosion & Jumps | Jump Higher W2 | ☐ | ☐ | |
-| 5 | Squat Jumps | Explosion & Jumps | Jump Higher W3 | ☐ | ☐ | |
-| 6 | Pound Dribble | Ball Handling Foundations | Handle Like a Guard W1 | ☐ | ☐ | Most basic handle drill — very high mission frequency |
-| 7 | Crossovers | Ball Handling Moves | Handle Like a Guard W1 | ☐ | ☐ | |
-| 8 | Between Legs | Ball Handling Moves | Handle Like a Guard W1 | ☐ | ☐ | |
-| 9 | Jump Stop | Footwork Lab | First Step Explosion W1 | ☐ | ☐ | Used in Daily Missions |
-| 10 | Front Pivot | Footwork Lab | First Step Explosion W1 | ☐ | ☐ | Used in Daily Missions |
+| 1 | **Power Bounds Series** | Explosion & Jumps | Jump Higher W3 | ☐ | ☐ | NEW — 3–4 consecutive broad jumps, cover max distance. Placeholder video in use (`p24gY-uIlz4`). Needs FKH original ASAP. |
+| 2 | Pogo Jumps | Explosion & Jumps | Jump Higher W1 | ☐ | ☐ | Elasticity foundation — most critical Jump Higher exercise |
+| 3 | Lateral Line Hops | Explosion & Jumps | Jump Higher W1 | ☐ | ☐ | Pair with Pogo Jumps video |
+| 4 | Depth Drop Landing | Explosion & Jumps | Jump Higher W1 | ☐ | ☐ | Landing mechanics — safety critical |
+| 5 | Single Leg Hops | Explosion & Jumps | Jump Higher W2 | ☐ | ☐ | |
+| 6 | Squat Jumps | Explosion & Jumps | Jump Higher W3 | ☐ | ☐ | |
+| 7 | Pound Dribble | Ball Handling Foundations | Handle Like a Guard W1 | ☐ | ☐ | Most basic handle drill — very high mission frequency |
+| 8 | Crossovers | Ball Handling Moves | Handle Like a Guard W1 | ☐ | ☐ | |
+| 9 | Between Legs | Ball Handling Moves | Handle Like a Guard W1 | ☐ | ☐ | |
+| 10 | Jump Stop | Footwork Lab | First Step Explosion W1 | ☐ | ☐ | Used in Daily Missions |
+| 11 | Front Pivot | Footwork Lab | First Step Explosion W1 | ☐ | ☐ | Used in Daily Missions |
 
 ---
 
