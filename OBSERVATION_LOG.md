@@ -1,71 +1,79 @@
 # FKH Fit Kid Hooper — RC1 Observation Log
 
 **Mode:** Observation Only  
-**Release:** RC1 — deployed to https://rcarrier32.github.io/FitKidHooper/  
+**Release:** RC1 — https://rcarrier32.github.io/FitKidHooper/  
 **Tag:** `rc1`  
 **Observation Window:** 2 weeks from first real-athlete session  
-**Goal:** Let real usage determine the next roadmap — not assumptions.
+**Goal:** Let real athlete behavior determine RC2 — not assumptions.
 
 ---
 
-## What's Allowed During Observation Mode
+## Observation Mode Rules
 
+### Allowed
 ✅ Bug fixes  
-✅ UX improvements  
-✅ Content additions (new exercises, drills, coach tips)  
-✅ FKH video creation  
+✅ UX improvements (friction reduction)  
+✅ Content additions (exercises, drills, coach tips, coachNotes, commonMistakes, progressionTips)  
+✅ FKH original video creation and integration  
 
+### Not Allowed
 ❌ New major systems  
 ❌ New tabs  
 ❌ New gamification layers  
-❌ Accounts or cloud sync  
-❌ Leaderboards  
+❌ Accounts, profiles, or cloud sync  
+❌ Leaderboards or social features  
+❌ Phase 14 or beyond  
 
 ---
 
-## Observation Log
+## Roadmap Rule
 
-> One row per athlete session. Fill in honestly — "N/A" or "—" is fine.
-
-| Date | Athlete | Age | Used Most | Used Least | Confusing | Liked | Feature Request |
-|------|---------|-----|-----------|------------|-----------|-------|-----------------|
-|      |         |     |           |            |           |       |                 |
+> **If it does not appear in the observation data, it does not enter the roadmap.**
 
 ---
 
-## Friction Points (running list)
+## Per-Session Log
 
-> Things that slowed athletes down, caused hesitation, or needed explanation.
+> One row per athlete session.  
+> Record honestly — "—" is fine. Do not editorialize.
 
-| Date | Screen | What Happened |
-|------|--------|---------------|
-|      |        |               |
+| Date | Athlete | Age | Opened First | Used Most | Ignored | Confusing | Liked | Feature Request | Parent Present |
+|------|---------|-----|-------------|-----------|---------|-----------|-------|-----------------|---------------|
+|      |         |     |             |           |         |           |       |                 |               |
+
+---
+
+## Direct Quotes
+
+> Exact words from athletes and parents. Do not paraphrase.
+
+| Date | Who (Athlete / Parent) | Quote |
+|------|------------------------|-------|
+|      |                        |       |
+
+---
+
+## Friction Points
+
+> Things that slowed athletes down, caused hesitation, or required explanation.
+
+| Date | Screen | What Happened | Severity (Low / Med / High) |
+|------|--------|---------------|----------------------------|
+|      |        |               |                            |
 
 ---
 
 ## Bug Reports
 
-> Unexpected behavior in the wild.
-
-| Date | Device / OS | Screen | Description | Status |
-|------|-------------|--------|-------------|--------|
-|      |             |        |             | Open   |
+| Date | Device / OS | Screen | Description | Reproducible | Status |
+|------|-------------|--------|-------------|--------------|--------|
+|      |             |        |             |              | Open   |
 
 ---
 
-## Athlete Quotes
+## Feature Requests (raw — no filtering)
 
-> Direct quotes from athletes or parents. Exact words preferred.
-
-| Date | Who | Quote |
-|------|-----|-------|
-|      |     |       |
-
----
-
-## Feature Requests (raw)
-
-> Log every request as-is. Do not filter or judge yet.
+> Log every request exactly as stated. Rank later.
 
 | Date | Requested By | Request |
 |------|-------------|---------|
@@ -73,110 +81,182 @@
 
 ---
 
-## Usage Patterns (running tally)
+## Parent Feedback
 
-Update this section after each observation session.
-
-### Screen Visit Frequency
-- Home: 
-- Shots Tracker: 
-- Programs: 
-- Badges: 
-- Profile: 
-- Exercise Detail: 
-- Progress Report: 
-
-### Features Engaged
-- Daily Mission (opened/read): 
-- Daily Mission (completed task): 
-- Workout started: 
-- Exercise marked done: 
-- Shot logged: 
-- Program enrolled: 
-- Favorite starred: 
-- Progress Report opened: 
-- Settings opened: 
-
-### Content Engagement
-- Most-opened exercise categories: 
-- Least-opened exercise categories: 
-- Most-completed exercises: 
+| Date | Parent | Feedback | Positive / Concern |
+|------|--------|----------|--------------------|
+|      |        |          |                    |
 
 ---
 
-## Retention Check (end of week 1)
+## Usage Tally (update after every session)
 
-- Athletes who returned 2+ days: 
-- Athletes who completed a Daily Mission: 
-- Athletes who enrolled in a Program: 
-- Athletes who logged shots: 
-- Average session length (estimate): 
+### Screen Visits
+| Screen | Times Visited |
+|--------|--------------|
+| Home | |
+| Shots Tracker | |
+| Programs | |
+| Badges | |
+| Profile | |
+| Exercise Detail | |
+| Progress Report | |
+
+### Feature Engagement
+| Feature | Times Used |
+|---------|-----------|
+| Daily Mission read | |
+| Daily Mission task completed | |
+| Workout template selected | |
+| Workout started | |
+| Exercise marked done | |
+| Shot logged | |
+| Program enrolled | |
+| Program session completed | |
+| Favorite starred | |
+| Progress Report opened | |
+| Badges screen opened | |
+| Settings opened | |
+
+### Category Visits (drill list opens)
+| Category | Times Opened |
+|----------|-------------|
+| Ball Handling Foundations | |
+| Ball Handling Moves | |
+| Game Handles | |
+| Footwork Lab | |
+| Footwork | |
+| Shooting Lab | |
+| Shooting Drills | |
+| Finishing School | |
+| Finishing | |
+| Post Moves | |
+| Explosion & Jumps | |
+| Speed & Agility | |
+| Strength | |
+| Conditioning | |
+| Coordination | |
+| Deceleration & Landing | |
+| Athletic Movement | |
+| Basketball IQ | |
+
+### Exercise Completions (top 10 most completed)
+| Exercise | Times Completed |
+|----------|----------------|
+| | |
+| | |
+| | |
+| | |
+| | |
+| | |
+| | |
+| | |
+| | |
+| | |
 
 ---
 
-## Retention Check (end of week 2)
+## Retention Check — End of Week 1
 
-- Athletes who returned 2+ days: 
-- Athletes who returned 4+ days: 
-- Athletes who completed a full program week: 
-- Feature used every session (across all athletes): 
-- Feature never used: 
-
----
-
-## Observations Summary (fill at end of 2 weeks)
-
-**What athletes actually use:**
-> 
-
-**What athletes ignore:**
-> 
-
-**Biggest pain point:**
-> 
-
-**Biggest delight:**
-> 
-
-**Most requested feature:**
-> 
-
-**Surprising behavior:**
-> 
+| Metric | Count |
+|--------|-------|
+| Total athletes observed | |
+| Athletes who returned 2+ days | |
+| Athletes who completed a Daily Mission | |
+| Athletes who enrolled in a Program | |
+| Athletes who logged shots | |
+| Athletes who opened Progress Report | |
+| Average estimated session length | |
+| Most common first action | |
 
 ---
 
-## Prioritized Backlog (generated from observations)
+## Retention Check — End of Week 2
 
-> Fill this section only after the observation window closes.  
-> Items are ranked by frequency of athlete-generated signal — not personal preference.
-
-| Priority | Item | Signal Source | Effort |
-|----------|------|--------------|--------|
-| 1 | | | |
-| 2 | | | |
-| 3 | | | |
-| 4 | | | |
-| 5 | | | |
+| Metric | Count |
+|--------|-------|
+| Athletes who returned 4+ days | |
+| Athletes who completed a full program week | |
+| Feature used every single session | |
+| Feature never used across all athletes | |
+| Most mentioned feature request | |
+| Biggest surprise | |
 
 ---
 
-## RC1 Baseline (for comparison)
+## End-of-Window Observations Summary
 
-Captured at deployment. Reference these numbers when evaluating retention.
+> Complete only after the 2-week window closes.
 
-| Metric | Value at RC1 |
-|--------|-------------|
+### Most Used Features
+1. 
+2. 
+3. 
+4. 
+5. 
+
+### Least Used Features
+1. 
+2. 
+3. 
+
+### Most Opened Categories
+1. 
+2. 
+3. 
+
+### Most Completed Programs
+1. 
+2. 
+
+### Most Favorited Exercises
+1. 
+2. 
+3. 
+
+### Biggest Friction Points
+1. 
+2. 
+3. 
+
+### Parent Feedback Summary
+> 
+
+### Athlete Feedback Summary
+> 
+
+---
+
+## Prioritized RC2 Backlog
+
+> Populated from observation data only. Items without signal are excluded.
+
+| Priority | Item | Signal | Observations | Est. Effort |
+|----------|------|--------|-------------|------------|
+| 1 | | | | |
+| 2 | | | | |
+| 3 | | | | |
+| 4 | | | | |
+| 5 | | | | |
+
+---
+
+## RC1 Baseline Reference
+
+| Metric | RC1 Value |
+|--------|-----------|
 | Total exercises | ~220 |
-| Total workout templates | 6 |
+| Workout templates | 6 |
 | Training programs | 5 |
-| Badge categories | progression + challenge + program |
 | Total badges | 27 |
-| Shot zones | 9 (court) + 6 (quick tap) |
-| Report periods | 3 (7d / 30d / all-time) |
-| Daily Mission structure | 2 required tasks + 1 optional shot goal |
+| Shot zones | 9 court + 6 quick-tap |
+| Report periods | 7d / 30d / All Time |
+| Daily Mission structure | 2 required + 1 optional shot goal |
+| FKH original videos | 1 |
+| Third-party videos | ~198 |
 
 ---
 
+*Created: 2026-05-30*  
 *Last updated: 2026-05-30*  
-*Next review: After 2-week observation window closes*
+*Next review: End of 2-week observation window*
