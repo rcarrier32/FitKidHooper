@@ -2333,6 +2333,196 @@ function programCurrentWeek(startDate, duration) {
   return Math.min(duration, Math.max(1, Math.floor(days / 7) + 1));
 }
 
+/* ═══════════════════════ PROGRESS REPORT ════════════════════ */
+
+function computePeriodXP(periodEntries) {
+  // periodEntries = [[key, true], ...] filtered to a date range
+  const dayMap = {};
+  let exXP = 0;
+  for (const [k] of periodEntries) {
+    exXP += 5;
+    const date = k.split("-").slice(0,3).join("-");
+    const exId = k.split("-").slice(3).join("-");
+    if (!dayMap[date]) dayMap[date] = { count:0, cats:new Set() };
+    dayMap[date].count++;
+    const cat = ALL_EXERCISES[exId]?._cat;
+    if (cat) dayMap[date].cats.add(cat);
+  }
+  let workoutXP = 0;
+  for (const info of Object.values(dayMap)) {
+    if (info.count >= 3 && info.cats.size >= 2) workoutXP += 25;
+  }
+  return exXP + workoutXP;
+}
+
+function buildReport(period, completed, badgeDatesMap, enrolledPrograms, favorites) {
+  const now = new Date();
+  const todayStr = now.toLocaleDateString("en-CA");
+  const periodStart = period==="7d"
+    ? new Date(now.getTime()-7*86400000).toLocaleDateString("en-CA")
+    : period==="30d"
+    ? new Date(now.getTime()-30*86400000).toLocaleDateString("en-CA")
+    : "2000-01-01";
+  const inPeriod = d => d>=periodStart && d<=todayStr;
+
+  // Period-filtered completed entries
+  const periodEntries = Object.entries(completed).filter(([k,v])=>{
+    if (!v) return false;
+    return inPeriod(k.split("-").slice(0,3).join("-"));
+  });
+
+  // Group by date
+  const dayExMap = {};
+  for (const [k] of periodEntries) {
+    const date = k.split("-").slice(0,3).join("-");
+    const exId = k.split("-").slice(3).join("-");
+    if (!dayExMap[date]) dayExMap[date] = [];
+    dayExMap[date].push(exId);
+  }
+
+  const trainingDays = Object.keys(dayExMap).length;
+  const totalExercises = periodEntries.length;
+  const totalMinutes = periodEntries.reduce((sum,[k])=>{
+    const ex = ALL_EXERCISES[k.split("-").slice(3).join("-")];
+    return sum + Math.round((ex?.meta?.estimatedDuration||180)/60);
+  }, 0);
+
+  // Shots
+  let shotTotal=0, shotBestDay=0, shotBestDayDate=null;
+  const shotDayTotals = {};
+  try {
+    const sl = JSON.parse(localStorage.getItem("shot_log_v2")||"{}");
+    for (const [date, shots] of Object.entries(sl)) {
+      if (!inPeriod(date)) continue;
+      const makes = (shots||[]).filter(s=>s.made!==false).length;
+      shotTotal += makes;
+      shotDayTotals[date] = (shotDayTotals[date]||0) + makes;
+    }
+    for (const [date, count] of Object.entries(shotDayTotals)) {
+      if (count>shotBestDay) { shotBestDay=count; shotBestDayDate=date; }
+    }
+  } catch {}
+  const shotActiveDays = Object.keys(shotDayTotals).filter(d=>shotDayTotals[d]>0).length;
+  const shotAverage = shotActiveDays>0 ? Math.round(shotTotal/shotActiveDays) : 0;
+
+  // Streaks
+  const allDays = [...new Set(
+    Object.entries(completed).filter(([,v])=>v).map(([k])=>k.split("-").slice(0,3).join("-"))
+  )].sort();
+  let currentStreak=0;
+  { let d=new Date(now); for(let i=0;i<365;i++){const k=d.toLocaleDateString("en-CA"); if(allDays.includes(k)){currentStreak++;d.setDate(d.getDate()-1);}else break;} }
+  const periodDays = allDays.filter(d=>inPeriod(d));
+  let longestStreak=0, stk=0;
+  for(let i=0;i<periodDays.length;i++){
+    if(i===0){stk=1;}else{const diff=(new Date(periodDays[i]+"T12:00:00")-new Date(periodDays[i-1]+"T12:00:00"))/86400000; if(diff<=1.5)stk++;else stk=1;}
+    longestStreak=Math.max(longestStreak,stk);
+  }
+
+  // Categories
+  const REPORT_CATS = [
+    {key:"ballhandling",  label:"Ball Handling Foundations",emoji:"🤲"},
+    {key:"game_handles",  label:"Game Handles",            emoji:"🎮"},
+    {key:"footwork_lab",  label:"Footwork Lab",            emoji:"👟"},
+    {key:"finishing_school",label:"Finishing School",      emoji:"🏁"},
+    {key:"finishing",     label:"Finishing",               emoji:"🏀"},
+    {key:"shooting_lab",  label:"Shooting Lab",            emoji:"🎯"},
+    {key:"postmoves",     label:"Post Moves",              emoji:"🏋️"},
+    {key:"basketball_iq", label:"Basketball IQ",           emoji:"🧠"},
+  ];
+  const catCounts = {};
+  for(const [k] of periodEntries){
+    const cat = ALL_EXERCISES[k.split("-").slice(3).join("-")]?._cat;
+    if(cat) catCounts[cat]=(catCounts[cat]||0)+1;
+  }
+  const categories = REPORT_CATS.map(c=>({
+    ...c, count:catCounts[c.key]||0,
+    pct: totalExercises>0 ? Math.round(((catCounts[c.key]||0)/totalExercises)*100) : 0,
+  }));
+
+  // Period XP
+  const periodXP = computePeriodXP(periodEntries);
+
+  // Badges earned in period
+  const badgesInPeriod = Object.entries(badgeDatesMap)
+    .filter(([,date])=>inPeriod(date))
+    .map(([id])=>BADGES_DEF.find(b=>b.id===id))
+    .filter(Boolean);
+
+  // Completed programs (all time — no timestamp available)
+  const completedPrograms = PROGRAMS.filter(p=>computeProgramProgress(p,completed)>=1);
+
+  // Completed challenges (all time)
+  const completedChallenges = CHALLENGES_DEF.filter(def=>{
+    const {cur,target}=getChallengeProgress(def,completed); return cur>=target;
+  });
+
+  // Most completed exercise (all time)
+  const exCounts = {};
+  for(const [k,v] of Object.entries(completed)){
+    if(!v) continue;
+    const exId=k.split("-").slice(3).join("-");
+    exCounts[exId]=(exCounts[exId]||0)+1;
+  }
+  const mostCompletedId = Object.entries(exCounts).sort((a,b)=>b[1]-a[1])[0]?.[0];
+  const mostCompleted = mostCompletedId ? {...(ALL_EXERCISES[mostCompletedId]||{}), count:exCounts[mostCompletedId]} : null;
+
+  // Most completed in period
+  const periodExCounts = {};
+  for(const [k] of periodEntries){
+    const exId=k.split("-").slice(3).join("-");
+    periodExCounts[exId]=(periodExCounts[exId]||0)+1;
+  }
+  const periodMostId = Object.entries(periodExCounts).sort((a,b)=>b[1]-a[1])[0]?.[0];
+  const periodMostCompleted = periodMostId ? {...(ALL_EXERCISES[periodMostId]||{}), count:periodExCounts[periodMostId]} : null;
+
+  // Starred favorites
+  const favExId = Object.entries(favorites.exercises||{}).sort((a,b)=>b[1]-a[1])[0]?.[0];
+  const favWorkoutKey = Object.entries(favorites.workouts||{}).sort((a,b)=>b[1]-a[1])[0]?.[0];
+  const favProgId = Object.entries(favorites.programs||{}).sort((a,b)=>b[1]-a[1])[0]?.[0];
+
+  return {
+    period, periodStart,
+    training:{ days:trainingDays, exercises:totalExercises, minutes:totalMinutes },
+    shots:{ total:shotTotal, average:shotAverage, bestDay:shotBestDay, bestDayDate:shotBestDayDate },
+    streaks:{ current:currentStreak, longest:longestStreak, days:trainingDays },
+    periodXP,
+    categories,
+    badges:badgesInPeriod,
+    completedPrograms,
+    completedChallenges,
+    mostCompleted,
+    periodMostCompleted,
+    favExercise: favExId ? ALL_EXERCISES[favExId] : null,
+    favWorkout: favWorkoutKey ? WORKOUT_TEMPLATES[favWorkoutKey] : null,
+    favProgram: favProgId ? PROGRAMS.find(p=>p.id===favProgId) : null,
+  };
+}
+
+function generateInsights(report, period, currentLevel) {
+  const pLabel = period==="7d"?"week":period==="30d"?"month":"all time";
+  const insights = [];
+  const activeCats = [...report.categories].filter(c=>c.count>0).sort((a,b)=>b.count-a.count);
+
+  if(activeCats.length>0) insights.push(`Your strongest area this ${pLabel} was ${activeCats[0].label}. ${activeCats[0].emoji}`);
+  if(activeCats.length>=2){
+    const ratio=Math.round(activeCats[0].count/activeCats[activeCats.length-1].count);
+    if(ratio>=2) insights.push(`You trained ${activeCats[0].label} ${ratio}× more than ${activeCats[activeCats.length-1].label}. 📊`);
+  }
+  if(report.streaks.current>=3) insights.push(`You're on a ${report.streaks.current}-day streak — keep stacking! 🔥`);
+  else if(report.streaks.longest>=3) insights.push(`Your longest streak this ${pLabel} was ${report.streaks.longest} days. Build on that. 🔥`);
+  if(report.shots.total>=50) insights.push(`You made ${report.shots.total.toLocaleString()} shots this ${pLabel}. ${report.shots.bestDay>0?`Best day: ${report.shots.bestDay} makes.`:""} 🎯`);
+  if(report.completedPrograms.length>0) insights.push(`You completed the ${report.completedPrograms[0].name} program — ${report.completedPrograms[0].emoji}`);
+  if(period==="7d"&&report.training.days>0) insights.push(`You trained ${report.training.days} out of 7 days this week. 📅`);
+  else if(period==="30d"&&report.training.days>=3){
+    const avg=Math.round(report.training.days/4.3);
+    insights.push(`You averaged ${avg} training session${avg!==1?"s":""} per week this month. 📅`);
+  }
+  if(report.periodXP>=100) insights.push(`You earned ${report.periodXP} XP this ${pLabel}. ⭐`);
+  if(report.training.exercises===0) insights.push(`No training logged this ${pLabel} yet — every journey starts with one drill. 🏀`);
+
+  return insights.slice(0,3);
+}
+
 /* ═══════════════════════ DAILY MISSION SYSTEM ══════════════ */
 
 /**
@@ -5307,6 +5497,7 @@ export default function SummerTrainingApp() {
   const [selectedProgram, setSelectedProgram] = useState(null); // programId string when drill-in open
   const [missionLog, setMissionLog] = useState(()=>{ try{return JSON.parse(localStorage.getItem("fkh-missions")||"{}")}catch{return{}} });
   const [favorites, setFavorites] = useState(()=>{ try{return JSON.parse(localStorage.getItem("fkh-favs")||'{"exercises":{},"workouts":{},"programs":{}}')}catch{return{exercises:{},workouts:{},programs:{}}} });
+  const [reportPeriod, setReportPeriod] = useState("30d");
   const [strDay, setStrDay] = useState(()=>localStorage.getItem('s_strday')||'Day 1');
   const [onboardName, setOnboardName] = useState('');
   const [showOnboarding, setShowOnboarding] = useState(()=>!localStorage.getItem('s_onboarded')&&settings.athleteName===DEFAULT.athleteName);
@@ -5870,6 +6061,230 @@ export default function SummerTrainingApp() {
     );
   }
 
+  /* REPORT */
+  if (view==="report") {
+    const report = buildReport(reportPeriod, completed, badgeDates, enrolledPrograms, favorites);
+    const insights = generateInsights(report, reportPeriod, currentLevel);
+    const periodLabel = reportPeriod==="7d"?"Last 7 Days":reportPeriod==="30d"?"Last 30 Days":"All Time";
+
+    const Section = ({emoji,title,children})=>(
+      <div style={{ margin:"0 18px 14px",borderRadius:14,background:SF,border:"1px solid rgba(255,255,255,0.07)",overflow:"hidden" }}>
+        <div style={{ padding:"12px 14px",borderBottom:"1px solid rgba(255,255,255,0.06)",display:"flex",alignItems:"center",gap:8 }}>
+          <span style={{ fontSize:16 }}>{emoji}</span>
+          <span style={{ fontSize:12,fontWeight:800,color:"#f1f5f9",letterSpacing:"0.01em" }}>{title}</span>
+        </div>
+        <div style={{ padding:"12px 14px" }}>{children}</div>
+      </div>
+    );
+    const Stat = ({label,value,sub})=>(
+      <div style={{ textAlign:"center" }}>
+        <div style={{ fontSize:22,fontWeight:800,fontFamily:"'DM Mono',monospace",color:P,lineHeight:1 }}>{value}</div>
+        <div style={{ fontSize:9,color:"#475569",textTransform:"uppercase",letterSpacing:"0.06em",marginTop:3 }}>{label}</div>
+        {sub&&<div style={{ fontSize:10,color:"#334155",marginTop:2 }}>{sub}</div>}
+      </div>
+    );
+
+    return (
+      <div style={{ background:BG,minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:80 }}>
+        {showSettings&&<SettingsSheet settings={settings} setSettings={setSettings} onClose={()=>setShowSettings(false)}/>}
+        {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]} onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
+        {activeExercise&&<ExerciseDetailSheet exercise={activeExercise} color={P}
+          bg2={SF} brd={bd} BG={BG} SF={SF}
+          isDone={isDone(activeExercise.id)} onToggle={()=>toggle(activeExercise.id)}
+          onClose={closeDetail} onNext={nextExDetail?()=>setActiveExercise(nextExDetail):null}
+          completed={completed}
+          favored={isFav("exercises",activeExercise.id)}
+          onToggleFav={()=>toggleFav("exercises",activeExercise.id)}/>}
+
+        {/* Header */}
+        <div style={{ padding:"20px 18px 14px" }}>
+          <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4 }}>
+            <div>
+              <button onClick={()=>setView("home")} style={{ marginBottom:10,padding:"5px 12px",borderRadius:8,border:`1px solid ${P}30`,background:`${P}14`,color:P,fontSize:11,fontWeight:700,cursor:"pointer" }}>← Home</button>
+              <h1 style={{ fontSize:22,fontWeight:800,color:"#f1f5f9",margin:0 }}>📈 Progress Report</h1>
+              <p style={{ fontSize:12,color:"#64748b",margin:"4px 0 0" }}>{settings.athleteName} · {periodLabel}</p>
+            </div>
+            <button onClick={()=>setShowSettings(true)} style={{ padding:"8px 10px",borderRadius:10,border:`1px solid ${bd}`,background:SF,color:"#64748b",fontSize:14,cursor:"pointer" }}>⚙️</button>
+          </div>
+          {/* Period selector */}
+          <div style={{ display:"flex",gap:6,marginTop:10 }}>
+            {[["7d","7 Days"],["30d","30 Days"],["all","All Time"]].map(([key,label])=>(
+              <button key={key} onClick={()=>setReportPeriod(key)}
+                style={{ flex:1,padding:"9px 0",borderRadius:10,fontSize:11,fontWeight:700,cursor:"pointer",border:"none",
+                  background:reportPeriod===key?P:"rgba(255,255,255,0.06)",
+                  color:reportPeriod===key?"#000":"#64748b" }}>
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 💡 Coach FKH Insights — at the top for impact */}
+        <Section emoji="💡" title="Coach FKH Insights">
+          <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
+            {insights.length>0 ? insights.map((ins,i)=>(
+              <div key={i} style={{ display:"flex",gap:10,alignItems:"flex-start",padding:"9px 11px",borderRadius:10,background:`${P}0d`,border:`1px solid ${P}20` }}>
+                <div style={{ width:20,height:20,borderRadius:6,background:`${P}20`,border:`1px solid ${P}35`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:800,color:P,flexShrink:0,marginTop:1 }}>{i+1}</div>
+                <span style={{ fontSize:12,color:"#cbd5e1",lineHeight:1.55 }}>{ins}</span>
+              </div>
+            )) : (
+              <div style={{ fontSize:12,color:"#475569",textAlign:"center",padding:"8px 0" }}>Train more to unlock insights. 🏀</div>
+            )}
+          </div>
+        </Section>
+
+        {/* 🏋️ Training Overview */}
+        <Section emoji="🏋️" title="Training">
+          <div style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10 }}>
+            <Stat label="Days" value={report.training.days}/>
+            <Stat label="Exercises" value={report.training.exercises}/>
+            <Stat label="Minutes" value={report.training.minutes}/>
+          </div>
+        </Section>
+
+        {/* 🏀 Shots Made */}
+        <Section emoji="🏀" title="Shots Made">
+          {report.shots.total===0
+            ? <div style={{ fontSize:12,color:"#475569",textAlign:"center" }}>No shots logged this period.</div>
+            : <div style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10 }}>
+                <Stat label="Total Makes" value={report.shots.total.toLocaleString()}/>
+                <Stat label="Daily Avg" value={report.shots.average}/>
+                <Stat label="Best Day" value={report.shots.bestDay} sub={report.shots.bestDayDate ? new Date(report.shots.bestDayDate+"T12:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric"}) : ""}/>
+              </div>
+          }
+        </Section>
+
+        {/* 🔥 Streaks */}
+        <Section emoji="🔥" title="Streaks">
+          <div style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10 }}>
+            <Stat label="Current" value={`${report.streaks.current}d`}/>
+            <Stat label="Best This Period" value={`${report.streaks.longest}d`}/>
+            <Stat label="Training Days" value={report.streaks.days}/>
+          </div>
+        </Section>
+
+        {/* ⭐ Level Progress */}
+        <Section emoji="⭐" title="Level Progress">
+          <div style={{ display:"flex",alignItems:"center",gap:12,marginBottom:10 }}>
+            <span style={{ fontSize:28 }}>{currentLevel.emoji}</span>
+            <div style={{ flex:1 }}>
+              <div style={{ fontSize:14,fontWeight:800,color:"#f1f5f9" }}>{currentLevel.name}</div>
+              <div style={{ fontSize:11,color:"#64748b" }}>
+                {reportPeriod!=="all" ? `+${report.periodXP} XP earned this period` : `${xpData.total} XP total`}
+              </div>
+            </div>
+            <div style={{ textAlign:"right" }}>
+              <div style={{ fontSize:18,fontWeight:800,fontFamily:"'DM Mono',monospace",color:P }}>{xpData.total.toLocaleString()}</div>
+              <div style={{ fontSize:9,color:"#475569" }}>TOTAL XP</div>
+            </div>
+          </div>
+          {(()=>{
+            const nextLv = LEVELS.find(l=>l.xpMin>xpData.total);
+            if (!nextLv) return <div style={{ fontSize:11,color:"#22c55e",fontWeight:700 }}>🏆 Max Level Achieved!</div>;
+            const pct = Math.round(((xpData.total-currentLevel.xpMin)/(nextLv.xpMin-currentLevel.xpMin))*100);
+            return (
+              <>
+                <div style={{ display:"flex",justifyContent:"space-between",marginBottom:6 }}>
+                  <span style={{ fontSize:10,color:"#64748b" }}>→ {nextLv.emoji} {nextLv.name}</span>
+                  <span style={{ fontSize:10,color:P,fontWeight:700 }}>{pct}%</span>
+                </div>
+                <div style={{ height:5,borderRadius:99,background:"rgba(255,255,255,0.07)" }}>
+                  <div style={{ height:"100%",width:`${pct}%`,borderRadius:99,background:`linear-gradient(90deg,${P},${S})` }}/>
+                </div>
+                <div style={{ fontSize:10,color:"#475569",marginTop:6 }}>{nextLv.xpMin-xpData.total} XP to {nextLv.name}</div>
+              </>
+            );
+          })()}
+        </Section>
+
+        {/* 📈 Category Breakdown */}
+        <Section emoji="📈" title="Category Breakdown">
+          {report.training.exercises===0
+            ? <div style={{ fontSize:12,color:"#475569",textAlign:"center" }}>No exercises logged this period.</div>
+            : <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
+                {report.categories.filter(c=>c.count>0).sort((a,b)=>b.count-a.count).map(cat=>(
+                  <div key={cat.key}>
+                    <div style={{ display:"flex",justifyContent:"space-between",marginBottom:4 }}>
+                      <span style={{ fontSize:12,fontWeight:600,color:"#e2e8f0" }}>{cat.emoji} {cat.label}</span>
+                      <span style={{ fontSize:11,color:P,fontWeight:700 }}>{cat.count} · {cat.pct}%</span>
+                    </div>
+                    <div style={{ height:5,borderRadius:99,background:"rgba(255,255,255,0.07)" }}>
+                      <div style={{ height:"100%",width:`${cat.pct}%`,borderRadius:99,background:P,minWidth:cat.count>0?4:0 }}/>
+                    </div>
+                  </div>
+                ))}
+                {report.categories.every(c=>c.count===0) && <div style={{ fontSize:12,color:"#475569",textAlign:"center" }}>No basketball-specific categories tracked yet.</div>}
+              </div>
+          }
+        </Section>
+
+        {/* 🏆 Achievements */}
+        <Section emoji="🏆" title="Achievements">
+          <div style={{ display:"flex",flexDirection:"column",gap:10 }}>
+            {/* Badges earned in period */}
+            <div>
+              <div style={{ fontSize:10,color:"#64748b",fontWeight:700,marginBottom:6,textTransform:"uppercase",letterSpacing:"0.08em" }}>Badges Earned{reportPeriod!=="all"?` This ${reportPeriod==="7d"?"Week":"Month"}`:""}</div>
+              {report.badges.length>0
+                ? <div style={{ display:"flex",flexWrap:"wrap",gap:6 }}>
+                    {report.badges.map(b=>(
+                      <div key={b.id} style={{ display:"flex",alignItems:"center",gap:6,padding:"5px 10px",borderRadius:20,
+                        background:`${b.color||P}15`,border:`1px solid ${b.color||P}30` }}>
+                        <span style={{ fontSize:14 }}>{b.emoji}</span>
+                        <span style={{ fontSize:11,fontWeight:700,color:b.color||P }}>{b.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                : <div style={{ fontSize:11,color:"#334155" }}>No badges earned this period yet.</div>
+              }
+            </div>
+            {/* Programs */}
+            <div>
+              <div style={{ fontSize:10,color:"#64748b",fontWeight:700,marginBottom:6,textTransform:"uppercase",letterSpacing:"0.08em" }}>Programs Completed</div>
+              {report.completedPrograms.length>0
+                ? <div style={{ display:"flex",flexWrap:"wrap",gap:6 }}>
+                    {report.completedPrograms.map(p=>(
+                      <div key={p.id} style={{ display:"flex",alignItems:"center",gap:6,padding:"5px 10px",borderRadius:20,
+                        background:`${p.color}15`,border:`1px solid ${p.color}30` }}>
+                        <span style={{ fontSize:14 }}>{p.emoji}</span>
+                        <span style={{ fontSize:11,fontWeight:700,color:p.color }}>{p.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                : <div style={{ fontSize:11,color:"#334155" }}>No programs completed yet.</div>
+              }
+            </div>
+            {/* Challenges */}
+            <div>
+              <div style={{ fontSize:10,color:"#64748b",fontWeight:700,marginBottom:4,textTransform:"uppercase",letterSpacing:"0.08em" }}>Challenges Completed</div>
+              <div style={{ fontSize:22,fontWeight:800,fontFamily:"'DM Mono',monospace",color:P }}>{report.completedChallenges.length}<span style={{ fontSize:11,color:"#475569",fontWeight:400,fontFamily:"sans-serif" }}> / {CHALLENGES_DEF.length}</span></div>
+            </div>
+          </div>
+        </Section>
+
+        {/* 📌 Favorites */}
+        <Section emoji="📌" title="Favorites">
+          <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
+            {[
+              { label:"Most Completed (All Time)", value: report.mostCompleted ? `${report.mostCompleted.name} (${report.mostCompleted.count}×)` : "—" },
+              { label:`Top Drill This ${reportPeriod==="7d"?"Week":reportPeriod==="30d"?"Month":"Period"}`, value: report.periodMostCompleted ? `${report.periodMostCompleted.name} (${report.periodMostCompleted.count}×)` : "—" },
+              { label:"⭐ Starred Exercise", value: report.favExercise ? report.favExercise.name : "None yet — tap ☆ on any drill" },
+              { label:"⭐ Starred Workout", value: report.favWorkout ? `${report.favWorkout.emoji} ${report.favWorkout.name}` : "None yet" },
+              { label:"⭐ Starred Program", value: report.favProgram ? `${report.favProgram.emoji} ${report.favProgram.name}` : "None yet" },
+            ].map(({label,value})=>(
+              <div key={label} style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12,
+                padding:"8px 0",borderBottom:"1px solid rgba(255,255,255,0.05)" }}>
+                <span style={{ fontSize:11,color:"#64748b",flex:1 }}>{label}</span>
+                <span style={{ fontSize:11,fontWeight:700,color:"#e2e8f0",textAlign:"right",maxWidth:"55%" }}>{value}</span>
+              </div>
+            ))}
+          </div>
+        </Section>
+
+        {renderBottomNav()}
+      </div>
+    );
+  }
+
   /* HOME / SCHEDULE */
   return (
     <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"#e2e8f0",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
@@ -6404,6 +6819,17 @@ export default function SummerTrainingApp() {
                   <div style={{ height:3,borderRadius:2,background:"rgba(255,255,255,0.07)",overflow:"hidden" }}>
                     <div style={{ height:"100%",width:`${Math.min(100,Math.round((weekMakesNow/weekShotGoal)*100))}%`,background:"#60a5fa",borderRadius:2 }}/>
                   </div>
+                </div>
+              </div>
+
+              {/* Progress Report teaser */}
+              <div onClick={()=>setView("report")}
+                style={{ margin:"0 20px 10px",padding:"12px 14px",borderRadius:14,cursor:"pointer",
+                  background:`${S}0c`,border:`1px solid ${S}28`,display:"flex",alignItems:"center",gap:12 }}>
+                <div style={{ width:36,height:36,borderRadius:10,background:`${S}18`,border:`1px solid ${S}30`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0 }}>📈</div>
+                <div style={{ flex:1,minWidth:0 }}>
+                  <div style={{ fontSize:10,fontWeight:800,color:S,letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:3 }}>Progress Report</div>
+                  <div style={{ fontSize:12,color:"#94a3b8",lineHeight:1.4 }}>See how you've improved this month →</div>
                 </div>
               </div>
 
