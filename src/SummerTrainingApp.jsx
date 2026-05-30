@@ -5293,7 +5293,19 @@ export default function SummerTrainingApp() {
           const weekShotGoal = (()=>{ try{return parseInt(localStorage.getItem("shot_week_goal")||"100");}catch{return 100;} })();
           const allUnearned  = BADGES_DEF.filter(b=>!earnedBadges.includes(b.id)).map(b=>{ const {cur,target}=getBadgeProgress(b,completed); return {...b,cur,target,pct:cur/target}; }).sort((a,b)=>b.pct-a.pct||a.target-b.target);
           const nextBadge    = allUnearned[0]||null;
-          const upcomingBadges = allUnearned.slice(0,3);
+
+          /* ── Upcoming Unlocks: badges + next level merged, sorted by proximity ── */
+          const levelItem = nextLv ? {
+            id:"__level__", emoji:nextLv.emoji, name:`${nextLv.name} Level`,
+            color:S, cur:xpData.total-currentLevel.xpMin,
+            target:nextLv.xpMin-currentLevel.xpMin, pct:xpPct/100,
+            desc:`${xpLeft} XP remaining to reach ${nextLv.name}`
+          } : null;
+          const upcomingPool = levelItem
+            ? [...allUnearned, levelItem].sort((a,b)=>b.pct-a.pct||(a.target-a.cur)-(b.target-b.cur))
+            : allUnearned;
+          const upcomingBadges = upcomingPool.slice(0,3);
+
           const doneToday    = Object.keys(completed).filter(k=>k.startsWith(new Date().toLocaleDateString("en-CA"))&&completed[k]).length;
 
           /* ── Training gap: which basketball cat hasn't been hit in 7+ days ── */
@@ -5316,17 +5328,26 @@ export default function SummerTrainingApp() {
             .map(def=>{ const {cur,target}=getChallengeProgress(def,completed); return {...def,cur,target,pct:cur/target}; })
             .filter(c=>c.pct<1&&c.pct>=0.6).sort((a,b)=>b.pct-a.pct)[0]||null;
 
+          /* ── Cross-category balance: handles vs shooting ── */
+          const catDoneCount = (keys) => keys.flatMap(k=>(WORKOUTS[k]||[]).filter(e=>Object.keys(completed).some(c=>completed[c]&&c.includes(e.id)))).length;
+          const handlesDone  = catDoneCount(["handles","game_handles","ballhandling"]);
+          const shootingDone = catDoneCount(["shooting","shooting_lab","shootingdrills"]);
+          let balanceMsg = null;
+          if (handlesDone>=3 && shootingDone<2)  balanceMsg="Your ball handling is ahead — get some shooting reps to balance your game. 🎯";
+          else if (shootingDone>=3 && handlesDone<2) balanceMsg="Your shooting is ahead — your weak-hand development needs attention. 🤲";
+
           /* ── Smart coach message (priority order) ── */
           let coachMsg = "";
-          if      (streak>=3&&doneToday===0)                       coachMsg=`Keep your ${streak}-day streak alive — train today! 🔥`;
-          else if (doneToday===0&&streak===0)                      coachMsg="Every champion started at zero. Let's get your first rep in. 🏀";
-          else if (nextBadge&&nextBadge.target-nextBadge.cur===1)  coachMsg=`One more and you unlock the ${nextBadge.name} badge! 🏆`;
-          else if (nextLv&&xpLeft<=20)                             coachMsg=`Only ${xpLeft} XP away from ${nextLv.name}. Finish strong! 🌟`;
-          else if (closeChallenge)                                  coachMsg=`Only ${closeChallenge.target-closeChallenge.cur} more to complete ${closeChallenge.name}. 🎯`;
-          else if (gapCat&&doneToday===0)                          coachMsg=`You haven't hit ${gapCat} in a week — today's the day. 🏀`;
-          else if (doneToday>=3)                                   coachMsg=`${doneToday} drills today — you're locked in. Keep stacking! 🔥`;
-          else if (doneToday>=1)                                   coachMsg="Good start today. One more session makes the difference. 💪";
-          else                                                     coachMsg="Stay consistent. Every rep builds the player you're becoming. 📈";
+          if      (streak>=3&&doneToday===0)                        coachMsg=`Keep your ${streak}-day streak alive — train today! 🔥`;
+          else if (doneToday===0&&streak===0)                       coachMsg="Every champion started at zero. Let's get your first rep in. 🏀";
+          else if (nextBadge&&nextBadge.target-nextBadge.cur===1)   coachMsg=`One more and you unlock the ${nextBadge.name} badge! 🏆`;
+          else if (nextLv&&xpLeft<=20)                              coachMsg=`Only ${xpLeft} XP away from ${nextLv.name}. Finish strong! 🌟`;
+          else if (closeChallenge)                                   coachMsg=`Only ${closeChallenge.target-closeChallenge.cur} more to complete ${closeChallenge.name}. 🎯`;
+          else if (gapCat&&doneToday===0)                           coachMsg=`You haven't trained ${gapCat} in a week — today's the day. 🏀`;
+          else if (balanceMsg)                                       coachMsg=balanceMsg;
+          else if (doneToday>=3)                                    coachMsg=`${doneToday} drills today — you're locked in. Keep stacking! 🔥`;
+          else if (doneToday>=1)                                    coachMsg="Good start today. One more session makes the difference. 💪";
+          else                                                      coachMsg="Stay consistent. Every rep builds the player you're becoming. 📈";
 
           return (
             <>
