@@ -4761,7 +4761,7 @@ function ProfileView({ settings, totalXP, xpData, currentLevel, earnedBadges, co
 }
 
 /* ═══════════════════════ EXERCISE DETAIL SHEET ════════════ */
-function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onToggle, onClose, onNext, completed }) {
+function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onToggle, onClose, onNext, completed, favored, onToggleFav }) {
   const meta      = exercise.meta || {};
   const cat       = exercise._cat || "speed";
   const catInfo   = CATS[cat] || { label:cat, emoji:"⚡" };
@@ -4822,11 +4822,21 @@ function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onTogg
             textAlign:"center",letterSpacing:"0.02em" }}>
             {catInfo.emoji} {catInfo.label}
           </span>
-          {isDone
-            ? <span style={{ fontSize:11,fontWeight:700,color:"#22c55e",
-                padding:"4px 10px",background:"rgba(34,197,94,0.1)",
-                border:"1px solid rgba(34,197,94,0.2)",borderRadius:20 }}>✓ Done</span>
-            : <div style={{ width:56 }}/>}
+          <div style={{ display:"flex",alignItems:"center",gap:6 }}>
+            {onToggleFav&&(
+              <button onClick={onToggleFav}
+                style={{ padding:"4px 9px",borderRadius:8,border:`1px solid ${favored?"rgba(250,204,21,0.4)":color+"25"}`,
+                  background:favored?"rgba(250,204,21,0.12)":"transparent",
+                  fontSize:15,cursor:"pointer",lineHeight:1 }}>
+                {favored?"⭐":"☆"}
+              </button>
+            )}
+            {isDone
+              ? <span style={{ fontSize:11,fontWeight:700,color:"#22c55e",
+                  padding:"4px 10px",background:"rgba(34,197,94,0.1)",
+                  border:"1px solid rgba(34,197,94,0.2)",borderRadius:20 }}>✓ Done</span>
+              : <div style={{ width:onToggleFav?0:56 }}/>}
+          </div>
         </div>
 
         {/* Scrollable body */}
@@ -5206,7 +5216,7 @@ function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onTogg
 }
 
 /* ═══════════════════════ DRILL CARD ═══════════════════════ */
-function DrillCard({ w, color, bg2, brd, isDone, onToggle, onViewDetail }) {
+function DrillCard({ w, color, bg2, brd, isDone, onToggle, onViewDetail, favored, onFav }) {
   // color-derived helpers local to this card
   const metaBg  = `${color}12`;
   const metaBrd = `${color}28`;
@@ -5227,9 +5237,17 @@ function DrillCard({ w, color, bg2, brd, isDone, onToggle, onViewDetail }) {
             {w.trainer && <span style={{ fontSize:9,padding:"2px 8px",borderRadius:20,display:"inline-block",marginBottom:4,marginLeft:4,background:metaBg,color,border:`1px solid ${metaBrd}`,opacity:0.8 }}>📹 {w.trainer}</span>}
             <div style={{ fontSize:13,fontWeight:700,color:"#f1f5f9",lineHeight:1.2 }}>{w.name}</div>
           </div>
-          <button onClick={e=>{e.stopPropagation();onToggle();}} style={{ flexShrink:0,width:44,height:44,borderRadius:"50%",border:`2px solid ${isDone?color:metaBrd}`,background:isDone?color:metaBg,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:13,fontWeight:800,color:isDone?"#000":color }}>
-            {isDone?"✓":"○"}
-          </button>
+          <div style={{ display:"flex",alignItems:"center",gap:6,flexShrink:0 }}>
+            {onFav&&<button onClick={e=>{e.stopPropagation();onFav();}}
+              style={{ width:30,height:30,borderRadius:8,border:`1px solid ${favored?"rgba(250,204,21,0.35)":metaBrd}`,
+                background:favored?"rgba(250,204,21,0.1)":"transparent",
+                fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center" }}>
+              {favored?"⭐":"☆"}
+            </button>}
+            <button onClick={e=>{e.stopPropagation();onToggle();}} style={{ width:44,height:44,borderRadius:"50%",border:`2px solid ${isDone?color:metaBrd}`,background:isDone?color:metaBg,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:13,fontWeight:800,color:isDone?"#000":color }}>
+              {isDone?"✓":"○"}
+            </button>
+          </div>
         </div>
         <div style={{ display:"flex",gap:5,marginBottom:8,flexWrap:"wrap" }}>
           <span style={{ fontSize:10,padding:"3px 8px",background:metaBg,borderRadius:6,fontFamily:"'DM Mono',monospace",color,border:`1px solid ${metaBrd}`,fontWeight:600 }}>{w.sets}</span>
@@ -5288,6 +5306,7 @@ export default function SummerTrainingApp() {
   const [enrolledPrograms, setEnrolledPrograms] = useState(()=>{ try{return JSON.parse(localStorage.getItem("fkh-programs")||"{}")}catch{return{}} });
   const [selectedProgram, setSelectedProgram] = useState(null); // programId string when drill-in open
   const [missionLog, setMissionLog] = useState(()=>{ try{return JSON.parse(localStorage.getItem("fkh-missions")||"{}")}catch{return{}} });
+  const [favorites, setFavorites] = useState(()=>{ try{return JSON.parse(localStorage.getItem("fkh-favs")||'{"exercises":{},"workouts":{},"programs":{}}')}catch{return{exercises:{},workouts:{},programs:{}}} });
   const [strDay, setStrDay] = useState(()=>localStorage.getItem('s_strday')||'Day 1');
   const [onboardName, setOnboardName] = useState('');
   const [showOnboarding, setShowOnboarding] = useState(()=>!localStorage.getItem('s_onboarded')&&settings.athleteName===DEFAULT.athleteName);
@@ -5328,6 +5347,14 @@ export default function SummerTrainingApp() {
   useEffect(()=>{ try{localStorage.setItem("s_done",JSON.stringify(completed))}catch{} },[completed]);
   useEffect(()=>{ try{localStorage.setItem("fkh-programs",JSON.stringify(enrolledPrograms))}catch{} },[enrolledPrograms]);
   useEffect(()=>{ try{localStorage.setItem("fkh-missions",JSON.stringify(missionLog))}catch{} },[missionLog]);
+  useEffect(()=>{ try{localStorage.setItem("fkh-favs",JSON.stringify(favorites))}catch{} },[favorites]);
+
+  const isFav      = (type, id) => !!(favorites[type]||{})[id];
+  const toggleFav  = (type, id) => setFavorites(prev=>{
+    const sec = { ...(prev[type]||{}) };
+    if (sec[id]) delete sec[id]; else sec[id] = Date.now();
+    return { ...prev, [type]:sec };
+  });
 
   const today = todayKey();
   const P = pri(settings), S = sec(settings), BG = bg(settings), ST = str3(settings);
@@ -5477,7 +5504,9 @@ export default function SummerTrainingApp() {
               bg2={SF} brd={`${prog.color}22`} BG={BG} SF={SF}
               isDone={isDone(activeExercise.id)} onToggle={()=>toggle(activeExercise.id)}
               onClose={closeDetail} onNext={nextExDetail?()=>setActiveExercise(nextExDetail):null}
-              completed={completed}/>}
+              completed={completed}
+              favored={isFav("exercises",activeExercise.id)}
+              onToggleFav={()=>toggleFav("exercises",activeExercise.id)}/>}
 
             {/* Header */}
             <div style={{ padding:"16px 18px 0" }}>
@@ -5616,7 +5645,9 @@ export default function SummerTrainingApp() {
           bg2={SF} brd={bd} BG={BG} SF={SF}
           isDone={isDone(activeExercise.id)} onToggle={()=>toggle(activeExercise.id)}
           onClose={closeDetail} onNext={nextExDetail?()=>setActiveExercise(nextExDetail):null}
-          completed={completed}/>}
+          completed={completed}
+          favored={isFav("exercises",activeExercise.id)}
+          onToggleFav={()=>toggleFav("exercises",activeExercise.id)}/>}
 
         {/* Header */}
         <div style={{ padding:"20px 18px 6px" }}>
@@ -5701,7 +5732,15 @@ export default function SummerTrainingApp() {
                       </div>
                     )}
                   </div>
-                  <span style={{ fontSize:16,color:"#475569",flexShrink:0,marginTop:2 }}>›</span>
+                  <div style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:6,flexShrink:0 }}>
+                    <button onClick={e=>{e.stopPropagation();toggleFav("programs",prog.id);}}
+                      style={{ width:28,height:28,borderRadius:8,border:`1px solid ${isFav("programs",prog.id)?"rgba(250,204,21,0.4)":"rgba(255,255,255,0.1)"}`,
+                        background:isFav("programs",prog.id)?"rgba(250,204,21,0.1)":"transparent",
+                        fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center" }}>
+                      {isFav("programs",prog.id)?"⭐":"☆"}
+                    </button>
+                    <span style={{ fontSize:16,color:"#475569" }}>›</span>
+                  </div>
                 </div>
               </div>
             );
@@ -5812,7 +5851,8 @@ export default function SummerTrainingApp() {
         <div style={{ padding:"0 16px 80px" }}>
           {filteredWorkouts.map(w => (
             <DrillCard key={w.id} w={w} color={color} bg2={bg2} brd={brd} isDone={isDone(w.id)} onToggle={()=>toggle(w.id)}
-              onViewDetail={()=>openDetail(w, filteredWorkouts)}/>
+              onViewDetail={()=>openDetail(w, filteredWorkouts)}
+              favored={isFav("exercises",w.id)} onFav={()=>toggleFav("exercises",w.id)}/>
           ))}
         </div>
         {activeExercise&&<ExerciseDetailSheet
@@ -5822,7 +5862,9 @@ export default function SummerTrainingApp() {
           onToggle={()=>toggle(activeExercise.id)}
           onClose={closeDetail}
           onNext={nextExDetail?()=>setActiveExercise(nextExDetail):null}
-          completed={completed}/>}
+          completed={completed}
+          favored={isFav("exercises",activeExercise.id)}
+          onToggleFav={()=>toggleFav("exercises",activeExercise.id)}/>}
         {renderBottomNav()}
       </div>
     );
@@ -5839,7 +5881,9 @@ export default function SummerTrainingApp() {
         onToggle={()=>toggle(activeExercise.id)}
         onClose={closeDetail}
         onNext={nextExDetail?()=>setActiveExercise(nextExDetail):null}
-        completed={completed}/>}
+        completed={completed}
+        favored={isFav("exercises",activeExercise.id)}
+        onToggleFav={()=>toggleFav("exercises",activeExercise.id)}/>}
       {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]}
         onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
       {showOnboarding&&(
@@ -6089,13 +6133,21 @@ export default function SummerTrainingApp() {
         {/* ── WORKOUT TEMPLATE PICKER ─────────────────────────────── */}
         <div style={{ display:"flex",gap:7,overflowX:"auto",padding:"0 20px 10px",scrollbarWidth:"none",WebkitOverflowScrolling:"touch" }}>
           {Object.entries(WORKOUT_TEMPLATES).map(([key,tmpl])=>(
-            <button key={key} onClick={()=>setSelectedTemplate(key)}
-              style={{ flexShrink:0,padding:"7px 13px",borderRadius:20,fontSize:11,fontWeight:700,cursor:"pointer",
-                background:selectedTemplate===key?P:"rgba(255,255,255,0.05)",
-                border:`1.5px solid ${selectedTemplate===key?P:"rgba(255,255,255,0.09)"}`,
-                color:selectedTemplate===key?"#000":"#64748b" }}>
-              {tmpl.emoji} {tmpl.name}
-            </button>
+            <div key={key} style={{ flexShrink:0,display:"flex",alignItems:"center",gap:3 }}>
+              <button onClick={()=>setSelectedTemplate(key)}
+                style={{ padding:"7px 13px",borderRadius:20,fontSize:11,fontWeight:700,cursor:"pointer",
+                  background:selectedTemplate===key?P:"rgba(255,255,255,0.05)",
+                  border:`1.5px solid ${selectedTemplate===key?P:"rgba(255,255,255,0.09)"}`,
+                  color:selectedTemplate===key?"#000":"#64748b" }}>
+                {tmpl.emoji} {tmpl.name}
+              </button>
+              <button onClick={()=>toggleFav("workouts",key)}
+                style={{ padding:"4px 6px",borderRadius:14,fontSize:11,cursor:"pointer",
+                  background:"transparent",border:"none",
+                  color:isFav("workouts",key)?"#facc15":"#334155" }}>
+                {isFav("workouts",key)?"⭐":"☆"}
+              </button>
+            </div>
           ))}
         </div>
 
@@ -6156,6 +6208,71 @@ export default function SummerTrainingApp() {
             <div style={{ fontSize:13,color:"#475569" }}>Generating workout…</div>
           </div>
         )}
+
+        {/* ── FAVORITES ──────────────────────────────────────────── */}
+        {(()=>{
+          const allFavs = [
+            ...Object.entries(favorites.exercises||{}).map(([id,ts])=>({type:"exercise",id,ts})),
+            ...Object.entries(favorites.workouts||{}).map(([id,ts])=>({type:"workout",id,ts})),
+            ...Object.entries(favorites.programs||{}).map(([id,ts])=>({type:"program",id,ts})),
+          ].sort((a,b)=>b.ts-a.ts).slice(0,5);
+          if (allFavs.length===0) return null;
+          return (
+            <div style={{ marginBottom:4 }}>
+              <div style={{ padding:"2px 20px 8px" }}>
+                <div style={lbl}>⭐ Favorites</div>
+              </div>
+              <div style={{ display:"flex",gap:8,overflowX:"auto",padding:"0 20px 14px",scrollbarWidth:"none",WebkitOverflowScrolling:"touch" }}>
+                {allFavs.map(item=>{
+                  if (item.type==="exercise") {
+                    const ex = ALL_EXERCISES[item.id];
+                    if (!ex) return null;
+                    const catInfo = CATS[ex._cat]||{emoji:"🏀",label:ex._cat};
+                    return (
+                      <div key={item.id}
+                        onClick={()=>{ const e={...ex,meta:ex.meta||EXERCISE_META[ex.id]||{}}; openDetail(e,[]); }}
+                        style={{ flexShrink:0,padding:"10px 13px",borderRadius:12,cursor:"pointer",
+                          background:SF,border:`1px solid ${P}22`,minWidth:140,maxWidth:165 }}>
+                        <div style={{ fontSize:10,color:"#475569",marginBottom:4,fontWeight:600 }}>{catInfo.emoji} {catInfo.label}</div>
+                        <div style={{ fontSize:12,fontWeight:700,color:"#f1f5f9",lineHeight:1.3 }}>{ex.name}</div>
+                        <div style={{ fontSize:9,color:"#334155",marginTop:4 }}>{ex.sets}</div>
+                      </div>
+                    );
+                  }
+                  if (item.type==="workout") {
+                    const tmpl = WORKOUT_TEMPLATES[item.id];
+                    if (!tmpl) return null;
+                    return (
+                      <div key={item.id}
+                        onClick={()=>setSelectedTemplate(item.id)}
+                        style={{ flexShrink:0,padding:"10px 13px",borderRadius:12,cursor:"pointer",
+                          background:SF,border:`1px solid ${P}22`,minWidth:140,maxWidth:165 }}>
+                        <div style={{ fontSize:10,color:"#475569",marginBottom:4,fontWeight:600 }}>Workout</div>
+                        <div style={{ fontSize:12,fontWeight:700,color:"#f1f5f9",lineHeight:1.3 }}>{tmpl.emoji} {tmpl.name}</div>
+                        <div style={{ fontSize:9,color:"#334155",marginTop:4 }}>Tap to select</div>
+                      </div>
+                    );
+                  }
+                  if (item.type==="program") {
+                    const prog = PROGRAMS.find(p=>p.id===item.id);
+                    if (!prog) return null;
+                    return (
+                      <div key={item.id}
+                        onClick={()=>{ setView("programs"); setSelectedProgram(prog.id); }}
+                        style={{ flexShrink:0,padding:"10px 13px",borderRadius:12,cursor:"pointer",
+                          background:SF,border:`1px solid ${prog.color}33`,minWidth:140,maxWidth:165 }}>
+                        <div style={{ fontSize:10,color:"#475569",marginBottom:4,fontWeight:600 }}>Program</div>
+                        <div style={{ fontSize:12,fontWeight:700,color:"#f1f5f9",lineHeight:1.3 }}>{prog.emoji} {prog.name}</div>
+                        <div style={{ fontSize:9,color:"#334155",marginTop:4 }}>{prog.duration} weeks</div>
+                      </div>
+                    );
+                  }
+                  return null;
+                })}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ── COACH FKH + DASHBOARD ────────────────────────────────── */}
         {(()=>{
