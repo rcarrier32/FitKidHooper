@@ -5035,8 +5035,10 @@ function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onTogg
           <div style={{ display:"flex",alignItems:"center",gap:6 }}>
             {onToggleFav&&(
               <button onClick={onToggleFav}
-                style={{ padding:"4px 9px",borderRadius:8,border:`1px solid ${favored?"rgba(250,204,21,0.4)":color+"25"}`,
+                style={{ padding:"4px 9px",borderRadius:8,
+                  border:`1px solid ${favored?"rgba(250,204,21,0.45)":"rgba(250,204,21,0.22)"}`,
                   background:favored?"rgba(250,204,21,0.12)":"transparent",
+                  color:favored?"#fbbf24":"rgba(250,204,21,0.5)",
                   fontSize:15,cursor:"pointer",lineHeight:1 }}>
                 {favored?"⭐":"☆"}
               </button>
@@ -5468,8 +5470,10 @@ function DrillCard({ w, color, bg2, brd, isDone, onToggle, onViewDetail, favored
           </div>
           <div style={{ display:"flex",alignItems:"center",gap:6,flexShrink:0 }}>
             {onFav&&<button onClick={e=>{e.stopPropagation();onFav();}}
-              style={{ width:30,height:30,borderRadius:8,border:`1px solid ${favored?"rgba(250,204,21,0.35)":metaBrd}`,
+              style={{ width:30,height:30,borderRadius:8,
+                border:`1px solid ${favored?"rgba(250,204,21,0.45)":"rgba(250,204,21,0.22)"}`,
                 background:favored?"rgba(250,204,21,0.1)":"transparent",
+                color:favored?"#fbbf24":"rgba(250,204,21,0.5)",
                 fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center" }}>
               {favored?"⭐":"☆"}
             </button>}
@@ -5964,8 +5968,10 @@ export default function SummerTrainingApp() {
                   </div>
                   <div style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:6,flexShrink:0 }}>
                     <button onClick={e=>{e.stopPropagation();toggleFav("programs",prog.id);}}
-                      style={{ width:28,height:28,borderRadius:8,border:`1px solid ${isFav("programs",prog.id)?"rgba(250,204,21,0.4)":"rgba(255,255,255,0.1)"}`,
+                      style={{ width:28,height:28,borderRadius:8,
+                        border:`1px solid ${isFav("programs",prog.id)?"rgba(250,204,21,0.45)":"rgba(250,204,21,0.22)"}`,
                         background:isFav("programs",prog.id)?"rgba(250,204,21,0.1)":"transparent",
+                        color:isFav("programs",prog.id)?"#fbbf24":"rgba(250,204,21,0.5)",
                         fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center" }}>
                       {isFav("programs",prog.id)?"⭐":"☆"}
                     </button>
@@ -6601,7 +6607,7 @@ export default function SummerTrainingApp() {
               <button onClick={()=>toggleFav("workouts",key)}
                 style={{ padding:"4px 6px",borderRadius:14,fontSize:11,cursor:"pointer",
                   background:"transparent",border:"none",
-                  color:isFav("workouts",key)?"#facc15":"#334155" }}>
+                  color:isFav("workouts",key)?"#facc15":"rgba(250,204,21,0.5)" }}>
                 {isFav("workouts",key)?"⭐":"☆"}
               </button>
             </div>
