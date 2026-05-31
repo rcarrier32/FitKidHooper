@@ -4989,6 +4989,10 @@ function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onTogg
 
   const level = timesCompleted >= 10 ? "Advanced" : timesCompleted >= 4 ? "Building" : "Learning";
 
+  /* Video player ─────────────────────────────────────────── */
+  const [videoPlaying, setVideoPlaying] = useState(false);
+  useEffect(() => { setVideoPlaying(false); }, [exercise?.id]);
+
   /* Progression chain ────────────────────────────────────── */
   const chain       = getChainForExercise(exercise.id);
   const chainStatus = chain ? getChainStatus(chain, completed) : null;
@@ -5048,12 +5052,42 @@ function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onTogg
         {/* Scrollable body */}
         <div style={{ flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch" }}>
 
-          {/* Video — FKH original or YouTube fallback */}
-          {exercise.videoSource === "fkh" ? (
-            /* ── FKH Original Video ── */
-            <a href={exercise.videoUrl || "#"}
-              target="_blank" rel="noopener noreferrer"
-              style={{ display:"block",position:"relative",background:"#000",aspectRatio:"16/9",overflow:"hidden",textDecoration:"none" }}>
+          {/* Video — inline player or thumbnail tap-to-play */}
+          {videoPlaying ? (
+            /* ── Active Player ── */
+            <div style={{ position:"relative",background:"#000",aspectRatio:"16/9",overflow:"hidden" }}>
+              {exercise.videoSource === "fkh" ? (
+                /* FKH / Supabase native video */
+                <video
+                  src={exercise.videoUrl}
+                  controls autoPlay playsInline
+                  style={{ width:"100%",height:"100%",objectFit:"contain",display:"block" }}
+                />
+              ) : (
+                /* YouTube iframe embed */
+                <iframe
+                  src={`https://www.youtube.com/embed/${exercise.videoId}?autoplay=1&playsinline=1&rel=0&modestbranding=1`}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                  title={exercise.videoTitle || exercise.name}
+                  style={{ width:"100%",height:"100%",border:"none",display:"block" }}
+                />
+              )}
+              <button
+                onClick={() => setVideoPlaying(false)}
+                aria-label="Close video player"
+                style={{ position:"absolute",top:8,left:8,background:"rgba(0,0,0,0.65)",
+                  border:"none",color:"#fff",borderRadius:6,padding:"5px 11px",
+                  fontSize:11,cursor:"pointer",fontWeight:700,lineHeight:1.4,zIndex:10 }}>
+                ✕ Close
+              </button>
+            </div>
+          ) : exercise.videoSource === "fkh" ? (
+            /* ── FKH Thumbnail (tap to play inline) ── */
+            <div onClick={() => setVideoPlaying(true)}
+              role="button" tabIndex={0} aria-label={`Play ${exercise.name}`}
+              onKeyDown={e => { if (e.key === "Enter" || e.key === " ") setVideoPlaying(true); }}
+              style={{ display:"block",position:"relative",background:"#000",aspectRatio:"16/9",overflow:"hidden",cursor:"pointer" }}>
               {exercise.thumbnailUrl
                 ? <img src={exercise.thumbnailUrl} alt={exercise.name}
                     style={{ width:"100%",height:"100%",objectFit:"cover",display:"block" }}/>
@@ -5061,58 +5095,46 @@ function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onTogg
                     <span style={{ fontSize:48 }}>🏀</span>
                   </div>
               }
-              {/* gradient */}
-              <div style={{ position:"absolute",inset:0,
-                background:"linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 55%)" }}/>
-              {/* play btn */}
-              <div style={{ position:"absolute",top:"50%",left:"50%",
-                transform:"translate(-50%,-50%)",
-                width:64,height:64,borderRadius:"50%",
-                background:"rgba(0,0,0,0.72)",border:`2.5px solid ${color}`,
-                display:"flex",alignItems:"center",justifyContent:"center" }}>
+              <div style={{ position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,0.6) 0%,transparent 55%)",pointerEvents:"none" }}/>
+              <div style={{ position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",
+                width:64,height:64,borderRadius:"50%",background:"rgba(0,0,0,0.72)",border:`2.5px solid ${color}`,
+                display:"flex",alignItems:"center",justifyContent:"center",pointerEvents:"none" }}>
                 <span style={{ color,fontSize:24,marginLeft:5 }}>▶</span>
               </div>
-              {/* FKH badge */}
               <div style={{ position:"absolute",top:10,right:10,
                 background:"linear-gradient(135deg,#16a34a,#15803d)",
                 color:"#fff",fontSize:9,fontWeight:800,letterSpacing:"0.12em",
                 padding:"4px 9px",borderRadius:6,textTransform:"uppercase",
-                boxShadow:"0 2px 8px rgba(0,0,0,0.5)",border:"1px solid rgba(255,255,255,0.2)" }}>
+                boxShadow:"0 2px 8px rgba(0,0,0,0.5)",border:"1px solid rgba(255,255,255,0.2)",pointerEvents:"none" }}>
                 ✦ FKH Original
               </div>
-              {/* title overlay */}
               <div style={{ position:"absolute",bottom:10,left:12,right:12,
                 fontSize:11,color:"rgba(255,255,255,0.9)",fontWeight:600,
-                textShadow:"0 1px 3px rgba(0,0,0,0.9)" }}>
+                textShadow:"0 1px 3px rgba(0,0,0,0.9)",pointerEvents:"none" }}>
                 🎬 {exercise.name}
               </div>
-            </a>
+            </div>
           ) : (
-            /* ── YouTube Video ── */
-            <a href={`https://www.youtube.com/watch?v=${exercise.videoId}`}
-              target="_blank" rel="noopener noreferrer"
-              style={{ display:"block",position:"relative",background:"#000",aspectRatio:"16/9",overflow:"hidden",textDecoration:"none" }}>
+            /* ── YouTube Thumbnail (tap to play inline) ── */
+            <div onClick={() => setVideoPlaying(true)}
+              role="button" tabIndex={0} aria-label={`Play ${exercise.videoTitle || exercise.name}`}
+              onKeyDown={e => { if (e.key === "Enter" || e.key === " ") setVideoPlaying(true); }}
+              style={{ display:"block",position:"relative",background:"#000",aspectRatio:"16/9",overflow:"hidden",cursor:"pointer" }}>
               <img src={`https://img.youtube.com/vi/${exercise.videoId}/hqdefault.jpg`}
                 alt={exercise.videoTitle}
-                style={{ width:"100%",height:"100%",objectFit:"cover",display:"block" }}/>
-              {/* gradient */}
-              <div style={{ position:"absolute",inset:0,
-                background:"linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 55%)" }}/>
-              {/* play btn */}
-              <div style={{ position:"absolute",top:"50%",left:"50%",
-                transform:"translate(-50%,-50%)",
-                width:64,height:64,borderRadius:"50%",
-                background:"rgba(0,0,0,0.72)",border:`2.5px solid ${color}`,
-                display:"flex",alignItems:"center",justifyContent:"center" }}>
+                style={{ width:"100%",height:"100%",objectFit:"cover",display:"block",pointerEvents:"none" }}/>
+              <div style={{ position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,0.55) 0%,transparent 55%)",pointerEvents:"none" }}/>
+              <div style={{ position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",
+                width:64,height:64,borderRadius:"50%",background:"rgba(0,0,0,0.72)",border:`2.5px solid ${color}`,
+                display:"flex",alignItems:"center",justifyContent:"center",pointerEvents:"none" }}>
                 <span style={{ color,fontSize:24,marginLeft:5 }}>▶</span>
               </div>
-              {/* title overlay */}
               <div style={{ position:"absolute",bottom:10,left:12,right:12,
                 fontSize:11,color:"rgba(255,255,255,0.85)",fontWeight:600,
-                textShadow:"0 1px 3px rgba(0,0,0,0.9)" }}>
+                textShadow:"0 1px 3px rgba(0,0,0,0.9)",pointerEvents:"none" }}>
                 📺 {exercise.videoTitle}
               </div>
-            </a>
+            </div>
           )}
 
           <div style={{ padding:"18px 18px 8px" }}>
@@ -5430,12 +5452,13 @@ function DrillCard({ w, color, bg2, brd, isDone, onToggle, onViewDetail, favored
   return (
     <div onClick={onViewDetail}
       style={{ background:`${color}08`,border:`1px solid ${isDone?color:metaBrd}`,borderRadius:16,overflow:"hidden",marginBottom:14,display:"flex",transition:"border-color 0.2s",cursor:onViewDetail?"pointer":"default" }}>
-      <a href={`https://www.youtube.com/watch?v=${w.videoId}`} target="_blank" rel="noopener noreferrer"
-        onClick={e=>e.stopPropagation()}
-        style={{ flexShrink:0,width:128,position:"relative",display:"block",background:"#0f172a" }}>
-        <img src={`https://img.youtube.com/vi/${w.videoId}/mqdefault.jpg`} alt="" style={{ width:128,height:90,objectFit:"cover",display:"block" }}/>
+      <div onClick={onViewDetail}
+        style={{ flexShrink:0,width:128,position:"relative",display:"block",background:"#0f172a",cursor:"pointer" }}>
+        <img src={w.videoSource==="fkh"&&w.thumbnailUrl ? w.thumbnailUrl : `https://img.youtube.com/vi/${w.videoId}/mqdefault.jpg`}
+          alt="" style={{ width:128,height:90,objectFit:"cover",display:"block" }}/>
         <div style={{ position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-55%)",width:26,height:26,borderRadius:"50%",background:`${color}cc`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#000",fontWeight:700,border:`1px solid ${color}` }}>▶</div>
-      </a>
+        {w.videoSource==="fkh"&&<div style={{ position:"absolute",top:4,right:4,background:"#15803d",color:"#fff",fontSize:7,fontWeight:800,padding:"2px 5px",borderRadius:4,letterSpacing:"0.06em" }}>✦ FKH</div>}
+      </div>
       <div style={{ flex:1,padding:"11px 13px",minWidth:0 }}>
         <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8,marginBottom:6 }}>
           <div>
@@ -5467,11 +5490,10 @@ function DrillCard({ w, color, bg2, brd, isDone, onToggle, onViewDetail, favored
             </div>
           ))}
         </div>
-        <a href={`https://www.youtube.com/watch?v=${w.videoId}`} target="_blank" rel="noopener noreferrer"
-          onClick={e=>e.stopPropagation()}
-          style={{ display:"flex",alignItems:"center",gap:6,fontSize:11,padding:"7px 12px",borderRadius:10,textDecoration:"none",fontWeight:700,background:bg2,color,border:`1px solid ${brd}`,letterSpacing:"0.01em" }}>
-          <span style={{ fontSize:13 }}>▶</span> {w.videoTitle}
-        </a>
+        <button onClick={e=>{e.stopPropagation();onViewDetail();}}
+          style={{ display:"flex",alignItems:"center",gap:6,fontSize:11,padding:"7px 12px",borderRadius:10,fontWeight:700,background:bg2,color,border:`1px solid ${brd}`,letterSpacing:"0.01em",cursor:"pointer",width:"100%",textAlign:"left" }}>
+          <span style={{ fontSize:13 }}>▶</span> {w.videoTitle || w.name}
+        </button>
       </div>
     </div>
   );

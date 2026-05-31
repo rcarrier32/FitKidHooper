@@ -254,18 +254,40 @@ Each FKH original should include at least one of:
 - Most common mistake to avoid
 - One progression (how to make it harder)
 
+### Video Hosting — Supabase Storage
+
+FKH original videos are hosted in Supabase Storage. Public bucket: `fkh-videos`.
+
+Public URL pattern:
+```
+https://[project-ref].supabase.co/storage/v1/object/public/fkh-videos/FILENAME.mp4
+```
+
+Upload steps:
+1. Compress video (HandBrake — H.264, 1080p, ~30–60 MB target)
+2. Supabase Dashboard → Storage → `fkh-videos` bucket → Upload
+3. Click the file → Copy URL
+
 ### Integration Checklist
 When a video is filmed and ready:
-1. Upload to YouTube (unlisted or public)
-2. In `SummerTrainingApp.jsx`, find the exercise by `id`
-3. Add: `videoSource: "fkh"`
-4. Add: `videoUrl: "https://www.youtube.com/watch?v=VIDEO_ID"`
-5. Optionally add: `thumbnailUrl: "https://img.youtube.com/vi/VIDEO_ID/hqdefault.jpg"`
-6. Add: `coachNotes: "..."` (1–2 sentences, coach voice)
-7. Optionally add: `commonMistakes: ["...", "..."]`
-8. Optionally add: `progressionTips: ["...", "..."]`
-9. Mark **Recorded: ✅** and **Published: ✅** in this file
-10. Update the Production Status counters at the top of this file
+1. Compress + upload to Supabase Storage `fkh-videos` bucket
+2. Copy the public URL (format above)
+3. In `SummerTrainingApp.jsx`, find the exercise by `id`
+4. Add: `videoSource: "fkh"`
+5. Add: `videoUrl: "https://[project-ref].supabase.co/storage/v1/object/public/fkh-videos/FILENAME.mp4"`
+6. Optionally add: `thumbnailUrl: "https://..."` (upload a JPG to the same bucket for fast thumbnail)
+7. Remove: `videoId` and `videoTitle` (or leave as fallback — won't be shown once `videoSource: "fkh"`)
+8. Add: `coachNotes: "..."` (1–2 sentences, coach voice)
+9. Optionally add: `commonMistakes: ["...", "..."]`
+10. Optionally add: `progressionTips: ["...", "..."]`
+11. Mark **Recorded: ✅** and **Published: ✅** in this file
+12. Update the Production Status counters at the top of this file
+
+### How it plays in the app
+- Tap the thumbnail in Exercise Detail → video plays **inline**, no app exit
+- YouTube videos: YouTube iframe embed with native fullscreen button
+- FKH/Supabase videos: native `<video>` element with controls + fullscreen
+- "Watch Video" button in drill list cards also routes to the detail sheet (not external YouTube)
 
 ---
 
