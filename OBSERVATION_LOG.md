@@ -26,6 +26,30 @@
 
 ---
 
+## ⚠️ Infrastructure Gap — Needs Resolution Before Window Closes
+
+> **Noted: 2026-06-01**
+
+The observation window is running but has **no automated data collection**. All tracking below must currently be done manually (sit-beside observation). This limits the quality of the RC2 backlog.
+
+### What's missing
+| Gap | Impact |
+|-----|--------|
+| No Supabase project | No backend to write events or feedback to |
+| No in-app feedback button | Athletes/parents have no way to submit reports |
+| No usage analytics | Category visits, exercise completions, program enrollments are invisible |
+
+### Planned fix (before RC2 planning)
+1. Create Supabase project (also needed for FKH video hosting)
+2. Add `events` table — anonymous usage: exercise completions, category opens, program enrollments, video plays
+3. Add `feedback` table — athlete/parent input: name (optional), context, message, rating
+4. Add in-app feedback button (Settings or post-workout prompt)
+5. OBSERVATION_LOG.md becomes the synthesis document, not the collection mechanism
+
+> Until this is resolved, observation data is manual only. Prioritize Supabase setup.
+
+---
+
 ## Roadmap Rule
 
 > **If it does not appear in the observation data, it does not enter the roadmap.**
