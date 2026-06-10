@@ -48,6 +48,25 @@ const surf = s => hsl(s.bgHue, Math.max(s.bgSat-10,0), Math.min(s.bgLight+5,20))
 const nav  = s => hsl(s.bgHue, s.bgSat, Math.max(s.bgLight-1,2));
 const str3 = s => s.accentHue !== undefined ? hsl(s.accentHue, s.accentSat, s.accentLight) : hsl((s.primaryHue+120)%360, Math.min(s.primarySat+5,100), Math.max(s.primaryLight,50));
 
+/** Parse "#rrggbb" (or "#rgb") → {h,s,l} in [0,360]/[0,100]/[0,100], or null if invalid. */
+function hexToHsl(hex) {
+  let m = /^#?([0-9a-f]{6})$/i.exec((hex||"").trim());
+  if (!m) { const s = /^#?([0-9a-f]{3})$/i.exec((hex||"").trim()); if (s) m = [null, s[1].split("").map(c=>c+c).join("")]; }
+  if (!m) return null;
+  const int = parseInt(m[1], 16);
+  const r=((int>>16)&255)/255, g=((int>>8)&255)/255, b=(int&255)/255;
+  const max=Math.max(r,g,b), min=Math.min(r,g,b), d=max-min;
+  let h=0, s=0; const l=(max+min)/2;
+  if (d) {
+    s = l>0.5 ? d/(2-max-min) : d/(max+min);
+    if (max===r)      h=(g-b)/d+(g<b?6:0);
+    else if (max===g) h=(b-r)/d+2;
+    else              h=(r-g)/d+4;
+    h*=60;
+  }
+  return { h:Math.round(h)%360, s:Math.round(s*100), l:Math.round(l*100) };
+}
+
 
 /* ═══════════════════════════════════════════════════════════════
    WORKOUT DATA
@@ -60,7 +79,7 @@ const W_SPEED = [
   { id:"cone-cod",  name:"Cone Change of Direction", tag:"COD",        sets:"5x each dir", rest:"30 s",
     desc:"3 cones 5 yds apart. Sprint, plant outside foot, drive back. Deceleration habit is injury prevention.",
     cues:["Sink hips on plant — not just ankles","Short chop steps before cut","Explode out of the break"],
-    videoId:"Em0jnOawLwU", videoTitle:"GAMESPEED Change of Direction Drills" },
+    videoId:"WK5XFcmxS7A", videoTitle:"Agility & Defense Cone Drills" },
   { id:"5-10-5",    name:"Pro Agility 5-10-5",       tag:"Speed",      sets:"4-6 reps", rest:"60 s",
     desc:"Gold standard lateral test. Touch the line each cut. Time yourself weekly.",
     cues:["Low start position","Touch line with inside hand","Push off ground — not just turn"],
@@ -68,7 +87,7 @@ const W_SPEED = [
   { id:"lat-bounds",name:"Lateral Bounds to Sprint",  tag:"Power",      sets:"3x5 each side", rest:"45 s",
     desc:"Bound sideways 3-5 times then explode into a forward sprint. Lateral power tied to acceleration.",
     cues:["Stick each landing before next bound","Drive knee up on sprint","Long powerful bounds"],
-    videoId:"K9-MmZDRhj8", videoTitle:"Build REAL Speed with Plyometrics — Youth Athletes" },
+    videoId:"TWAPkD1smq4", videoTitle:"Lateral Bound Progressions" },
   { id:"def-slide", name:"Defensive Slide + Sprint",  tag:"Basketball", sets:"3x full court", rest:"60 s",
     desc:"Defensive slide sideline to sideline, then drop step and sprint. Direct court transfer.",
     cues:["Stay wide — feet never touch","Hips low throughout","Head stays at same height"],
@@ -91,11 +110,11 @@ const W_BALANCE = [
   { id:"sl-squat",  name:"Single Leg Squat (Box)",    tag:"Strength",   sets:"3x8 each", rest:"30 s",
     desc:"Sit back to a box. Powers every jump and cut.",
     cues:["Knee tracks over second toe","Chest up, slight forward lean","Touch box lightly — do not crash"],
-    videoId:"IBUwgLEKeUc", videoTitle:"5 Single Leg Exercises for Strength & Balance" },
+    videoId:"uJ4eA2wUXdw", videoTitle:"Single-Leg Squat To Box — Exercise Guide" },
   { id:"lat-stick", name:"Lateral Bounds — Stick It", tag:"Power Ctrl", sets:"3x6 each leg", rest:"30 s",
     desc:"Jump laterally, land and FREEZE 2 full seconds. Teaches force control for cutting and landing.",
     cues:["Soft landing — ankle to knee to hip","Freeze means FREEZE — 2 full seconds","Progress to landing on grass"],
-    videoId:"HJi0bU2YiR8", videoTitle:"Top 8 Beginner Plyometric Jumps — Youth Athletes" },
+    videoId:"XDBHOQoAa3w", videoTitle:"Lateral Bound with Stick Landing" },
   { id:"triple-lat-hops", name:"Triple Lateral Hops", tag:"Reactive Balance", sets:"3x5 each side", rest:"45 s",
     desc:"Three consecutive lateral hops on one foot, then stick and hold the final landing for 2 seconds. Builds balance, landing control, and ankle strength together.",
     cues:["Same foot for all three hops","Stick the final landing HARD — no extra steps","Soft landing on each hop — absorb","Eyes forward, not down at feet"],
@@ -114,11 +133,15 @@ const W_STRENGTH = [
   { id:"goblet-sq",   name:"Goblet Squat",            tag:"Day 1 Squat",      sets:"3x10", rest:"60 s",
     desc:"Hold 5-10 lb at chest. Forces an upright torso automatically — the safest teaching squat for youth.",
     cues:["Elbows drive INSIDE knees at bottom","Chest tall throughout","Heels flat","Full depth if mobility allows"],
-    videoId:"0o--5CwQtTU", videoTitle:"How to Teach a Child to Squat — Brand X Method" },
+    videoId:"CkFzgR55gho", videoTitle:"How to Perform the Goblet Squat" },
   { id:"pushup",      name:"Push-Ups",                 tag:"Day 1 Push",       sets:"3x10-15", rest:"60 s",
     desc:"Wall to incline to floor progression. Only move to next level when every rep is clean.",
     cues:["Body is a rigid plank — no sagging hips","Elbows at 45 degrees","3-second lowering builds control","Chest touches, full lockout at top"],
-    videoId:"JFbFLSR6LJE", videoTitle:"Perfect Push-Up for 10-13 Year Old Athletes" },
+    videoId:"c-lBErfxszs", videoTitle:"Perfect Push-Ups (Chest to Floor)" },
+  { id:"tricep-dips", name:"Tricep Dips", tag:"Day 1 Push", sets:"3x10-12", rest:"45 s",
+    desc:"Hands on a sturdy bench or chair behind you, lower until your elbows hit 90°, then press back up. Builds the arm and shoulder strength behind your shot.",
+    cues:["Elbows point straight back — not flared out","Lower under control — 2 seconds down","Keep your hips close to the bench","Press all the way up to a tall lockout"],
+    videoId:"N3hB8rDErZI", videoTitle:"Tricep Dips" },
   { id:"step-ups",    name:"Step-Ups",                 tag:"Day 1 Single Leg", sets:"3x8 each", rest:"45 s",
     desc:"Use a sturdy box or step about knee height. Add light dumbbells when bodyweight feels easy.",
     cues:["Drive through the heel of the top foot","Full hip extension at top — stand tall","Control the lowering — do not drop"],
@@ -146,7 +169,7 @@ const W_STRENGTH = [
   { id:"box-jump",    name:"Box Jumps",                tag:"Day 3 Power",      sets:"3x5", rest:"90 s",
     desc:"Jump to box, step down. Land mechanics more important than height at this age.",
     cues:["Swing arms back then up","Land in athletic stance — not feet together","STEP down — do not jump down","Quiet landing = good absorption"],
-    videoId:"HJi0bU2YiR8", videoTitle:"Top 8 Beginner Plyometric Jumps — Youth Athletes" },
+    videoId:"kNIInK_Le8I", videoTitle:"How to Do Beginner Box Jumps" },
   { id:"db-deadlift", name:"Dumbbell Deadlift",        tag:"Day 3 Hinge",      sets:"3x8", rest:"60 s",
     desc:"Dumbbells at sides, hip hinge to mid-shin. Foundation of all pulling strength.",
     cues:["Push the floor away — do not think pull up","Stay close to legs throughout","Hips and shoulders rise together","Stand completely tall at top"],
@@ -167,6 +190,10 @@ const W_STRENGTH = [
     desc:"Lie on back, arms up, knees at 90°. Lower opposite arm and leg while keeping lower back pressed FLAT. The gold standard anti-rotation core exercise for youth athletes.",
     cues:["Lower back MUST stay glued to the floor — no gap","Breathe out as you lower the limbs","Move SLOW — 3 seconds down, 2 seconds hold","Only lower as far as your back stays flat"],
     videoId:"bxn9FBrt4-A", videoTitle:"Dead Bug Exercise — Proper Form | NASM" },
+  { id:"v-ups", name:"V-Ups", tag:"Day 2 Core", sets:"3x10-12", rest:"30 s",
+    desc:"Lie flat, then lift your arms and legs up to meet in a V over your hips. A dynamic core builder for your whole midsection.",
+    cues:["Reach your hands toward your toes — touch if you can","Move with control — don't flop back down","Keep legs straight if you can, bend the knees if you need to","Breathe out as you crunch up"],
+    videoId:"Wks3wpNJqTg", videoTitle:"V-Ups" },
   { id:"reverse-lunge",    name:"Reverse Lunges",                  tag:"Day 2 Lunge",    sets:"3x10 each leg", rest:"45 s",
     desc:"Step backward into the lunge. Easier on the knee than forward lunges — great starting point for lunge pattern.",
     cues:["Back knee drops straight down","Front shin stays vertical","Tall torso — do not lean","Push through front heel to return"],
@@ -189,11 +216,11 @@ const W_STRENGTH_EXTRA = [
   { id:"broad-jump",  name:"Broad Jumps",               tag:"Bonus Power",    sets:"3x5", rest:"60 s",
     desc:"Two-foot takeoff, jump as far forward as possible, stick the landing. Horizontal power transfers to first-step explosiveness.",
     cues:["Load the hips — bend knees and swing arms back before launch","Drive arms forward aggressively","Land SOFT — absorb toes to ankles to knees to hips","Measure distance and try to beat it each week"],
-    videoId:"HJi0bU2YiR8", videoTitle:"Top 8 Beginner Plyometric Jumps — Youth Athletes" },
+    videoId:"4e-5E2J0j8o", videoTitle:"Continuous Broad Jumps" },
   { id:"skater-jumps",name:"Skater Jumps",              tag:"Bonus Lateral",  sets:"3x10 each side", rest:"45 s",
     desc:"Bound laterally from one foot to the other like a speed skater. Same movement as a hard defensive slide or step-back jumper.",
     cues:["Reach trailing leg BEHIND landing foot — big lateral distance","Soft landing","Pause 1 second on each landing","Add a dribble on landing for basketball-specific training"],
-    videoId:"K9-MmZDRhj8", videoTitle:"Build REAL Speed with Plyometrics — Youth Athletes" },
+    videoId:"qM5jviFhw9U", videoTitle:"Skater Jumps" },
   { id:"farmers-carry",name:"Farmer Carry",            tag:"Bonus Carry",    sets:"3x30 yards", rest:"45 s",
     desc:"Walk with a dumbbell in each hand, standing as tall as possible. Builds grip, core, and posture simultaneously.",
     cues:["Stand TALL — do not lean to either side","Shoulders packed down — do not shrug","Normal gait — heel to toe","Single dumbbell suitcase carry challenges anti-lateral bending"],
@@ -209,6 +236,10 @@ const W_EXPLOSION = [
     desc:"Two-foot rapid ground contacts — minimal time on the floor. Trains ankle stiffness and elasticity that powers your first step.",
     cues:["Stay on balls of feet — heels barely touch","Think spring, not squat","Keep knees slightly bent and stiff","Arms help rhythm — small pumps"],
     trainer:"PJF Performance", videoId:"-dNKKNwYTM8", videoTitle:"Pogo Jumps — PJF Performance" },
+  { id:"jump-lunge", name:"Jumping Lunges", tag:"Plyo Power", sets:"3x8 each leg", rest:"60 s",
+    desc:"Explosive lunge — jump and switch legs in the air, landing soft in the opposite lunge. Builds single-leg power and landing control.",
+    cues:["Land SOFT — absorb through the whole leg","Front knee tracks over the toes — don't let it cave in","Drive the arms up to jump higher","Quality over speed — clean reps only"],
+    videoId:"acLvV5Gwi7o", videoTitle:"Jumping Lunges" },
   { id:"single-leg-hops", name:"Single Leg Hops", tag:"PJF Reactive", sets:"3x8 each leg", rest:"60 s",
     desc:"Hop forward on one foot and stick each landing for 2 seconds before next hop. Builds reactive strength and jumping mechanics.",
     cues:["Absorb landing through ankle, knee, hip","Freeze on every landing — 2 full counts","Drive knee up on the hop","Eyes forward, not down"],
@@ -283,7 +314,7 @@ const W_EXPLOSION = [
   { id:"vj-progression",    name:"Vertical Jump Progression",      tag:"PJF Program",    sets:"Follow video", rest:"As directed",
     desc:"Structured plyometric progression for building vertical jump height. Covers foundational to advanced movements in sequence.",
     cues:["Follow the order — it is a progression","Do not skip levels","Track your vertical jump weekly","Rest days matter as much as training days"],
-    trainer:"PJF Performance", videoId:"9GMqCkrAHbg", videoTitle:"Vertical Jump Plyometric Progression" },
+    trainer:"Plyomorph", videoId:"ihapleg--po", videoTitle:"Home Plyometrics Vertical Jump Workout" },
   { id:"full-plyo-workout",  name:"Full Plyometric Workout",        tag:"PJF Program",    sets:"Follow video", rest:"As directed",
     desc:"Complete guided plyometric session. Use this as a standalone workout on explosion days.",
     cues:["Warm up before starting","Full rest between rounds — quality matters","Form first, then add speed","Track how you feel after each session"],
@@ -291,7 +322,7 @@ const W_EXPLOSION = [
   { id:"dunk-training",      name:"Dunk Training Plyometrics",      tag:"PJF Hoops",      sets:"Follow video", rest:"As directed",
     desc:"Basketball-specific plyometric session focused on vertical jump and explosiveness for dunking and shot-blocking.",
     cues:["Apply every rep to your basketball game","Visualize jumping for a ball on every rep","Track your standing reach weekly","Patience — vertical gains take 6-8 weeks minimum"],
-    trainer:"PJF Performance", videoId:"9AH6wPZVAwA", videoTitle:"Dunk Training Plyometrics" },
+    trainer:"The Lost Breed", videoId:"QRN1Yzo0hjU", videoTitle:"3 Exercises To Increase Your Vertical" },
 ];
 
 const W_HANDLES = [
@@ -304,12 +335,12 @@ const W_HANDLES = [
     sets:"3x45s", rest:"20 s",
     desc:"Bounce a tennis ball off a wall and catch it while simultaneously dribbling a basketball. Trains reaction time and hand independence.",
     cues:["Stand 3-4 feet from wall","Throw with one hand, catch with same or switch","Dribble hand stays independent — do not pause it","Level up: throw from behind your back"],
-    trainer:"Hand-Eye Training", videoId:"c0bSiDb-WhE", videoTitle:"Tennis Ball Wall Toss + Control Dribble" },
+    trainer:"NewAge Elite Sports", videoId:"Tq1wIt3cZK0", videoTitle:"Tennis Ball Ball-Handling Drills" },
   { id:"weak-hand",      name:"Weak Hand Development",        tag:"Off-Hand",
     sets:"10 min dedicated left hand", rest:"N/A",
     desc:"Dominant hand OFF. The single most impactful thing a 10-year-old can do to become a skilled ball handler.",
     cues:["Start with simple stationary pound dribbles — master before moving","No using the strong hand as a crutch","Dribble while watching TV or walking around","Patience — it will feel terrible before it feels okay"],
-    trainer:"Coach Ryan R2BBall", videoId:"WW_1g1eSSrM", videoTitle:"Improve Your Off Hand Dribble — Full Workout" },
+    trainer:"Get Handles Basketball", videoId:"O4x_AQVZ_nI", videoTitle:"Weak Hand Workout: Dribbling & Layups" },
   { id:"two-ball",       name:"Two Ball Dribbling",            tag:"Coordination",
     sets:"3x45s each drill", rest:"20 s",
     desc:"Both hands simultaneously — simultaneous pound, alternating, staggered. Fastest way to develop ambidexterity.",
@@ -375,11 +406,11 @@ const W_CONDITIONING = [
   { id:"quick-feet-cones", name:"Quick Feet Cone Drill",           tag:"Agility",        sets:"5 rounds", rest:"30 s",
     desc:"Navigate through cones with rapid short steps. Trains the foot quickness and spatial awareness needed for dribbling and defending in traffic.",
     cues:["Short choppy steps — do not overreach","Stay low throughout","Eyes up — anticipate the next cone","Speed comes after consistency is built"],
-    videoId:"Lq8Ccr6yv_4", videoTitle:"Quick Feet Cone Drill" },
-  { id:"wall-sit",         name:"Wall Sit",                        tag:"Strength/Mental", sets:"3x30-60 s", rest:"45 s",
-    desc:"Thighs parallel, back flat against wall. Builds quad endurance and mental toughness — hold until it burns.",
-    cues:["Thighs parallel to floor — not higher","Back flat against the wall","Feet flat — not on toes","Breathe through the burn — it is mental too"],
-    videoId:"y-wV4Venusw", videoTitle:"Wall Sit Exercise" },
+    videoId:"OkOGTjWodHM", videoTitle:"Basketball Agility & Quickness Drills" },
+  { id:"wall-sit",         name:"Wall Sit + Calf Raises",          tag:"Strength/Mental", sets:"3x30-45 s", rest:"45 s",
+    desc:"Thighs parallel, back flat against the wall — then add calf raises by lifting your heels up and down while you hold. Builds quad and calf endurance plus mental toughness.",
+    cues:["Thighs parallel to floor — not higher","Back flat against the wall","Lift the heels slow and controlled for the calf raises","Breathe through the burn — it's mental too"],
+    videoId:"BLw3aPUi0k8", videoTitle:"Wall Sit + Calf Raises" },
   { id:"jumping-jacks",    name:"Jumping Jacks",                   tag:"Warm-Up",        sets:"3x30 s", rest:"15 s",
     desc:"Classic warm-up movement. Elevates heart rate, activates the whole body, and improves coordination. Use to open every session.",
     cues:["Full arm extension overhead","Land softly — balls of feet","Steady rhythm — not frantic","Use as a warm-up, not a main exercise"],
@@ -426,7 +457,7 @@ const W_COORDINATION = [
   { id:"partner-mirror",      name:"Partner Mirror Drill",        tag:"Reaction",          sets:"3x30 s", rest:"30 s",
     desc:"Mirror your partner's movements in real time. The most game-realistic agility drill — you must read and react, not predict.",
     cues:["Stay in low athletic stance","Eyes on partner's hips — hips tell you direction before feet do","Do not let your partner get past you","Compete — this is a game"],
-    videoId:"HJwBzfT3ZJc", videoTitle:"The Defensive Mirror Drill" },
+    videoId:"yIPGMB-crog", videoTitle:"Youth Defensive Mirror Drill" },
   { id:"tennis-reaction-catch",name:"Tennis Ball Reaction Catch", tag:"Hand-Eye",          sets:"3x45 s", rest:"20 s",
     desc:"Drop or toss a tennis ball off a wall and react to catch it. Trains reaction time and hand-eye coordination simultaneously.",
     cues:["Start in ready position — weight on balls of feet","Move first — do not wait to see where it goes","Try to catch it as low as possible","Toss at different angles each rep"],
@@ -524,7 +555,7 @@ const W_ATHLETIC = [
   { id:"hip-turns",            name:"Hip Turns",                 tag:"Hip Mobility",      sets:"3x10 each dir", rest:"30 s",
     desc:"Open and close the hips while moving — the foundation of athletic movement. Every cut, drive, and defensive slide starts with the hips.",
     cues:["Pivot from the hip — not the foot","Full range of motion each rep","Stay low throughout","Fast hips, controlled torso"],
-    videoId:"wH8uL5hTQz4", videoTitle:"Hip Turns" },
+    trainer:"Brian McCormick", videoId:"q5z-WcLbCso", videoTitle:"Hip Turn & Drop Step — Defensive Footwork" },
   { id:"defensive-hip-flip",   name:"Defensive Hip Flip",        tag:"Defense",           sets:"3x10 each dir", rest:"30 s",
     desc:"Flip the hips from front-facing to side-facing while in a defensive stance. The key movement for transitioning from man defense to help defense.",
     cues:["Plant the pivot foot firmly","Hips open fully — not halfway","Stay in athletic stance throughout","Eyes up on every rep — practice seeing the court"],
@@ -560,7 +591,7 @@ const W_ATHLETIC = [
   { id:"acceleration-starts",  name:"Acceleration Starts",       tag:"Speed",             sets:"5x10 yards", rest:"45 s",
     desc:"Explosive starts from various positions — standing, crouching, on the ground. Builds first-step power from any position.",
     cues:["Lean into the first step — not just stand up","Drive the knee hard on the first step","Arms drive the speed","First 3 steps determine your acceleration"],
-    videoId:"9GMqCkrAHbg", videoTitle:"Acceleration Starts" },
+    videoId:"bIsKXTp3nA0", videoTitle:"Sprinter Acceleration Drills" },
   { id:"three-step-burst",     name:"3-Step Burst",              tag:"Explosion",         sets:"3x8 each dir", rest:"30 s",
     desc:"3 explosive steps in a direction then stop. Trains the short-burst acceleration used in every basketball cut — the same pattern as a V-cut or curl.",
     cues:["First step is the longest and hardest","Each step builds on the last — it is an acceleration","Stop is controlled — decelerate into athletic stance","Direction can be forward, lateral, or diagonal"],
@@ -580,7 +611,7 @@ const W_ATHLETIC = [
   { id:"reaction-sprint",      name:"Reaction Sprint Drill",     tag:"Reactive",          sets:"5 rounds", rest:"30 s",
     desc:"Sprint on an audio or visual signal. Trains pure reaction time and first-step quickness — the most important athletic quality in basketball.",
     cues:["Start in ready position — weight forward","React immediately — do not hesitate","First step is an explosive push","Track your reaction time over weeks"],
-    videoId:"x8-eq7RNsaQ", videoTitle:"Reaction Sprint Drill — Quickness Training" },
+    videoId:"CmisKok_aiI", videoTitle:"The X-Drill — Reaction & Agility" },
 ];
 
 const W_SHOOTING = [
@@ -603,7 +634,7 @@ const W_SHOOTING = [
     sets:"5 reps each variation each side", rest:"30 s",
     desc:"DJ Sackmann drill connecting ball handling to shooting — hesitate the defender then rise for the shot.",
     cues:["The hesitation earns the shot — do not skip the setup","One foot anchored on the gather — do not drift","Balance on the catch: weight centered, ready to shoot"],
-    trainer:"DJ Sackmann · HoopStudy", videoId:"IUy1jilyT3w", videoTitle:"Shoot Out of Hesitations — DJ Sackmann" },
+    trainer:"Shot Science Basketball", videoId:"EyYbMJzrKYs", videoTitle:"Hesitation Dribble Attack" },
 ];
 
 /* ═══════════════════════════════════════════════════════════════
@@ -626,7 +657,7 @@ const W_BALL_HANDLING = [
     progressionTrack:"Step 2 — Basic Move Package",
     desc:"Bounce the ball low and fast across the body from hand to hand. The first move every defender has to respect — the foundation of every combo.",
     cues:["Keep the ball BELOW the knee — high crossovers get stolen","Eyes up, sell with your shoulder first","Snap it across — not a lazy float","Alternate slow-to-fast rhythm"],
-    trainer:"ILoveBasketballTV", videoId:"lZR6U0kG1oU", videoTitle:"How to Crossover Dribble — Four Variations" },
+    trainer:"Kids Basketball Training", videoId:"7kFuB5Wc970", videoTitle:"How To Crossover For Beginners" },
 
   { id:"bh-btl",          name:"Between Legs",            tag:"Intermediate",    difficulty:"intermediate", ageRange:[10,14], funScore:9,  estimatedDuration:90,
     sets:"3x30 s alternating", rest:"20 s",
@@ -650,7 +681,7 @@ const W_BALL_HANDLING = [
     progressionTrack:"Step 3 — Advanced Stationary Moves",
     desc:"Step backward one or two dribbles while keeping the ball alive — creates space against aggressive defenders. The escape move that resets possessions.",
     cues:["Keep the dribble on the outside foot — away from pressure","Stay low as you retreat — do not stand up","Chin stays down, eyes find the court","Two retreat dribbles MAX — then make a decision"],
-    trainer:"By Any Means Basketball", videoId:"FYZcpwOBzyQ", videoTitle:"Essential Steps to Dribbling a Basketball" },
+    trainer:"Jr. NBA", videoId:"LY31S_8yyOA", videoTitle:"Fundamentals of the Retreat Dribble" },
 
   { id:"bh-attack-cross", name:"Attack Cross",            tag:"Advanced Moves",  difficulty:"intermediate", ageRange:[10,14], funScore:10, estimatedDuration:120,
     sets:"3x8 reps each direction", rest:"30 s",
@@ -750,7 +781,7 @@ const W_FINISHING = [
     progressionTrack:"Step 2 — Reverse Side Finishing",
     desc:"Same alternating rhythm as the Mikan drill but finishing on the back-side of the backboard — extends touch range, teaches how to use the glass from unusual angles.",
     cues:["Approach from underneath — step backward through the lane","Release against the near side of the backboard square","Soft touch — high arc, not a power move","Same timing as regular Mikan — just the direction changes"],
-    trainer:"Basketball HQ", videoId:"k5mZE2STy0w", videoTitle:"Reverse Mikan Drill Layups — Basketball Practice" },
+    trainer:"CoachMcGannon", videoId:"RZCwpSgNeXo", videoTitle:"The Reverse Mikan Drill" },
 
   { id:"fin-power-layup", name:"Power Layups",            tag:"Foundation",      difficulty:"beginner",     ageRange:[9,14],  funScore:7,  estimatedDuration:90,
     sets:"3x10 each side", rest:"30 s",
@@ -766,7 +797,7 @@ const W_FINISHING = [
     progressionTrack:"Step 2 — Reverse Side Finishing",
     desc:"Drive past the block line and use the backboard from the other side — takes away the shot blocker's angle completely. Every youth player needs this in their bag.",
     cues:["Drive PAST the block — do not stop under the rim","Reach the ball out to the far side of the backboard","Soft touch on the glass — high arc","Chin stays up — look at where you are aiming, not at the defender"],
-    trainer:"Baller Bootcamp", videoId:"zkSHyZGWU-s", videoTitle:"How To Reverse Layup 5 Ways — Beginner to Advanced" },
+    trainer:"ExpertVillage", videoId:"R0rI1rW7boE", videoTitle:"Basketball Reverse Layup" },
 
   { id:"fin-floater",     name:"Floater Series",          tag:"Advanced",        difficulty:"advanced",     ageRange:[11,14], funScore:9,  estimatedDuration:120,
     sets:"3x8 each hand", rest:"45 s",
@@ -808,7 +839,7 @@ const W_SHOOTING_DRILLS = [
     progressionTrack:"Step 1 — Shooting Foundation",
     desc:"BEEF at close range: Balance, Eyes, Elbow, Follow-through. The only drill where repetition of perfect form creates the neuromuscular pattern that lasts forever. Do not move back until form is automatic.",
     cues:["Ball at the forehead — shooting pocket on the way up","Elbow under the ball — not flaring out to the side","Eyes on the back of the rim — not the whole basket","Hold follow-through until the ball hits the net — every single rep"],
-    trainer:"PGC Basketball", videoId:"LkkGPDSJfpk", videoTitle:"Basketball Shooting Drills That Build Better Habits — PGC" },
+    trainer:"CoachUp", videoId:"E4O2JeAYg5Q", videoTitle:"The Form Shooting Drill" },
 
   { id:"sh-one-hand",     name:"One Hand Form Shooting",  tag:"Foundation",      difficulty:"intermediate", ageRange:[10,14], funScore:5,  estimatedDuration:180,
     sets:"30 makes from 3–5 feet", rest:"N/A",
@@ -864,7 +895,7 @@ const W_SHOOTING_DRILLS = [
     progressionTrack:"Step 1 — Shooting Foundation",
     desc:"Toss the ball out to yourself, catch it mid-air and land on both feet simultaneously in a small hop-gather — knees loaded — then rise immediately into your shot. Trains the rhythm and balance of the hop footwork used in catch-and-shoot situations. The hop keeps your body square and loads your legs faster than a 1-2 step.",
     cues:["Hop is SMALL — 2 inches off the ground, not a jump","Both feet land at the exact same time — simultaneous, not one then the other","Knees load on the landing — use that energy straight into the shot","Catch the ball before you land — hands ready in the air"],
-    trainer:"Shoot a Basketball Better", videoId:"NIk4KtykIOE", videoTitle:"How to Shoot a Basketball Better — The Hop vs. 1-2 Gather (Beginners)" },
+    trainer:"HoopsKing", videoId:"uxkg9NJfBFo", videoTitle:"1-2 Step vs. Hop Step Shooting Footwork" },
 
   { id:"sh-single-leg",   name:"Single Leg Hop & Step Back", tag:"Advanced",        difficulty:"intermediate", ageRange:[10,14], funScore:7,  estimatedDuration:120,
     sets:"3x10 each leg", rest:"30 s",
@@ -872,7 +903,7 @@ const W_SHOOTING_DRILLS = [
     progressionTrack:"Step 3 — Game-Speed Shooting",
     desc:"Step back on one leg as if creating space off the dribble — land balanced on that single foot, hold the balance briefly, then shoot from the one-legged support position. Builds the stability needed for real step-back jumpers. Elite guards shoot off one leg constantly; this drill builds that foundation.",
     cues:["Step back far enough to feel the balance challenge — not a tiny step","Land on the ball of the foot — not the heel — and absorb the landing","Hold the single-leg balance for a full beat before shooting — no rushing","Eyes on the rim the entire time — not watching your feet"],
-    trainer:"Alan Stein", videoId:"_lbOIWvqP50", videoTitle:"Basketball Shooting Drill: The Balance Series — Alan Stein" },
+    trainer:"ShotMechanics", videoId:"RD0tviQ3dh4", videoTitle:"One Foot Balance Shooting Drill" },
 
   { id:"sh-jab-reset",    name:"Jab Step Reset & Shoot",     tag:"Game",            difficulty:"intermediate", ageRange:[10,14], funScore:9,  estimatedDuration:120,
     sets:"3x10 each side", rest:"30 s",
@@ -930,7 +961,7 @@ const W_POST_MOVES = [
     progressionTrack:"Step 3 — Post Combo Moves",
     desc:"Catch with your back to the basket, then pivot quickly to face up and read the defender in one smooth motion. If they give space, shoot. If they crowd you, drive baseline or middle. This is the move that separates post players who can only score on their back from post players who can score from anywhere.",
     cues:["Choose your pivot foot before you turn — commit immediately on the catch","Face up quickly — don't let the defender recover position while you're still spinning","Read their stance: sag = catch-and-shoot, crowd = drive to the open side","Land in triple threat when you face up — ball ready to shoot, pass, or drive instantly"],
-    trainer:"ShotMechanics", videoId:"LX5Kl0_Agj0", videoTitle:"3 Killer Face Up Post Moves: Basketball Post Moves for Big Men — ShotMechanics" },
+    trainer:"IMG Academy", videoId:"bfmADWVQp3o", videoTitle:"Facing Up — Post Offensive Skills" },
 
   { id:"pm-step-through", name:"Shot Fake & Step Through",     tag:"Game",            difficulty:"intermediate", ageRange:[10,14], funScore:9,  estimatedDuration:120,
     sets:"3×10 each side", rest:"30 s",
@@ -938,7 +969,7 @@ const W_POST_MOVES = [
     progressionTrack:"Step 3 — Post Combo Moves",
     desc:"A deliberate, high shot fake from any post position draws the defender into the air — then one long step through their body creates a clear path to the basket. Works from the low block, mid-post, or even facing up on the elbow. Patience is the key: you must wait for the defender to fully commit before you step.",
     cues:["Shot fake is SLOW and HIGH — ball rises all the way up, eyes look at the rim, body rises on toes","Wait — you must actually wait long enough for the defender to react and jump","Step through WIDE and decisive — a small shuffle won't clear their body","Protect the ball with your off-arm as you step through — they will swipe at it"],
-    trainer:"Coach Frikki", videoId:"Uf1M17qudj4", videoTitle:"DEADLY Finishing Move (Step Through Tutorial) — Coach Frikki" },
+    trainer:"ShotMechanics", videoId:"Y36J42YAaMg", videoTitle:"Step Through Post Move (LeBron James)" },
 
   { id:"pm-saddi-combo",  name:"Post Moves Combo (Saddi Washington)", tag:"Game",     difficulty:"intermediate", ageRange:[10,14], funScore:10, estimatedDuration:180,
     sets:"2 rounds each side", rest:"60 s",
@@ -975,7 +1006,7 @@ const W_FINISHING_SCHOOL = [
     progressionTrack:"Step 4 — Advanced Finishes",
     desc:"Three moves specifically designed to convert layups when defenders make contact — stay strong through it rather than avoiding it. Learning this directly converts more attempts into made baskets and free-throw opportunities.",
     cues:["Expect contact — stay strong through it, not around it","Use a low, protected dribble into the lane","Extend fully on the finish even when hit","Keep the elbow in — don't lose ball control on contact"],
-    trainer:"Breakthrough Basketball", videoId:"ujG00ywWO_A", videoTitle:"3 Moves To Finish THROUGH CONTACT! Make More Lay ups" },
+    trainer:"Breakthrough Basketball", videoId:"6lyBb7u7SAg", videoTitle:"1v1 Finishing Drill From The Corner" },
 
   /* ── Redistributed from Basketball Skills ── */
   { id:"relph-scoop",    name:"Scoop Layups",                    tag:"Advanced",    difficulty:"intermediate", ageRange:[10,14], funScore:7,  estimatedDuration:120,
@@ -992,7 +1023,7 @@ const W_FINISHING_SCHOOL = [
     progressionTrack:"Step 4 — Advanced Finishes",
     desc:"DJ Sackmann covering layup footwork and finishing variations. Two-step, Euro step, and one-foot gather — each has a specific situation where it's the right choice.",
     cues:["Footwork first — get the steps right before the finish","Euro step: big step away, gather, finish opposite","Each finish has a situation — learn which to use when"],
-    trainer:"DJ Sackmann · HoopStudy", videoId:"U-mvPrKRsWE", videoTitle:"Footwork and Finishes — DJ Sackmann" },
+    trainer:"Jr. NBA", videoId:"QSzapEqhOaE", videoTitle:"V-Cut Layup Drill" },
 
 ];
 
@@ -1171,7 +1202,7 @@ const W_SHOOTING_LAB = [
     progressionTrack:"Step 5 — Step-Back & Separation",
     desc:"Attack hard first so the step-back is believable — push back on the same foot as the dribble hand and land balanced with knees bent, not falling backward. Creates built-in separation from the defender and is one of the most common ways elite guards create their own shot.",
     cues:["Attack hard FIRST — the step-back is only effective after you've shown drive","Push back on the same foot as your dribble hand","Land balanced with knees bent — not falling backward","Eyes on the rim through the entire sequence"],
-    trainer:"The Skill Academy", videoId:"hVSdd79maCw", videoTitle:"Basketball 101: How To Teach The Step Back Jumper" },
+    trainer:"Jr. NBA", videoId:"fFL-PugpRS8", videoTitle:"Elena Delle Donne Teaches the Step-Back" },
 ];
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1218,7 +1249,7 @@ const W_BASKETBALL_IQ = [
     progressionTrack:"Step 3 — Defensive IQ",
     desc:"The most important defensive skill nobody teaches: where to be when the ball is NOT near you. Learn the ball-you-man triangle — always see both the ball and your player. Know when to step into the lane to stop a drive and when to recover to your assignment.",
     cues:["See the ball AND your player at all times — head on a swivel","One pass away: deny your player from catching","Two passes away: move to the help line so you can see both ball and your player","Call 'Help!' when stepping up to stop the drive — then sprint back"],
-    trainer:"Basketball HQ", videoId:"QQ7qPKeynhY", videoTitle:"How To Play Gap Help Defense In Basketball" },
+    trainer:"Upward Sports", videoId:"ES7MVSegkSs", videoTitle:"Help Side Defense Principle" },
 
   { id:"iq-transition",  name:"Transition Decision-Making",       tag:"Concepts",    difficulty:"intermediate", ageRange:[10,14], funScore:9,  estimatedDuration:120,
     sets:"Concept study + visualization", rest:"N/A",
@@ -1740,6 +1771,7 @@ const BADGES_DEF = [
   { id:"pgm-become-shooter", cat:"program", name:"Pure Shooter",      emoji:"🎯", desc:"Complete Become a Shooter",                  color:"#8b5cf6" },
   { id:"pgm-first-step",     cat:"program", name:"First Step Elite",  emoji:"⚡", desc:"Complete First Step Explosion",              color:"#f43f5e" },
   { id:"pgm-complete-hooper",cat:"program", name:"Complete Hooper",   emoji:"🏆", desc:"Complete the Complete Hooper program",       color:"#f59e0b" },
+  { id:"pgm-bodyweight",     cat:"program", name:"Bodyweight Beast",  emoji:"💪", desc:"Complete the Bodyweight Beast program",      color:"#22c55e" },
 ];
 
 function computeXP(completed) {
@@ -2313,6 +2345,32 @@ const PROGRAMS = [
           { day:"Session 2", focus:"Shot Creation",          exercises:["slab-step-back","sh-jab-reset","slab-corner-3"] },
           { day:"Session 3", focus:"Post Game",              exercises:["pm-saddi-combo","pm-step-through","pm-face-up"] },
           { day:"Session 4", focus:"Full Integration",       exercises:["iq-closeout","fin-floater","bh-combo"] },
+        ]},
+    ],
+  },
+
+  {
+    id:"bodyweight-beast", name:"Bodyweight Beast", emoji:"💪", color:"#22c55e",
+    badgeId:"pgm-bodyweight", duration:3, daysPerWeek:3, ageRange:[9,15],
+    desc:"No hoop, no weights, no problem. A 3-week full-body program you can do anywhere — get stronger, springier, and tougher using just your bodyweight.",
+    weeks:[
+      { week:1, goal:"Build the foundation — master clean bodyweight form before adding speed.",
+        sessions:[
+          { day:"Session 1", focus:"Lower Body & Core",  exercises:["bw-squats","glute-bridge","plank-hold"] },
+          { day:"Session 2", focus:"Upper Body & Core",  exercises:["pushup","tricep-dips","dead-bug"] },
+          { day:"Session 3", focus:"Full-Body Holds",    exercises:["wall-sit","push-shoulder-taps","v-ups"] },
+        ]},
+      { week:2, goal:"Add power — start jumping and landing with control.",
+        sessions:[
+          { day:"Session 1", focus:"Legs & Plyo",        exercises:["reverse-lunge","jump-lunge","skater-jumps"] },
+          { day:"Session 2", focus:"Push & Core",        exercises:["pushup","tricep-dips","hollow-hold"] },
+          { day:"Session 3", focus:"Power Circuit",      exercises:["squat-jumps","broad-jump","v-ups"] },
+        ]},
+      { week:3, goal:"Put it all together — full-speed power, strength, and core.",
+        sessions:[
+          { day:"Session 1", focus:"Lower Power",        exercises:["jump-lunge","skater-jumps","wall-sit"] },
+          { day:"Session 2", focus:"Upper & Core",       exercises:["pushup","tricep-dips","side-plank"] },
+          { day:"Session 3", focus:"Beast Circuit",      exercises:["broad-jump","jump-lunge","v-ups"] },
         ]},
     ],
   },
@@ -3001,71 +3059,126 @@ const SHOT_TYPES = [
   { id:"rev_layup",    label:"Reverse Layup",  emoji:"🔄", locations:null },
   { id:"block_bank",   label:"Block Area",     emoji:"📐", locations:["Left Block","Right Block"] },
   { id:"mid_bank",     label:"Elbow Shot",    emoji:"💫", locations:["Left Elbow","Right Elbow"] },
-  { id:"mid",          label:"Mid-Range",      emoji:"🎯", locations:["Left Elbow","Top Key","Right Elbow","Left Wing","Right Wing"] },
+  { id:"mid",          label:"Wing (Mid)",     emoji:"🎯", locations:["Left Wing","Right Wing"] },
+  { id:"mid_baseline", label:"Baseline (Mid)", emoji:"🎯", locations:["Left Baseline","Right Baseline"] },
   { id:"free_throw",   label:"Free Throw",     emoji:"🆓", locations:null },
   { id:"three_corner", label:"Corner 3",       emoji:"📐", locations:["Left Corner","Right Corner"] },
-  { id:"three_slot",   label:"Wing 3",         emoji:"↗️", locations:["Left Slot","Right Slot"] },
+  { id:"three_wing",   label:"Wing 3",         emoji:"↗️", locations:["Left Wing","Right Wing"] },
+  { id:"three_slot",   label:"Slot 3",         emoji:"↗️", locations:["Left Slot","Right Slot"] },
   { id:"three_center", label:"Top 3",          emoji:"🎯", locations:null },
 ];
 const SHOT_COLORS = {
   layup:"#34d399", rev_layup:"#6ee7b7", block_bank:"#60a5fa",
-  mid_bank:"#93c5fd", mid:"#a78bfa", free_throw:"#fbbf24",
-  three_corner:"#f87171", three_slot:"#fb923c", three_center:"#f43f5e",
+  mid_bank:"#93c5fd", mid:"#a78bfa", mid_baseline:"#c4b5fd", free_throw:"#fbbf24",
+  three_corner:"#f87171", three_wing:"#fb923c", three_slot:"#f472b6", three_center:"#f43f5e",
 };
 
 
-function ColorWheel({ hue, sat, light, onChange, size=170 }) {
+/* True 2D hue×saturation disc: angle = hue, radius = saturation, at a fixed
+   lightness. One drag sets both hue and sat → onChange(hue, sat). The disc
+   bitmap only redraws when lightness/size change; the selection ring is a DOM
+   element so dragging never re-renders the canvas. */
+function ColorWheel({ hue, sat, light, onChange, size=168 }) {
   const ref = useRef(null);
   const drag = useRef(false);
+  const R = size/2 - 2;
+  // Keep the disc visible even for very dark colors (e.g. background) so hue is
+  // always pickable; the indicator dot still shows the true color.
+  const dispL = Math.max(light, 42);
 
-  const draw = useCallback(() => {
+  useEffect(() => {
     const c = ref.current; if (!c) return;
     const ctx = c.getContext("2d");
-    const cx = size/2, cy = size/2, R = size/2 - 6;
-    ctx.clearRect(0, 0, size, size);
-    for (let a = 0; a < 360; a++) {
-      ctx.beginPath(); ctx.moveTo(cx, cy);
-      ctx.arc(cx, cy, R, (a-1)*Math.PI/180, (a+1)*Math.PI/180);
+    const cx=size/2, cy=size/2;
+    ctx.clearRect(0,0,size,size);
+    // Full-saturation hue ring. Offset by -90° so hue 0 sits at the top and
+    // increases clockwise — must match pick()/indicator angle math below.
+    for (let a=0; a<360; a++) {
+      ctx.beginPath(); ctx.moveTo(cx,cy);
+      ctx.arc(cx,cy,R,(a-91.2)*Math.PI/180,(a-88.8)*Math.PI/180);
       ctx.closePath();
-      ctx.fillStyle = hsl(a, sat, light); ctx.fill();
+      ctx.fillStyle = hsl(a,100,dispL); ctx.fill();
     }
-    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 0.52);
-    g.addColorStop(0, "rgba(10,14,26,0.97)"); g.addColorStop(1, "rgba(10,14,26,0)");
-    ctx.beginPath(); ctx.arc(cx, cy, R * 0.52, 0, Math.PI*2);
-    ctx.fillStyle = g; ctx.fill();
-    // indicator: angle 0 = top, clockwise
-    const rad = (hue - 90) * Math.PI / 180;
-    const ir = R * 0.78;
-    const ix = cx + Math.cos(rad)*ir, iy = cy + Math.sin(rad)*ir;
-    ctx.beginPath(); ctx.arc(ix, iy, 8, 0, Math.PI*2);
-    ctx.fillStyle = hsl(hue, sat, light);
-    ctx.strokeStyle = "#fff"; ctx.lineWidth = 2.5; ctx.fill(); ctx.stroke();
-  }, [hue, sat, light, size]);
+    // … desaturated toward the centre (neutral grey at this lightness).
+    const grey = hsl(0,0,dispL);
+    const g = ctx.createRadialGradient(cx,cy,0,cx,cy,R);
+    g.addColorStop(0, grey); g.addColorStop(1, grey+"00");
+    ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2); ctx.fillStyle=g; ctx.fill();
+  }, [dispL, size, R]);
 
-  useEffect(() => { draw(); }, [draw]);
-
-  const getHue = useCallback((e) => {
+  const pick = useCallback(e => {
     const c = ref.current; if (!c) return;
     const r = c.getBoundingClientRect();
-    const sx = size/r.width, sy = size/r.height;
-    const cx2 = e.touches ? e.touches[0].clientX : e.clientX;
-    const cy2 = e.touches ? e.touches[0].clientY : e.clientY;
-    const dx = (cx2 - r.left)*sx - size/2;
-    const dy = (cy2 - r.top)*sy  - size/2;
-    let h = Math.atan2(dy, dx)*180/Math.PI + 90;
-    if (h < 0) h += 360;
-    onChange(Math.round(h) % 360);
-  }, [size, onChange]);
+    const px=(e.touches?e.touches[0].clientX:e.clientX)-r.left;
+    const py=(e.touches?e.touches[0].clientY:e.clientY)-r.top;
+    const dx=px-r.width/2, dy=py-r.height/2;
+    const rad=r.width/2-2;
+    const s=Math.max(0, Math.min(100, Math.round(Math.hypot(dx,dy)/rad*100)));
+    const h=(Math.atan2(dy,dx)*180/Math.PI + 90 + 360) % 360;
+    onChange(Math.round(h)%360, s);
+  }, [onChange]);
+
+  const onKey = e => {
+    let h=hue, s=sat;
+    if (e.key==="ArrowLeft")  h=(hue+359)%360;
+    else if (e.key==="ArrowRight") h=(hue+1)%360;
+    else if (e.key==="ArrowUp")    s=Math.min(100,sat+2);
+    else if (e.key==="ArrowDown")  s=Math.max(0,sat-2);
+    else return;
+    e.preventDefault(); onChange(h,s);
+  };
+
+  // Indicator position from current hue/sat (angle 0 = top, clockwise).
+  const ang=(hue*Math.PI/180)-Math.PI/2, rr=(sat/100)*R;
+  const ix=size/2+Math.cos(ang)*rr, iy=size/2+Math.sin(ang)*rr;
 
   return (
-    <canvas ref={ref} width={size} height={size}
-      style={{ width:size, height:size, borderRadius:"50%", cursor:"crosshair", touchAction:"none", flexShrink:0 }}
-      onMouseDown={e=>{ drag.current=true; getHue(e); }}
-      onMouseMove={e=>{ if (drag.current) getHue(e); }}
+    <div tabIndex={0} role="slider" aria-label="Hue and saturation"
+      aria-valuetext={`Hue ${Math.round(hue)} degrees, saturation ${Math.round(sat)} percent`}
+      onKeyDown={onKey}
+      style={{ position:"relative",width:size,height:size,flexShrink:0,touchAction:"none",borderRadius:"50%",outline:"none" }}>
+      <canvas ref={ref} width={size} height={size}
+        style={{ width:size,height:size,borderRadius:"50%",cursor:"crosshair",display:"block",boxShadow:"inset 0 0 0 1px rgba(255,255,255,0.08)" }}
+        onMouseDown={e=>{ drag.current=true; pick(e); }}
+        onMouseMove={e=>{ if (drag.current) pick(e); }}
+        onMouseUp={()=>{ drag.current=false; }} onMouseLeave={()=>{ drag.current=false; }}
+        onTouchStart={e=>{ drag.current=true; pick(e); }}
+        onTouchMove={e=>{ e.preventDefault(); if (drag.current) pick(e); }}
+        onTouchEnd={()=>{ drag.current=false; }}/>
+      <div style={{ position:"absolute",left:ix,top:iy,width:16,height:16,marginLeft:-8,marginTop:-8,borderRadius:"50%",
+        background:hsl(hue,sat,light),border:"2.5px solid #fff",boxShadow:"0 0 0 1px rgba(0,0,0,0.45),0 1px 4px rgba(0,0,0,0.6)",pointerEvents:"none" }}/>
+    </div>
+  );
+}
+
+/* Slider with a real gradient track (shows the values you're scrubbing).
+   Pointer + keyboard driven; no native range pseudo-element styling needed. */
+function GradientSlider({ value, min, max, gradient, accent, onChange }) {
+  const ref = useRef(null);
+  const drag = useRef(false);
+  const pct = Math.max(0, Math.min(100, ((value-min)/(max-min))*100));
+  const set = e => {
+    const el = ref.current; if (!el) return;
+    const r = el.getBoundingClientRect();
+    const x = (e.touches?e.touches[0].clientX:e.clientX) - r.left;
+    onChange(Math.round(min + Math.max(0,Math.min(1,x/r.width))*(max-min)));
+  };
+  const onKey = e => {
+    if (e.key==="ArrowLeft"||e.key==="ArrowDown")  { e.preventDefault(); onChange(Math.max(min,value-1)); }
+    else if (e.key==="ArrowRight"||e.key==="ArrowUp") { e.preventDefault(); onChange(Math.min(max,value+1)); }
+  };
+  return (
+    <div ref={ref} tabIndex={0} role="slider" aria-valuemin={min} aria-valuemax={max} aria-valuenow={value}
+      onKeyDown={onKey}
+      onMouseDown={e=>{ drag.current=true; set(e); }} onMouseMove={e=>{ if (drag.current) set(e); }}
       onMouseUp={()=>{ drag.current=false; }} onMouseLeave={()=>{ drag.current=false; }}
-      onTouchStart={e=>{ drag.current=true; getHue(e); }}
-      onTouchMove={e=>{ e.preventDefault(); if (drag.current) getHue(e); }}
-      onTouchEnd={()=>{ drag.current=false; }} />
+      onTouchStart={e=>{ drag.current=true; set(e); }} onTouchMove={e=>{ e.preventDefault(); if (drag.current) set(e); }}
+      onTouchEnd={()=>{ drag.current=false; }}
+      style={{ position:"relative",height:16,borderRadius:99,background:gradient,cursor:"pointer",touchAction:"none",
+        boxShadow:"inset 0 0 0 1px rgba(255,255,255,0.12)",outline:"none" }}>
+      <div style={{ position:"absolute",top:"50%",left:`${pct}%`,width:16,height:16,marginLeft:-8,marginTop:-8,borderRadius:"50%",
+        background:accent,border:"2.5px solid #fff",boxShadow:"0 1px 4px rgba(0,0,0,0.55)",pointerEvents:"none" }}/>
+    </div>
   );
 }
 
@@ -3126,11 +3239,28 @@ function SettingsSheet({ settings, setSettings, onClose }) {
             : tab==="accent"    ? { h:settings.accentHue,    s:settings.accentSat,    l:settings.accentLight }
             :                     { h:settings.bgHue,        s:settings.bgSat,        l:settings.bgLight };
 
-  const setH = h => setSettings(p => tab==="primary" ? {...p,primaryHue:h} : tab==="secondary" ? {...p,secondaryHue:h} : tab==="accent" ? {...p,accentHue:h} : {...p,bgHue:h});
-  const setS2= s2=> setSettings(p => tab==="primary" ? {...p,primarySat:s2} : tab==="secondary" ? {...p,secondarySat:s2} : tab==="accent" ? {...p,accentSat:s2} : {...p,bgSat:s2});
-  const setL = l => setSettings(p => tab==="primary" ? {...p,primaryLight:l} : tab==="secondary" ? {...p,secondaryLight:l} : tab==="accent" ? {...p,accentLight:l} : {...p,bgLight:l});
+  // tab is one of primary|secondary|accent|bg, which matches the field prefixes.
+  const setHS  = (h,s)   => setSettings(p => ({...p,[`${tab}Hue`]:h, [`${tab}Sat`]:s}));
+  const setL   = l       => setSettings(p => ({...p,[`${tab}Light`]:l}));
+  const setHSL = (h,s,l) => setSettings(p => ({...p,[`${tab}Hue`]:h, [`${tab}Sat`]:s, [`${tab}Light`]:l}));
 
-  const activeCol = tab==="primary" ? P : tab==="secondary" ? S : B;
+  const activeCol = hsl(cur.h, cur.s, cur.l);
+  const briMax = tab==="bg" ? 25 : 75;
+  const clampL = l => Math.max(2, Math.min(l, briMax));
+
+  // Hex field: a local draft so partial/invalid input doesn't fight the store;
+  // commits live whenever the text parses to a valid color.
+  const [hexDraft, setHexDraft] = useState(activeCol);
+  useEffect(() => { setHexDraft(activeCol); }, [activeCol]);
+  const onHexInput = v => {
+    setHexDraft(v);
+    const parsed = hexToHsl(v);
+    if (parsed) setHSL(parsed.h, parsed.s, clampL(parsed.l));
+  };
+  const pickEye = async () => {
+    try { const { sRGBHex } = await new window.EyeDropper().open();
+      const p = hexToHsl(sRGBHex); if (p) setHSL(p.h, p.s, clampL(p.l)); } catch {}
+  };
 
   return (
     <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.82)",zIndex:300,display:"flex",alignItems:"flex-end",justifyContent:"center",backdropFilter:"blur(6px)" }}>
@@ -3291,19 +3421,38 @@ function SettingsSheet({ settings, setSettings, onClose }) {
               </button>
             ))}
           </div>
-          <div style={{ display:"flex",gap:18,alignItems:"center",marginBottom:18 }}>
-            <ColorWheel hue={cur.h} sat={cur.s} light={cur.l} onChange={setH} size={170}/>
-            <div style={{ flex:1,display:"flex",flexDirection:"column",gap:14 }}>
-              {[["Saturation",cur.s,setS2,0,100],["Brightness",cur.l,setL,2,tab==="bg"?25:75]].map(([lbl,val,fn,mn,mx])=>(
-                <div key={lbl}>
-                  <div style={{ fontFamily:"'DM Mono',monospace",fontSize:10,color:"#475569",marginBottom:5 }}>
-                    {lbl} <span style={{ color:activeCol }}>{val}%</span>
-                  </div>
-                  <input type="range" min={mn} max={mx} value={val} onChange={e=>fn(+e.target.value)}
-                    style={{ width:"100%",accentColor:activeCol,cursor:"pointer" }}/>
+          <div style={{ display:"flex",gap:16,alignItems:"flex-start",marginBottom:18 }}>
+            <ColorWheel hue={cur.h} sat={cur.s} light={cur.l} onChange={setHS} size={168}/>
+            <div style={{ flex:1,display:"flex",flexDirection:"column",gap:13 }}>
+              {/* Brightness — gradient track shows the actual dark→light range */}
+              <div>
+                <div style={{ fontFamily:"'DM Mono',monospace",fontSize:10,color:"#475569",marginBottom:6 }}>
+                  Brightness <span style={{ color:activeCol }}>{cur.l}%</span>
                 </div>
-              ))}
-              <div style={{ height:36,borderRadius:10,background:activeCol,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:"rgba(0,0,0,0.5)" }}>
+                <GradientSlider value={cur.l} min={2} max={briMax} accent={activeCol} onChange={setL}
+                  gradient={`linear-gradient(90deg, ${hsl(cur.h,cur.s,2)}, ${hsl(cur.h,cur.s,Math.round(briMax/2))}, ${hsl(cur.h,cur.s,briMax)})`}/>
+              </div>
+              {/* Hex input + eyedropper */}
+              <div>
+                <div style={{ fontFamily:"'DM Mono',monospace",fontSize:10,color:"#475569",marginBottom:6 }}>Hex</div>
+                <div style={{ display:"flex",gap:6,alignItems:"center" }}>
+                  <input value={hexDraft} onChange={e=>onHexInput(e.target.value)} spellCheck={false} maxLength={7} aria-label="Hex color"
+                    style={{ flex:1,minWidth:0,fontFamily:"'DM Mono',monospace",fontSize:13,letterSpacing:"0.04em",textTransform:"uppercase",
+                      color:"#e2e8f0",background:"rgba(255,255,255,0.05)",borderRadius:8,padding:"8px 10px",outline:"none",
+                      border:`1px solid ${hexToHsl(hexDraft)?"rgba(255,255,255,0.12)":"#ef4444"}` }}/>
+                  {typeof window!=="undefined" && window.EyeDropper && (
+                    <button onClick={pickEye} aria-label="Pick color from screen" title="Eyedropper"
+                      style={{ width:36,height:36,flexShrink:0,borderRadius:8,border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.05)",
+                        color:"#94a3b8",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center" }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="m2 22 1-1h3l9-9"/><path d="M3 21v-3l9-9"/>
+                        <path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3l.4.4Z"/>
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div style={{ height:32,borderRadius:10,background:activeCol,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:"rgba(0,0,0,0.55)" }}>
                 {tab==="primary"?"Primary":tab==="secondary"?"Secondary":tab==="accent"?"Strength Accent":"Background"}
               </div>
               <div style={{ display:"flex",alignItems:"center",gap:4 }}>
@@ -3336,6 +3485,88 @@ function SettingsSheet({ settings, setSettings, onClose }) {
         <button onClick={onClose} style={{ margin:"0 20px",display:"block",width:"calc(100% - 40px)",padding:"14px",borderRadius:14,border:"none",background:pri(settings),fontSize:15,fontWeight:800,color:"#000",cursor:"pointer" }}>
           Save & Apply ✓
         </button>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════ HELP SHEET ═══════════════════════ */
+function HelpSheet({ P, onClose }) {
+  useEffect(() => {
+    const h = e => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", h);
+    return () => document.removeEventListener("keydown", h);
+  }, [onClose]);
+
+  const TABS = [
+    { e:"🏀", t:"Log your shots",     d:"On the Shots tab, tap the spot on the court where you shot from, then tap ✓ Made or ✗ Miss. Quick-Tap buttons log layups and free throws fast. Your FG% and make-streak update by themselves." },
+    { e:"🎯", t:"Set a weekly goal",  d:"On the Shots tab, tap Set Goal to pick how many makes you want this week. The bar fills as you score — try to beat it before the week runs out!" },
+    { e:"📈", t:"Check your stats",   d:"The History and Stats tabs show how your shooting is trending and which spots on the floor are your hottest." },
+    { e:"🏠", t:"Do today's workout", d:"Home shows today's workout and a daily mission. Tap any drill for a short video and coaching cues, then check it off when you finish to earn XP." },
+    { e:"📋", t:"Follow a program",   d:"Programs are multi-week plans like Jump Higher. Open one, tap Start Program, and follow it session by session — your progress saves on its own, and finishing earns a badge." },
+    { e:"🏅", t:"Earn XP & badges",   d:"Training and making shots earns XP and levels you up from Rookie to Elite Hooper. Collect badges on the Badges tab and show them off on your Profile." },
+  ];
+  const TIPS = [
+    { e:"🧭", d:"Get around with the 5 tabs at the bottom: Home, Shots, Programs, Badges, and Profile." },
+    { e:"⭐", d:"Tap the star on any drill or program to save it as a favorite." },
+    { e:"⚙️", d:"On Profile → Settings you can set your birthday, pick your goals, and change the app colors." },
+    { e:"📲", d:"Add the app to your home screen (browser menu → Add to Home Screen) so it opens like a real app and keeps your progress safe." },
+    { e:"💾", d:"Everything is saved on this device. To back it up, open ⚙ Settings → Advanced — Data & Backup." },
+  ];
+  const card = { background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:12,padding:"12px 14px" };
+  const kicker = { fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:"#334155",marginBottom:10,textTransform:"uppercase" };
+
+  return (
+    <div onClick={onClose}
+      style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.82)",zIndex:300,display:"flex",alignItems:"flex-end",justifyContent:"center",backdropFilter:"blur(6px)" }}>
+      <div onClick={e=>e.stopPropagation()}
+        style={{ background:"#0d1526",borderRadius:"22px 22px 0 0",width:"100%",maxWidth:680,maxHeight:"90vh",overflowY:"auto",paddingBottom:28 }}>
+        <div style={{ display:"flex",justifyContent:"center",paddingTop:10,marginBottom:4 }}>
+          <div style={{ width:40,height:4,borderRadius:99,background:"rgba(255,255,255,0.12)" }}/>
+        </div>
+        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 20px 14px",borderBottom:"1px solid rgba(255,255,255,0.07)",position:"sticky",top:0,background:"#0d1526",zIndex:10 }}>
+          <span style={{ fontSize:16,fontWeight:700,color:"#f1f5f9" }}>How to use Fit Kid Hooper</span>
+          <button onClick={onClose} aria-label="Close Help"
+            style={{ background:"none",border:"none",color:"#64748b",fontSize:22,cursor:"pointer",padding:"6px 10px",borderRadius:8,lineHeight:1 }}>✕</button>
+        </div>
+
+        <div style={{ padding:"18px 20px 2px" }}>
+          <div style={{ fontSize:15,fontWeight:800,color:"#f1f5f9",marginBottom:5 }}>Welcome, Hooper! 🏀</div>
+          <p style={{ fontSize:13,lineHeight:1.55,color:"#94a3b8",margin:0 }}>
+            This is your basketball training buddy. Here's everything you can do — and how to do it:
+          </p>
+        </div>
+
+        <div style={{ padding:"16px 20px 2px" }}>
+          <div style={kicker}>What you can do</div>
+          <div style={{ display:"flex",flexDirection:"column",gap:10 }}>
+            {TABS.map(s=>(
+              <div key={s.t} style={{ display:"flex",gap:12,alignItems:"flex-start",...card }}>
+                <span style={{ fontSize:20,lineHeight:1.1,flexShrink:0 }}>{s.e}</span>
+                <div>
+                  <div style={{ fontSize:13.5,fontWeight:700,color:P,marginBottom:3 }}>{s.t}</div>
+                  <div style={{ fontSize:12.5,lineHeight:1.5,color:"#94a3b8" }}>{s.d}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ padding:"16px 20px 2px" }}>
+          <div style={kicker}>Good to know</div>
+          <div style={{ display:"flex",flexDirection:"column",gap:11 }}>
+            {TIPS.map((t,i)=>(
+              <div key={i} style={{ display:"flex",gap:10,alignItems:"flex-start" }}>
+                <span style={{ fontSize:15,lineHeight:1.2,flexShrink:0 }}>{t.e}</span>
+                <div style={{ fontSize:12.5,lineHeight:1.5,color:"#94a3b8" }}>{t.d}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ padding:"20px 20px 0",textAlign:"center" }}>
+          <div style={{ fontSize:13.5,fontWeight:700,color:P }}>Now go get buckets! 🏀</div>
+        </div>
       </div>
     </div>
   );
@@ -3407,36 +3638,44 @@ function Donut({ data, size=128 }) {
 }
 
 function CourtMap({ priColor, onZoneSelect, lastShot }) {
+  // Label-free colored zones. Color + position identify each spot; the
+  // color-matched Quick Tap list below acts as the legend, and each zone
+  // carries a hover <title> for the name.
   const zones = [
-    // Under the basket
-    {id:"layup",        label:"Layup",  short:"LYP", x:113, y:42,  r:17},
-    // Blocks — lane sides at low-post depth (~y=52, lane edges x=70/156)
-    {id:"block_bank",   label:"Block",  short:"BLK", x:70,  y:52,  r:13},
-    {id:"block_bank",   label:"Block",  short:"BLK", x:156, y:52,  r:13},
-    // Free throw — center of the FT line (y=122)
-    {id:"free_throw",   label:"FT",                  x:113, y:122, r:15},
-    // Elbows — exactly where FT line meets lane edge (x=72/154, y=122)
-    {id:"mid_bank",     label:"Elbow",  short:"ELB", x:72,  y:122, r:13},
-    {id:"mid_bank",     label:"Elbow",  short:"ELB", x:154, y:122, r:13},
-    // Mid-range wings (inside the 3-pt arc)
-    {id:"mid",          label:"Wing",                x:42,  y:148, r:12},
-    {id:"mid",          label:"Wing",                x:184, y:148, r:12},
-    // Corner 3 — ON the corner line (x=18/207), mid-height
-    {id:"three_corner", label:"Corner", short:"COR", x:18,  y:90,  r:12},
-    {id:"three_corner", label:"Corner", short:"COR", x:208, y:90,  r:12},
-    // Slot / wing 3 — just beyond the arc at ~30° offset from top
-    {id:"three_slot",   label:"Slot",                x:40,  y:157, r:12},
-    {id:"three_slot",   label:"Slot",                x:186, y:157, r:12},
-    // Top of the key 3 — at the arc peak (basket y=20 + r=150 → y=170)
-    {id:"three_center", label:"Top 3",  short:"T3",  x:113, y:172, r:14},
+    // ── Rim (smallest) ────────────────────────────────────────────
+    {id:"layup",        label:"Layup",        x:113, y:38,  r:11},
+    {id:"block_bank",   label:"Left Block",   x:70,  y:48,  r:8},
+    {id:"block_bank",   label:"Right Block",  x:156, y:48,  r:8},
+    // ── Mid-range: baseline (short corner, inside the corner-3) ────
+    {id:"mid_baseline", label:"Left Baseline",  x:45,  y:58,  r:9},
+    {id:"mid_baseline", label:"Right Baseline", x:181, y:58,  r:9},
+    // ── 3pt: corner (on the corner line, down by the baseline) ────
+    {id:"three_corner", label:"Left Corner",  x:18,  y:48,  r:9},
+    {id:"three_corner", label:"Right Corner", x:208, y:48,  r:9},
+    // ── 3pt: wing (up the corner line, mid-height) ────────────────
+    {id:"three_wing",   label:"Left Wing 3",  x:18,  y:96,  r:9},
+    {id:"three_wing",   label:"Right Wing 3", x:208, y:96,  r:9},
+    // ── Mid-range: wing (inside the arc, off the sideline) ────────
+    {id:"mid",          label:"Left Wing",    x:48,  y:100, r:9},
+    {id:"mid",          label:"Right Wing",   x:178, y:100, r:9},
+    // ── Mid-range: elbows + free throw ────────────────────────────
+    {id:"mid_bank",     label:"Left Elbow",   x:74,  y:118, r:9},
+    {id:"mid_bank",     label:"Right Elbow",  x:152, y:118, r:9},
+    {id:"free_throw",   label:"Free Throw",   x:113, y:120, r:11},
+    // ── 3pt: slot (upper, on the arc toward the top) ──────────────
+    {id:"three_slot",   label:"Left Slot",    x:33,  y:146, r:9},
+    {id:"three_slot",   label:"Right Slot",   x:193, y:146, r:9},
+    // ── 3pt: top of the key (arc apex) ────────────────────────────
+    {id:"three_center", label:"Top 3",        x:113, y:166, r:11},
   ];
   return (
-    <svg viewBox="0 0 226 200" style={{ width:"100%",maxWidth:310,display:"block",margin:"0 auto" }}>
+    <svg viewBox="0 0 226 200" style={{ width:"100%",maxWidth:348,display:"block",margin:"0 auto" }}>
       <rect x="2" y="2" width="222" height="196" rx="8" fill="#0f1e35" stroke="rgba(255,255,255,0.07)" strokeWidth="1"/>
       <rect x="72" y="2" width="82" height="120" rx="3" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.09)" strokeWidth="1"/>
       <circle cx="113" cy="122" r="28" fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="1"/>
-      {/* 3-point arc — radius 150 centered on basket (113,20), sweeping away from basket */}
-      <path d="M 18 136 A 150 150 0 0 1 207 136" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="1.2" strokeDasharray="4 3"/>
+      {/* 3-point arc — radius 150 centered on basket (113,20), bulging AWAY from the
+          basket (apex at y≈170, near Top-3). sweep-flag 0 makes it curve outward. */}
+      <path d="M 18 136 A 150 150 0 0 0 207 136" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="1.2" strokeDasharray="4 3"/>
       {/* Corner 3 straight portions — from baseline down to where arc begins */}
       <line x1="18" y1="2" x2="18" y2="136" stroke="rgba(255,255,255,0.08)" strokeWidth="1"/>
       <line x1="207" y1="2" x2="207" y2="136" stroke="rgba(255,255,255,0.08)" strokeWidth="1"/>
@@ -3447,11 +3686,10 @@ function CourtMap({ priColor, onZoneSelect, lastShot }) {
         const col = SHOT_COLORS[z.id], hit = lastShot&&lastShot.type===z.id;
         return (
           <g key={i} onClick={()=>onZoneSelect(z.id)} style={{ cursor:"pointer" }}>
-            <circle cx={z.x} cy={z.y} r={z.r} fill={hit?col:`${col}25`} stroke={col} strokeWidth={hit?2.5:1.5}/>
-            <text x={z.x} y={z.y+1} textAnchor="middle" dominantBaseline="middle"
-              style={{ fontSize:z.r*0.72,fill:hit?"#000":col,fontWeight:700,pointerEvents:"none",fontFamily:"DM Sans,sans-serif" }}>
-              {z.short || z.label}
-            </text>
+            <title>{z.label}</title>
+            {/* Label-free marker: translucent disc + colored ring + center dot. */}
+            <circle cx={z.x} cy={z.y} r={z.r} fill={hit?col:`${col}30`} stroke={col} strokeWidth={hit?2.5:1.5}/>
+            <circle cx={z.x} cy={z.y} r={2} fill={hit?"#000":col} pointerEvents="none"/>
           </g>
         );
       })}
@@ -5503,6 +5741,116 @@ function DrillCard({ w, color, bg2, brd, isDone, onToggle, onViewDetail, favored
   );
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   DATA MIGRATION LAYER
+   ───────────────────────────────────────────────────────────────
+   A kid's progress (s_done, fkh-programs, badges, shot logs, …) lives
+   in localStorage. App updates only swap the JS bundle — they never
+   touch localStorage — so progress already survives updates by default.
+
+   The ONE thing that can still break is changing the *shape* of a
+   stored object. When you do that, add a migration here instead of
+   risking a broken read. GOLDEN RULE: migrations transform data
+   forward, they NEVER delete a kid's progress.
+
+   To add a migration: append a function to MIGRATIONS that upgrades
+   storage by one version, then bump DATA_VERSION to match the new
+   length. MIGRATIONS[0] runs to reach v1, MIGRATIONS[1] to reach v2…
+═══════════════════════════════════════════════════════════════ */
+const DATA_VERSION_KEY = "fkh-data-version";
+
+const MIGRATIONS = [
+  // ── v0 → v1: baseline ──────────────────────────────────────────
+  // Existing installs already match the current storage shapes, so
+  // there is nothing to transform yet. This just establishes the
+  // versioning baseline so future shape changes have a home.
+  () => {},
+];
+
+const DATA_VERSION = MIGRATIONS.length; // keep in lock-step automatically
+
+// Keys that indicate a real, pre-existing install (vs. a fresh device).
+const KNOWN_DATA_KEYS = ["s_settings", "s_done", "fkh-programs", "shot_log_v2"];
+const hasExistingData = () => KNOWN_DATA_KEYS.some(k => localStorage.getItem(k) != null);
+
+function runDataMigrations() {
+  let stored;
+  try { stored = localStorage.getItem(DATA_VERSION_KEY); }
+  catch { return; } // localStorage blocked (private mode, etc.) — nothing to do
+
+  // Fresh install: no version stamp and no app data. Stamp the current
+  // version and skip legacy migrations — they assume old shapes that a
+  // brand-new device never had.
+  if (stored == null && !hasExistingData()) {
+    try { localStorage.setItem(DATA_VERSION_KEY, String(DATA_VERSION)); } catch {}
+    return;
+  }
+
+  const from = parseInt(stored || "0", 10) || 0;
+  if (from >= DATA_VERSION) return;
+
+  for (let v = from; v < DATA_VERSION; v++) {
+    try {
+      MIGRATIONS[v]?.();
+    } catch (e) {
+      // Stop and do NOT stamp the version, so it retries on the next
+      // load rather than silently skipping a failed upgrade.
+      console.error(`[fkh] data migration to v${v + 1} failed — left at v${v}`, e);
+      return;
+    }
+  }
+  try { localStorage.setItem(DATA_VERSION_KEY, String(DATA_VERSION)); } catch {}
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ID-STABILITY GUARD (dev only)
+   ───────────────────────────────────────────────────────────────
+   Progress is keyed by exercise id (s_done) and program id
+   (fkh-programs). If an update renames or removes an id that stored
+   progress points to, that history silently orphans — checkmarks
+   vanish, a kid loses their place. This warns loudly in the dev
+   console so an accidental rename is caught before it ships.
+   Completely inert in production builds.
+═══════════════════════════════════════════════════════════════ */
+function checkIdStability() {
+  if (!(import.meta.env && import.meta.env.DEV)) return;
+  try {
+    const knownEx  = new Set(Object.keys(ALL_EXERCISES));
+    const knownPgm = new Set(PROGRAMS.map(p => p.id));
+
+    // Exercise ids referenced by completion history (s_done):
+    const done = JSON.parse(localStorage.getItem("s_done") || "{}");
+    const orphanEx = new Set();
+    for (const key of Object.keys(done)) {
+      if (!done[key]) continue;
+      const exId = key.split("-").slice(3).join("-"); // strip the YYYY-MM-DD prefix
+      if (exId && !knownEx.has(exId)) orphanEx.add(exId);
+    }
+
+    // Program ids referenced by enrollment (fkh-programs):
+    const enrolled = JSON.parse(localStorage.getItem("fkh-programs") || "{}");
+    const orphanPgm = Object.keys(enrolled).filter(id => !knownPgm.has(id));
+
+    if (orphanEx.size || orphanPgm.length) {
+      console.warn(
+        "%c⚠ [fkh] ID-stability guard: stored progress references ids missing from the current bundle.\n" +
+        "This history will NOT map onto the new plans. Did an id get renamed or removed?",
+        "color:#f97316;font-weight:bold;"
+      );
+      if (orphanEx.size)  console.warn("  Orphaned exercise ids:", [...orphanEx]);
+      if (orphanPgm.length) console.warn("  Orphaned program ids:", orphanPgm);
+      console.warn("  Fix: keep the original id and edit name/desc/etc. instead — or add a migration to remap the old id.");
+    }
+  } catch (e) {
+    console.warn("[fkh] ID-stability guard failed to run", e);
+  }
+}
+
+// Run once at module load — before the component mounts and before any
+// useState initializer reads localStorage.
+runDataMigrations();
+checkIdStability();
+
 /* ═══════════════════════ MAIN APP ═══════════════════════ */
 export default function SummerTrainingApp() {
   const [settings, setSettings] = useState(()=>{
@@ -5520,6 +5868,7 @@ export default function SummerTrainingApp() {
     } catch { return DEFAULT; }
   });
   const [showSettings, setShowSettings] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   const [view, setView] = useState("home");
   const [prevView, setPrevView] = useState("home");
   const [activeCat, setActiveCat] = useState(null);
@@ -6029,16 +6378,23 @@ export default function SummerTrainingApp() {
   if (view==="profile") return (
     <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"#e2e8f0",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
       {showSettings&&<SettingsSheet settings={settings} setSettings={setSettings} onClose={()=>setShowSettings(false)}/>}
+      {showHelp&&<HelpSheet P={P} onClose={()=>setShowHelp(false)}/>}
       {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]}
         onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
       <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 20px",borderBottom:`1px solid ${P}14`,position:"sticky",top:0,background:BG,backdropFilter:"blur(10px)",zIndex:10 }}>
         <h1 style={{ fontSize:16,fontWeight:800,margin:0 }}>
           <span style={{ color:P }}>My Profile</span>
         </h1>
-        <button onClick={()=>setShowSettings(true)}
-          style={{ background:`${P}14`,border:`1px solid ${P}30`,borderRadius:8,color:P,fontSize:12,fontWeight:700,cursor:"pointer",padding:"5px 10px" }}>
-          ⚙ Settings
-        </button>
+        <div style={{ display:"flex",gap:8 }}>
+          <button onClick={()=>setShowHelp(true)}
+            style={{ background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:8,color:"#94a3b8",fontSize:12,fontWeight:700,cursor:"pointer",padding:"5px 10px" }}>
+            ❓ Help
+          </button>
+          <button onClick={()=>setShowSettings(true)}
+            style={{ background:`${P}14`,border:`1px solid ${P}30`,borderRadius:8,color:P,fontSize:12,fontWeight:700,cursor:"pointer",padding:"5px 10px" }}>
+            ⚙ Settings
+          </button>
+        </div>
       </div>
       <ProfileView
         settings={settings} totalXP={xpData.total} xpData={xpData}
@@ -6355,13 +6711,14 @@ export default function SummerTrainingApp() {
             <p style={{ textAlign:"center",color:"#64748b",fontSize:13,marginBottom:20 }}>What's your name, hooper?</p>
             <input type="text" value={onboardName} onChange={e=>setOnboardName(e.target.value)} placeholder="Your name" autoFocus
               style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.07)",border:"1.5px solid #f9731640",borderRadius:10,padding:"12px",fontSize:16,color:"#fff",outline:"none",marginBottom:16 }}/>
-            <button onClick={()=>{ const name=onboardName.trim()||'Hooper'; setSettings(p=>({...p,athleteName:name})); localStorage.setItem('s_onboarded','1'); setShowOnboarding(false); }}
+            <button onClick={()=>{ const name=onboardName.trim()||'Hooper'; setSettings(p=>({...p,athleteName:name})); localStorage.setItem('s_onboarded','1'); setShowOnboarding(false); setShowHelp(true); }}
               style={{ width:"100%",background:"#f97316",border:"none",borderRadius:12,padding:"14px",fontSize:15,fontWeight:800,color:"#000",cursor:"pointer" }}>
               Let's Go! 🏀
             </button>
           </div>
         </div>
       )}
+      {showHelp&&<HelpSheet P={P} onClose={()=>setShowHelp(false)}/>}
 
       <div style={{ padding:"26px 20px 16px",display:"flex",justifyContent:"space-between",alignItems:"flex-start",borderBottom:`1px solid ${P}14` }}>
         <div style={{ flex:1 }}>
