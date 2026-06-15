@@ -27,6 +27,8 @@ function parseExerciseSets(setsStr) {
   if (m) return { count:+m[1], type:/s(?:ec)?/i.test(m[0].split("-")[1]||"")?"time":"reps", value:+m[2], maxValue:+m[3] };
   m = s.match(/^(\d+)\s*[x×]\s*(\d+)(?:\s*-\s*(\d+))?\s*s(?:ec(?:onds?)?)?(?:\s+each)?$/i);
   if (m) return { count:+m[1], type:"time", value:+m[2], maxValue:m[3]?+m[3]:null };
+  m = s.match(/^(\d+)\s*[x×]\s*(\d+)(?:\s*-\s*(\d+))?\s*(?:reps?)?(?:\s+each\b.*)?$/i);
+  if (m && !/s(?:ec)?/i.test(s)) return { count:+m[1], type:"reps", value:+m[2], maxValue:m[3]?+m[3]:null };
   m = s.match(/^(\d+)\s*rounds?$/i);
   if (m) return { count:+m[1], type:"rounds", value:null };
   m = s.match(/^(\d+)\s*[x×]/i);
@@ -5367,11 +5369,16 @@ function ExerciseSetTracker({
         if (phase === "prep") {
           if (next <= 0) {
             timerAlert("go");
-            const workDur = prescription.value || 30;
-            phaseRef.current = "work";
-            setTimerPhase("work");
-            setLiveReps(0);
-            return workDur;
+            if (prescription.type === "time") {
+              const workDur = prescription.value || 30;
+              phaseRef.current = "work";
+              setTimerPhase("work");
+              setLiveReps(0);
+              liveRepsRef.current = 0;
+              return workDur;
+            }
+            stopTimer();
+            return 0;
           }
           if (next === 1) timerAlert("tick");
           return next;
@@ -5395,7 +5402,7 @@ function ExerciseSetTracker({
           }
           if (next <= 0) {
             const nextIdx = idx + 1;
-            if (prescription.type === "time" && timersEnabled) {
+            if (timersEnabled) {
               phaseRef.current = "prep";
               setIdxRef.current = nextIdx;
               setActiveSetIdx(nextIdx);
@@ -5483,7 +5490,7 @@ function ExerciseSetTracker({
           background:timerPhase==="work" ? `${color}18` : timerPhase==="rest" ? "rgba(59,130,246,0.12)" : "rgba(255,255,255,0.06)",
           border:`1.5px solid ${timerPhase==="work" ? color : timerPhase==="rest" ? "#3b82f6" : "rgba(255,255,255,0.12)"}` }}>
           <div style={{ fontSize:10,fontWeight:700,color:"#94a3b8",textTransform:"uppercase",letterSpacing:"0.12em",marginBottom:4 }}>
-            {timerPhase==="prep" ? "Get Ready" : timerPhase==="work" ? `Set ${(activeSetIdx??0)+1} — Go!` : "Rest"}
+            {timerPhase==="prep" ? `Set ${(activeSetIdx??0)+1} — Get Ready` : timerPhase==="work" ? `Set ${(activeSetIdx??0)+1} — Go!` : "Rest"}
           </div>
           <div style={{ fontFamily:"'DM Mono',monospace",fontSize:42,fontWeight:800,color:timerPhase==="work"?color:"#e2e8f0",lineHeight:1 }}>
             {fmtTimerSecs(timerSecs)}
