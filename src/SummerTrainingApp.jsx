@@ -10,7 +10,85 @@ const DEFAULT = {
   accentHue:158, accentSat:85, accentLight:50,
   athleteName:"Champ", avatar:null,
   dateOfBirth:null, experience:"beginner", goals:[], playStyle:"any",
+  workoutTimers:true,
 };
+
+const TIMER_PREP_SECS = 5;
+const TIMER_WARN_SECS = 5;
+const TIMER_REST_WARN_SECS = 15;
+
+/** Parse "3x10", "3x30s", "3x10-15 reps" into structured set prescription. */
+function parseExerciseSets(setsStr) {
+  if (!setsStr || /follow video|as directed|dedicated/i.test(setsStr)) return null;
+  const s = setsStr.trim();
+  let m = s.match(/^(\d+)\s*[x×]\s*(\d+)\s*(?:reps?)?$/i);
+  if (m) return { count:+m[1], type:"reps", value:+m[2] };
+  m = s.match(/^(\d+)\s*[x×]\s*(\d+)\s*-\s*(\d+)\s*(?:reps?|s(?:ec(?:onds?)?)?)?(?:\s+each)?$/i);
+  if (m) return { count:+m[1], type:/s(?:ec)?/i.test(m[0].split("-")[1]||"")?"time":"reps", value:+m[2], maxValue:+m[3] };
+  m = s.match(/^(\d+)\s*[x×]\s*(\d+)(?:\s*-\s*(\d+))?\s*s(?:ec(?:onds?)?)?(?:\s+each)?$/i);
+  if (m) return { count:+m[1], type:"time", value:+m[2], maxValue:m[3]?+m[3]:null };
+  m = s.match(/^(\d+)\s*rounds?$/i);
+  if (m) return { count:+m[1], type:"rounds", value:null };
+  m = s.match(/^(\d+)\s*[x×]/i);
+  if (m) return { count:+m[1], type:"generic", value:null };
+  return null;
+}
+
+function parseRestSeconds(restStr) {
+  if (!restStr || restStr==="N/A") return 60;
+  const m = String(restStr).match(/(\d+)/);
+  return m ? +m[1] : 60;
+}
+
+function setLogKey(exerciseId, today, programContext) {
+  if (programContext) {
+    const { programId, week, sessionIdx } = programContext;
+    return `pg:${programId}:${week}:${sessionIdx}:${exerciseId}`;
+  }
+  return `${today}-${exerciseId}`;
+}
+
+function programSessionSlot(week, sessionIdx) { return `${week}-${sessionIdx}`; }
+
+function isProgramExerciseDone(progProgress, programId, week, sessionIdx, exId) {
+  return !!progProgress?.[programId]?.[programSessionSlot(week, sessionIdx)]?.[exId];
+}
+
+function isProgramSessionComplete(prog, progProgress, week, sessionIdx) {
+  const session = prog.weeks.find(w=>w.week===week)?.sessions[sessionIdx];
+  if (!session) return false;
+  return session.exercises.every(exId=>isProgramExerciseDone(progProgress, prog.id, week, sessionIdx, exId));
+}
+
+function countProgramSessionsDone(prog, progProgress) {
+  let done = 0;
+  for (const week of prog.weeks) {
+    week.sessions.forEach((_, si) => {
+      if (isProgramSessionComplete(prog, progProgress, week.week, si)) done++;
+    });
+  }
+  return done;
+}
+
+/** Haptic + short beep for timer alerts (best-effort on mobile). */
+function timerAlert(kind) {
+  try { if (navigator.vibrate) navigator.vibrate(kind==="go"?[80,40,80]:[40]); } catch {}
+  try {
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.value = kind==="go" ? 880 : kind==="warn" ? 660 : 520;
+    gain.gain.value = 0.12;
+    osc.start();
+    osc.stop(ctx.currentTime + (kind==="go" ? 0.25 : 0.12));
+  } catch {}
+}
+
+function fmtTimerSecs(secs) {
+  const s = Math.max(0, Math.ceil(secs));
+  return s >= 60 ? `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}` : `${s}`;
+}
 
 /**
  * Calculate current age from an ISO date-of-birth string ("YYYY-MM-DD").
@@ -1774,7 +1852,7 @@ const BADGES_DEF = [
   { id:"pgm-bodyweight",     cat:"program", name:"Bodyweight Beast",  emoji:"💪", desc:"Complete the Bodyweight Beast program",      color:"#22c55e" },
 ];
 
-function computeXP(completed) {
+function computeXP(completed, programProgress={}) {
   let exXP=0, workoutXP=0, challengeXP=0, shotXP=0, streakXP=0, badgeXP=0, missionXP=0;
 
   // Exercise XP (5 per) + workout completion bonus (25 per qualifying day)
@@ -1808,7 +1886,7 @@ function computeXP(completed) {
   } catch {}
 
   // Badge XP (50 per earned badge) — rewards meaningful milestones
-  const earnedIds = getEarnedBadges(completed);
+  const earnedIds = getEarnedBadges(completed, programProgress);
   badgeXP = earnedIds.length * 50;
 
   // Streak bonus (2 XP per consecutive day when streak ≥ 3)
@@ -1834,7 +1912,7 @@ function computeXP(completed) {
   return { total:exXP+workoutXP+challengeXP+shotXP+streakXP+badgeXP+missionXP, exXP, workoutXP, challengeXP, shotXP, streakXP, badgeXP, missionXP };
 }
 
-function getEarnedBadges(completed) {
+function getEarnedBadges(completed, programProgress={}) {
   const earned = new Set();
 
   /* ── Progression Track badges ─────────────────────────────── */
@@ -1900,14 +1978,14 @@ function getEarnedBadges(completed) {
 
   /* ── Program completion badges ────────────────────────────── */
   for (const prog of PROGRAMS) {
-    if (computeProgramProgress(prog, completed) >= 1) earned.add(prog.badgeId);
+    if (computeProgramProgress(prog, programProgress) >= 1) earned.add(prog.badgeId);
   }
 
   return [...earned];
 }
 
 /** Returns {cur, target} progress toward a badge — used by Upcoming Unlocks and Next Badge card. */
-function getBadgeProgress(badge, completed) {
+function getBadgeProgress(badge, completed, programProgress={}) {
   const days = [...new Set(
     Object.keys(completed).filter(k=>completed[k]).map(k=>k.split("-").slice(0,3).join("-"))
   )];
@@ -1934,9 +2012,7 @@ function getBadgeProgress(badge, completed) {
   const prog = PROGRAMS.find(p => p.badgeId === badge.id);
   if (prog) {
     const totalSessions = prog.weeks.reduce((s, w) => s + w.sessions.length, 0);
-    let doneSessions = 0;
-    const exDone = exId => Object.keys(completed).some(k => completed[k] && k.split("-").slice(3).join("-") === exId);
-    for (const week of prog.weeks) for (const session of week.sessions) if (session.exercises.every(exDone)) doneSessions++;
+    const doneSessions = countProgramSessionsDone(prog, programProgress);
     return { cur: doneSessions, target: totalSessions };
   }
   return { cur:0, target:1 };
@@ -2376,17 +2452,13 @@ const PROGRAMS = [
   },
 ];
 
-/** Returns 0–1 completion ratio for a program based on completed exercises. */
-function computeProgramProgress(program, completed) {
+/** Returns 0–1 completion ratio for a program based on per-session exercise completions. */
+function computeProgramProgress(program, programProgress) {
   let total = 0, done = 0;
-  const exDone = exId => Object.keys(completed).some(k => {
-    if (!completed[k]) return false;
-    return k.split("-").slice(3).join("-") === exId;
-  });
   for (const week of program.weeks) {
-    for (const session of week.sessions) {
+    for (let si = 0; si < week.sessions.length; si++) {
       total++;
-      if (session.exercises.every(exDone)) done++;
+      if (isProgramSessionComplete(program, programProgress, week.week, si)) done++;
     }
   }
   return total === 0 ? 0 : done / total;
@@ -2421,7 +2493,7 @@ function computePeriodXP(periodEntries) {
   return exXP + workoutXP;
 }
 
-function buildReport(period, completed, badgeDatesMap, enrolledPrograms, favorites) {
+function buildReport(period, completed, badgeDatesMap, enrolledPrograms, favorites, programProgress={}) {
   const now = new Date();
   const todayStr = now.toLocaleDateString("en-CA");
   const periodStart = period==="7d"
@@ -2515,7 +2587,7 @@ function buildReport(period, completed, badgeDatesMap, enrolledPrograms, favorit
     .filter(Boolean);
 
   // Completed programs (all time — no timestamp available)
-  const completedPrograms = PROGRAMS.filter(p=>computeProgramProgress(p,completed)>=1);
+  const completedPrograms = PROGRAMS.filter(p=>computeProgramProgress(p, programProgress||{})>=1);
 
   // Completed challenges (all time)
   const completedChallenges = CHALLENGES_DEF.filter(def=>{
@@ -2595,7 +2667,7 @@ function generateInsights(report, period, currentLevel) {
  * Deterministically generates one mission per day based on user state.
  * Priority: active program → underworked skill category → day-of-week rotation.
  */
-function generateDailyMission(todayStr, settings, completed, enrolledPrograms) {
+function generateDailyMission(todayStr, settings, completed, enrolledPrograms, programProgress={}) {
   const age = calcAge(settings.dateOfBirth);
   const cutoff = new Date(Date.now()-3*86400000).toLocaleDateString("en-CA");
   const recentCats = new Set(
@@ -2604,7 +2676,6 @@ function generateDailyMission(todayStr, settings, completed, enrolledPrograms) {
       .map(k=>ALL_EXERCISES[k.split("-").slice(3).join("-")]?._cat)
       .filter(Boolean)
   );
-  const exDone = exId => Object.keys(completed).some(k=>completed[k]&&k.split("-").slice(3).join("-")===exId);
 
   const tasks = [];
   let title = "Daily Training";
@@ -2617,8 +2688,10 @@ function generateDailyMission(todayStr, settings, completed, enrolledPrograms) {
     const enrollment = enrolledPrograms[activeProg.id];
     const curWeek = programCurrentWeek(enrollment.startDate, activeProg.duration);
     const weekData = activeProg.weeks.find(w=>w.week===curWeek);
-    const nextSession = weekData?.sessions.find(s=>!s.exercises.every(exDone));
+    const nextSession = weekData?.sessions.find((s, si) =>
+      !isProgramSessionComplete(activeProg, programProgress, curWeek, si));
     if (nextSession) {
+      const sessionIdx = weekData.sessions.indexOf(nextSession);
       title = `${activeProg.emoji} ${activeProg.name} — Week ${curWeek}`;
       task1Cat = ALL_EXERCISES[nextSession.exercises[0]]?._cat || null;
       tasks.push({
@@ -2627,6 +2700,9 @@ function generateDailyMission(todayStr, settings, completed, enrolledPrograms) {
         exercises: nextSession.exercises,
         target: nextSession.exercises.length,
         required: true,
+        programId: activeProg.id,
+        week: curWeek,
+        sessionIdx,
       });
       bonusXP = 75;
     }
@@ -2682,7 +2758,7 @@ function generateDailyMission(todayStr, settings, completed, enrolledPrograms) {
 }
 
 /** Live progress for a single mission task. */
-function getMissionTaskProgress(task, completed, todayStr) {
+function getMissionTaskProgress(task, completed, todayStr, programProgress={}) {
   if (task.type==="shots") {
     try {
       const sl = JSON.parse(localStorage.getItem("shot_log_v2")||"{}");
@@ -2690,9 +2766,17 @@ function getMissionTaskProgress(task, completed, todayStr) {
       return { cur:makes, target:task.target };
     } catch { return { cur:0, target:task.target }; }
   }
-  // program or category tasks: count exercises done (any day)
-  const exDone = exId => Object.keys(completed).some(k=>completed[k]&&k.split("-").slice(3).join("-")===exId);
-  const done = (task.exercises||[]).filter(exDone).length;
+  if (task.type==="program" && task.programId != null) {
+    const prog = PROGRAMS.find(p=>p.id===task.programId);
+    if (prog) {
+      const done = (task.exercises||[]).filter(exId =>
+        isProgramExerciseDone(programProgress, task.programId, task.week, task.sessionIdx, exId)
+      ).length;
+      return { cur:done, target:task.target };
+    }
+  }
+  // category tasks: count exercises done today
+  const done = (task.exercises||[]).filter(exId => !!completed[`${todayStr}-${exId}`]).length;
   return { cur:done, target:task.target };
 }
 
@@ -3208,7 +3292,7 @@ function SettingsSheet({ settings, setSettings, onClose }) {
   }, [onClose]);
 
   const exportData = () => {
-    const keys = ['shot_log_v2','s_done','s_settings','s_strday'];
+    const keys = ['shot_log_v2','s_done','s_settings','s_strday','fkh-program-progress','fkh-set-log','fkh-max-reps'];
     const data = { _exported: new Date().toISOString() };
     keys.forEach(k => { try { data[k] = JSON.parse(localStorage.getItem(k)||'null'); } catch {} });
     const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
@@ -3225,7 +3309,7 @@ function SettingsSheet({ settings, setSettings, onClose }) {
     reader.onload = e => {
       try {
         const data = JSON.parse(e.target.result);
-        ['shot_log_v2','s_done','s_settings','s_strday'].forEach(k => {
+        ['shot_log_v2','s_done','s_settings','s_strday','fkh-program-progress','fkh-set-log','fkh-max-reps'].forEach(k => {
           if (data[k] != null) localStorage.setItem(k, JSON.stringify(data[k]));
         });
         window.location.reload();
@@ -3394,6 +3478,23 @@ function SettingsSheet({ settings, setSettings, onClose }) {
                 </button>
               ))}
             </div>
+          </div>
+        </div>
+
+        {/* Workout Timers */}
+        <div style={{ padding:"0 20px 16px" }}>
+          <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:"#334155",marginBottom:12,textTransform:"uppercase" }}>Workout</div>
+          <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 14px",borderRadius:12,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)" }}>
+            <div>
+              <div style={{ fontSize:13,fontWeight:700,color:"#e2e8f0",marginBottom:3 }}>⏱ Workout Timers</div>
+              <div style={{ fontSize:11,color:"#64748b",lineHeight:1.45 }}>Countdown alerts, rest timers, and set cues during exercises</div>
+            </div>
+            <button onClick={()=>setSettings(p=>({...p,workoutTimers:!p.workoutTimers}))}
+              style={{ width:52,height:30,borderRadius:99,border:"none",cursor:"pointer",flexShrink:0,
+                background:settings.workoutTimers!==false?P:"rgba(255,255,255,0.12)",
+                position:"relative",transition:"background 0.2s" }}>
+              <span style={{ position:"absolute",top:3,left:settings.workoutTimers!==false?24:3,width:24,height:24,borderRadius:"50%",background:"#fff",transition:"left 0.2s",boxShadow:"0 1px 4px rgba(0,0,0,0.3)" }}/>
+            </button>
           </div>
         </div>
 
@@ -4788,7 +4889,7 @@ function BadgesView({ earnedBadges, badgeDates, completed, P, S, BG, SF, bd, lbl
       {(()=>{
         const upcoming = BADGES_DEF
           .filter(b => !earnedBadges.includes(b.id))
-          .map(b => { const { cur, target } = getBadgeProgress(b, completed); return { ...b, cur, target, pct: Math.min(1, cur / target) }; })
+          .map(b => { const { cur, target } = getBadgeProgress(b, completed, programProgress); return { ...b, cur, target, pct: Math.min(1, cur / target) }; })
           .sort((a, b) => b.pct - a.pct || a.target - b.target)
           .slice(0, 3);
         if (!upcoming.length) return null;
@@ -4967,7 +5068,7 @@ function BadgesView({ earnedBadges, badgeDates, completed, P, S, BG, SF, bd, lbl
   );
 }
 
-function ProfileView({ settings, totalXP, xpData, currentLevel, earnedBadges, completed, badgeDates, P, S, ST, BG, SF, bd, lbl, onOpenSettings, onViewHistory, onViewBadges }) {
+function ProfileView({ settings, totalXP, xpData, currentLevel, earnedBadges, completed, programProgress, badgeDates, P, S, ST, BG, SF, bd, lbl, onOpenSettings, onViewHistory, onViewBadges }) {
   const nextLevel = LEVELS.find(l=>l.rank===currentLevel.rank+1);
   const xpInLevel  = totalXP - currentLevel.xpMin;
   const xpSpan     = nextLevel ? nextLevel.xpMin - currentLevel.xpMin : 500;
@@ -5204,8 +5305,271 @@ function ProfileView({ settings, totalXP, xpData, currentLevel, earnedBadges, co
   );
 }
 
+/* ═══════════════════════ SET TRACKER & WORKOUT TIMER ═══════ */
+
+function ExerciseSetTracker({
+  exercise, color, SF,
+  prescription, restSecs,
+  sets, onSetsChange,
+  timersEnabled,
+  maxReps, onMaxRepsChange,
+  onAllSetsComplete,
+}) {
+  const [timerPhase, setTimerPhase] = useState(null); // prep | work | rest
+  const [timerSecs, setTimerSecs] = useState(0);
+  const [activeSetIdx, setActiveSetIdx] = useState(null);
+  const [liveReps, setLiveReps] = useState(0);
+  const liveRepsRef = useRef(0);
+  const warnedRef = useRef({ fifteen:false, five:false });
+  const phaseRef = useRef(null);
+  const setIdxRef = useRef(null);
+
+  const stopTimer = useCallback(() => {
+    setTimerPhase(null);
+    setActiveSetIdx(null);
+    phaseRef.current = null;
+    setIdxRef.current = null;
+  }, []);
+
+  const completeSet = useCallback((idx, reps=null) => {
+    const finalReps = reps ?? liveRepsRef.current;
+    const next = sets.map((s, i) => i===idx ? { ...s, done:true, reps:finalReps ?? s.reps } : s);
+    onSetsChange(next);
+    if (finalReps != null && finalReps > (maxReps||0)) onMaxRepsChange(finalReps);
+    const allDone = next.every(s => s.done);
+    if (allDone) {
+      stopTimer();
+      onAllSetsComplete?.();
+      return;
+    }
+    if (timersEnabled && idx < prescription.count - 1) {
+      phaseRef.current = "rest";
+      setIdxRef.current = idx;
+      setActiveSetIdx(idx);
+      setTimerPhase("rest");
+      setTimerSecs(restSecs);
+      warnedRef.current = { fifteen:false, five:false };
+      timerAlert("rest");
+    } else {
+      stopTimer();
+    }
+  }, [sets, onSetsChange, maxReps, onMaxRepsChange, timersEnabled, restSecs, prescription.count, onAllSetsComplete, stopTimer]);
+
+  useEffect(() => {
+    if (!timerPhase) return;
+    phaseRef.current = timerPhase;
+    const id = setInterval(() => {
+      setTimerSecs(prev => {
+        const next = prev - 1;
+        const phase = phaseRef.current;
+        const idx = setIdxRef.current;
+
+        if (phase === "prep") {
+          if (next <= 0) {
+            timerAlert("go");
+            const workDur = prescription.value || 30;
+            phaseRef.current = "work";
+            setTimerPhase("work");
+            setLiveReps(0);
+            return workDur;
+          }
+          if (next === 1) timerAlert("tick");
+          return next;
+        }
+        if (phase === "work") {
+          if (next === TIMER_WARN_SECS) timerAlert("warn");
+          if (next <= 0) {
+            completeSet(idx, liveRepsRef.current);
+            return 0;
+          }
+          return next;
+        }
+        if (phase === "rest") {
+          if (next === TIMER_REST_WARN_SECS && !warnedRef.current.fifteen) {
+            warnedRef.current.fifteen = true;
+            timerAlert("warn");
+          }
+          if (next === TIMER_WARN_SECS && !warnedRef.current.five) {
+            warnedRef.current.five = true;
+            timerAlert("warn");
+          }
+          if (next <= 0) {
+            const nextIdx = idx + 1;
+            if (prescription.type === "time" && timersEnabled) {
+              phaseRef.current = "prep";
+              setIdxRef.current = nextIdx;
+              setActiveSetIdx(nextIdx);
+              setTimerPhase("prep");
+              setTimerSecs(TIMER_PREP_SECS);
+              timerAlert("tick");
+              return TIMER_PREP_SECS;
+            }
+            stopTimer();
+            return 0;
+          }
+          return next;
+        }
+        return next;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [timerPhase, prescription, timersEnabled, completeSet, stopTimer]);
+
+  useEffect(() => { liveRepsRef.current = liveReps; }, [liveReps]);
+
+  useEffect(() => () => stopTimer(), [exercise?.id, stopTimer]);
+
+  const startTimedSet = idx => {
+    if (sets[idx]?.done) return;
+    if (!timersEnabled) {
+      toggleRepSet(idx);
+      return;
+    }
+    setIdxRef.current = idx;
+    setActiveSetIdx(idx);
+    setLiveReps(sets[idx]?.reps || 0);
+    liveRepsRef.current = sets[idx]?.reps || 0;
+    phaseRef.current = "prep";
+    setTimerPhase("prep");
+    setTimerSecs(TIMER_PREP_SECS);
+    timerAlert("tick");
+  };
+
+  const toggleRepSet = idx => {
+    const s = sets[idx];
+    if (!s) return;
+    if (s.done) {
+      onSetsChange(sets.map((x, i) => i===idx ? { ...x, done:false } : x));
+      stopTimer();
+    } else {
+      const next = sets.map((x, i) => i===idx ? { ...x, done:true } : x);
+      onSetsChange(next);
+      if (next.every(x => x.done)) onAllSetsComplete?.();
+      else if (timersEnabled && idx < prescription.count - 1) {
+        setIdxRef.current = idx;
+        setActiveSetIdx(idx);
+        phaseRef.current = "rest";
+        setTimerPhase("rest");
+        setTimerSecs(restSecs);
+        warnedRef.current = { fifteen:false, five:false };
+        timerAlert("rest");
+      }
+    }
+  };
+
+  const isTimed = prescription.type === "time";
+  const targetLabel = isTimed
+    ? `${prescription.value}${prescription.maxValue ? `–${prescription.maxValue}` : ""}s`
+    : prescription.value
+      ? `${prescription.value}${prescription.maxValue ? `–${prescription.maxValue}` : ""} reps`
+      : "complete";
+
+  return (
+    <div style={{ marginBottom:18 }}>
+      <div style={{ display:"flex",alignItems:"center",gap:7,marginBottom:9 }}>
+        <span style={{ fontSize:15 }}>📋</span>
+        <span style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:`${color}80`,textTransform:"uppercase" }}>
+          Sets
+        </span>
+        {maxReps > 0 && isTimed && (
+          <span style={{ marginLeft:"auto",fontSize:10,fontWeight:700,color:"#fbbf24" }}>
+            🏆 Best: {maxReps} reps
+          </span>
+        )}
+      </div>
+
+      {timerPhase && (
+        <div style={{ marginBottom:12,padding:"14px",borderRadius:12,textAlign:"center",
+          background:timerPhase==="work" ? `${color}18` : timerPhase==="rest" ? "rgba(59,130,246,0.12)" : "rgba(255,255,255,0.06)",
+          border:`1.5px solid ${timerPhase==="work" ? color : timerPhase==="rest" ? "#3b82f6" : "rgba(255,255,255,0.12)"}` }}>
+          <div style={{ fontSize:10,fontWeight:700,color:"#94a3b8",textTransform:"uppercase",letterSpacing:"0.12em",marginBottom:4 }}>
+            {timerPhase==="prep" ? "Get Ready" : timerPhase==="work" ? `Set ${(activeSetIdx??0)+1} — Go!` : "Rest"}
+          </div>
+          <div style={{ fontFamily:"'DM Mono',monospace",fontSize:42,fontWeight:800,color:timerPhase==="work"?color:"#e2e8f0",lineHeight:1 }}>
+            {fmtTimerSecs(timerSecs)}
+          </div>
+          {timerPhase==="work" && isTimed && (
+            <div style={{ marginTop:10,display:"flex",alignItems:"center",justifyContent:"center",gap:12 }}>
+              <button onClick={()=>setLiveReps(r=>{ const n=Math.max(0,r-1); liveRepsRef.current=n; return n; })}
+                style={{ width:40,height:40,borderRadius:10,border:`1px solid ${color}44`,background:"rgba(0,0,0,0.2)",color:"#fff",fontSize:20,cursor:"pointer" }}>−</button>
+              <div style={{ textAlign:"center",minWidth:70 }}>
+                <div style={{ fontSize:24,fontWeight:800,color }}>{liveReps}</div>
+                <div style={{ fontSize:9,color:"#64748b" }}>reps</div>
+              </div>
+              <button onClick={()=>setLiveReps(r=>{ const n=r+1; liveRepsRef.current=n; return n; })}
+                style={{ width:40,height:40,borderRadius:10,border:"none",background:color,color:"#000",fontSize:20,fontWeight:800,cursor:"pointer" }}>+</button>
+            </div>
+          )}
+          {timerPhase==="work" && (
+            <button onClick={()=>completeSet(activeSetIdx, liveReps)}
+              style={{ marginTop:10,padding:"8px 16px",borderRadius:8,border:`1px solid ${color}44`,background:"transparent",color,fontSize:11,fontWeight:700,cursor:"pointer" }}>
+              Finish Set Early
+            </button>
+          )}
+          <button onClick={stopTimer}
+            style={{ marginTop:8,padding:"6px 12px",borderRadius:6,border:"none",background:"rgba(255,255,255,0.08)",color:"#64748b",fontSize:10,cursor:"pointer" }}>
+            Stop Timer
+          </button>
+        </div>
+      )}
+
+      <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
+        {Array.from({ length: prescription.count }, (_, idx) => {
+          const s = sets[idx] || { done:false };
+          const isActive = activeSetIdx === idx && timerPhase;
+          return (
+            <div key={idx} style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:10,
+              background:s.done ? "rgba(34,197,94,0.08)" : isActive ? `${color}10` : SF,
+              border:`1px solid ${s.done ? "rgba(34,197,94,0.25)" : isActive ? `${color}44` : "rgba(255,255,255,0.07)"}`,
+              opacity:s.done ? 0.85 : 1 }}>
+              <span style={{ fontFamily:"'DM Mono',monospace",fontSize:11,fontWeight:800,color:"#475569",width:20 }}>{idx+1}</span>
+              <span style={{ flex:1,fontSize:12,fontWeight:600,color:s.done?"#22c55e":"#e2e8f0" }}>{targetLabel}</span>
+              {s.reps != null && s.done && isTimed && (
+                <span style={{ fontSize:10,fontWeight:700,color:"#fbbf24" }}>{s.reps} reps</span>
+              )}
+              {isTimed ? (
+                s.done ? (
+                  <button onClick={()=>toggleRepSet(idx)}
+                    style={{ width:32,height:32,borderRadius:8,border:"1px solid #22c55e",background:"#22c55e",color:"#fff",fontSize:14,fontWeight:800,cursor:"pointer" }}>✓</button>
+                ) : timersEnabled ? (
+                  <button onClick={()=>startTimedSet(idx)} disabled={!!timerPhase}
+                    style={{ padding:"6px 12px",borderRadius:8,border:"none",background:timerPhase?`${color}44`:color,color:timerPhase?"#64748b":"#000",fontSize:11,fontWeight:800,cursor:timerPhase?"default":"pointer" }}>
+                    ▶ Start
+                  </button>
+                ) : (
+                  <div style={{ display:"flex",alignItems:"center",gap:6 }}>
+                    <button onClick={()=>{ const r=Math.max(0,(s.reps||0)-1); onSetsChange(sets.map((x,i)=>i===idx?{...x,reps:r}:x)); }}
+                      style={{ width:26,height:26,borderRadius:6,border:`1px solid ${color}44`,background:"transparent",color,fontSize:14,cursor:"pointer" }}>−</button>
+                    <span style={{ fontSize:12,fontWeight:700,color,minWidth:16,textAlign:"center" }}>{s.reps||0}</span>
+                    <button onClick={()=>{ const r=(s.reps||0)+1; onSetsChange(sets.map((x,i)=>i===idx?{...x,reps:r}:x)); }}
+                      style={{ width:26,height:26,borderRadius:6,border:"none",background:color,color:"#000",fontSize:14,fontWeight:800,cursor:"pointer" }}>+</button>
+                    <button onClick={()=>{
+                      const r=s.reps||0;
+                      const next=sets.map((x,i)=>i===idx?{...x,done:true,reps:r}:x);
+                      onSetsChange(next);
+                      if (r>(maxReps||0)) onMaxRepsChange(r);
+                      if (next.every(x=>x.done)) onAllSetsComplete?.();
+                    }}
+                      style={{ width:32,height:32,borderRadius:8,border:`1.5px solid ${color}60`,background:"transparent",color,fontSize:14,fontWeight:800,cursor:"pointer" }}>○</button>
+                  </div>
+                )
+              ) : (
+                <button onClick={()=>toggleRepSet(idx)}
+                  style={{ width:32,height:32,borderRadius:8,border:`1.5px solid ${s.done?"#22c55e":color+"60"}`,background:s.done?"#22c55e":"transparent",color:s.done?"#fff":color,fontSize:14,fontWeight:800,cursor:"pointer" }}>
+                  {s.done?"✓":"○"}
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /* ═══════════════════════ EXERCISE DETAIL SHEET ════════════ */
-function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onToggle, onClose, onNext, completed, favored, onToggleFav, navLabel }) {
+function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onToggle, onClose, onNext, completed, favored, onToggleFav, navLabel,
+  programContext, setLog, onSetLogChange, maxRepsMap, onMaxRepsChange, settings, today }) {
   const meta      = exercise.meta || {};
   const cat       = exercise._cat || "speed";
   const catInfo   = CATS[cat] || { label:cat, emoji:"⚡" };
@@ -5243,6 +5607,23 @@ function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onTogg
   const spLabel   = { small:"Small Space", medium:"Medium Space", large:"Open Space" }[meta.spaceRequired] || meta.spaceRequired || "";
 
   const benefits = [...new Set(meta.basketballTransfer||[])].map(b=>BENEFIT_MAP[b]).filter(Boolean);
+
+  /* Set tracking ─────────────────────────────────────────── */
+  const prescription = parseExerciseSets(exercise.sets);
+  const restSecs = parseRestSeconds(exercise.rest);
+  const logKey = setLogKey(exercise.id, today, programContext);
+  const currentSets = setLog?.[logKey]?.sets || [];
+  const maxReps = maxRepsMap?.[exercise.id] || 0;
+  const timersEnabled = settings?.workoutTimers !== false;
+
+  const handleSetsChange = newSets => {
+    onSetLogChange?.(logKey, { sets: newSets });
+  };
+
+  const handleAllSetsComplete = () => {
+    if (!isDone) onToggle();
+    if (onNext) setTimeout(() => onNext(), 600);
+  };
 
   return (
     <>
@@ -5416,6 +5797,25 @@ function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onTogg
                 </div>
               ))}
             </div>
+
+            {/* Set tracker */}
+            {prescription && onSetLogChange && (
+              <ExerciseSetTracker
+                exercise={exercise}
+                color={color}
+                SF={SF}
+                prescription={prescription}
+                restSecs={restSecs}
+                sets={currentSets.length === prescription.count
+                  ? currentSets
+                  : Array.from({ length: prescription.count }, (_, i) => currentSets[i] || { done:false })}
+                onSetsChange={handleSetsChange}
+                timersEnabled={timersEnabled}
+                maxReps={maxReps}
+                onMaxRepsChange={v => onMaxRepsChange?.(exercise.id, v)}
+                onAllSetsComplete={handleAllSetsComplete}
+              />
+            )}
 
             {/* Description */}
             {exercise.desc&&(
@@ -5761,10 +6161,17 @@ const DATA_VERSION_KEY = "fkh-data-version";
 
 const MIGRATIONS = [
   // ── v0 → v1: baseline ──────────────────────────────────────────
-  // Existing installs already match the current storage shapes, so
-  // there is nothing to transform yet. This just establishes the
-  // versioning baseline so future shape changes have a home.
   () => {},
+  // ── v1 → v2: enable workout timers for existing installs ───────
+  () => {
+    try {
+      const raw = JSON.parse(localStorage.getItem("s_settings") || "{}");
+      if (raw.workoutTimers === undefined) {
+        raw.workoutTimers = true;
+        localStorage.setItem("s_settings", JSON.stringify(raw));
+      }
+    } catch {}
+  },
 ];
 
 const DATA_VERSION = MIGRATIONS.length; // keep in lock-step automatically
@@ -5884,6 +6291,10 @@ export default function SummerTrainingApp() {
   });
   const [lastEarnedBadge, setLastEarnedBadge] = useState(null);
   const [completed, setCompleted] = useState(()=>{ try{return JSON.parse(localStorage.getItem("s_done")||"{}")}catch{return{}} });
+  const [programProgress, setProgramProgress] = useState(()=>{ try{return JSON.parse(localStorage.getItem("fkh-program-progress")||"{}")}catch{return{}} });
+  const [setLog, setSetLog] = useState(()=>{ try{return JSON.parse(localStorage.getItem("fkh-set-log")||"{}")}catch{return{}} });
+  const [maxRepsMap, setMaxRepsMap] = useState(()=>{ try{return JSON.parse(localStorage.getItem("fkh-max-reps")||"{}")}catch{return{}} });
+  const [detailContext, setDetailContext] = useState(null);
   const [enrolledPrograms, setEnrolledPrograms] = useState(()=>{ try{return JSON.parse(localStorage.getItem("fkh-programs")||"{}")}catch{return{}} });
   const [selectedProgram, setSelectedProgram] = useState(null); // programId string when drill-in open
   const [missionLog, setMissionLog] = useState(()=>{ try{return JSON.parse(localStorage.getItem("fkh-missions")||"{}")}catch{return{}} });
@@ -5928,6 +6339,9 @@ export default function SummerTrainingApp() {
 
   useEffect(()=>{ try{localStorage.setItem("s_settings",JSON.stringify(settings))}catch{} },[settings]);
   useEffect(()=>{ try{localStorage.setItem("s_done",JSON.stringify(completed))}catch{} },[completed]);
+  useEffect(()=>{ try{localStorage.setItem("fkh-program-progress",JSON.stringify(programProgress))}catch{} },[programProgress]);
+  useEffect(()=>{ try{localStorage.setItem("fkh-set-log",JSON.stringify(setLog))}catch{} },[setLog]);
+  useEffect(()=>{ try{localStorage.setItem("fkh-max-reps",JSON.stringify(maxRepsMap))}catch{} },[maxRepsMap]);
   useEffect(()=>{ try{localStorage.setItem("fkh-programs",JSON.stringify(enrolledPrograms))}catch{} },[enrolledPrograms]);
   useEffect(()=>{ try{localStorage.setItem("fkh-missions",JSON.stringify(missionLog))}catch{} },[missionLog]);
   useEffect(()=>{ try{localStorage.setItem("fkh-favs",JSON.stringify(favorites))}catch{} },[favorites]);
@@ -5945,18 +6359,66 @@ export default function SummerTrainingApp() {
 
   const isDone  = id => !!completed[`${today}-${id}`];
   const toggle  = id => setCompleted(p=>({...p,[`${today}-${id}`]:!p[`${today}-${id}`]}));
+
+  const markProgramExercise = useCallback((ctx, exId) => {
+    const { programId, week, sessionIdx } = ctx;
+    const slot = programSessionSlot(week, sessionIdx);
+    const date = todayKey();
+    setProgramProgress(prev => ({
+      ...prev,
+      [programId]: {
+        ...(prev[programId] || {}),
+        [slot]: { ...(prev[programId]?.[slot] || {}), [exId]: date },
+      },
+    }));
+  }, []);
+
+  const toggleProgramExercise = useCallback((ctx, exId) => {
+    const { programId, week, sessionIdx } = ctx;
+    const slot = programSessionSlot(week, sessionIdx);
+    const done = isProgramExerciseDone(programProgress, programId, week, sessionIdx, exId);
+    if (done) {
+      setProgramProgress(prev => {
+        const next = { ...prev };
+        const slotData = { ...(next[programId]?.[slot] || {}) };
+        delete slotData[exId];
+        next[programId] = { ...(next[programId] || {}), [slot]: slotData };
+        return next;
+      });
+    } else {
+      markProgramExercise(ctx, exId);
+      const day = todayKey();
+      setCompleted(p => p[`${day}-${exId}`] ? p : { ...p, [`${day}-${exId}`]: true });
+    }
+  }, [programProgress, markProgramExercise]);
+
+  const handleSetLogChange = useCallback((key, data) => {
+    setSetLog(prev => ({ ...prev, [key]: { ...prev[key], ...data } }));
+  }, []);
+
+  const handleMaxRepsChange = useCallback((exId, reps) => {
+    setMaxRepsMap(prev => reps > (prev[exId] || 0) ? { ...prev, [exId]: reps } : prev);
+  }, []);
   const setStrDayPersist = day => { setStrDay(day); localStorage.setItem('s_strday',day); };
   const doneCnt = Object.keys(completed).filter(k=>k.startsWith(today)).length;
 
   /* Exercise Detail helpers ────────────────────────────────── */
-  const openDetail = useCallback((ex, list=[]) => {
+  const openDetail = useCallback((ex, list=[], context=null) => {
     const enrich = e => ({ ...e, _cat:e._cat||"speed", meta:e.meta||EXERCISE_META[e.id]||{} });
     setActiveExercise(enrich(ex));
     setDetailList(list.map(enrich));
+    setDetailContext(context);
   }, []);
   const detailIdx  = activeExercise ? detailList.findIndex(e=>e.id===activeExercise.id) : -1;
   const nextExDetail = detailIdx>=0 && detailIdx<detailList.length-1 ? detailList[detailIdx+1] : null;
-  const closeDetail  = () => setActiveExercise(null);
+  const closeDetail  = () => { setActiveExercise(null); setDetailContext(null); };
+
+  const detailSheetProps = {
+    programContext: detailContext,
+    setLog, onSetLogChange: handleSetLogChange,
+    maxRepsMap, onMaxRepsChange: handleMaxRepsChange,
+    settings, today,
+  };
 
   const todayIdx  = new Date().getDay()===0?6:new Date().getDay()-1;
   const todayPlan = SCHEDULE[todayIdx];
@@ -5984,9 +6446,9 @@ export default function SummerTrainingApp() {
   [settings, completed, selectedTemplate]);
 
   /* XP / Level / Badges ──────────────────────────────────── */
-  const xpData       = useMemo(()=>computeXP(completed),[completed]);
+  const xpData       = useMemo(()=>computeXP(completed, programProgress),[completed, programProgress]);
   const currentLevel = useMemo(()=>getLevel(xpData.total),[xpData.total]);
-  const earnedBadges = useMemo(()=>getEarnedBadges(completed),[completed]);
+  const earnedBadges = useMemo(()=>getEarnedBadges(completed, programProgress),[completed, programProgress]);
 
   // Detect newly unlocked badges → queue celebration + record dates
   useEffect(()=>{
@@ -6010,14 +6472,14 @@ export default function SummerTrainingApp() {
 
   /* Daily Mission ─────────────────────────────────────────────── */
   const todayMission = useMemo(()=>
-    generateDailyMission(today, settings, completed, enrolledPrograms),
-  [today, settings, completed, enrolledPrograms]);
+    generateDailyMission(today, settings, completed, enrolledPrograms, programProgress),
+  [today, settings, completed, enrolledPrograms, programProgress]);
 
   const missionClaimed = !!missionLog[today]?.claimed;
 
   const requiredTasksDone = useMemo(()=>
     todayMission.tasks.filter(t=>t.required).every(t=>{
-      const {cur,target} = getMissionTaskProgress(t, completed, today);
+      const {cur,target} = getMissionTaskProgress(t, completed, today, programProgress);
       return cur >= target;
     }),
   [todayMission, completed, today]);
@@ -6073,11 +6535,10 @@ export default function SummerTrainingApp() {
       else {
         const enrollment = enrolledPrograms[prog.id];
         const curWeekNum = enrollment ? programCurrentWeek(enrollment.startDate, prog.duration) : 1;
-        const pct = Math.round(computeProgramProgress(prog, completed) * 100);
-        const exDone = exId => Object.keys(completed).some(k => completed[k] && k.split("-").slice(3).join("-") === exId);
-        const sessionDone = session => session.exercises.every(exDone);
+        const pct = Math.round(computeProgramProgress(prog, programProgress) * 100);
+        const sessionDone = (week, sessionIdx) => isProgramSessionComplete(prog, programProgress, week, sessionIdx);
         const totalSessions = prog.weeks.reduce((s, w) => s + w.sessions.length, 0);
-        const doneSessions = prog.weeks.reduce((s, w) => s + w.sessions.filter(sessionDone).length, 0);
+        const doneSessions = countProgramSessionsDone(prog, programProgress);
 
         return (
           <div style={{ background:BG,minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:80 }}>
@@ -6085,11 +6546,18 @@ export default function SummerTrainingApp() {
             {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]} onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
             {activeExercise&&<ExerciseDetailSheet exercise={activeExercise} color={prog.color}
               bg2={SF} brd={`${prog.color}22`} BG={BG} SF={SF}
-              isDone={isDone(activeExercise.id)} onToggle={()=>toggle(activeExercise.id)}
+              isDone={detailContext
+                ? isProgramExerciseDone(programProgress, detailContext.programId, detailContext.week, detailContext.sessionIdx, activeExercise.id)
+                : isDone(activeExercise.id)}
+              onToggle={()=>{
+                if (detailContext) toggleProgramExercise(detailContext, activeExercise.id);
+                else toggle(activeExercise.id);
+              }}
               onClose={closeDetail} onNext={nextExDetail?()=>setActiveExercise(nextExDetail):null}
               completed={completed}
               favored={isFav("exercises",activeExercise.id)}
-              onToggleFav={()=>toggleFav("exercises",activeExercise.id)}/>}
+              onToggleFav={()=>toggleFav("exercises",activeExercise.id)}
+              {...detailSheetProps}/>}
 
             {/* Header */}
             <div style={{ padding:"16px 18px 0" }}>
@@ -6140,8 +6608,8 @@ export default function SummerTrainingApp() {
             {/* Week accordion */}
             {prog.weeks.map(week => {
               const isCurrent = enrollment && week.week === curWeekNum;
-              const weekDone = week.sessions.every(sessionDone);
-              const weekPct = Math.round((week.sessions.filter(sessionDone).length / week.sessions.length) * 100);
+              const weekDone = week.sessions.every((_, si) => sessionDone(week.week, si));
+              const weekPct = Math.round((week.sessions.filter((_, si) => sessionDone(week.week, si)).length / week.sessions.length) * 100);
               return (
                 <div key={week.week} style={{ margin:"0 18px 12px",borderRadius:14,
                   border:`1px solid ${isCurrent ? prog.color+"44" : "rgba(255,255,255,0.07)"}`,
@@ -6170,7 +6638,8 @@ export default function SummerTrainingApp() {
 
                   {/* Sessions (always shown for current week, collapsed for others) */}
                   {(isCurrent || !enrollment) && week.sessions.map((session, si) => {
-                    const sDone = sessionDone(session);
+                    const sDone = sessionDone(week.week, si);
+                    const pCtx = { programId: prog.id, week: week.week, sessionIdx: si };
                     return (
                       <div key={si} style={{ margin:"0 12px 10px",borderRadius:10,
                         background:sDone ? "rgba(34,197,94,0.06)" : "rgba(255,255,255,0.04)",
@@ -6185,14 +6654,15 @@ export default function SummerTrainingApp() {
                           {session.exercises.map(exId => {
                             const ex = ALL_EXERCISES[exId];
                             if (!ex) return null;
-                            const done = exDone(exId);
+                            const done = isProgramExerciseDone(programProgress, prog.id, week.week, si, exId);
+                            const sessionExList = session.exercises.map(id=>({...ALL_EXERCISES[id],_cat:ALL_EXERCISES[id]?._cat,meta:ALL_EXERCISES[id]?.meta||EXERCISE_META[id]||{}})).filter(Boolean);
                             return (
-                              <div key={exId} onClick={()=>{ const enriched={...ex,_cat:ex._cat,meta:ex.meta||EXERCISE_META[exId]||{}}; openDetail(enriched,session.exercises.map(id=>({...ALL_EXERCISES[id],_cat:ALL_EXERCISES[id]?._cat,meta:ALL_EXERCISES[id]?.meta||EXERCISE_META[id]||{}})).filter(Boolean)); }}
+                              <div key={exId} onClick={()=>{ const enriched={...ex,_cat:ex._cat,meta:ex.meta||EXERCISE_META[exId]||{}}; openDetail(enriched, sessionExList, pCtx); }}
                                 style={{ display:"flex",alignItems:"center",gap:9,padding:"7px 9px",borderRadius:8,
                                   background:done?"rgba(34,197,94,0.08)":"rgba(255,255,255,0.04)",
                                   border:`1px solid ${done?"rgba(34,197,94,0.18)":"rgba(255,255,255,0.05)"}`,
                                   cursor:"pointer" }}>
-                                <button onClick={e=>{ e.stopPropagation(); toggle(exId); }}
+                                <button onClick={e=>{ e.stopPropagation(); toggleProgramExercise(pCtx, exId); }}
                                   style={{ width:20,height:20,borderRadius:6,border:`1.5px solid ${done?"#22c55e":prog.color+"60"}`,
                                     background:done?"#22c55e":"transparent",color:"#fff",fontSize:10,
                                     display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,padding:0 }}>
@@ -6230,7 +6700,8 @@ export default function SummerTrainingApp() {
           onClose={closeDetail} onNext={nextExDetail?()=>setActiveExercise(nextExDetail):null}
           completed={completed}
           favored={isFav("exercises",activeExercise.id)}
-          onToggleFav={()=>toggleFav("exercises",activeExercise.id)}/>}
+          onToggleFav={()=>toggleFav("exercises",activeExercise.id)}
+          {...detailSheetProps}/>}
 
         {/* Header */}
         <div style={{ padding:"20px 18px 6px" }}>
@@ -6253,7 +6724,7 @@ export default function SummerTrainingApp() {
             {activeEnrollments.map(prog => {
               const enrollment = enrolledPrograms[prog.id];
               const curWeek = programCurrentWeek(enrollment.startDate, prog.duration);
-              const pct = Math.round(computeProgramProgress(prog, completed) * 100);
+              const pct = Math.round(computeProgramProgress(prog, programProgress) * 100);
               return (
                 <div key={prog.id} onClick={()=>setSelectedProgram(prog.id)}
                   style={{ borderRadius:14,border:`1px solid ${prog.color}40`,background:`${prog.color}0c`,
@@ -6282,7 +6753,7 @@ export default function SummerTrainingApp() {
           </div>
           {PROGRAMS.map(prog => {
             const enrolled = !!enrolledPrograms[prog.id];
-            const pct = enrolled ? Math.round(computeProgramProgress(prog, completed) * 100) : 0;
+            const pct = enrolled ? Math.round(computeProgramProgress(prog, programProgress) * 100) : 0;
             const completed_badge = earnedBadges.includes(prog.badgeId);
             return (
               <div key={prog.id} onClick={()=>setSelectedProgram(prog.id)}
@@ -6399,6 +6870,7 @@ export default function SummerTrainingApp() {
       <ProfileView
         settings={settings} totalXP={xpData.total} xpData={xpData}
         currentLevel={currentLevel} earnedBadges={earnedBadges} completed={completed}
+        programProgress={programProgress}
         badgeDates={badgeDates}
         P={P} S={S} ST={ST} BG={BG} SF={SF} bd={bd} lbl={lbl}
         onOpenSettings={()=>setShowSettings(true)}
@@ -6457,7 +6929,8 @@ export default function SummerTrainingApp() {
           completed={completed}
           favored={isFav("exercises",activeExercise.id)}
           onToggleFav={()=>toggleFav("exercises",activeExercise.id)}
-          navLabel={activeCat&&CATS[activeCat]?`${CATS[activeCat].emoji} ${CATS[activeCat].label}`:undefined}/>}
+          navLabel={activeCat&&CATS[activeCat]?`${CATS[activeCat].emoji} ${CATS[activeCat].label}`:undefined}
+          {...detailSheetProps}/>}
         {renderBottomNav()}
       </div>
     );
@@ -6465,7 +6938,7 @@ export default function SummerTrainingApp() {
 
   /* REPORT */
   if (view==="report") {
-    const report = buildReport(reportPeriod, completed, badgeDates, enrolledPrograms, favorites);
+    const report = buildReport(reportPeriod, completed, badgeDates, enrolledPrograms, favorites, programProgress);
     const insights = generateInsights(report, reportPeriod, currentLevel);
     const periodLabel = reportPeriod==="7d"?"Last 7 Days":reportPeriod==="30d"?"Last 30 Days":"All Time";
 
@@ -6496,7 +6969,8 @@ export default function SummerTrainingApp() {
           onClose={closeDetail} onNext={nextExDetail?()=>setActiveExercise(nextExDetail):null}
           completed={completed}
           favored={isFav("exercises",activeExercise.id)}
-          onToggleFav={()=>toggleFav("exercises",activeExercise.id)}/>}
+          onToggleFav={()=>toggleFav("exercises",activeExercise.id)}
+          {...detailSheetProps}/>}
 
         {/* Header */}
         <div style={{ padding:"20px 18px 14px" }}>
@@ -6700,7 +7174,8 @@ export default function SummerTrainingApp() {
         onNext={nextExDetail?()=>setActiveExercise(nextExDetail):null}
         completed={completed}
         favored={isFav("exercises",activeExercise.id)}
-        onToggleFav={()=>toggleFav("exercises",activeExercise.id)}/>}
+        onToggleFav={()=>toggleFav("exercises",activeExercise.id)}
+        {...detailSheetProps}/>}
       {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]}
         onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
       {showOnboarding&&(
@@ -6856,7 +7331,7 @@ export default function SummerTrainingApp() {
               {/* Task list */}
               <div style={{ padding:"0 12px 12px",display:"flex",flexDirection:"column",gap:7 }}>
                 {mission.tasks.map(task=>{
-                  const {cur,target} = getMissionTaskProgress(task, completed, today);
+                  const {cur,target} = getMissionTaskProgress(task, completed, today, programProgress);
                   const taskDone = cur>=target;
                   const pctRaw = target>0 ? Math.min(1,cur/target) : 0;
                   return (
@@ -6926,8 +7401,8 @@ export default function SummerTrainingApp() {
               {/* Overall progress / claimed state */}
               {(()=>{
                 const reqTasks = mission.tasks.filter(t=>t.required);
-                const totalReq = reqTasks.reduce((s,t)=>{const {target}=getMissionTaskProgress(t,completed,today); return s+target;},0);
-                const doneReq  = reqTasks.reduce((s,t)=>{const {cur,target}=getMissionTaskProgress(t,completed,today); return s+Math.min(cur,target);},0);
+                const totalReq = reqTasks.reduce((s,t)=>{const {target}=getMissionTaskProgress(t,completed,today,programProgress); return s+target;},0);
+                const doneReq  = reqTasks.reduce((s,t)=>{const {cur,target}=getMissionTaskProgress(t,completed,today,programProgress); return s+Math.min(cur,target);},0);
                 const overallPct = totalReq>0 ? doneReq/totalReq : 0;
                 return (
                   <div style={{ padding:"0 12px 12px" }}>
@@ -7104,7 +7579,7 @@ export default function SummerTrainingApp() {
           const xpLeft  = nextLv ? nextLv.xpMin-xpData.total : 0;
           const weekMakesNow = (()=>{ try{ const sl=JSON.parse(localStorage.getItem("shot_log_v2")||"{}"),ws=_ws(); return Object.keys(sl).filter(k=>k>=ws).flatMap(k=>sl[k]||[]).filter(s=>s.made!==false).length; }catch{return 0;} })();
           const weekShotGoal = (()=>{ try{return parseInt(localStorage.getItem("shot_week_goal")||"100");}catch{return 100;} })();
-          const allUnearned  = BADGES_DEF.filter(b=>!earnedBadges.includes(b.id)).map(b=>{ const {cur,target}=getBadgeProgress(b,completed); return {...b,cur,target,pct:cur/target}; }).sort((a,b)=>b.pct-a.pct||a.target-b.target);
+          const allUnearned  = BADGES_DEF.filter(b=>!earnedBadges.includes(b.id)).map(b=>{ const {cur,target}=getBadgeProgress(b,completed,programProgress); return {...b,cur,target,pct:cur/target}; }).sort((a,b)=>b.pct-a.pct||a.target-b.target);
           const nextBadge    = allUnearned[0]||null;
 
           /* ── Upcoming Unlocks: badges + next level merged, sorted by proximity ── */
@@ -7179,10 +7654,9 @@ export default function SummerTrainingApp() {
                 if (!activeProg) return null;
                 const enrollment = enrolledPrograms[activeProg.id];
                 const curWeek = programCurrentWeek(enrollment.startDate, activeProg.duration);
-                const pct = Math.round(computeProgramProgress(activeProg, completed) * 100);
-                const exDone = exId => Object.keys(completed).some(k => completed[k] && k.split("-").slice(3).join("-") === exId);
+                const pct = Math.round(computeProgramProgress(activeProg, programProgress) * 100);
                 const weekData = activeProg.weeks.find(w => w.week === curWeek);
-                const nextSession = weekData?.sessions.find(s => !s.exercises.every(exDone));
+                const nextSession = weekData?.sessions.find((s, si) => !isProgramSessionComplete(activeProg, programProgress, curWeek, si));
                 return (
                   <div onClick={()=>{ setView("programs"); setSelectedProgram(activeProg.id); }}
                     style={{ margin:"0 20px 10px",borderRadius:14,border:`1px solid ${activeProg.color}44`,background:`${activeProg.color}0c`,padding:"13px 14px",cursor:"pointer" }}>
