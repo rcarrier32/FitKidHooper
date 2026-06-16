@@ -1,4 +1,14 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import LeaderboardView from "./components/LeaderboardView.jsx";
+import PushStatsPrompt from "./components/PushStatsPrompt.jsx";
+import { getAgeGroup, getAgeGroupLabel } from "./lib/periodStats.js";
+import {
+  daysSinceLastPush,
+  getLastPushTime,
+  isLeaderboardConfigured,
+  pushFromAppState,
+  shouldShowPushPrompt,
+} from "./lib/leaderboardApi.js";
 
 /* ═══════════════════════════════════════════════════════════════
    SETTINGS & COLOR HELPERS
@@ -11,6 +21,7 @@ const DEFAULT = {
   athleteName:"Champ", avatar:null,
   dateOfBirth:null, experience:"beginner", goals:[], playStyle:"any",
   workoutTimers:true,
+  leaderboardSharing:true,
 };
 
 const TIMER_PREP_SECS = 5;
@@ -3571,6 +3582,31 @@ function SettingsSheet({ settings, setSettings, onClose }) {
           </div>
         </div>
 
+        {/* Leaderboard */}
+        <div style={{ padding:"0 20px 16px", borderTop:"1px solid rgba(255,255,255,0.06)" }}>
+          <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:"#334155",marginBottom:12,textTransform:"uppercase" }}>Leaderboard</div>
+          <button
+            onClick={()=>setSettings(p=>({...p,leaderboardSharing:!p.leaderboardSharing}))}
+            style={{ width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 14px",borderRadius:12,cursor:"pointer",
+              background:settings.leaderboardSharing?`${P}14`:"rgba(255,255,255,0.04)",
+              border:`1.5px solid ${settings.leaderboardSharing?P:"rgba(255,255,255,0.1)"}` }}>
+            <div style={{ textAlign:"left" }}>
+              <div style={{ fontSize:13,fontWeight:700,color:settings.leaderboardSharing?P:"#94a3b8" }}>Share on Leaderboard</div>
+              <div style={{ fontSize:10,color:"#64748b",marginTop:3 }}>
+                Push as <span style={{ color:"#e2e8f0" }}>{settings.athleteName}</span>
+                {settings.dateOfBirth ? ` · ${getAgeGroupLabel(getAgeGroup(settings.dateOfBirth))}` : " · set DOB for age group"}
+              </div>
+            </div>
+            <span style={{ fontSize:18 }}>{settings.leaderboardSharing?"✓":"○"}</span>
+          </button>
+          <p style={{ fontSize:10,color:"#334155",margin:"8px 0 0",lineHeight:1.5 }}>
+            {getLastPushTime()
+              ? `Last pushed ${new Date(getLastPushTime()).toLocaleDateString()}`
+              : "Not pushed yet — open Ranks tab to share stats"}
+            {!isLeaderboardConfigured() && " · Supabase env vars needed for live rankings"}
+          </p>
+        </div>
+
         <div style={{ padding:"0 20px 20px" }}>
           <details style={{ borderTop:"1px solid rgba(255,255,255,0.06)",paddingTop:12 }}>
             <summary style={{ fontSize:11,color:"#334155",cursor:"pointer",userSelect:"none",listStyle:"none",display:"flex",alignItems:"center",gap:6 }}>
@@ -3615,7 +3651,8 @@ function HelpSheet({ P, onClose }) {
     { e:"🏅", t:"Earn XP & badges",   d:"Training and making shots earns XP and levels you up from Rookie to Elite Hooper. Collect badges on the Badges tab and show them off on your Profile." },
   ];
   const TIPS = [
-    { e:"🧭", d:"Get around with the 5 tabs at the bottom: Home, Shots, Programs, Badges, and Profile." },
+    { e:"🧭", d:"Get around with the tabs at the bottom: Home, Shots, Programs, Badges, Ranks, and Profile." },
+    { e:"🏆", d:"Push your stats on the Ranks tab to show up on age-group leaderboards (This Week, Month, YTD, All Time)." },
     { e:"⭐", d:"Tap the star on any drill or program to save it as a favorite." },
     { e:"⚙️", d:"On Profile → Settings you can set your birthday, pick your goals, and change the app colors." },
     { e:"📲", d:"Add the app to your home screen (browser menu → Add to Home Screen) so it opens like a real app and keeps your progress safe." },
@@ -5145,7 +5182,7 @@ function BadgesView({ earnedBadges, badgeDates, completed, programProgress={}, P
   );
 }
 
-function ProfileView({ settings, totalXP, xpData, currentLevel, earnedBadges, completed, programProgress, badgeDates, P, S, ST, BG, SF, bd, lbl, onOpenSettings, onViewHistory, onViewBadges }) {
+function ProfileView({ settings, totalXP, xpData, currentLevel, earnedBadges, completed, programProgress, badgeDates, P, S, ST, BG, SF, bd, lbl, onOpenSettings, onViewHistory, onViewBadges, onViewLeaderboard, onPushStats, pushBusy, pushError }) {
   const nextLevel = LEVELS.find(l=>l.rank===currentLevel.rank+1);
   const xpInLevel  = totalXP - currentLevel.xpMin;
   const xpSpan     = nextLevel ? nextLevel.xpMin - currentLevel.xpMin : 500;
@@ -5334,6 +5371,28 @@ function ProfileView({ settings, totalXP, xpData, currentLevel, earnedBadges, co
           </div>
         </div>
       )}
+
+      {/* Leaderboard teaser ───────────────────────────────── */}
+      <div style={{ background:`${P}08`,border:`1px solid ${P}1c`,borderRadius:14,padding:"14px 16px",marginBottom:16 }}>
+        <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10 }}>
+          <span style={{ fontSize:13,fontWeight:700,color:P }}>🏆 Leaderboard</span>
+          <button onClick={onViewLeaderboard} style={{ background:"none",border:"none",color:"#64748b",fontSize:12,cursor:"pointer",fontWeight:700 }}>View Ranks →</button>
+        </div>
+        <p style={{ fontSize:11,color:"#64748b",margin:"0 0 10px",lineHeight:1.5 }}>
+          {settings.leaderboardSharing
+            ? `Compete in ${settings.dateOfBirth ? getAgeGroupLabel(getAgeGroup(settings.dateOfBirth)) : "your age group"} — push stats to update the board.`
+            : "Leaderboard sharing is off. Turn it on in Settings."}
+        </p>
+        {pushError && <div style={{ fontSize:11,color:"#f87171",marginBottom:8 }}>{pushError}</div>}
+        <button
+          onClick={onPushStats}
+          disabled={pushBusy || !settings.leaderboardSharing}
+          style={{ width:"100%",padding:"11px",borderRadius:10,border:"none",cursor:settings.leaderboardSharing?"pointer":"not-allowed",
+            background:settings.leaderboardSharing?P:"rgba(255,255,255,0.06)",color:settings.leaderboardSharing?"#000":"#64748b",
+            fontSize:12,fontWeight:800 }}>
+          {pushBusy ? "Pushing…" : "Push Stats to Leaderboard ↑"}
+        </button>
+      </div>
 
       {/* Badges & Progression teaser ──────────────────────── */}
       <button onClick={onViewBadges}
@@ -6388,6 +6447,36 @@ export default function SummerTrainingApp() {
   const [strDay, setStrDay] = useState(()=>localStorage.getItem('s_strday')||'Day 1');
   const [onboardName, setOnboardName] = useState('');
   const [showOnboarding, setShowOnboarding] = useState(()=>!localStorage.getItem('s_onboarded')&&settings.athleteName===DEFAULT.athleteName);
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushError, setPushError] = useState(null);
+  const [pushPromptHidden, setPushPromptHidden] = useState(false);
+
+  const getExerciseCategory = useCallback(exId => (ALL_EXERCISES[exId] || {})._cat, []);
+  const showPushBanner = useMemo(
+    () => !pushPromptHidden && shouldShowPushPrompt({ sharingEnabled: settings.leaderboardSharing !== false }),
+    [pushPromptHidden, settings.leaderboardSharing]
+  );
+
+  const handlePushStats = useCallback(async ({ goToRanks = false } = {}) => {
+    setPushBusy(true);
+    setPushError(null);
+    try {
+      await pushFromAppState({
+        settings,
+        completed,
+        missionLog,
+        getCategory: getExerciseCategory,
+      });
+      setPushPromptHidden(true);
+      if (goToRanks) setView("ranks");
+    } catch (e) {
+      const msg = e.message || "Push failed";
+      setPushError(msg);
+      if (goToRanks) alert(msg);
+    } finally {
+      setPushBusy(false);
+    }
+  }, [settings, completed, missionLog, getExerciseCategory]);
 
   /* PWA install prompt ─────────────────────────────────────────── */
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
@@ -6623,6 +6712,7 @@ export default function SummerTrainingApp() {
     {id:"shots",    emoji:"🏀",label:"Shots"},
     {id:"programs", emoji:"📋",label:"Programs"},
     {id:"badges",   emoji:"🏅",label:"Badges"},
+    {id:"ranks",    emoji:"🏆",label:"Ranks"},
     {id:"profile",  emoji:"👤",label:"Profile"},
   ];
 
@@ -6982,6 +7072,31 @@ export default function SummerTrainingApp() {
       onBack={()=>setView("profile")}/>
   );
 
+  /* LEADERBOARD / RANKS */
+  if (view==="ranks") return (
+    <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"#e2e8f0",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
+      {showSettings&&<SettingsSheet settings={settings} setSettings={setSettings} onClose={()=>setShowSettings(false)}/>}
+      {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]}
+        onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
+      {renderMissionOverlays()}
+      <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 20px",borderBottom:`1px solid ${P}14`,position:"sticky",top:0,background:BG,backdropFilter:"blur(10px)",zIndex:10 }}>
+        <h1 style={{ fontSize:16,fontWeight:800,margin:0,color:P }}>🏆 Ranks</h1>
+        <div style={{ fontSize:10,color:"#475569",fontFamily:"'DM Mono',monospace" }}>
+          {settings.dateOfBirth ? getAgeGroupLabel(getAgeGroup(settings.dateOfBirth)) : "Set DOB for age group"}
+        </div>
+      </div>
+      <LeaderboardView
+        settings={settings}
+        completed={completed}
+        missionLog={missionLog}
+        getCategory={getExerciseCategory}
+        P={P} BG={BG} SF={SF} bd={bd} lbl={lbl}
+        onPushSuccess={()=>{ setPushPromptHidden(true); setPushError(null); }}
+      />
+      {renderBottomNav()}
+    </div>
+  );
+
   /* PROFILE */
   if (view==="profile") return (
     <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"#e2e8f0",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
@@ -7013,7 +7128,11 @@ export default function SummerTrainingApp() {
         P={P} S={S} ST={ST} BG={BG} SF={SF} bd={bd} lbl={lbl}
         onOpenSettings={()=>setShowSettings(true)}
         onViewHistory={()=>setView("history")}
-        onViewBadges={()=>setView("badges")}/>
+        onViewBadges={()=>setView("badges")}
+        onViewLeaderboard={()=>setView("ranks")}
+        onPushStats={()=>handlePushStats({ goToRanks: false })}
+        pushBusy={pushBusy}
+        pushError={pushError}/>
       {renderBottomNav()}
     </div>
   );
@@ -7385,6 +7504,16 @@ export default function SummerTrainingApp() {
           </div>
           <button onClick={dismissInstall} style={{ background:"none",border:"none",color:"#475569",fontSize:16,cursor:"pointer",padding:0,lineHeight:1,flexShrink:0 }}>✕</button>
         </div>
+      )}
+
+      {showPushBanner && view==="home" && (
+        <PushStatsPrompt
+          daysSince={daysSinceLastPush()}
+          athleteName={settings.athleteName}
+          P={P}
+          onPush={()=>handlePushStats({ goToRanks: true })}
+          onDismiss={()=>setPushPromptHidden(true)}
+        />
       )}
 
       {/* Badge Earned Notification Banner (home screen) */}
