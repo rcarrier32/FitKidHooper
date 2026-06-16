@@ -1854,7 +1854,7 @@ const BADGES_DEF = [
   { id:"pgm-bodyweight",     cat:"program", name:"Bodyweight Beast",  emoji:"💪", desc:"Complete the Bodyweight Beast program",      color:"#22c55e" },
 ];
 
-function computeXP(completed, programProgress={}) {
+function computeXP(completed, programProgress={}, missionLog={}) {
   let exXP=0, workoutXP=0, challengeXP=0, shotXP=0, streakXP=0, badgeXP=0, missionXP=0;
 
   // Exercise XP (5 per) + workout completion bonus (25 per qualifying day)
@@ -1906,10 +1906,9 @@ function computeXP(completed, programProgress={}) {
   }
 
   // Mission bonus XP (claimed missions)
-  try {
-    const ml = JSON.parse(localStorage.getItem("fkh-missions")||"{}");
-    for (const m of Object.values(ml)) { if (m.claimed) missionXP += (m.bonusXP||50); }
-  } catch {}
+  for (const m of Object.values(missionLog)) {
+    if (m?.claimed) missionXP += (m.bonusXP || 50);
+  }
 
   return { total:exXP+workoutXP+challengeXP+shotXP+streakXP+badgeXP+missionXP, exXP, workoutXP, challengeXP, shotXP, streakXP, badgeXP, missionXP };
 }
@@ -2665,9 +2664,12 @@ function generateInsights(report, period, currentLevel) {
 
 /* ═══════════════════════ DAILY MISSION SYSTEM ══════════════ */
 
+const MAX_DAILY_MISSION_TASKS = 5;
+
 /**
  * Deterministically generates one mission per day based on user state.
  * Priority: active program → underworked skill category → day-of-week rotation.
+ * Capped at MAX_DAILY_MISSION_TASKS — no unlimited stacking.
  */
 function generateDailyMission(todayStr, settings, completed, enrolledPrograms, programProgress={}) {
   const age = calcAge(settings.dateOfBirth);
@@ -2728,22 +2730,25 @@ function generateDailyMission(todayStr, settings, completed, enrolledPrograms, p
     });
   }
 
-  /* ── Task 2: Complementary skill from a different category ── */
-  const skillCats = ["ballhandling","footwork","finishing","game_handles","basketball_iq","shooting_lab","footwork_lab","shootingdrills","postmoves"];
-  const dayOffset = new Date(todayStr+"T12:00:00").getDay();
-  const available = skillCats.filter(c=>c!==task1Cat&&(WORKOUTS[c]||[]).length>=2);
-  const skillCat = available.find(c=>!recentCats.has(c)) || available[(dayOffset+1)%available.length];
-  if (skillCat) {
-    const catExs = (WORKOUTS[skillCat]||[]).slice(0,2).map(e=>e.id);
-    const catInfo = CATS[skillCat]||{label:skillCat,emoji:"🏀"};
-    tasks.push({
-      id:"task-skill", type:"category",
-      label:`Do 2 ${catInfo.label} exercises`,
-      exercises: catExs,
-      target: 2,
-      required: true,
-      category: skillCat,
-    });
+  /* ── Task 2: Complementary skill (skip when following a program — keep mission lean) ── */
+  const hasProgramTask = tasks.some(t => t.type === "program");
+  if (!hasProgramTask) {
+    const skillCats = ["ballhandling","footwork","finishing","game_handles","basketball_iq","shooting_lab","footwork_lab","shootingdrills","postmoves"];
+    const dayOffset = new Date(todayStr+"T12:00:00").getDay();
+    const available = skillCats.filter(c=>c!==task1Cat&&(WORKOUTS[c]||[]).length>=2);
+    const skillCat = available.find(c=>!recentCats.has(c)) || available[(dayOffset+1)%available.length];
+    if (skillCat) {
+      const catExs = (WORKOUTS[skillCat]||[]).slice(0,2).map(e=>e.id);
+      const catInfo = CATS[skillCat]||{label:skillCat,emoji:"🏀"};
+      tasks.push({
+        id:"task-skill", type:"category",
+        label:`Do 2 ${catInfo.label} exercises`,
+        exercises: catExs,
+        target: 2,
+        required: true,
+        category: skillCat,
+      });
+    }
   }
 
   /* ── Task 3: Optional shot goal (age-scaled) ── */
@@ -2756,7 +2761,7 @@ function generateDailyMission(todayStr, settings, completed, enrolledPrograms, p
     optional: true,
   });
 
-  return { date:todayStr, title, tasks, bonusXP };
+  return { date:todayStr, title, tasks: tasks.slice(0, MAX_DAILY_MISSION_TASKS), bonusXP };
 }
 
 /** Live progress for a single mission task. */
@@ -4353,6 +4358,76 @@ function BadgeCelebration({ badge, onDismiss }) {
   );
 }
 
+/* ═══════════════════════ MISSION CELEBRATIONS ═══════════════ */
+
+function MissionCelebration({ title, bonusXP, color, onDismiss }) {
+  return (
+    <div style={{ position:"fixed",inset:0,zIndex:600,display:"flex",alignItems:"center",
+      justifyContent:"center",padding:24,
+      background:"radial-gradient(ellipse at center, rgba(249,115,22,0.22) 0%, rgba(6,11,20,0.94) 60%)" }}>
+      <div onClick={onDismiss} style={{ position:"absolute",inset:0 }}/>
+      <div style={{ position:"relative",textAlign:"center",maxWidth:320,width:"100%",zIndex:1,
+        animation:"fkh-scale-in 0.45s cubic-bezier(0.34,1.56,0.64,1) both" }}>
+        <div style={{ position:"relative",display:"inline-block",marginBottom:16 }}>
+          <div style={{ position:"absolute",inset:"-20px",borderRadius:"50%",
+            border:`2px solid ${color}`,animation:"fkh-pulse-ring 1.2s ease-out 0.3s infinite",pointerEvents:"none" }}/>
+          <div style={{ width:96,height:96,borderRadius:"50%",
+            background:`${color}20`,border:`3px solid ${color}`,
+            display:"flex",alignItems:"center",justifyContent:"center",
+            fontSize:44,animation:"fkh-bounce 0.6s ease-out 0.3s 2 both" }}>
+            🎯
+          </div>
+        </div>
+        <div style={{ fontSize:11,fontFamily:"'DM Mono',monospace",letterSpacing:"0.28em",
+          color,textTransform:"uppercase",marginBottom:8 }}>
+          Daily Mission Complete!
+        </div>
+        <div style={{ fontSize:22,fontWeight:800,color:"#f1f5f9",marginBottom:8,lineHeight:1.25 }}>
+          {title}
+        </div>
+        <div style={{ fontFamily:"'DM Mono',monospace",fontSize:36,fontWeight:800,color,marginBottom:8,lineHeight:1 }}>
+          +{bonusXP} XP
+        </div>
+        <div style={{ fontSize:13,color:"#94a3b8",marginBottom:28,lineHeight:1.5 }}>
+          Nice work today — your XP total just went up!
+        </div>
+        <button onClick={onDismiss}
+          style={{ padding:"14px 36px",borderRadius:14,fontSize:15,fontWeight:800,cursor:"pointer",
+            background:color,border:"none",color:"#000",boxShadow:`0 0 24px ${color}55` }}>
+          Let's Go! 🏀
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function MissionTaskToast({ label, onDone }) {
+  useEffect(() => {
+    const t = setTimeout(onDone, 3200);
+    return () => clearTimeout(t);
+  }, [onDone]);
+  return (
+    <div style={{ position:"fixed",top:"calc(12px + env(safe-area-inset-top, 0px))",left:"50%",
+      transform:"translateX(-50%)",zIndex:550,width:"min(340px, calc(100% - 32px))",
+      animation:"fkh-fade-up 0.35s ease both" }}>
+      <div style={{ display:"flex",alignItems:"center",gap:12,padding:"12px 16px",borderRadius:14,
+        background:"rgba(15,23,42,0.96)",border:"1px solid rgba(34,197,94,0.35)",
+        boxShadow:"0 8px 32px rgba(0,0,0,0.45)" }}>
+        <div style={{ width:36,height:36,borderRadius:10,flexShrink:0,background:"rgba(34,197,94,0.15)",
+          border:"1.5px solid rgba(34,197,94,0.4)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18 }}>
+          ✓
+        </div>
+        <div style={{ flex:1,minWidth:0 }}>
+          <div style={{ fontSize:9,fontWeight:800,color:"#22c55e",letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:2 }}>
+            Mission Step Done
+          </div>
+          <div style={{ fontSize:12,fontWeight:700,color:"#e2e8f0",lineHeight:1.35 }}>{label}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ═══════════════════════ CALENDAR VIEW ═════════════════════ */
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const DOW_HEADERS = ["M","T","W","T","F","S","S"];
@@ -4862,7 +4937,7 @@ function HistoryView({ completed, badgeDates, settings, P, S, ST, BG, SF, bd, lb
 
 /* ═══════════════════════ PROFILE VIEW ══════════════════════ */
 /* ═══════════════════════ BADGES VIEW ══════════════════════ */
-function BadgesView({ earnedBadges, badgeDates, completed, P, S, BG, SF, bd, lbl }) {
+function BadgesView({ earnedBadges, badgeDates, completed, programProgress={}, P, S, BG, SF, bd, lbl }) {
   const chainsComplete = PROGRESSION_CHAINS.filter(c => {
     const { progress, total } = getChainStatus(c, completed);
     return progress === total;
@@ -6305,6 +6380,9 @@ export default function SummerTrainingApp() {
   const [enrolledPrograms, setEnrolledPrograms] = useState(()=>{ try{return JSON.parse(localStorage.getItem("fkh-programs")||"{}")}catch{return{}} });
   const [selectedProgram, setSelectedProgram] = useState(null); // programId string when drill-in open
   const [missionLog, setMissionLog] = useState(()=>{ try{return JSON.parse(localStorage.getItem("fkh-missions")||"{}")}catch{return{}} });
+  const [missionCelebration, setMissionCelebration] = useState(null);
+  const [missionTaskToast, setMissionTaskToast] = useState(null);
+  const celebratedMissionTasksRef = useRef(new Set());
   const [favorites, setFavorites] = useState(()=>{ try{return JSON.parse(localStorage.getItem("fkh-favs")||'{"exercises":{},"workouts":{},"programs":{}}')}catch{return{exercises:{},workouts:{},programs:{}}} });
   const [reportPeriod, setReportPeriod] = useState("30d");
   const [strDay, setStrDay] = useState(()=>localStorage.getItem('s_strday')||'Day 1');
@@ -6453,7 +6531,7 @@ export default function SummerTrainingApp() {
   [settings, completed, selectedTemplate]);
 
   /* XP / Level / Badges ──────────────────────────────────── */
-  const xpData       = useMemo(()=>computeXP(completed, programProgress),[completed, programProgress]);
+  const xpData       = useMemo(()=>computeXP(completed, programProgress, missionLog),[completed, programProgress, missionLog]);
   const currentLevel = useMemo(()=>getLevel(xpData.total),[xpData.total]);
   const earnedBadges = useMemo(()=>getEarnedBadges(completed, programProgress),[completed, programProgress]);
 
@@ -6489,15 +6567,50 @@ export default function SummerTrainingApp() {
       const {cur,target} = getMissionTaskProgress(t, completed, today, programProgress);
       return cur >= target;
     }),
-  [todayMission, completed, today]);
+  [todayMission, completed, today, programProgress]);
 
-  // Auto-claim bonus XP when all required tasks complete
+  // Reset per-day task celebration tracking at midnight rollover
+  useEffect(() => {
+    const stored = missionLog[today]?.celebratedTasks;
+    if (stored?.length) {
+      celebratedMissionTasksRef.current = new Set(stored);
+    } else if (missionLog[today]?.claimed) {
+      celebratedMissionTasksRef.current = new Set(todayMission.tasks.map(t => t.id));
+    } else {
+      celebratedMissionTasksRef.current = new Set();
+    }
+  }, [today, missionLog, todayMission.tasks]);
+
+  // Toast when individual mission steps complete
+  useEffect(() => {
+    if (missionTaskToast) return;
+    for (const task of todayMission.tasks) {
+      if (celebratedMissionTasksRef.current.has(task.id)) continue;
+      const { cur, target } = getMissionTaskProgress(task, completed, today, programProgress);
+      if (cur >= target) {
+        celebratedMissionTasksRef.current.add(task.id);
+        setMissionLog(prev => ({
+          ...prev,
+          [today]: {
+            ...(prev[today] || {}),
+            celebratedTasks: [...celebratedMissionTasksRef.current],
+          },
+        }));
+        setMissionTaskToast({ id: task.id, label: task.label });
+        break;
+      }
+    }
+  }, [todayMission, completed, today, programProgress, missionTaskToast]);
+
+  // Auto-claim bonus XP when all required tasks complete + celebration popup
   useEffect(()=>{
     if (requiredTasksDone && !missionClaimed) {
-      const next = { ...missionLog, [today]:{ claimed:true, bonusXP:todayMission.bonusXP, claimedAt:Date.now() } };
-      setMissionLog(next);
+      const entry = { claimed:true, bonusXP:todayMission.bonusXP, claimedAt:Date.now(),
+        celebratedTasks: [...celebratedMissionTasksRef.current] };
+      setMissionLog(prev => ({ ...prev, [today]: entry }));
+      setMissionCelebration({ title: todayMission.title, bonusXP: todayMission.bonusXP });
     }
-  },[requiredTasksDone, missionClaimed, today]);
+  },[requiredTasksDone, missionClaimed, today, todayMission.bonusXP, todayMission.title]);
 
   const catColor = key => key==="strength" ? ST : key==="speed"||key==="balance" ? P : S;
   const catBg    = key => `${catColor(key)}16`;
@@ -6523,6 +6636,17 @@ export default function SummerTrainingApp() {
         </button>
       ))}
     </div>
+  );
+
+  const renderMissionOverlays = () => (
+    <>
+      {missionCelebration&&<MissionCelebration
+        title={missionCelebration.title} bonusXP={missionCelebration.bonusXP} color={P}
+        onDismiss={()=>setMissionCelebration(null)}/>}
+      {missionTaskToast&&<MissionTaskToast
+        label={missionTaskToast.label}
+        onDone={()=>setMissionTaskToast(null)}/>}
+    </>
   );
 
   /* PROGRAMS */
@@ -6551,6 +6675,8 @@ export default function SummerTrainingApp() {
           <div style={{ background:BG,minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:80 }}>
             {showSettings&&<SettingsSheet settings={settings} setSettings={setSettings} onClose={()=>setShowSettings(false)}/>}
             {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]} onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
+        {renderMissionOverlays()}
+            {renderMissionOverlays()}
             {activeExercise&&<ExerciseDetailSheet exercise={activeExercise} color={prog.color}
               bg2={SF} brd={`${prog.color}22`} BG={BG} SF={SF}
               isDone={detailContext
@@ -6701,6 +6827,7 @@ export default function SummerTrainingApp() {
       <div style={{ background:BG,minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:80 }}>
         {showSettings&&<SettingsSheet settings={settings} setSettings={setSettings} onClose={()=>setShowSettings(false)}/>}
         {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]} onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
+        {renderMissionOverlays()}
         {activeExercise&&<ExerciseDetailSheet exercise={activeExercise} color={P}
           bg2={SF} brd={bd} BG={BG} SF={SF}
           isDone={isDone(activeExercise.id)} onToggle={()=>toggle(activeExercise.id)}
@@ -6821,6 +6948,7 @@ export default function SummerTrainingApp() {
       {showSettings&&<SettingsSheet settings={settings} setSettings={setSettings} onClose={()=>setShowSettings(false)}/>}
       {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]}
         onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
+      {renderMissionOverlays()}
       <ShotTracker P={P} S={S} BG={BG} athleteName={settings.athleteName}/>
       {renderBottomNav()}
     </div>
@@ -6831,6 +6959,7 @@ export default function SummerTrainingApp() {
     <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"#e2e8f0",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
       {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]}
         onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
+      {renderMissionOverlays()}
       <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 20px",borderBottom:`1px solid ${P}14`,position:"sticky",top:0,background:BG,backdropFilter:"blur(10px)",zIndex:10 }}>
         <h1 style={{ fontSize:16,fontWeight:800,margin:0,color:P }}>🏅 Badges</h1>
         <div style={{ fontSize:10,color:"#475569",fontFamily:"'DM Mono',monospace" }}>
@@ -6839,6 +6968,7 @@ export default function SummerTrainingApp() {
       </div>
       <BadgesView
         earnedBadges={earnedBadges} badgeDates={badgeDates} completed={completed}
+        programProgress={programProgress}
         P={P} S={S} BG={BG} SF={SF} bd={bd} lbl={lbl}/>
       {renderBottomNav()}
     </div>
@@ -6859,6 +6989,7 @@ export default function SummerTrainingApp() {
       {showHelp&&<HelpSheet P={P} onClose={()=>setShowHelp(false)}/>}
       {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]}
         onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
+      {renderMissionOverlays()}
       <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 20px",borderBottom:`1px solid ${P}14`,position:"sticky",top:0,background:BG,backdropFilter:"blur(10px)",zIndex:10 }}>
         <h1 style={{ fontSize:16,fontWeight:800,margin:0 }}>
           <span style={{ color:P }}>My Profile</span>
@@ -6970,6 +7101,7 @@ export default function SummerTrainingApp() {
       <div style={{ background:BG,minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:80 }}>
         {showSettings&&<SettingsSheet settings={settings} setSettings={setSettings} onClose={()=>setShowSettings(false)}/>}
         {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]} onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
+        {renderMissionOverlays()}
         {activeExercise&&<ExerciseDetailSheet exercise={activeExercise} color={P}
           bg2={SF} brd={bd} BG={BG} SF={SF}
           isDone={isDone(activeExercise.id)} onToggle={()=>toggle(activeExercise.id)}
@@ -7185,6 +7317,7 @@ export default function SummerTrainingApp() {
         {...detailSheetProps}/>}
       {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]}
         onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
+      {renderMissionOverlays()}
       {showOnboarding&&(
         <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.88)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:20 }}>
           <div style={{ background:"#0d1627",borderRadius:20,padding:28,width:"100%",maxWidth:360,border:"1px solid #f9731640" }}>
@@ -7383,7 +7516,9 @@ export default function SummerTrainingApp() {
                           {task.exercises.map(exId=>{
                             const ex = ALL_EXERCISES[exId];
                             if (!ex) return null;
-                            const done = Object.keys(completed).some(k=>completed[k]&&k.split("-").slice(3).join("-")===exId);
+                            const done = task.type === "program" && task.programId != null
+                              ? isProgramExerciseDone(programProgress, task.programId, task.week, task.sessionIdx, exId)
+                              : !!completed[`${today}-${exId}`];
                             return (
                               <button key={exId}
                                 onClick={()=>{
