@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import LeaderboardView from "./components/LeaderboardView.jsx";
 import PushStatsPrompt from "./components/PushStatsPrompt.jsx";
+import FeedbackCenter from "./components/FeedbackCenter.jsx";
 import { getAgeGroup, getAgeGroupLabel } from "./lib/periodStats.js";
 import {
   readDailyWorkoutStore,
@@ -18,6 +19,18 @@ import {
   pushFromAppState,
   shouldShowPushPrompt,
 } from "./lib/leaderboardApi.js";
+import {
+  initAnalytics,
+  setAnalyticsAgeGroup,
+  track,
+  trackScreen,
+  trackExerciseComplete,
+  trackShotSession,
+  trackChallengeIfNew,
+  trackProgramSessionIfNew,
+  trackWorkoutCompleteIfNew,
+  ANALYTICS_EVENTS,
+} from "./lib/analytics.js";
 import {
   THEME_PRESETS,
   applyThemePreset,
@@ -87,8 +100,27 @@ function setLogKey(exerciseId, today, programContext) {
 
 function programSessionSlot(week, sessionIdx) { return `${week}-${sessionIdx}`; }
 
+function programEnrollmentAnchor(progProgress, programId) {
+  return progProgress?.[programId]?._meta?.enrollmentStartedAt ?? null;
+}
+
+/** Normalize stored mark — legacy string or { d, t } object. */
+function readProgramExerciseMark(raw) {
+  if (!raw) return null;
+  if (typeof raw === "string") return { d: raw, t: 0 };
+  if (typeof raw === "object" && raw.d) return { d: raw.d, t: raw.t ?? 0 };
+  return null;
+}
+
 function isProgramExerciseDone(progProgress, programId, week, sessionIdx, exId) {
-  return !!progProgress?.[programId]?.[programSessionSlot(week, sessionIdx)]?.[exId];
+  const anchor = programEnrollmentAnchor(progProgress, programId);
+  if (!anchor) return false;
+  const raw = progProgress?.[programId]?.[programSessionSlot(week, sessionIdx)]?.[exId];
+  const mark = readProgramExerciseMark(raw);
+  if (!mark) return false;
+  // Legacy string marks (pre-enrollment preview) never count once anchor exists.
+  if (typeof raw === "string") return false;
+  return mark.t >= anchor;
 }
 
 function isProgramSessionComplete(prog, progProgress, week, sessionIdx) {
@@ -2652,9 +2684,9 @@ function getProgramSessionCompletionDate(programProgress, program, programId, we
   const slotData = programProgress?.[programId]?.[programSessionSlot(week, sessionIdx)] || {};
   let maxDate = null;
   for (const exId of session.exercises) {
-    const d = slotData[exId];
-    if (!d) return null;
-    if (!maxDate || d > maxDate) maxDate = d;
+    const mark = readProgramExerciseMark(slotData[exId]);
+    if (!mark) return null;
+    if (!maxDate || mark.d > maxDate) maxDate = mark.d;
   }
   return maxDate;
 }
@@ -3654,7 +3686,7 @@ function isInstallIOS() {
 }
 
 /* ═══════════════════════ SETTINGS SHEET ═══════════════════════ */
-function SettingsSheet({ settings, setSettings, onClose }) {
+function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback }) {
   const [tab, setTab] = useState("accent");
   const [showAdvancedColors, setShowAdvancedColors] = useState(false);
   const [guardrailNote, setGuardrailNote] = useState(null);
@@ -4055,6 +4087,15 @@ function SettingsSheet({ settings, setSettings, onClose }) {
         </div>
 
         <div style={{ padding:"0 20px 20px" }}>
+          <div style={{ padding:"12px 14px",borderRadius:12,marginBottom:12,...actionBtnStyle(settings) }}>
+            <div style={{ fontSize:13,fontWeight:700,color:P,marginBottom:6 }}>💬 Feedback</div>
+            <p style={{ fontSize:11,color:"var(--fkh-text-muted)",lineHeight:1.5,margin:"0 0 10px" }}>
+              Tell us what you love, what is confusing, or what we should build next. Kids and parents welcome.
+            </p>
+            <button onClick={onOpenFeedback} style={{ padding:"8px 16px",borderRadius:20,background:P,border:"none",color:"#000",fontSize:12,fontWeight:800,cursor:"pointer" }}>
+              Open Feedback Center
+            </button>
+          </div>
           <details style={{ borderTop:"1px solid rgba(255,255,255,0.06)",paddingTop:12 }}>
             <summary style={{ fontSize:11,color:"#334155",cursor:"pointer",userSelect:"none",listStyle:"none",display:"flex",alignItems:"center",gap:6 }}>
               <span style={{ fontSize:9 }}>▶</span> Advanced — Data &amp; Backup
@@ -4345,6 +4386,7 @@ function ShotTracker({ P, S, BG, athleteName, settings }) {
     ];
     const last = entries[entries.length-1];
     save({...log, [k]:[...(log[k]||[]), ...entries]});
+    trackShotSession({ makes, misses, shotType: tid, usedCourtMap: Boolean(loc && loc !== "__noloc__") });
     setLastShot(last);
     setActiveType(null); setActiveLoc(null); setShotCount({made:0, missed:0});
   };
@@ -6805,6 +6847,55 @@ const MIGRATIONS = [
       }
     } catch {}
   },
+  // ── v2 → v3: program progress only counts after Start Program ───
+  () => {
+    try {
+      const enrolled = JSON.parse(localStorage.getItem("fkh-programs") || "{}");
+      let progress = JSON.parse(localStorage.getItem("fkh-program-progress") || "{}");
+      let progChanged = false;
+      let enrollChanged = false;
+
+      for (const progId of Object.keys(progress)) {
+        if (!enrolled[progId]) {
+          delete progress[progId];
+          progChanged = true;
+        }
+      }
+
+      for (const [progId, enr] of Object.entries(enrolled)) {
+        const startDate = enr.startDate;
+        if (!startDate) continue;
+        const startedAt = enr.startedAt
+          ?? new Date(startDate + "T12:00:00").getTime();
+        if (!enr.startedAt) {
+          enrolled[progId] = { ...enr, startedAt };
+          enrollChanged = true;
+        }
+
+        const existing = progress[progId] || {};
+        const anchor = existing._meta?.enrollmentStartedAt ?? startedAt;
+        const cleaned = { _meta: { enrollmentStartedAt: anchor } };
+
+        for (const [slot, exs] of Object.entries(existing)) {
+          if (slot === "_meta" || typeof exs !== "object" || !exs) continue;
+          const kept = {};
+          for (const [exId, mark] of Object.entries(exs)) {
+            // Drop legacy string marks (preview-before-enroll); keep timestamped marks.
+            if (typeof mark === "object" && mark?.d && mark.t >= anchor) {
+              kept[exId] = mark;
+            }
+          }
+          if (Object.keys(kept).length) cleaned[slot] = kept;
+        }
+
+        progress[progId] = cleaned;
+        progChanged = true;
+      }
+
+      if (progChanged) localStorage.setItem("fkh-program-progress", JSON.stringify(progress));
+      if (enrollChanged) localStorage.setItem("fkh-programs", JSON.stringify(enrolled));
+    } catch {}
+  },
 ];
 
 const DATA_VERSION = MIGRATIONS.length; // keep in lock-step automatically
@@ -6908,6 +6999,7 @@ export default function SummerTrainingApp() {
     } catch { return DEFAULT; }
   });
   const [showSettings, setShowSettings] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [view, setView] = useState("home");
   const [prevView, setPrevView] = useState("home");
@@ -7050,23 +7142,37 @@ export default function SummerTrainingApp() {
   const NV = nav(settings), SF = surf(settings);
 
   const isDone  = id => !!completed[`${today}-${id}`];
-  const toggle  = id => setCompleted(p=>({...p,[`${today}-${id}`]:!p[`${today}-${id}`]}));
+  const toggle  = useCallback((id, source) => {
+    const key = `${today}-${id}`;
+    const src = source || view;
+    if (!completed[key]) trackExerciseComplete(id, src);
+    setCompleted(p => ({ ...p, [key]: !p[key] }));
+  }, [today, completed, view]);
 
   const markProgramExercise = useCallback((ctx, exId) => {
     const { programId, week, sessionIdx } = ctx;
+    if (!enrolledPrograms[programId]) return;
+    const anchor = programEnrollmentAnchor(programProgress, programId);
+    if (!anchor) return;
     const slot = programSessionSlot(week, sessionIdx);
     const date = todayKey();
+    const at = Date.now();
     setProgramProgress(prev => ({
       ...prev,
       [programId]: {
         ...(prev[programId] || {}),
-        [slot]: { ...(prev[programId]?.[slot] || {}), [exId]: date },
+        _meta: prev[programId]?._meta,
+        [slot]: {
+          ...(prev[programId]?.[slot] || {}),
+          [exId]: { d: date, t: at },
+        },
       },
     }));
-  }, []);
+  }, [enrolledPrograms, programProgress]);
 
   const toggleProgramExercise = useCallback((ctx, exId) => {
     const { programId, week, sessionIdx } = ctx;
+    if (!enrolledPrograms[programId]) return;
     const slot = programSessionSlot(week, sessionIdx);
     const done = isProgramExerciseDone(programProgress, programId, week, sessionIdx, exId);
     if (done) {
@@ -7074,15 +7180,16 @@ export default function SummerTrainingApp() {
         const next = { ...prev };
         const slotData = { ...(next[programId]?.[slot] || {}) };
         delete slotData[exId];
-        next[programId] = { ...(next[programId] || {}), [slot]: slotData };
+        next[programId] = { ...(next[programId] || {}), _meta: next[programId]?._meta, [slot]: slotData };
         return next;
       });
     } else {
       markProgramExercise(ctx, exId);
       const day = todayKey();
+      trackExerciseComplete(exId, "program", { program_id: programId, week: ctx.week, session_idx: ctx.sessionIdx });
       setCompleted(p => p[`${day}-${exId}`] ? p : { ...p, [`${day}-${exId}`]: true });
     }
-  }, [programProgress, markProgramExercise]);
+  }, [enrolledPrograms, programProgress, markProgramExercise]);
 
   const handleSetLogChange = useCallback((key, data) => {
     setSetLog(prev => ({ ...prev, [key]: { ...prev[key], ...data } }));
@@ -7212,6 +7319,65 @@ export default function SummerTrainingApp() {
     [todaysWorkout, completed, today]
   );
 
+  const openFeedback = useCallback(() => {
+    setShowSettings(false);
+    setShowFeedback(true);
+  }, []);
+
+  const settingsSheet = showSettings ? (
+    <SettingsSheet settings={settings} setSettings={setSettings} onClose={() => setShowSettings(false)} onOpenFeedback={openFeedback} />
+  ) : null;
+
+  const feedbackSheet = showFeedback ? (
+    <FeedbackCenter settings={settings} onClose={() => setShowFeedback(false)} />
+  ) : null;
+
+  useEffect(() => {
+    const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
+    return initAnalytics({ ageGroup: getAgeGroup(settings.dateOfBirth), isStandalone });
+  }, []);
+
+  useEffect(() => {
+    setAnalyticsAgeGroup(getAgeGroup(settings.dateOfBirth));
+  }, [settings.dateOfBirth]);
+
+  useEffect(() => {
+    let screen = view;
+    if (view === "programs" && selectedProgram) screen = "program_detail";
+    else if (view === "cat" && activeCat) screen = `cat_${activeCat}`;
+    else if (view === "schedule") screen = `schedule_${schedTab}`;
+    trackScreen(screen);
+  }, [view, selectedProgram, activeCat, schedTab]);
+
+  const prevWorkoutCompleteRef = useRef(false);
+  useEffect(() => {
+    if (quickWorkoutComplete && !prevWorkoutCompleteRef.current) {
+      trackWorkoutCompleteIfNew(selectedTemplate, today);
+    }
+    prevWorkoutCompleteRef.current = quickWorkoutComplete;
+  }, [quickWorkoutComplete, selectedTemplate, today]);
+
+  useEffect(() => {
+    for (const def of CHALLENGES_DEF) {
+      const { cur, target } = getChallengeProgress(def, completed);
+      trackChallengeIfNew(def.id, cur >= target);
+    }
+  }, [completed]);
+
+  useEffect(() => {
+    for (const programId of Object.keys(enrolledPrograms)) {
+      const prog = PROGRAMS.find(p => p.id === programId);
+      if (!prog) continue;
+      for (const week of prog.weeks) {
+        for (let si = 0; si < week.sessions.length; si++) {
+          if (isProgramSessionComplete(prog, programProgress, week.week, si)) {
+            trackProgramSessionIfNew(programId, week.week, si);
+          }
+        }
+      }
+    }
+  }, [enrolledPrograms, programProgress]);
+
   const coachRec = useMemo(() =>
     computeRecommendation(settings, completed, coachBasisTemplate ?? defaultTmpl),
   [settings, completed, coachBasisTemplate, defaultTmpl]);
@@ -7231,6 +7397,7 @@ export default function SummerTrainingApp() {
     const newBadges = earnedBadges.filter(id=>!celebratedBadges.has(id));
     if (newBadges.length===0) return;
     const defs = newBadges.map(id=>BADGES_DEF.find(b=>b.id===id)).filter(Boolean);
+    for (const id of newBadges) track(ANALYTICS_EVENTS.BADGE_EARN, { badge_id: id });
     setCelebrationQueue(q=>[...q,...defs]);
     if (defs.length>0) setLastEarnedBadge(defs[defs.length-1]);
     const updated = new Set([...celebratedBadges,...newBadges]);
@@ -7299,6 +7466,7 @@ export default function SummerTrainingApp() {
       const entry = { claimed:true, bonusXP:todayMission.bonusXP, claimedAt:Date.now(),
         celebratedTasks: [...celebratedMissionTasksRef.current] };
       setMissionLog(prev => ({ ...prev, [today]: entry }));
+      track(ANALYTICS_EVENTS.MISSION_CLAIM, { mission_day: today, bonus_xp: todayMission.bonusXP, title: todayMission.title });
       setMissionCelebration({ title: todayMission.title, bonusXP: todayMission.bonusXP });
     }
   },[requiredTasksDone, missionClaimed, today, todayMission.bonusXP, todayMission.title]);
@@ -7344,7 +7512,15 @@ export default function SummerTrainingApp() {
   /* PROGRAMS */
   if (view==="programs") {
     const enrollProg = (prog) => {
-      setEnrolledPrograms(p => ({ ...p, [prog.id]: { startDate: new Date().toLocaleDateString("en-CA") } }));
+      const startDate = new Date().toLocaleDateString("en-CA");
+      const startedAt = Date.now();
+      setEnrolledPrograms(p => ({ ...p, [prog.id]: { startDate, startedAt } }));
+      track(ANALYTICS_EVENTS.PROGRAM_ENROLL, { program_id: prog.id });
+      // Fresh enrollment — drop any preview progress from browsing before Start Program.
+      setProgramProgress(prev => ({
+        ...prev,
+        [prog.id]: { _meta: { enrollmentStartedAt: startedAt } },
+      }));
     };
     const unenrollProg = (progId) => {
       setEnrolledPrograms(p => { const n={...p}; delete n[progId]; return n; });
@@ -7365,7 +7541,7 @@ export default function SummerTrainingApp() {
 
         return (
           <div style={{ background:BG,minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:80 }}>
-            {showSettings&&<SettingsSheet settings={settings} setSettings={setSettings} onClose={()=>setShowSettings(false)}/>}
+            {settingsSheet}{feedbackSheet}
             {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]} onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
         {renderMissionOverlays()}
             {renderMissionOverlays()}
@@ -7463,8 +7639,7 @@ export default function SummerTrainingApp() {
 
                   {/* Sessions (always shown for current week, collapsed for others) */}
                   {(isCurrent || !enrollment) && week.sessions.map((session, si) => {
-                    const sDone = sessionDone(week.week, si);
-                    const pCtx = { programId: prog.id, week: week.week, sessionIdx: si };
+                    const sDone = enrollment && sessionDone(week.week, si);
                     return (
                       <div key={si} style={{ margin:"0 12px 10px",borderRadius:10,
                         background:sDone ? "rgba(34,197,94,0.06)" : "rgba(255,255,255,0.04)",
@@ -7479,15 +7654,21 @@ export default function SummerTrainingApp() {
                           {session.exercises.map(exId => {
                             const ex = ALL_EXERCISES[exId];
                             if (!ex) return null;
-                            const done = isProgramExerciseDone(programProgress, prog.id, week.week, si, exId);
+                            const done = enrollment
+                              ? isProgramExerciseDone(programProgress, prog.id, week.week, si, exId)
+                              : !!completed[`${todayKey()}-${exId}`];
                             const sessionExList = session.exercises.map(id=>({...ALL_EXERCISES[id],_cat:ALL_EXERCISES[id]?._cat,meta:ALL_EXERCISES[id]?.meta||EXERCISE_META[id]||{}})).filter(Boolean);
+                            const pCtx = enrollment ? { programId: prog.id, week: week.week, sessionIdx: si } : null;
                             return (
                               <div key={exId} onClick={()=>{ const enriched={...ex,_cat:ex._cat,meta:ex.meta||EXERCISE_META[exId]||{}}; openDetail(enriched, sessionExList, pCtx); }}
                                 style={{ display:"flex",alignItems:"center",gap:9,padding:"7px 9px",borderRadius:8,
                                   background:done?"rgba(34,197,94,0.08)":"rgba(255,255,255,0.04)",
                                   border:`1px solid ${done?"rgba(34,197,94,0.18)":"rgba(255,255,255,0.05)"}`,
                                   cursor:"pointer" }}>
-                                <button onClick={e=>{ e.stopPropagation(); toggleProgramExercise(pCtx, exId); }}
+                                <button onClick={e=>{ e.stopPropagation();
+                                  if (enrollment) toggleProgramExercise(pCtx, exId);
+                                  else toggle(exId);
+                                }}
                                   style={{ width:20,height:20,borderRadius:6,border:`1.5px solid ${done?"#22c55e":prog.color+"60"}`,
                                     background:done?"#22c55e":"transparent",color:"#fff",fontSize:10,
                                     display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,padding:0 }}>
@@ -7517,7 +7698,7 @@ export default function SummerTrainingApp() {
 
     return (
       <div style={{ background:BG,minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:80 }}>
-        {showSettings&&<SettingsSheet settings={settings} setSettings={setSettings} onClose={()=>setShowSettings(false)}/>}
+        {settingsSheet}{feedbackSheet}
         {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]} onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
         {renderMissionOverlays()}
         {activeExercise&&<ExerciseDetailSheet exercise={activeExercise} color={P}
@@ -7637,7 +7818,7 @@ export default function SummerTrainingApp() {
   /* SHOTS */
   if (view==="shots") return (
     <div style={{ background:BG,minHeight:"100vh",maxWidth:680,margin:"0 auto" }}>
-      {showSettings&&<SettingsSheet settings={settings} setSettings={setSettings} onClose={()=>setShowSettings(false)}/>}
+      {settingsSheet}{feedbackSheet}
       {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]}
         onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
       {renderMissionOverlays()}
@@ -7677,7 +7858,7 @@ export default function SummerTrainingApp() {
   /* LEADERBOARD / RANKS */
   if (view==="ranks") return (
     <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"var(--fkh-text)",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
-      {showSettings&&<SettingsSheet settings={settings} setSettings={setSettings} onClose={()=>setShowSettings(false)}/>}
+      {settingsSheet}{feedbackSheet}
       {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]}
         onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
       {renderMissionOverlays()}
@@ -7702,7 +7883,7 @@ export default function SummerTrainingApp() {
   /* PROFILE */
   if (view==="profile") return (
     <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"var(--fkh-text)",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
-      {showSettings&&<SettingsSheet settings={settings} setSettings={setSettings} onClose={()=>setShowSettings(false)}/>}
+      {settingsSheet}{feedbackSheet}
       {showHelp&&<HelpSheet P={P} SF={SF} onClose={()=>setShowHelp(false)}/>}
       {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]}
         onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
@@ -7749,7 +7930,7 @@ export default function SummerTrainingApp() {
       : WORKOUTS[activeCat];
     return (
       <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"var(--fkh-text)",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
-        {showSettings&&<SettingsSheet settings={settings} setSettings={setSettings} onClose={()=>setShowSettings(false)}/>}
+        {settingsSheet}{feedbackSheet}
         <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 16px",borderBottom:`2px solid ${color}40`,position:"sticky",top:0,background:NV,backdropFilter:"blur(10px)",zIndex:10 }}>
           <button onClick={()=>setView(prevView)} style={{ background:`${color}14`,border:`1px solid ${color}30`,borderRadius:8,color,fontSize:12,fontWeight:700,cursor:"pointer",padding:"5px 10px",letterSpacing:"0.02em" }}>← Back</button>
           <span style={{ fontSize:15,fontWeight:800,color,letterSpacing:"-0.01em" }}>{CATS[activeCat].emoji} {CATS[activeCat].label}</span>
@@ -7821,7 +8002,7 @@ export default function SummerTrainingApp() {
 
     return (
       <div style={{ background:BG,minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:80 }}>
-        {showSettings&&<SettingsSheet settings={settings} setSettings={setSettings} onClose={()=>setShowSettings(false)}/>}
+        {settingsSheet}{feedbackSheet}
         {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]} onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
         {renderMissionOverlays()}
         {activeExercise&&<ExerciseDetailSheet exercise={activeExercise} color={P}
@@ -8028,7 +8209,7 @@ export default function SummerTrainingApp() {
     const scheduleBack = ["home", "profile", "report"].includes(prevView) ? prevView : "home";
     return (
       <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"var(--fkh-text)",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
-        {showSettings&&<SettingsSheet settings={settings} setSettings={setSettings} onClose={()=>setShowSettings(false)}/>}
+        {settingsSheet}{feedbackSheet}
         {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]} onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
         {renderMissionOverlays()}
         <div style={{ padding:"16px 20px 12px",borderBottom:`1px solid ${P}14`,position:"sticky",top:0,background:BG,backdropFilter:"blur(10px)",zIndex:10 }}>
@@ -8132,7 +8313,7 @@ export default function SummerTrainingApp() {
   /* HOME */
   return (
     <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"var(--fkh-text)",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
-      {showSettings&&<SettingsSheet settings={settings} setSettings={setSettings} onClose={()=>setShowSettings(false)}/>}
+      {settingsSheet}{feedbackSheet}
       {activeExercise&&<ExerciseDetailSheet
         exercise={activeExercise} color={catColor(activeExercise._cat)}
         bg2={catBg(activeExercise._cat)} brd={catBrd(activeExercise._cat)}
@@ -8155,7 +8336,7 @@ export default function SummerTrainingApp() {
             <p style={{ textAlign:"center",color:"#64748b",fontSize:13,marginBottom:20 }}>What's your name, hooper?</p>
             <input type="text" value={onboardName} onChange={e=>setOnboardName(e.target.value)} placeholder="Your name" autoFocus
               style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.07)",border:"1.5px solid #f9731640",borderRadius:10,padding:"12px",fontSize:16,color:"#fff",outline:"none",marginBottom:16 }}/>
-            <button onClick={()=>{ const name=onboardName.trim()||'Hooper'; setSettings(p=>({...p,athleteName:name})); localStorage.setItem('s_onboarded','1'); setShowOnboarding(false); setShowHelp(true); }}
+            <button onClick={()=>{ const name=onboardName.trim()||'Hooper'; setSettings(p=>({...p,athleteName:name})); localStorage.setItem('s_onboarded','1'); track(ANALYTICS_EVENTS.ONBOARDING_COMPLETE, {}); setShowOnboarding(false); setShowHelp(true); }}
               style={{ width:"100%",background:"#f97316",border:"none",borderRadius:12,padding:"14px",fontSize:15,fontWeight:800,color:"#000",cursor:"pointer" }}>
               Let's Go! 🏀
             </button>
@@ -8164,22 +8345,21 @@ export default function SummerTrainingApp() {
       )}
       {showHelp&&<HelpSheet P={P} SF={SF} onClose={()=>setShowHelp(false)}/>}
 
-      <div style={{ padding:"22px 20px 16px",borderBottom:`1px solid ${P}14` }}>
-        <button onClick={()=>setShowSettings(true)} aria-label="Settings"
-          style={{ background:`${P}18`,border:`1px solid ${P}40`,borderRadius:8,color:P,fontSize:14,cursor:"pointer",padding:"4px 8px",lineHeight:1,marginBottom:10 }}>
-          ⚙
-        </button>
-        <div style={{ fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:"0.2em",color:P,fontWeight:700,marginBottom:6 }}>FIT KID HOOPER</div>
-        <div style={{ display:"flex",alignItems:"center",gap:12,marginBottom:6 }}>
+      <div style={{ padding:"26px 20px 16px",borderBottom:`1px solid ${P}14` }}>
+        <div style={{ display:"flex",alignItems:"center",gap:12 }}>
           <h1 style={{ flex:1,minWidth:0,fontSize:28,fontWeight:800,margin:0,letterSpacing:"-0.03em",lineHeight:1.1 }}>
             FKH <span style={{ color:P }}>Fit Kid Hooper</span>
           </h1>
-          <div onClick={()=>setView("profile")}
-            style={{ width:52,height:52,borderRadius:"50%",background:`${P}18`,border:`3px solid ${P}`,overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0 }}>
-            {settings.avatar?<img src={settings.avatar} alt="" style={{ width:"100%",height:"100%",objectFit:"cover" }}/>:<span style={{ fontSize:22 }}>👤</span>}
+          <div style={{ position:"relative",width:56,height:56,flexShrink:0,marginLeft:4 }}>
+            <button onClick={()=>setShowSettings(true)} aria-label="Settings"
+              style={{ position:"absolute",top:-20,left:-22,background:"none",border:"none",color:P,fontSize:17,cursor:"pointer",padding:0,lineHeight:1,zIndex:1 }}>⚙</button>
+            <div onClick={()=>setView("profile")}
+              style={{ width:56,height:56,borderRadius:"50%",background:`${P}18`,border:`3px solid ${P}`,overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer" }}>
+              {settings.avatar?<img src={settings.avatar} alt="" style={{ width:"100%",height:"100%",objectFit:"cover" }}/>:<span style={{ fontSize:24 }}>👤</span>}
+            </div>
           </div>
         </div>
-        <div style={{ display:"flex",alignItems:"center",gap:8,flexWrap:"wrap" }}>
+        <div style={{ display:"flex",alignItems:"center",gap:8,marginTop:8,flexWrap:"wrap" }}>
           <p style={{ fontSize:14,color:P,fontWeight:600,margin:0 }}>{settings.athleteName}</p>
           <div onClick={()=>setView("profile")}
             style={{ display:"flex",alignItems:"center",gap:5,padding:"3px 10px",borderRadius:20,cursor:"pointer",
