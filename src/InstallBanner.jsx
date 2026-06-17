@@ -101,15 +101,15 @@ export default function InstallBanner() {
         </div>
 
         {ios && (
-          <div style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.6 }}>
-            Tap <strong style={{ color: '#e2e8f0' }}>Share</strong> ⎋ at the bottom of Safari,
-            then <strong style={{ color: '#e2e8f0' }}>Add to Home Screen</strong>.
+          <div style={{ fontSize: 12, color: 'var(--fkh-text-muted)', lineHeight: 1.6 }}>
+            Tap <strong style={{ color: 'var(--fkh-text)' }}>Share</strong> ⎋ at the bottom of Safari,
+            then <strong style={{ color: 'var(--fkh-text)' }}>Add to Home Screen</strong>.
           </div>
         )}
 
         {!ios && hasNativePrompt && (
           <>
-            <div style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.5, marginBottom: 10 }}>
+            <div style={{ fontSize: 12, color: 'var(--fkh-text-muted)', lineHeight: 1.5, marginBottom: 10 }}>
               Install for the full app experience — works offline too.
             </div>
             <button onClick={triggerInstall} style={{
@@ -129,9 +129,9 @@ export default function InstallBanner() {
         )}
 
         {!ios && !hasNativePrompt && (
-          <div style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.6 }}>
-            Tap the <strong style={{ color: '#e2e8f0' }}>⋮ menu</strong> in Chrome, then tap{' '}
-            <strong style={{ color: '#e2e8f0' }}>Add to Home Screen</strong>.
+          <div style={{ fontSize: 12, color: 'var(--fkh-text-muted)', lineHeight: 1.6 }}>
+            Tap the <strong style={{ color: 'var(--fkh-text)' }}>⋮ menu</strong> in Chrome, then tap{' '}
+            <strong style={{ color: 'var(--fkh-text)' }}>Add to Home Screen</strong>.
           </div>
         )}
       </div>

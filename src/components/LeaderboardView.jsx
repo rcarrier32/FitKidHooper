@@ -94,7 +94,7 @@ export default function LeaderboardView({
       {!configured && (
         <div style={{
           background: `${P}12`, border: `1px solid ${P}30`, borderRadius: 14,
-          padding: "14px 16px", marginBottom: 16, fontSize: 12, color: "#94a3b8", lineHeight: 1.55,
+          padding: "14px 16px", marginBottom: 16, fontSize: 12, color: "var(--fkh-text-muted)", lineHeight: 1.55,
         }}>
           Leaderboard backend is not connected yet. Add <code style={{ color: P }}>VITE_SUPABASE_URL</code> and{" "}
           <code style={{ color: P }}>VITE_SUPABASE_ANON_KEY</code> to your build, then run{" "}
@@ -110,7 +110,7 @@ export default function LeaderboardView({
           <div>
             <div style={{ fontSize: 13, fontWeight: 700, color: P, marginBottom: 4 }}>Push your stats</div>
             <div style={{ fontSize: 11, color: "#64748b" }}>
-              Sharing as <span style={{ color: "#e2e8f0", fontWeight: 700 }}>{settings.athleteName}</span>
+              Sharing as <span style={{ color: "var(--fkh-text)", fontWeight: 700 }}>{settings.athleteName}</span>
               {" · "}{getAgeGroupLabel(myAgeGroup)}
             </div>
             <div style={{ fontSize: 10, color: "#475569", marginTop: 4, fontFamily: "'DM Mono',monospace" }}>
@@ -152,7 +152,7 @@ export default function LeaderboardView({
             #{myRank || "—"}
           </div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#f1f5f9" }}>You · {myRow.display_name}</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--fkh-text)" }}>You · {myRow.display_name}</div>
             <div style={{ fontSize: 10, color: "#64748b", marginTop: 2 }}>
               {myRow.xp.toLocaleString()} XP · {myRow.shots_made.toLocaleString()} makes · {myRow.training_days} days
             </div>
@@ -243,7 +243,7 @@ export default function LeaderboardView({
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{
                     fontSize: 13, fontWeight: 700,
-                    color: isMe ? P : "#f1f5f9",
+                    color: isMe ? P : "var(--fkh-text)",
                     overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                   }}>
                     {row.display_name}{isMe ? " (you)" : ""}

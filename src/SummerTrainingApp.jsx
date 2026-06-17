@@ -36,9 +36,9 @@ import {
 const DEFAULT = {
   primaryHue:38, primarySat:92, primaryLight:55,
   secondaryHue:245, secondarySat:80, secondaryLight:60,
-  bgHue:222, bgSat:47, bgLight:6,
-  surfaceHue:222, surfaceSat:37, surfaceLight:11,
-  buttonHue:222, buttonSat:38, buttonLight:18,
+  bgHue:222, bgSat:47, bgLight:10,
+  surfaceHue:222, surfaceSat:37, surfaceLight:15,
+  buttonHue:222, buttonSat:38, buttonLight:20,
   textHue:210, textSat:25, textLight:94,
   accentHue:158, accentSat:85, accentLight:50,
   customSecondary:false,
@@ -3756,12 +3756,12 @@ function SettingsSheet({ settings, setSettings, onClose }) {
 
   return (
     <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.82)",zIndex:300,display:"flex",alignItems:"flex-end",justifyContent:"center",backdropFilter:"blur(6px)" }}>
-      <div style={{ background:"#0d1526",borderRadius:"22px 22px 0 0",width:"100%",maxWidth:680,maxHeight:"90vh",overflowY:"auto",paddingBottom:28 }}>
+      <div style={{ background:SURF,borderRadius:"22px 22px 0 0",width:"100%",maxWidth:680,maxHeight:"90vh",overflowY:"auto",paddingBottom:28 }}>
         <div style={{ display:"flex",justifyContent:"center",paddingTop:10,marginBottom:4 }}>
           <div style={{ width:40,height:4,borderRadius:99,background:"rgba(255,255,255,0.12)" }}/>
         </div>
-        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 20px 14px",borderBottom:"1px solid rgba(255,255,255,0.07)",position:"sticky",top:0,background:"#0d1526",zIndex:10 }}>
-          <span style={{ fontSize:16,fontWeight:700,color:"#f1f5f9" }}>Customize Your App</span>
+        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 20px 14px",borderBottom:"1px solid rgba(255,255,255,0.07)",position:"sticky",top:0,background:SURF,zIndex:10 }}>
+          <span style={{ fontSize:16,fontWeight:700,color:"var(--fkh-text)" }}>Customize Your App</span>
           <button onClick={onClose} aria-label="Close Settings"
             style={{ background:"none",border:"none",color:"#64748b",fontSize:22,cursor:"pointer",padding:"6px 10px",borderRadius:8,lineHeight:1 }}>✕</button>
         </div>
@@ -3788,7 +3788,7 @@ function SettingsSheet({ settings, setSettings, onClose }) {
                 style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.05)",border:`1.5px solid ${P}44`,borderRadius:10,padding:"8px 12px",fontSize:14,fontWeight:700,color:P,outline:"none",marginBottom:8 }}/>
               <div style={{ fontSize:11,color:"#475569",marginBottom:4,fontWeight:600 }}>Training Start Date</div>
               <input type="date" value={settings.startDate||''} onChange={e=>setSettings(p=>({...p,startDate:e.target.value}))}
-                style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.05)",border:`1.5px solid ${P}44`,borderRadius:10,padding:"8px 12px",fontSize:14,color:"#e2e8f0",outline:"none" }}/>
+                style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.05)",border:`1.5px solid ${P}44`,borderRadius:10,padding:"8px 12px",fontSize:14,color:"var(--fkh-text)",outline:"none" }}/>
             </div>
           </div>
         </div>
@@ -3813,10 +3813,10 @@ function SettingsSheet({ settings, setSettings, onClose }) {
                   onChange={e=>setSettings(p=>({...p,dateOfBirth:e.target.value||null}))}
                   style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.05)",
                     border:`1.5px solid ${P}44`,borderRadius:10,padding:"8px 12px",
-                    fontSize:14,color:"#e2e8f0",outline:"none",colorScheme:"dark" }}/>
+                    fontSize:14,color:"var(--fkh-text)",outline:"none",colorScheme:"dark" }}/>
                 <div style={{ marginTop:7,display:"flex",alignItems:"center",gap:8 }}>
                   {age!==null
-                    ? <span style={{ fontSize:12,color:"#94a3b8" }}>
+                    ? <span style={{ fontSize:12,color:"var(--fkh-text-muted)" }}>
                         {bday
                           ? <span style={{ color:P,fontWeight:700 }}>🎂 Happy Birthday! Age {age}</span>
                           : `Age ${age} years old — updates automatically on each birthday`}
@@ -3890,7 +3890,7 @@ function SettingsSheet({ settings, setSettings, onClose }) {
           <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:"#334155",marginBottom:12,textTransform:"uppercase" }}>Workout</div>
           <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 14px",borderRadius:12,...actionBtnStyle(settings) }}>
             <div>
-              <div style={{ fontSize:13,fontWeight:700,color:"#e2e8f0",marginBottom:3 }}>⏱ Workout Timers</div>
+              <div style={{ fontSize:13,fontWeight:700,color:"var(--fkh-text)",marginBottom:3 }}>⏱ Workout Timers</div>
               <div style={{ fontSize:11,color:"#64748b",lineHeight:1.45 }}>Countdown alerts, rest timers, and set cues during exercises</div>
             </div>
             <button onClick={()=>setSettings(p=>({...p,workoutTimers:!p.workoutTimers}))}
@@ -3915,7 +3915,7 @@ function SettingsSheet({ settings, setSettings, onClose }) {
                 setGuardrailNote(null);
               }} style={{ display:"flex",alignItems:"center",gap:5,padding:"6px 11px",borderRadius:20,cursor:"pointer",...actionBtnStyle(settings) }}>
                 {[pr2.colors.accent, pr2.colors.bg, pr2.colors.surface, pr2.colors.button].map((c, i) => (
-                  <span key={i} style={{ width:10,height:10,borderRadius:"50%",background:hsl(c[0],c[1],c[2]),display:"inline-block",marginLeft:i?-3:0,border:"2px solid #0d1526" }}/>
+                  <span key={i} style={{ width:10,height:10,borderRadius:"50%",background:hsl(c[0],c[1],c[2]),display:"inline-block",marginLeft:i?-3:0,border:`2px solid ${B}` }}/>
                 ))}
                 <span style={{ fontSize:11,color:textMuted(settings),marginLeft:2,fontWeight:600 }}>{pr2.label}</span>
               </button>
@@ -3971,7 +3971,7 @@ function SettingsSheet({ settings, setSettings, onClose }) {
                 <div style={{ display:"flex",gap:6,alignItems:"center" }}>
                   <input value={hexDraft} onChange={e=>onHexInput(e.target.value)} spellCheck={false} maxLength={7} aria-label="Hex color"
                     style={{ flex:1,minWidth:0,fontFamily:"'DM Mono',monospace",fontSize:13,letterSpacing:"0.04em",textTransform:"uppercase",
-                      color:"#e2e8f0",background:`${BTN}24`,borderRadius:8,padding:"8px 10px",outline:"none",
+                      color:"var(--fkh-text)",background:`${BTN}24`,borderRadius:8,padding:"8px 10px",outline:"none",
                       border:`1px solid ${hexToHsl(hexDraft)?`${BTN}66`:"#ef4444"}` }}/>
                   {typeof window!=="undefined" && window.EyeDropper && (
                     <button onClick={pickEye} aria-label="Pick color from screen" title="Eyedropper"
@@ -3988,7 +3988,7 @@ function SettingsSheet({ settings, setSettings, onClose }) {
                 {tabPreviewLabel(tab)}
               </div>
               <div style={{ display:"flex",alignItems:"center",gap:4 }}>
-                {[P, SURF, BTN, TXT, B].map((col,i)=>(<div key={i} style={{ width:22,height:22,borderRadius:"50%",background:col,border:"2px solid #0d1526",marginLeft:i?-6:0 }}/>))}
+                {[P, SURF, BTN, TXT, B].map((col,i)=>(<div key={i} style={{ width:22,height:22,borderRadius:"50%",background:col,border:`2px solid ${B}`,marginLeft:i?-6:0 }}/>))}
                 <span style={{ fontSize:10,color:"#334155",marginLeft:8 }}>Live palette</span>
               </div>
               {tab === "accent" && !settings.customSecondary && (
@@ -4010,7 +4010,7 @@ function SettingsSheet({ settings, setSettings, onClose }) {
             <div style={{ textAlign:"left" }}>
               <div style={{ fontSize:13,fontWeight:700,color:settings.leaderboardSharing?P:"#94a3b8" }}>Share on Leaderboard</div>
               <div style={{ fontSize:10,color:"#64748b",marginTop:3 }}>
-                Push as <span style={{ color:"#e2e8f0" }}>{settings.athleteName}</span>
+                Push as <span style={{ color:"var(--fkh-text)" }}>{settings.athleteName}</span>
                 {settings.dateOfBirth ? ` · ${getAgeGroupLabel(getAgeGroup(settings.dateOfBirth))}` : " · set DOB for age group"}
               </div>
             </div>
@@ -4034,20 +4034,20 @@ function SettingsSheet({ settings, setSettings, onClose }) {
           ) : (
             <div style={{ padding:"12px 14px",borderRadius:12,...actionBtnStyle(settings) }}>
               <div style={{ fontSize:13,fontWeight:700,color:P,marginBottom:6 }}>📲 Install on Home Screen</div>
-              <p style={{ fontSize:11,color:"#94a3b8",lineHeight:1.5,margin:"0 0 10px" }}>
+              <p style={{ fontSize:11,color:"var(--fkh-text-muted)",lineHeight:1.5,margin:"0 0 10px" }}>
                 Opens full-screen, loads faster, and works offline.
               </p>
               {installIOS ? (
-                <p style={{ fontSize:11,color:"#94a3b8",lineHeight:1.5,margin:0 }}>
-                  Tap <span style={{ color:"#e2e8f0",fontWeight:700 }}>Share</span> → <span style={{ color:"#e2e8f0",fontWeight:700 }}>Add to Home Screen</span> in Safari.
+                <p style={{ fontSize:11,color:"var(--fkh-text-muted)",lineHeight:1.5,margin:0 }}>
+                  Tap <span style={{ color:"var(--fkh-text)",fontWeight:700 }}>Share</span> → <span style={{ color:"var(--fkh-text)",fontWeight:700 }}>Add to Home Screen</span> in Safari.
                 </p>
               ) : installPrompt ? (
                 <button onClick={handleInstall} style={{ padding:"8px 16px",borderRadius:20,background:P,border:"none",color:"#000",fontSize:12,fontWeight:800,cursor:"pointer" }}>
                   Install App
                 </button>
               ) : (
-                <p style={{ fontSize:11,color:"#94a3b8",lineHeight:1.5,margin:0 }}>
-                  Open your browser menu → <span style={{ color:"#e2e8f0",fontWeight:700 }}>Add to Home Screen</span>.
+                <p style={{ fontSize:11,color:"var(--fkh-text-muted)",lineHeight:1.5,margin:0 }}>
+                  Open your browser menu → <span style={{ color:"var(--fkh-text)",fontWeight:700 }}>Add to Home Screen</span>.
                 </p>
               )}
             </div>
@@ -4084,22 +4084,22 @@ function SettingsSheet({ settings, setSettings, onClose }) {
 /* ═══════════════════════ HELP SHEET ═══════════════════════ */
 /* ═══════════════════════ HOME UI HELPERS ════════════════════ */
 function HomeCollapsibleSection({ title, hint, open, onToggle, children, labelStyle, accentColor }) {
-  const caretColor = accentColor || labelStyle?.color || "#475569";
+  const caretColor = accentColor || labelStyle?.color || "#94a3b8";
   return (
     <div style={{ marginBottom: 2 }}>
       <button type="button" onClick={onToggle}
-        style={{ width:"calc(100% - 40px)", margin:"0 20px", padding:"10px 0 8px", border:"none", background:"transparent",
-          cursor:"pointer", display:"flex", alignItems:"center", gap:8, textAlign:"left" }}>
+        style={{ width:"calc(100% - 40px)", margin:"0 20px", padding:"12px 0 10px", border:"none", background:"transparent",
+          cursor:"pointer", display:"flex", alignItems:"center", gap:10, textAlign:"left" }}>
         <div style={{ ...labelStyle, marginBottom:0, flex:1 }}>{title}</div>
-        {hint && <span style={{ fontSize:11, color:"#334155", fontWeight:600 }}>{hint}</span>}
-        <span style={{ fontSize:14, color:caretColor, fontWeight:700, flexShrink:0, transform:open ? "rotate(0deg)" : "rotate(-90deg)", transition:"transform 0.2s" }}>▼</span>
+        {hint && <span style={{ fontSize:12, color:caretColor, fontWeight:700, opacity:0.85 }}>{hint}</span>}
+        <span style={{ fontSize:18, color:caretColor, fontWeight:800, flexShrink:0, transform:open ? "rotate(0deg)" : "rotate(-90deg)", transition:"transform 0.2s" }}>▼</span>
       </button>
       {open && children}
     </div>
   );
 }
 
-function HelpSheet({ P, onClose }) {
+function HelpSheet({ P, SF, onClose }) {
   useEffect(() => {
     const h = e => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", h);
@@ -4131,19 +4131,19 @@ function HelpSheet({ P, onClose }) {
     <div onClick={onClose}
       style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.82)",zIndex:300,display:"flex",alignItems:"flex-end",justifyContent:"center",backdropFilter:"blur(6px)" }}>
       <div onClick={e=>e.stopPropagation()}
-        style={{ background:"#0d1526",borderRadius:"22px 22px 0 0",width:"100%",maxWidth:680,maxHeight:"90vh",overflowY:"auto",paddingBottom:28 }}>
+        style={{ background:SF,borderRadius:"22px 22px 0 0",width:"100%",maxWidth:680,maxHeight:"90vh",overflowY:"auto",paddingBottom:28 }}>
         <div style={{ display:"flex",justifyContent:"center",paddingTop:10,marginBottom:4 }}>
           <div style={{ width:40,height:4,borderRadius:99,background:"rgba(255,255,255,0.12)" }}/>
         </div>
-        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 20px 14px",borderBottom:"1px solid rgba(255,255,255,0.07)",position:"sticky",top:0,background:"#0d1526",zIndex:10 }}>
-          <span style={{ fontSize:16,fontWeight:700,color:"#f1f5f9" }}>How to use Fit Kid Hooper</span>
+        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 20px 14px",borderBottom:"1px solid rgba(255,255,255,0.07)",position:"sticky",top:0,background:SF,zIndex:10 }}>
+          <span style={{ fontSize:16,fontWeight:700,color:"var(--fkh-text)" }}>How to use Fit Kid Hooper</span>
           <button onClick={onClose} aria-label="Close Help"
             style={{ background:"none",border:"none",color:"#64748b",fontSize:22,cursor:"pointer",padding:"6px 10px",borderRadius:8,lineHeight:1 }}>✕</button>
         </div>
 
         <div style={{ padding:"18px 20px 2px" }}>
-          <div style={{ fontSize:15,fontWeight:800,color:"#f1f5f9",marginBottom:5 }}>Welcome, Hooper! 🏀</div>
-          <p style={{ fontSize:13,lineHeight:1.55,color:"#94a3b8",margin:0 }}>
+          <div style={{ fontSize:15,fontWeight:800,color:"var(--fkh-text)",marginBottom:5 }}>Welcome, Hooper! 🏀</div>
+          <p style={{ fontSize:13,lineHeight:1.55,color:"var(--fkh-text-muted)",margin:0 }}>
             This is your basketball training buddy. Here's everything you can do — and how to do it:
           </p>
         </div>
@@ -4156,7 +4156,7 @@ function HelpSheet({ P, onClose }) {
                 <span style={{ fontSize:20,lineHeight:1.1,flexShrink:0 }}>{s.e}</span>
                 <div>
                   <div style={{ fontSize:13.5,fontWeight:700,color:P,marginBottom:3 }}>{s.t}</div>
-                  <div style={{ fontSize:12.5,lineHeight:1.5,color:"#94a3b8" }}>{s.d}</div>
+                  <div style={{ fontSize:12.5,lineHeight:1.5,color:"var(--fkh-text-muted)" }}>{s.d}</div>
                 </div>
               </div>
             ))}
@@ -4169,7 +4169,7 @@ function HelpSheet({ P, onClose }) {
             {TIPS.map((t,i)=>(
               <div key={i} style={{ display:"flex",gap:10,alignItems:"flex-start" }}>
                 <span style={{ fontSize:15,lineHeight:1.2,flexShrink:0 }}>{t.e}</span>
-                <div style={{ fontSize:12.5,lineHeight:1.5,color:"#94a3b8" }}>{t.d}</div>
+                <div style={{ fontSize:12.5,lineHeight:1.5,color:"var(--fkh-text-muted)" }}>{t.d}</div>
               </div>
             ))}
           </div>
@@ -4426,7 +4426,7 @@ function ShotTracker({ P, S, BG, athleteName, settings }) {
   const TABS = [{id:"log",label:"📍 Log"},{id:"history",label:"📈 History"},{id:"breakdown",label:"🍩 Stats"}];
 
   return (
-    <div style={{ background:BG,color:"#e2e8f0",maxWidth:680,margin:"0 auto",minHeight:"100vh",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))",fontFamily:"'DM Sans','Helvetica Neue',sans-serif" }}>
+    <div style={{ background:BG,color:"var(--fkh-text)",maxWidth:680,margin:"0 auto",minHeight:"100vh",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))",fontFamily:"'DM Sans','Helvetica Neue',sans-serif" }}>
       <div style={{ padding:"22px 20px 14px",borderBottom:`1px solid ${P}18` }}>
         <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.2em",color:"#334155",marginBottom:5 }}>SHOT TRACKER</div>
         <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-end" }}>
@@ -4453,7 +4453,7 @@ function ShotTracker({ P, S, BG, athleteName, settings }) {
               ? `linear-gradient(90deg,${P},${S})`
               : `linear-gradient(90deg,${P}cc,${P})`;
         const glowColor = reached ? "#22c55e" : P;
-        const numColor  = reached ? "#22c55e" : pct >= 0.75 ? "#86efac" : "#f1f5f9";
+        const numColor  = reached ? "#22c55e" : pct >= 0.75 ? "#86efac" : "var(--fkh-text)";
 
         return (
           <div style={{ padding:"12px 16px 10px",borderBottom:`1px solid ${bd}` }}>
@@ -4549,7 +4549,7 @@ function ShotTracker({ P, S, BG, athleteName, settings }) {
                       type="number" inputMode="numeric" min="1"
                       placeholder="Custom"
                       style={{ width:60,background:"transparent",border:"none",outline:"none",
-                        color:"#94a3b8",fontSize:13,padding:"6px 0",
+                        color:"var(--fkh-text-muted)",fontSize:13,padding:"6px 0",
                         WebkitAppearance:"none",MozAppearance:"textfield" }}
                       onKeyDown={e=>{
                         if (e.key==="Enter" && e.target.value) {
@@ -4598,7 +4598,7 @@ function ShotTracker({ P, S, BG, athleteName, settings }) {
             const total = shotCount.made + shotCount.missed;
             const stepBtn = (style) => ({
               width:44, height:44, borderRadius:10, border:"1px solid rgba(255,255,255,0.12)",
-              background:"rgba(255,255,255,0.06)", color:"#e2e8f0", fontSize:22,
+              background:"rgba(255,255,255,0.06)", color:"var(--fkh-text)", fontSize:22,
               fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center",
               ...style,
             });
@@ -4697,9 +4697,9 @@ function ShotTracker({ P, S, BG, athleteName, settings }) {
           </div>
           {useCustom&&(
             <div style={{ display:"flex",gap:8,marginBottom:12,alignItems:"center" }}>
-              <input type="date" value={custStart} onChange={e=>setCustStart(e.target.value)} style={{ flex:1,background:sf,border:`1px solid ${bd}`,borderRadius:8,padding:"7px 10px",color:"#e2e8f0",fontSize:12,outline:"none" }}/>
+              <input type="date" value={custStart} onChange={e=>setCustStart(e.target.value)} style={{ flex:1,background:sf,border:`1px solid ${bd}`,borderRadius:8,padding:"7px 10px",color:"var(--fkh-text)",fontSize:12,outline:"none" }}/>
               <span style={{ color:"#334155" }}>→</span>
-              <input type="date" value={custEnd} onChange={e=>setCustEnd(e.target.value)} style={{ flex:1,background:sf,border:`1px solid ${bd}`,borderRadius:8,padding:"7px 10px",color:"#e2e8f0",fontSize:12,outline:"none" }}/>
+              <input type="date" value={custEnd} onChange={e=>setCustEnd(e.target.value)} style={{ flex:1,background:sf,border:`1px solid ${bd}`,borderRadius:8,padding:"7px 10px",color:"var(--fkh-text)",fontSize:12,outline:"none" }}/>
             </div>
           )}
           <div style={{ background:sf,border:`1px solid ${bd}`,borderRadius:14,padding:"14px 12px",marginBottom:14 }}>
@@ -4760,7 +4760,7 @@ function ShotTracker({ P, S, BG, athleteName, settings }) {
               {SHOT_TYPES.filter(t=>(allByType[t.id]||0)>0).sort((a,b)=>(allByType[b.id]||0)-(allByType[a.id]||0)).slice(0,5).map(t=>(
                 <div key={t.id} style={{ display:"flex",alignItems:"center",gap:6,marginBottom:3 }}>
                   <div style={{ width:8,height:8,borderRadius:"50%",background:SHOT_COLORS[t.id],flexShrink:0 }}/>
-                  <span style={{ fontSize:11,color:"#94a3b8",flex:1 }}>{t.label}</span>
+                  <span style={{ fontSize:11,color:"var(--fkh-text-muted)",flex:1 }}>{t.label}</span>
                   <span style={{ fontFamily:"'DM Mono',monospace",fontSize:11,color:SHOT_COLORS[t.id] }}>{allByType[t.id]}</span>
                 </div>
               ))}
@@ -4772,7 +4772,7 @@ function ShotTracker({ P, S, BG, athleteName, settings }) {
               return ent.length===0 ? <div style={{ color:"#334155",fontSize:12,textAlign:"center",padding:"12px 0" }}>Use the court map to log locations!</div>
               : <div style={{ display:"flex",flexDirection:"column",gap:6 }}>{ent.map(([loc,cnt])=>(
                 <div key={loc} style={{ display:"flex",alignItems:"center",gap:10 }}>
-                  <div style={{ fontSize:11,color:"#94a3b8",width:100,flexShrink:0 }}>{loc}</div>
+                  <div style={{ fontSize:11,color:"var(--fkh-text-muted)",width:100,flexShrink:0 }}>{loc}</div>
                   <div style={{ flex:1,height:6,background:"rgba(255,255,255,0.05)",borderRadius:99,overflow:"hidden" }}>
                     <div style={{ height:"100%",width:`${(cnt/mx)*100}%`,background:S,borderRadius:99 }}/>
                   </div>
@@ -4845,11 +4845,11 @@ function BadgeCelebration({ badge, onDismiss }) {
             </div>
           )}
         </div>
-        <div style={{ fontSize:26,fontWeight:800,color:"#f1f5f9",marginBottom:8,lineHeight:1.2,
+        <div style={{ fontSize:26,fontWeight:800,color:"var(--fkh-text)",marginBottom:8,lineHeight:1.2,
           animation:"fkh-fade-up 0.4s ease 0.6s both" }}>
           {badge.name}
         </div>
-        <div style={{ fontSize:13,color:"#94a3b8",marginBottom:28,lineHeight:1.5,
+        <div style={{ fontSize:13,color:"var(--fkh-text-muted)",marginBottom:28,lineHeight:1.5,
           animation:"fkh-fade-up 0.4s ease 0.7s both" }}>
           {badge.desc}
         </div>
@@ -4890,13 +4890,13 @@ function MissionCelebration({ title, bonusXP, color, onDismiss }) {
           color,textTransform:"uppercase",marginBottom:8 }}>
           Daily Mission Complete!
         </div>
-        <div style={{ fontSize:22,fontWeight:800,color:"#f1f5f9",marginBottom:8,lineHeight:1.25 }}>
+        <div style={{ fontSize:22,fontWeight:800,color:"var(--fkh-text)",marginBottom:8,lineHeight:1.25 }}>
           {title}
         </div>
         <div style={{ fontFamily:"'DM Mono',monospace",fontSize:36,fontWeight:800,color,marginBottom:8,lineHeight:1 }}>
           +{bonusXP} XP
         </div>
-        <div style={{ fontSize:13,color:"#94a3b8",marginBottom:28,lineHeight:1.5 }}>
+        <div style={{ fontSize:13,color:"var(--fkh-text-muted)",marginBottom:28,lineHeight:1.5 }}>
           Nice work today — your XP total just went up!
         </div>
         <button onClick={onDismiss}
@@ -4929,7 +4929,7 @@ function MissionTaskToast({ label, onDone }) {
           <div style={{ fontSize:9,fontWeight:800,color:"#22c55e",letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:2 }}>
             Mission Step Done
           </div>
-          <div style={{ fontSize:12,fontWeight:700,color:"#e2e8f0",lineHeight:1.35 }}>{label}</div>
+          <div style={{ fontSize:12,fontWeight:700,color:"var(--fkh-text)",lineHeight:1.35 }}>{label}</div>
         </div>
       </div>
     </div>
@@ -4989,7 +4989,7 @@ function CalendarView({ completed, P, S, BG, SF, bd, lbl }) {
           style={{ width:36,height:36,borderRadius:8,border:`1px solid ${bd}`,
             background:"transparent",color:"#64748b",fontSize:20,cursor:"pointer",fontWeight:300 }}>‹</button>
         <div style={{ textAlign:"center" }}>
-          <div style={{ fontSize:16,fontWeight:800,color:"#f1f5f9" }}>{MONTH_NAMES[mon]}</div>
+          <div style={{ fontSize:16,fontWeight:800,color:"var(--fkh-text)" }}>{MONTH_NAMES[mon]}</div>
           <div style={{ fontSize:10,color:"#475569",fontFamily:"'DM Mono',monospace" }}>{year}</div>
         </div>
         <button onClick={()=>setViewDate(d=>new Date(d.getFullYear(),d.getMonth()+1,1))}
@@ -5035,7 +5035,7 @@ function CalendarView({ completed, P, S, BG, SF, bd, lbl }) {
 
               {/* Day number */}
               <div style={{ fontSize:11,fontWeight:isToday?800:500,lineHeight:1,
-                color:isSel?P:isToday?P:cnt>0?"#cbd5e1":"#475569" }}>
+                color:isSel?P:isToday?P:cnt>0?"var(--fkh-text)":"#475569" }}>
                 {day}
               </div>
 
@@ -5089,7 +5089,7 @@ function CalendarView({ completed, P, S, BG, SF, bd, lbl }) {
           {/* Day header */}
           <div style={{ display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:10 }}>
             <div>
-              <div style={{ fontSize:14,fontWeight:800,color:"#f1f5f9",lineHeight:1.2 }}>
+              <div style={{ fontSize:14,fontWeight:800,color:"var(--fkh-text)",lineHeight:1.2 }}>
                 {new Date(selDate+"T12:00:00").toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"})}
               </div>
               <div style={{ fontSize:11,color:"#64748b",marginTop:4,display:"flex",gap:8,flexWrap:"wrap" }}>
@@ -5132,7 +5132,7 @@ function CalendarView({ completed, P, S, BG, SF, bd, lbl }) {
                   background:"rgba(255,255,255,0.03)",
                   border:"1px solid rgba(255,255,255,0.06)" }}>
                   <div style={{ width:6,height:6,borderRadius:"50%",background:c,flexShrink:0 }}/>
-                  <span style={{ fontSize:12,color:"#e2e8f0",flex:1,fontWeight:500,
+                  <span style={{ fontSize:12,color:"var(--fkh-text)",flex:1,fontWeight:500,
                     whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{ex.name}</span>
                   <span style={{ fontSize:9,color:"#334155",fontFamily:"'DM Mono',monospace",flexShrink:0 }}>+5 XP</span>
                   <span style={{ color:"#22c55e",fontSize:13,flexShrink:0 }}>✓</span>
@@ -5144,7 +5144,7 @@ function CalendarView({ completed, P, S, BG, SF, bd, lbl }) {
                 padding:"7px 9px",borderRadius:8,
                 background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)" }}>
                 <div style={{ width:6,height:6,borderRadius:"50%",background:"#f97316",flexShrink:0 }}/>
-                <span style={{ fontSize:12,color:"#e2e8f0",flex:1,fontWeight:500 }}>🏀 {selData.shots} shots made</span>
+                <span style={{ fontSize:12,color:"var(--fkh-text)",flex:1,fontWeight:500 }}>🏀 {selData.shots} shots made</span>
                 <span style={{ fontSize:9,color:"#334155",fontFamily:"'DM Mono',monospace",flexShrink:0 }}>
                   +{Math.floor(selData.shots/10)*5} XP
                 </span>
@@ -5225,13 +5225,13 @@ function HistoryView({ completed, badgeDates, settings, P, S, ST, BG, SF, bd, lb
   const calMonLabel = calMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" });
 
   return (
-    <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif", background:BG, color:"#e2e8f0", minHeight:"100vh", maxWidth:680, margin:"0 auto", display:"flex", flexDirection:"column" }}>
+    <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif", background:BG, color:"var(--fkh-text)", minHeight:"100vh", maxWidth:680, margin:"0 auto", display:"flex", flexDirection:"column" }}>
 
       {/* ── Fixed Header ──────────────────────────────────────── */}
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 20px", borderBottom:`1px solid ${P}14`, position:"sticky", top:0, background:BG, backdropFilter:"blur(10px)", zIndex:10, flexShrink:0 }}>
         <button onClick={onBack} style={{ background:`${P}14`, border:`1px solid ${P}30`, borderRadius:8, color:P, fontSize:12, fontWeight:700, cursor:"pointer", padding:"5px 10px" }}>← Back</button>
         <div style={{ textAlign:"center" }}>
-          <div style={{ fontSize:15, fontWeight:800, color:"#f1f5f9" }}>Training History</div>
+          <div style={{ fontSize:15, fontWeight:800, color:"var(--fkh-text)" }}>Training History</div>
           <div style={{ fontSize:10, color:`${P}99`, fontFamily:"'DM Mono',monospace" }}>{settings.athleteName}</div>
         </div>
         <span style={{ fontSize:20 }}>📊</span>
@@ -5263,7 +5263,7 @@ function HistoryView({ completed, badgeDates, settings, P, S, ST, BG, SF, bd, lb
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
             <button onClick={()=>setCalMonth(m=>new Date(m.getFullYear(), m.getMonth()-1, 1))}
               style={{ background:`${P}14`, border:`1px solid ${P}30`, borderRadius:8, color:P, fontSize:14, fontWeight:700, cursor:"pointer", padding:"4px 10px", lineHeight:1 }}>‹</button>
-            <div style={{ fontSize:13, fontWeight:700, color:"#e2e8f0" }}>{calMonLabel}</div>
+            <div style={{ fontSize:13, fontWeight:700, color:"var(--fkh-text)" }}>{calMonLabel}</div>
             <button onClick={()=>{ if(canGoForward) setCalMonth(m=>new Date(m.getFullYear(), m.getMonth()+1, 1)); }}
               style={{ background:canGoForward?`${P}14`:"rgba(255,255,255,0.03)", border:`1px solid ${canGoForward?P+"30":"rgba(255,255,255,0.05)"}`, borderRadius:8, color:canGoForward?P:"#334155", fontSize:14, fontWeight:700, cursor:canGoForward?"pointer":"default", padding:"4px 10px", lineHeight:1 }}>›</button>
           </div>
@@ -5286,7 +5286,7 @@ function HistoryView({ completed, badgeDates, settings, P, S, ST, BG, SF, bd, lb
               const streakNum = dayStreakMap[ds] || 0;
               const heat = count === 0 ? "transparent" : count <= 2 ? `${P}22` : count <= 5 ? `${P}44` : `${P}70`;
               const bg   = isToday ? P : heat;
-              const txt  = isToday ? "#000" : "#e2e8f0";
+              const txt  = isToday ? "#000" : "var(--fkh-text)";
               const bord = (!isToday && streakNum > 1 && count > 0) ? `1px solid ${P}50` : `1px solid transparent`;
               return (
                 <div key={ds} style={{ aspectRatio:"1", borderRadius:6, background:bg, border:bord, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", opacity:isFuture?0.25:1, position:"relative" }}>
@@ -5351,7 +5351,7 @@ function HistoryView({ completed, badgeDates, settings, P, S, ST, BG, SF, bd, lb
                     <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
                       <span style={{ fontSize:14 }}>{catInfo.emoji}</span>
                       <div style={{ flex:1, minWidth:0 }}>
-                        <div style={{ fontSize:12, fontWeight:600, color:"#e2e8f0" }}>{catInfo.label}</div>
+                        <div style={{ fontSize:12, fontWeight:600, color:"var(--fkh-text)" }}>{catInfo.label}</div>
                         {daysAgo !== null && <div style={{ fontSize:9, color:"#475569" }}>last trained {daysAgo === 0 ? "today" : daysAgo === 1 ? "yesterday" : `${daysAgo} days ago`}</div>}
                       </div>
                       <div style={{ textAlign:"right", flexShrink:0 }}>
@@ -5377,7 +5377,7 @@ function HistoryView({ completed, badgeDates, settings, P, S, ST, BG, SF, bd, lb
               {coachInsights.map((insight, i) => (
                 <div key={i} style={{ background:`${P}0d`, border:`1px solid ${P}1e`, borderRadius:10, padding:"10px 12px", display:"flex", alignItems:"flex-start", gap:10 }}>
                   <span style={{ fontSize:18, lineHeight:1, flexShrink:0, marginTop:1 }}>{insight.emoji}</span>
-                  <div style={{ fontSize:12, color:"#94a3b8", lineHeight:1.5 }}>{insight.text}</div>
+                  <div style={{ fontSize:12, color:"var(--fkh-text-muted)", lineHeight:1.5 }}>{insight.text}</div>
                 </div>
               ))}
             </div>
@@ -5399,7 +5399,7 @@ function HistoryView({ completed, badgeDates, settings, P, S, ST, BG, SF, bd, lb
                       <div key={event.key} style={{ display:"flex", alignItems:"flex-start", gap:12, position:"relative", zIndex:1 }}>
                         <div style={{ width:32, height:32, borderRadius:"50%", background:`${P}18`, border:`1.5px solid ${P}30`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:15, flexShrink:0 }}>🏋️</div>
                         <div style={{ flex:1, paddingTop:2 }}>
-                          <div style={{ fontSize:12, fontWeight:700, color:"#e2e8f0", marginBottom:2 }}>{event.exCount} exercise{event.exCount!==1?"s":""} completed</div>
+                          <div style={{ fontSize:12, fontWeight:700, color:"var(--fkh-text)", marginBottom:2 }}>{event.exCount} exercise{event.exCount!==1?"s":""} completed</div>
                           <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginBottom:3 }}>
                             {event.cats.map(cat => (
                               <span key={cat} style={{ fontSize:9, padding:"2px 6px", borderRadius:20, background:`${CAT_DOT_COLORS[cat]||P}18`, color:CAT_DOT_COLORS[cat]||P, fontWeight:600 }}>
@@ -5417,7 +5417,7 @@ function HistoryView({ completed, badgeDates, settings, P, S, ST, BG, SF, bd, lb
                         <div style={{ width:32, height:32, borderRadius:"50%", background:`${event.badge.color}16`, border:`1.5px solid ${event.badge.color}40`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:15, flexShrink:0 }}>{event.badge.emoji}</div>
                         <div style={{ flex:1, paddingTop:2 }}>
                           <div style={{ fontSize:9, fontWeight:700, color:event.badge.color, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:1 }}>Badge Unlocked!</div>
-                          <div style={{ fontSize:12, fontWeight:700, color:"#e2e8f0", marginBottom:1 }}>{event.badge.name}</div>
+                          <div style={{ fontSize:12, fontWeight:700, color:"var(--fkh-text)", marginBottom:1 }}>{event.badge.name}</div>
                           <div style={{ fontSize:9, color:"#475569", fontFamily:"'DM Mono',monospace" }}>{fmtD}</div>
                         </div>
                       </div>
@@ -5617,7 +5617,7 @@ function BadgesView({ earnedBadges, badgeDates, completed, programProgress={}, P
                   <span style={{ fontSize:20,lineHeight:1 }}>{chain.emoji}</span>
                   <div style={{ flex:1,minWidth:0 }}>
                     <div style={{ fontSize:13,fontWeight:700,
-                      color:done?catC:"#e2e8f0",lineHeight:1.2,marginBottom:1 }}>
+                      color:done?catC:"var(--fkh-text)",lineHeight:1.2,marginBottom:1 }}>
                       {chain.name}
                     </div>
                     <div style={{ fontSize:10,color:"#475569" }}>{progress}/{total} mastered</div>
@@ -5688,7 +5688,7 @@ function ProfileView({ settings, totalXP, xpData, currentLevel, earnedBadges, co
             {currentLevel.emoji} {currentLevel.rank}
           </div>
         </div>
-        <div style={{ fontSize:24,fontWeight:800,color:"#f1f5f9",marginBottom:4 }}>
+        <div style={{ fontSize:24,fontWeight:800,color:"var(--fkh-text)",marginBottom:4 }}>
           {settings.athleteName}
         </div>
         <div style={{ fontSize:14,color:P,fontWeight:700,marginBottom:4 }}>
@@ -5716,7 +5716,7 @@ function ProfileView({ settings, totalXP, xpData, currentLevel, earnedBadges, co
             <div style={{ fontSize:10,color:"#475569",marginTop:3,letterSpacing:"0.08em" }}>TOTAL XP</div>
           </div>
           <div style={{ textAlign:"right" }}>
-            <div style={{ fontSize:12,fontWeight:700,color:"#94a3b8" }}>
+            <div style={{ fontSize:12,fontWeight:700,color:"var(--fkh-text-muted)" }}>
               {nextLevel ? `→ ${nextLevel.name}` : "Max Level 👑"}
             </div>
             {nextLevel && <div style={{ fontSize:10,color:"#475569",marginTop:2 }}>
@@ -5843,7 +5843,7 @@ function ProfileView({ settings, totalXP, xpData, currentLevel, earnedBadges, co
           <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
             {xpRows.map(({ label,value,unit })=>(
               <div key={label} style={{ display:"flex",alignItems:"center",gap:10 }}>
-                <div style={{ flex:1,fontSize:12,color:"#94a3b8" }}>{label}</div>
+                <div style={{ flex:1,fontSize:12,color:"var(--fkh-text-muted)" }}>{label}</div>
                 <div style={{ fontSize:10,color:"#475569",fontFamily:"'DM Mono',monospace" }}>{unit}</div>
                 <div style={{ fontFamily:"'DM Mono',monospace",fontSize:14,fontWeight:800,color:P,minWidth:48,textAlign:"right" }}>
                   +{value}
@@ -5920,7 +5920,7 @@ function ProfileView({ settings, totalXP, xpData, currentLevel, earnedBadges, co
         </button>
         <button onClick={onViewSchedule}
           style={{ marginTop:10, padding:"12px 28px", borderRadius:12, fontSize:13, fontWeight:700,
-            cursor:"pointer", background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", color:"#94a3b8", display:"block", margin:"10px auto 0", width:"100%", maxWidth:280 }}>
+            cursor:"pointer", background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", color:"var(--fkh-text-muted)", display:"block", margin:"10px auto 0", width:"100%", maxWidth:280 }}>
           🗓 Training Calendar
         </button>
       </div>
@@ -6113,10 +6113,10 @@ function ExerciseSetTracker({
         <div style={{ marginBottom:12,padding:"14px",borderRadius:12,textAlign:"center",
           background:timerPhase==="work" ? `${color}18` : timerPhase==="rest" ? "rgba(59,130,246,0.12)" : "rgba(255,255,255,0.06)",
           border:`1.5px solid ${timerPhase==="work" ? color : timerPhase==="rest" ? "#3b82f6" : "rgba(255,255,255,0.12)"}` }}>
-          <div style={{ fontSize:10,fontWeight:700,color:"#94a3b8",textTransform:"uppercase",letterSpacing:"0.12em",marginBottom:4 }}>
+          <div style={{ fontSize:10,fontWeight:700,color:"var(--fkh-text-muted)",textTransform:"uppercase",letterSpacing:"0.12em",marginBottom:4 }}>
             {timerPhase==="prep" ? `Set ${(activeSetIdx??0)+1} — Get Ready` : timerPhase==="work" ? `Set ${(activeSetIdx??0)+1} — Go!` : "Rest"}
           </div>
-          <div style={{ fontFamily:"'DM Mono',monospace",fontSize:42,fontWeight:800,color:timerPhase==="work"?color:"#e2e8f0",lineHeight:1 }}>
+          <div style={{ fontFamily:"'DM Mono',monospace",fontSize:42,fontWeight:800,color:timerPhase==="work"?color:"var(--fkh-text)",lineHeight:1 }}>
             {fmtTimerSecs(timerSecs)}
           </div>
           {timerPhase==="work" && isTimed && (
@@ -6154,7 +6154,7 @@ function ExerciseSetTracker({
               border:`1px solid ${s.done ? "rgba(34,197,94,0.25)" : isActive ? `${color}44` : "rgba(255,255,255,0.07)"}`,
               opacity:s.done ? 0.85 : 1 }}>
               <span style={{ fontFamily:"'DM Mono',monospace",fontSize:11,fontWeight:800,color:"#475569",width:20 }}>{idx+1}</span>
-              <span style={{ flex:1,fontSize:12,fontWeight:600,color:s.done?"#22c55e":"#e2e8f0" }}>{targetLabel}</span>
+              <span style={{ flex:1,fontSize:12,fontWeight:600,color:s.done?"#22c55e":"var(--fkh-text)" }}>{targetLabel}</span>
               {s.reps != null && s.done && isTimed && (
                 <span style={{ fontSize:10,fontWeight:700,color:"#fbbf24" }}>{s.reps} reps</span>
               )}
@@ -6405,11 +6405,11 @@ function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onTogg
                   {diffLabel}
                 </span>
                 {mins&&<span style={{ fontSize:10,padding:"3px 10px",borderRadius:20,fontWeight:700,
-                  background:"rgba(255,255,255,0.06)",color:"#94a3b8",border:"1px solid rgba(255,255,255,0.1)" }}>
+                  background:"rgba(255,255,255,0.06)",color:"var(--fkh-text-muted)",border:"1px solid rgba(255,255,255,0.1)" }}>
                   🕐 {mins} min
                 </span>}
               </div>
-              <h2 style={{ fontSize:22,fontWeight:800,color:"#f1f5f9",margin:0,lineHeight:1.2 }}>
+              <h2 style={{ fontSize:22,fontWeight:800,color:"var(--fkh-text)",margin:0,lineHeight:1.2 }}>
                 {exercise.name}
               </h2>
             </div>
@@ -6426,7 +6426,7 @@ function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onTogg
                   textAlign:"center",border:"1px solid rgba(255,255,255,0.07)" }}>
                   <div style={{ fontSize:8,color:"#475569",fontFamily:"'DM Mono',monospace",
                     letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:4 }}>{label}</div>
-                  <div style={{ fontSize:10,fontWeight:700,color:"#cbd5e1",lineHeight:1.3 }}>{value}</div>
+                  <div style={{ fontSize:10,fontWeight:700,color:"var(--fkh-text)",lineHeight:1.3 }}>{value}</div>
                 </div>
               ))}
             </div>
@@ -6452,7 +6452,7 @@ function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onTogg
 
             {/* Description */}
             {exercise.desc&&(
-              <p style={{ fontSize:13,color:"#94a3b8",lineHeight:1.65,margin:"0 0 18px" }}>
+              <p style={{ fontSize:13,color:"var(--fkh-text-muted)",lineHeight:1.65,margin:"0 0 18px" }}>
                 {exercise.desc}
               </p>
             )}
@@ -6472,7 +6472,7 @@ function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onTogg
                   {exercise.cues.map((cue,i)=>(
                     <div key={i} style={{ display:"flex",gap:10,alignItems:"flex-start" }}>
                       <span style={{ color,fontWeight:800,fontSize:13,flexShrink:0,lineHeight:1.55 }}>→</span>
-                      <span style={{ fontSize:13,color:"#e2e8f0",lineHeight:1.55,fontWeight:500 }}>{cue}</span>
+                      <span style={{ fontSize:13,color:"var(--fkh-text)",lineHeight:1.55,fontWeight:500 }}>{cue}</span>
                     </div>
                   ))}
                 </div>
@@ -6491,7 +6491,7 @@ function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onTogg
                 </div>
                 <div style={{ background:`${color}0d`,borderRadius:12,padding:"13px 14px",
                   border:`1px solid ${color}28`,borderLeft:`3px solid ${color}` }}>
-                  <p style={{ margin:0,fontSize:13,color:"#e2e8f0",lineHeight:1.65,fontWeight:500 }}>
+                  <p style={{ margin:0,fontSize:13,color:"var(--fkh-text)",lineHeight:1.65,fontWeight:500 }}>
                     {exercise.coachNotes}
                   </p>
                 </div>
@@ -6637,7 +6637,7 @@ function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onTogg
                               <span style={{ fontSize:12,fontWeight:700,lineHeight:1.25,
                                 color: isThis ? color
                                      : step.mastered ? "#22c55e"
-                                     : step.unlocked ? "#e2e8f0"
+                                     : step.unlocked ? "var(--fkh-text)"
                                      : "#475569" }}>
                                 {stepName}
                               </span>
@@ -6707,7 +6707,7 @@ function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onTogg
           </button>
           <button onClick={onNext||onClose}
             style={{ padding:"13px 18px",borderRadius:12,fontSize:13,fontWeight:700,cursor:"pointer",
-              background:SF,border:"1px solid rgba(255,255,255,0.09)",color:"#94a3b8" }}>
+              background:SF,border:"1px solid rgba(255,255,255,0.09)",color:"var(--fkh-text-muted)" }}>
             {onNext?"Next →":"Close"}
           </button>
         </div>
@@ -6737,7 +6737,7 @@ function DrillCard({ w, color, bg2, brd, isDone, onToggle, onViewDetail, favored
           <div>
             <span style={{ fontSize:9,padding:"2px 8px",borderRadius:20,fontWeight:800,display:"inline-block",marginBottom:4,background:bg2,color,border:`1px solid ${brd}`,letterSpacing:"0.04em" }}>{w.tag}</span>
             {w.trainer && <span style={{ fontSize:9,padding:"2px 8px",borderRadius:20,display:"inline-block",marginBottom:4,marginLeft:4,background:metaBg,color,border:`1px solid ${metaBrd}`,opacity:0.8 }}>📹 {w.trainer}</span>}
-            <div style={{ fontSize:13,fontWeight:700,color:"#f1f5f9",lineHeight:1.2 }}>{w.name}</div>
+            <div style={{ fontSize:13,fontWeight:700,color:"var(--fkh-text)",lineHeight:1.2 }}>{w.name}</div>
           </div>
           <div style={{ display:"flex",alignItems:"center",gap:6,flexShrink:0 }}>
             {onFav&&<button onClick={e=>{e.stopPropagation();onFav();}}
@@ -7021,6 +7021,14 @@ export default function SummerTrainingApp() {
   const trainingWeek = calcWeek(settings.startDate);
 
   useEffect(()=>{ try{localStorage.setItem("s_settings",JSON.stringify(settings))}catch{} },[settings]);
+  useEffect(()=>{
+    const bgColor = bg(settings);
+    document.documentElement.style.setProperty("--fkh-bg", bgColor);
+    document.documentElement.style.setProperty("--fkh-text", textPri(settings));
+    document.documentElement.style.setProperty("--fkh-text-muted", textMuted(settings));
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", bgColor);
+  }, [settings.bgHue, settings.bgSat, settings.bgLight, settings.textHue, settings.textSat, settings.textLight]);
   useEffect(()=>{ try{localStorage.setItem("s_done",JSON.stringify(completed))}catch{} },[completed]);
   useEffect(()=>{ try{localStorage.setItem("fkh-program-progress",JSON.stringify(programProgress))}catch{} },[programProgress]);
   useEffect(()=>{ try{localStorage.setItem("fkh-set-log",JSON.stringify(setLog))}catch{} },[setLog]);
@@ -7301,7 +7309,7 @@ export default function SummerTrainingApp() {
 
   const bd  = "rgba(255,255,255,0.07)";
   const lbl = { fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:`${P}80`,marginBottom:10,textTransform:"uppercase" };
-  const homeLbl = { fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:"0.16em",color:`${P}80`,marginBottom:10,textTransform:"uppercase" };
+  const homeLbl = { fontFamily:"'DM Mono',monospace",fontSize:12,letterSpacing:"0.13em",color:P,fontWeight:800,marginBottom:10,textTransform:"uppercase" };
   const NAV = [
     {id:"home",     emoji:"🏠",label:"Home"},
     {id:"shots",    emoji:"🏀",label:"Shots"},
@@ -7387,11 +7395,11 @@ export default function SummerTrainingApp() {
                   {prog.emoji}
                 </div>
                 <div>
-                  <div style={{ fontSize:20,fontWeight:800,color:"#f1f5f9",lineHeight:1.2 }}>{prog.name}</div>
+                  <div style={{ fontSize:20,fontWeight:800,color:"var(--fkh-text)",lineHeight:1.2 }}>{prog.name}</div>
                   <div style={{ fontSize:11,color:"#64748b",marginTop:2 }}>{prog.duration} weeks · {prog.daysPerWeek}×/week · Ages {prog.ageRange[0]}–{prog.ageRange[1]}</div>
                 </div>
               </div>
-              <p style={{ fontSize:13,color:"#94a3b8",lineHeight:1.6,margin:"0 0 14px" }}>{prog.desc}</p>
+              <p style={{ fontSize:13,color:"var(--fkh-text-muted)",lineHeight:1.6,margin:"0 0 14px" }}>{prog.desc}</p>
 
               {/* Progress bar */}
               <div style={{ background:SF,borderRadius:12,padding:"12px 14px",border:`1px solid ${prog.color}22`,marginBottom:14 }}>
@@ -7442,7 +7450,7 @@ export default function SummerTrainingApp() {
                     </div>
                     <div style={{ flex:1,minWidth:0 }}>
                       <div style={{ display:"flex",alignItems:"center",gap:6,marginBottom:2 }}>
-                        <span style={{ fontSize:12,fontWeight:700,color:isCurrent?prog.color:"#e2e8f0" }}>
+                        <span style={{ fontSize:12,fontWeight:700,color:isCurrent?prog.color:"var(--fkh-text)" }}>
                           Week {week.week}
                         </span>
                         {isCurrent && <span style={{ fontSize:9,padding:"2px 7px",borderRadius:99,background:prog.color,color:"#fff",fontWeight:700 }}>CURRENT</span>}
@@ -7485,7 +7493,7 @@ export default function SummerTrainingApp() {
                                     display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,padding:0 }}>
                                   {done?"✓":""}
                                 </button>
-                                <span style={{ flex:1,fontSize:12,fontWeight:600,color:done?"#22c55e":"#e2e8f0",lineHeight:1.3 }}>{ex.name}</span>
+                                <span style={{ flex:1,fontSize:12,fontWeight:600,color:done?"#22c55e":"var(--fkh-text)",lineHeight:1.3 }}>{ex.name}</span>
                                 <span style={{ fontSize:9,color:"#475569" }}>{ex.sets}</span>
                               </div>
                             );
@@ -7526,7 +7534,7 @@ export default function SummerTrainingApp() {
           <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4 }}>
             <div>
               <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:`${P}70`,textTransform:"uppercase",marginBottom:4 }}>Training System</div>
-              <h1 style={{ fontSize:22,fontWeight:800,color:"#f1f5f9",margin:0 }}>Programs 📋</h1>
+              <h1 style={{ fontSize:22,fontWeight:800,color:"var(--fkh-text)",margin:0 }}>Programs 📋</h1>
             </div>
             <button onClick={()=>setShowSettings(true)} style={{ padding:"8px 10px",borderRadius:10,border:`1px solid ${bd}`,background:SF,color:"#64748b",fontSize:14,cursor:"pointer" }}>⚙️</button>
           </div>
@@ -7550,7 +7558,7 @@ export default function SummerTrainingApp() {
                   <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:10 }}>
                     <span style={{ fontSize:24 }}>{prog.emoji}</span>
                     <div style={{ flex:1 }}>
-                      <div style={{ fontSize:14,fontWeight:800,color:"#f1f5f9" }}>{prog.name}</div>
+                      <div style={{ fontSize:14,fontWeight:800,color:"var(--fkh-text)" }}>{prog.name}</div>
                       <div style={{ fontSize:11,color:prog.color,fontWeight:600 }}>Week {curWeek} of {prog.duration}</div>
                     </div>
                     <span style={{ fontSize:15,fontWeight:800,color:prog.color }}>{pct}%</span>
@@ -7587,12 +7595,12 @@ export default function SummerTrainingApp() {
                   </div>
                   <div style={{ flex:1,minWidth:0 }}>
                     <div style={{ display:"flex",alignItems:"center",gap:6,marginBottom:3,flexWrap:"wrap" }}>
-                      <span style={{ fontSize:14,fontWeight:800,color:"#f1f5f9" }}>{prog.name}</span>
+                      <span style={{ fontSize:14,fontWeight:800,color:"var(--fkh-text)" }}>{prog.name}</span>
                       {enrolled && <span style={{ fontSize:9,padding:"2px 7px",borderRadius:99,background:prog.color,color:"#fff",fontWeight:700 }}>ENROLLED</span>}
                       {completed_badge && <span style={{ fontSize:9,padding:"2px 7px",borderRadius:99,background:"rgba(34,197,94,0.2)",color:"#22c55e",fontWeight:700 }}>✓ DONE</span>}
                     </div>
                     <div style={{ fontSize:11,color:"#64748b",marginBottom:6 }}>{prog.duration} weeks · {prog.daysPerWeek}x/week · Ages {prog.ageRange[0]}–{prog.ageRange[1]}</div>
-                    <div style={{ fontSize:12,color:"#94a3b8",lineHeight:1.4 }}>{prog.desc}</div>
+                    <div style={{ fontSize:12,color:"var(--fkh-text-muted)",lineHeight:1.4 }}>{prog.desc}</div>
                     {enrolled && (
                       <div style={{ marginTop:8 }}>
                         <div style={{ display:"flex",justifyContent:"space-between",marginBottom:4 }}>
@@ -7640,7 +7648,7 @@ export default function SummerTrainingApp() {
 
   /* BADGES */
   if (view==="badges") return (
-    <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"#e2e8f0",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
+    <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"var(--fkh-text)",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
       {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]}
         onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
       {renderMissionOverlays()}
@@ -7668,7 +7676,7 @@ export default function SummerTrainingApp() {
 
   /* LEADERBOARD / RANKS */
   if (view==="ranks") return (
-    <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"#e2e8f0",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
+    <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"var(--fkh-text)",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
       {showSettings&&<SettingsSheet settings={settings} setSettings={setSettings} onClose={()=>setShowSettings(false)}/>}
       {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]}
         onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
@@ -7693,9 +7701,9 @@ export default function SummerTrainingApp() {
 
   /* PROFILE */
   if (view==="profile") return (
-    <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"#e2e8f0",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
+    <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"var(--fkh-text)",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
       {showSettings&&<SettingsSheet settings={settings} setSettings={setSettings} onClose={()=>setShowSettings(false)}/>}
-      {showHelp&&<HelpSheet P={P} onClose={()=>setShowHelp(false)}/>}
+      {showHelp&&<HelpSheet P={P} SF={SF} onClose={()=>setShowHelp(false)}/>}
       {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]}
         onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
       {renderMissionOverlays()}
@@ -7705,7 +7713,7 @@ export default function SummerTrainingApp() {
         </h1>
         <div style={{ display:"flex",gap:8 }}>
           <button onClick={()=>setShowHelp(true)}
-            style={{ background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:8,color:"#94a3b8",fontSize:12,fontWeight:700,cursor:"pointer",padding:"5px 10px" }}>
+            style={{ background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:8,color:"var(--fkh-text-muted)",fontSize:12,fontWeight:700,cursor:"pointer",padding:"5px 10px" }}>
             ❓ Help
           </button>
           <button onClick={()=>setShowSettings(true)}
@@ -7740,7 +7748,7 @@ export default function SummerTrainingApp() {
       ? (WORKOUTS.strength.filter(w=>STR_DAYS[strDay]?.ids.includes(w.id)).concat(WORKOUTS.strength.filter(w=>w.id==="str-full")))
       : WORKOUTS[activeCat];
     return (
-      <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"#e2e8f0",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
+      <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"var(--fkh-text)",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
         {showSettings&&<SettingsSheet settings={settings} setSettings={setSettings} onClose={()=>setShowSettings(false)}/>}
         <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 16px",borderBottom:`2px solid ${color}40`,position:"sticky",top:0,background:NV,backdropFilter:"blur(10px)",zIndex:10 }}>
           <button onClick={()=>setView(prevView)} style={{ background:`${color}14`,border:`1px solid ${color}30`,borderRadius:8,color,fontSize:12,fontWeight:700,cursor:"pointer",padding:"5px 10px",letterSpacing:"0.02em" }}>← Back</button>
@@ -7798,7 +7806,7 @@ export default function SummerTrainingApp() {
       <div style={{ margin:"0 18px 14px",borderRadius:14,background:SF,border:"1px solid rgba(255,255,255,0.07)",overflow:"hidden" }}>
         <div style={{ padding:"12px 14px",borderBottom:"1px solid rgba(255,255,255,0.06)",display:"flex",alignItems:"center",gap:8 }}>
           <span style={{ fontSize:16 }}>{emoji}</span>
-          <span style={{ fontSize:12,fontWeight:800,color:"#f1f5f9",letterSpacing:"0.01em" }}>{title}</span>
+          <span style={{ fontSize:12,fontWeight:800,color:"var(--fkh-text)",letterSpacing:"0.01em" }}>{title}</span>
         </div>
         <div style={{ padding:"12px 14px" }}>{children}</div>
       </div>
@@ -7830,7 +7838,7 @@ export default function SummerTrainingApp() {
           <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4 }}>
             <div>
               <button onClick={()=>setView("home")} style={{ marginBottom:10,padding:"5px 12px",borderRadius:8,border:`1px solid ${P}30`,background:`${P}14`,color:P,fontSize:11,fontWeight:700,cursor:"pointer" }}>← Home</button>
-              <h1 style={{ fontSize:22,fontWeight:800,color:"#f1f5f9",margin:0 }}>📈 Progress Report</h1>
+              <h1 style={{ fontSize:22,fontWeight:800,color:"var(--fkh-text)",margin:0 }}>📈 Progress Report</h1>
               <p style={{ fontSize:12,color:"#64748b",margin:"4px 0 0" }}>{settings.athleteName} · {periodLabel}</p>
             </div>
             <button onClick={()=>setShowSettings(true)} style={{ padding:"8px 10px",borderRadius:10,border:`1px solid ${bd}`,background:SF,color:"#64748b",fontSize:14,cursor:"pointer" }}>⚙️</button>
@@ -7855,7 +7863,7 @@ export default function SummerTrainingApp() {
             {insights.length>0 ? insights.map((ins,i)=>(
               <div key={i} style={{ display:"flex",gap:10,alignItems:"flex-start",padding:"9px 11px",borderRadius:10,background:`${P}0d`,border:`1px solid ${P}20` }}>
                 <div style={{ width:20,height:20,borderRadius:6,background:`${P}20`,border:`1px solid ${P}35`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:800,color:P,flexShrink:0,marginTop:1 }}>{i+1}</div>
-                <span style={{ fontSize:12,color:"#cbd5e1",lineHeight:1.55 }}>{ins}</span>
+                <span style={{ fontSize:12,color:"var(--fkh-text)",lineHeight:1.55 }}>{ins}</span>
               </div>
             )) : (
               <div style={{ fontSize:12,color:"#475569",textAlign:"center",padding:"8px 0" }}>Train more to unlock insights. 🏀</div>
@@ -7898,7 +7906,7 @@ export default function SummerTrainingApp() {
           <div style={{ display:"flex",alignItems:"center",gap:12,marginBottom:10 }}>
             <span style={{ fontSize:28 }}>{currentLevel.emoji}</span>
             <div style={{ flex:1 }}>
-              <div style={{ fontSize:14,fontWeight:800,color:"#f1f5f9" }}>{currentLevel.name}</div>
+              <div style={{ fontSize:14,fontWeight:800,color:"var(--fkh-text)" }}>{currentLevel.name}</div>
               <div style={{ fontSize:11,color:"#64748b" }}>
                 {reportPeriod!=="all" ? `+${report.periodXP} XP earned this period` : `${xpData.total} XP total`}
               </div>
@@ -7935,7 +7943,7 @@ export default function SummerTrainingApp() {
                 {report.categories.filter(c=>c.count>0).sort((a,b)=>b.count-a.count).map(cat=>(
                   <div key={cat.key}>
                     <div style={{ display:"flex",justifyContent:"space-between",marginBottom:4 }}>
-                      <span style={{ fontSize:12,fontWeight:600,color:"#e2e8f0" }}>{cat.emoji} {cat.label}</span>
+                      <span style={{ fontSize:12,fontWeight:600,color:"var(--fkh-text)" }}>{cat.emoji} {cat.label}</span>
                       <span style={{ fontSize:11,color:P,fontWeight:700 }}>{cat.count} · {cat.pct}%</span>
                     </div>
                     <div style={{ height:5,borderRadius:99,background:"rgba(255,255,255,0.07)" }}>
@@ -8004,7 +8012,7 @@ export default function SummerTrainingApp() {
               <div key={label} style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12,
                 padding:"8px 0",borderBottom:"1px solid rgba(255,255,255,0.05)" }}>
                 <span style={{ fontSize:11,color:"#64748b",flex:1 }}>{label}</span>
-                <span style={{ fontSize:11,fontWeight:700,color:"#e2e8f0",textAlign:"right",maxWidth:"55%" }}>{value}</span>
+                <span style={{ fontSize:11,fontWeight:700,color:"var(--fkh-text)",textAlign:"right",maxWidth:"55%" }}>{value}</span>
               </div>
             ))}
           </div>
@@ -8019,7 +8027,7 @@ export default function SummerTrainingApp() {
   if (view==="schedule") {
     const scheduleBack = ["home", "profile", "report"].includes(prevView) ? prevView : "home";
     return (
-      <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"#e2e8f0",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
+      <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"var(--fkh-text)",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
         {showSettings&&<SettingsSheet settings={settings} setSettings={setSettings} onClose={()=>setShowSettings(false)}/>}
         {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]} onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
         {renderMissionOverlays()}
@@ -8028,7 +8036,7 @@ export default function SummerTrainingApp() {
             style={{ marginBottom:10,padding:"5px 12px",borderRadius:8,border:`1px solid ${P}30`,background:`${P}14`,color:P,fontSize:11,fontWeight:700,cursor:"pointer" }}>
             ← {scheduleBack==="profile"?"Profile":scheduleBack==="report"?"Progress":"Home"}
           </button>
-          <h1 style={{ fontSize:20,fontWeight:800,margin:0,color:"#f1f5f9" }}>🗓 Training Calendar</h1>
+          <h1 style={{ fontSize:20,fontWeight:800,margin:0,color:"var(--fkh-text)" }}>🗓 Training Calendar</h1>
           <p style={{ fontSize:12,color:"#64748b",margin:"4px 0 0" }}>Weekly plan & training history</p>
           <div style={{ display:"flex",gap:8,marginTop:12 }}>
             {[
@@ -8058,7 +8066,7 @@ export default function SummerTrainingApp() {
                 <div style={{ marginBottom:16,padding:"12px 14px",borderRadius:14,background:`${activeProg.color}0c`,border:`1px solid ${activeProg.color}33` }}>
                   <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:2 }}>
                     <span style={{ fontSize:16 }}>{activeProg.emoji}</span>
-                    <span style={{ fontSize:12,fontWeight:700,color:"#f1f5f9" }}>{activeProg.name}</span>
+                    <span style={{ fontSize:12,fontWeight:700,color:"var(--fkh-text)" }}>{activeProg.name}</span>
                     <span style={{ fontSize:10,color:activeProg.color,fontWeight:700,marginLeft:"auto" }}>Week {weekPlan.curWeek}</span>
                   </div>
                   <ProgramWeekStrip plan={weekPlan} color={activeProg.color} />
@@ -8123,7 +8131,7 @@ export default function SummerTrainingApp() {
 
   /* HOME */
   return (
-    <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"#e2e8f0",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
+    <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"var(--fkh-text)",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
       {showSettings&&<SettingsSheet settings={settings} setSettings={setSettings} onClose={()=>setShowSettings(false)}/>}
       {activeExercise&&<ExerciseDetailSheet
         exercise={activeExercise} color={catColor(activeExercise._cat)}
@@ -8143,7 +8151,7 @@ export default function SummerTrainingApp() {
         <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.88)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:20 }}>
           <div style={{ background:"#0d1627",borderRadius:20,padding:28,width:"100%",maxWidth:360,border:"1px solid #f9731640" }}>
             <div style={{ fontSize:48,textAlign:"center",marginBottom:12 }}>🏀</div>
-            <h2 style={{ textAlign:"center",fontSize:22,fontWeight:800,color:"#f1f5f9",marginBottom:6,margin:"0 0 6px" }}>Welcome!</h2>
+            <h2 style={{ textAlign:"center",fontSize:22,fontWeight:800,color:"var(--fkh-text)",marginBottom:6,margin:"0 0 6px" }}>Welcome!</h2>
             <p style={{ textAlign:"center",color:"#64748b",fontSize:13,marginBottom:20 }}>What's your name, hooper?</p>
             <input type="text" value={onboardName} onChange={e=>setOnboardName(e.target.value)} placeholder="Your name" autoFocus
               style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.07)",border:"1.5px solid #f9731640",borderRadius:10,padding:"12px",fontSize:16,color:"#fff",outline:"none",marginBottom:16 }}/>
@@ -8154,28 +8162,31 @@ export default function SummerTrainingApp() {
           </div>
         </div>
       )}
-      {showHelp&&<HelpSheet P={P} onClose={()=>setShowHelp(false)}/>}
+      {showHelp&&<HelpSheet P={P} SF={SF} onClose={()=>setShowHelp(false)}/>}
 
-      <div style={{ padding:"26px 20px 16px",display:"flex",justifyContent:"space-between",alignItems:"flex-start",borderBottom:`1px solid ${P}14` }}>
-        <div style={{ flex:1 }}>
-          <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.2em",color:"#334155",marginBottom:7 }}>FIT KID HOOPER</div>
-          <h1 style={{ fontSize:26,fontWeight:800,margin:"0 0 4px",letterSpacing:"-0.03em",lineHeight:1.1 }}>FKH <span style={{ color:P }}>Fit Kid Hooper</span></h1>
-          <div style={{ display:"flex",alignItems:"center",gap:8,marginTop:5 }}>
-            <p style={{ fontSize:13,color:`${P}88`,margin:0 }}>{settings.athleteName}</p>
-            <div onClick={()=>setView("profile")}
-              style={{ display:"flex",alignItems:"center",gap:5,padding:"3px 10px",borderRadius:20,cursor:"pointer",
-                background:`${P}14`,border:`1px solid ${P}30` }}>
-              <span style={{ fontSize:11 }}>{currentLevel.emoji}</span>
-              <span style={{ fontSize:10,fontWeight:800,color:P }}>{currentLevel.name}</span>
-              <span style={{ fontSize:9,color:`${P}70`,fontFamily:"'DM Mono',monospace" }}>· {xpData.total} XP</span>
-            </div>
+      <div style={{ padding:"22px 20px 16px",borderBottom:`1px solid ${P}14` }}>
+        <button onClick={()=>setShowSettings(true)} aria-label="Settings"
+          style={{ background:`${P}18`,border:`1px solid ${P}40`,borderRadius:8,color:P,fontSize:14,cursor:"pointer",padding:"4px 8px",lineHeight:1,marginBottom:10 }}>
+          ⚙
+        </button>
+        <div style={{ fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:"0.2em",color:P,fontWeight:700,marginBottom:6 }}>FIT KID HOOPER</div>
+        <div style={{ display:"flex",alignItems:"center",gap:12,marginBottom:6 }}>
+          <h1 style={{ flex:1,minWidth:0,fontSize:28,fontWeight:800,margin:0,letterSpacing:"-0.03em",lineHeight:1.1 }}>
+            FKH <span style={{ color:P }}>Fit Kid Hooper</span>
+          </h1>
+          <div onClick={()=>setView("profile")}
+            style={{ width:52,height:52,borderRadius:"50%",background:`${P}18`,border:`3px solid ${P}`,overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0 }}>
+            {settings.avatar?<img src={settings.avatar} alt="" style={{ width:"100%",height:"100%",objectFit:"cover" }}/>:<span style={{ fontSize:22 }}>👤</span>}
           </div>
         </div>
-        <div style={{ display:"flex",flexDirection:"column",alignItems:"flex-start",gap:6,marginLeft:12,flexShrink:0 }}>
-          <button onClick={()=>setShowSettings(true)} aria-label="Settings"
-            style={{ marginLeft:-10,background:`${P}18`,border:`1px solid ${P}40`,borderRadius:8,color:P,fontSize:14,cursor:"pointer",padding:"4px 6px",lineHeight:1 }}>⚙</button>
-          <div onClick={()=>setView("profile")} style={{ width:56,height:56,borderRadius:"50%",background:`${P}18`,border:`3px solid ${P}`,overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer" }}>
-            {settings.avatar?<img src={settings.avatar} alt="" style={{ width:"100%",height:"100%",objectFit:"cover" }}/>:<span style={{ fontSize:24 }}>👤</span>}
+        <div style={{ display:"flex",alignItems:"center",gap:8,flexWrap:"wrap" }}>
+          <p style={{ fontSize:14,color:P,fontWeight:600,margin:0 }}>{settings.athleteName}</p>
+          <div onClick={()=>setView("profile")}
+            style={{ display:"flex",alignItems:"center",gap:5,padding:"3px 10px",borderRadius:20,cursor:"pointer",
+              background:`${P}20`,border:`1px solid ${P}45` }}>
+            <span style={{ fontSize:11 }}>{currentLevel.emoji}</span>
+            <span style={{ fontSize:11,fontWeight:800,color:P }}>{currentLevel.name}</span>
+            <span style={{ fontSize:10,color:P,fontFamily:"'DM Mono',monospace",opacity:0.85 }}>· {xpData.total} XP</span>
           </div>
         </div>
       </div>
@@ -8187,16 +8198,16 @@ export default function SummerTrainingApp() {
           <div style={{ flex:1 }}>
             <div style={{ fontSize:13,fontWeight:700,color:P,marginBottom:3 }}>Add FKH to Your Home Screen</div>
             {isIOS ? (
-              <div style={{ fontSize:11,color:"#94a3b8",lineHeight:1.5 }}>
-                Tap <span style={{ color:"#e2e8f0",fontWeight:700 }}>Share</span> → <span style={{ color:"#e2e8f0",fontWeight:700 }}>Add to Home Screen</span> to install the app and get offline access.
+              <div style={{ fontSize:11,color:"var(--fkh-text-muted)",lineHeight:1.5 }}>
+                Tap <span style={{ color:"var(--fkh-text)",fontWeight:700 }}>Share</span> → <span style={{ color:"var(--fkh-text)",fontWeight:700 }}>Add to Home Screen</span> to install the app and get offline access.
               </div>
             ) : installPrompt ? (
-              <div style={{ fontSize:11,color:"#94a3b8",lineHeight:1.5 }}>
+              <div style={{ fontSize:11,color:"var(--fkh-text-muted)",lineHeight:1.5 }}>
                 Install for offline access, faster loading, and a full-screen experience.
               </div>
             ) : (
-              <div style={{ fontSize:11,color:"#94a3b8",lineHeight:1.5 }}>
-                Use your browser menu → <span style={{ color:"#e2e8f0",fontWeight:700 }}>Add to Home Screen</span> to install.
+              <div style={{ fontSize:11,color:"var(--fkh-text-muted)",lineHeight:1.5 }}>
+                Use your browser menu → <span style={{ color:"var(--fkh-text)",fontWeight:700 }}>Add to Home Screen</span> to install.
               </div>
             )}
             {!isIOS && installPrompt && (
@@ -8238,7 +8249,7 @@ export default function SummerTrainingApp() {
               textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:2 }}>
               Badge Unlocked!
             </div>
-            <div style={{ fontSize:13,fontWeight:700,color:"#f1f5f9",lineHeight:1.2 }}>
+            <div style={{ fontSize:13,fontWeight:700,color:"var(--fkh-text)",lineHeight:1.2 }}>
               {lastEarnedBadge.name}
             </div>
           </div>
@@ -8263,8 +8274,8 @@ export default function SummerTrainingApp() {
           display:"flex", alignItems:"flex-start", gap:10 }}>
           <span style={{ fontSize:16, flexShrink:0, lineHeight:1.4 }}>🏀</span>
           <div style={{ flex:1, minWidth:0 }}>
-            <span style={{ fontSize:9, fontWeight:800, color:P, letterSpacing:"0.12em", textTransform:"uppercase", marginRight:6 }}>Coach FKH</span>
-            <span style={{ fontSize:12, color:"#cbd5e1", lineHeight:1.5 }}>{coachMsg}</span>
+            <span style={{ fontSize:10, fontWeight:800, color:P, letterSpacing:"0.12em", textTransform:"uppercase", marginRight:6 }}>Coach FKH</span>
+            <span style={{ fontSize:12, color:"var(--fkh-text)", lineHeight:1.5 }}>{coachMsg}</span>
           </div>
         </div>
 
@@ -8278,7 +8289,7 @@ export default function SummerTrainingApp() {
             placeholder="Search drills…"
             aria-label="Search drills"
             style={{ width:"100%", padding:"11px 14px 11px 36px", borderRadius:12, border:`1px solid ${bd}`, background:SF,
-              color:"#e2e8f0", fontSize:14, boxSizing:"border-box", outline:"none" }}
+              color:"var(--fkh-text)", fontSize:14, boxSizing:"border-box", outline:"none" }}
           />
           {exerciseSearch.trim().length >= 2 && (
             <div style={{ marginTop:8, borderRadius:12, border:`1px solid ${bd}`, background:NV, overflow:"hidden", maxHeight:280, overflowY:"auto" }}>
@@ -8296,7 +8307,7 @@ export default function SummerTrainingApp() {
                       cursor:"pointer", textAlign:"left", display:"flex", alignItems:"center", gap:10 }}>
                     <span style={{ fontSize:16, flexShrink:0 }}>{catInfo.emoji}</span>
                     <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize:12, fontWeight:700, color:done2 ? "#22c55e" : "#f1f5f9", lineHeight:1.3 }}>{ex.name}</div>
+                      <div style={{ fontSize:12, fontWeight:700, color:done2 ? "#22c55e" : "var(--fkh-text)", lineHeight:1.3 }}>{ex.name}</div>
                       <div style={{ fontSize:10, color:"#64748b", marginTop:2 }}>{catInfo.label} · {ex.sets}</div>
                     </div>
                     <span style={{ fontSize:12, color:"#475569", flexShrink:0 }}>{done2 ? "✓" : "›"}</span>
@@ -8328,8 +8339,8 @@ export default function SummerTrainingApp() {
               <div style={{ padding:"12px 14px 10px",display:"flex",alignItems:"center",gap:10 }}>
                 <div style={{ flex:1,minWidth:0 }}>
                   <div style={{ display:"flex",alignItems:"center",gap:6,marginBottom:4,flexWrap:"wrap" }}>
-                    <span style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.16em",
-                      color:claimed?"#22c55e80":`${P}80`,textTransform:"uppercase" }}>Daily Mission</span>
+                    <span style={{ fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:"0.14em",
+                      color:claimed?"#22c55e":P,textTransform:"uppercase",fontWeight:800 }}>Daily Mission</span>
                     {claimed
                       ? <span style={{ fontSize:9,padding:"2px 8px",borderRadius:99,
                           background:"rgba(34,197,94,0.18)",color:"#22c55e",fontWeight:800 }}>✓ COMPLETE</span>
@@ -8337,7 +8348,7 @@ export default function SummerTrainingApp() {
                           background:`${P}18`,color:P,fontWeight:700 }}>TODAY</span>
                     }
                   </div>
-                  <div style={{ fontSize:13,fontWeight:700,color:"#f1f5f9",
+                  <div style={{ fontSize:13,fontWeight:700,color:"var(--fkh-text)",
                     overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>
                     {mission.title}
                   </div>
@@ -8376,7 +8387,7 @@ export default function SummerTrainingApp() {
                           {taskDone&&<span style={{ color:"#fff",fontSize:9,fontWeight:900 }}>✓</span>}
                         </div>
                         <span style={{ flex:1,fontSize:12,fontWeight:600,lineHeight:1.35,
-                          color:taskDone?"#22c55e":task.optional?"#475569":"#e2e8f0" }}>
+                          color:taskDone?"#22c55e":task.optional?"#475569":"var(--fkh-text)" }}>
                           {task.label}
                         </span>
                         {task.optional&&<span style={{ fontSize:8,color:"#334155",
@@ -8484,7 +8495,7 @@ export default function SummerTrainingApp() {
               <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:9 }}>
                 <span style={{ fontSize:18 }}>{activeProg.emoji}</span>
                 <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontSize:13, fontWeight:700, color:"#f1f5f9", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{activeProg.name}</div>
+                  <div style={{ fontSize:13, fontWeight:700, color:"var(--fkh-text)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{activeProg.name}</div>
                 </div>
                 <span style={{ fontSize:11, fontWeight:700, color:activeProg.color }}>{pct}%</span>
               </div>
@@ -8581,7 +8592,7 @@ export default function SummerTrainingApp() {
                             background:done2?"rgba(34,197,94,0.08)":"rgba(255,255,255,0.03)",
                             border:`1px solid ${done2?"rgba(34,197,94,0.15)":"transparent"}` }}>
                           <div style={{ flex:1,minWidth:0 }}>
-                            <div style={{ fontSize:12,fontWeight:600,color:done2?"#22c55e":"#e2e8f0",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{ex.name}</div>
+                            <div style={{ fontSize:12,fontWeight:600,color:done2?"#22c55e":"var(--fkh-text)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{ex.name}</div>
                             <div style={{ fontSize:10,color:"#475569" }}>{ex.sets}</div>
                           </div>
                           <div style={{ fontSize:10,color:"#334155",fontFamily:"'DM Mono',monospace",flexShrink:0 }}>{Math.round((ex.meta?.estimatedDuration||90)/60)}m</div>
@@ -8671,7 +8682,7 @@ export default function SummerTrainingApp() {
                         style={{ flexShrink:0,padding:"10px 13px",borderRadius:12,cursor:"pointer",
                           background:SF,border:`1px solid ${P}22`,minWidth:140,maxWidth:165 }}>
                         <div style={{ fontSize:10,color:"#475569",marginBottom:4,fontWeight:600 }}>{catInfo.emoji} {catInfo.label}</div>
-                        <div style={{ fontSize:12,fontWeight:700,color:"#f1f5f9",lineHeight:1.3 }}>{ex.name}</div>
+                        <div style={{ fontSize:12,fontWeight:700,color:"var(--fkh-text)",lineHeight:1.3 }}>{ex.name}</div>
                         <div style={{ fontSize:9,color:"#334155",marginTop:4 }}>{ex.sets}</div>
                       </div>
                     );
@@ -8685,7 +8696,7 @@ export default function SummerTrainingApp() {
                         style={{ flexShrink:0,padding:"10px 13px",borderRadius:12,cursor:"pointer",
                           background:SF,border:`1px solid ${P}22`,minWidth:140,maxWidth:165 }}>
                         <div style={{ fontSize:10,color:"#475569",marginBottom:4,fontWeight:600 }}>Workout</div>
-                        <div style={{ fontSize:12,fontWeight:700,color:"#f1f5f9",lineHeight:1.3 }}>{tmpl.emoji} {tmpl.name}</div>
+                        <div style={{ fontSize:12,fontWeight:700,color:"var(--fkh-text)",lineHeight:1.3 }}>{tmpl.emoji} {tmpl.name}</div>
                         <div style={{ fontSize:9,color:"#334155",marginTop:4 }}>Tap to select</div>
                       </div>
                     );
@@ -8699,7 +8710,7 @@ export default function SummerTrainingApp() {
                         style={{ flexShrink:0,padding:"10px 13px",borderRadius:12,cursor:"pointer",
                           background:SF,border:`1px solid ${prog.color}33`,minWidth:140,maxWidth:165 }}>
                         <div style={{ fontSize:10,color:"#475569",marginBottom:4,fontWeight:600 }}>Program</div>
-                        <div style={{ fontSize:12,fontWeight:700,color:"#f1f5f9",lineHeight:1.3 }}>{prog.emoji} {prog.name}</div>
+                        <div style={{ fontSize:12,fontWeight:700,color:"var(--fkh-text)",lineHeight:1.3 }}>{prog.emoji} {prog.name}</div>
                         <div style={{ fontSize:9,color:"#334155",marginTop:4 }}>{prog.duration} weeks</div>
                       </div>
                     );
@@ -8775,7 +8786,7 @@ export default function SummerTrainingApp() {
                 <div style={{ width:36,height:36,borderRadius:10,background:`${S}18`,border:`1px solid ${S}30`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0,pointerEvents:"none" }}>📈</div>
                 <div style={{ flex:1,minWidth:0,pointerEvents:"none" }}>
                   <div style={{ fontSize:10,fontWeight:800,color:S,letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:3 }}>Progress Report</div>
-                  <div style={{ fontSize:12,color:"#94a3b8",lineHeight:1.4 }}>See how you've improved this month →</div>
+                  <div style={{ fontSize:12,color:"var(--fkh-text-muted)",lineHeight:1.4 }}>See how you've improved this month →</div>
                 </div>
               </div>
 
@@ -8787,14 +8798,14 @@ export default function SummerTrainingApp() {
                   background:`${P}0c`,border:`1px solid ${P}28`,display:"flex",alignItems:"center",gap:12 }}>
                 <div style={{ width:36,height:36,borderRadius:10,background:`${P}18`,border:`1px solid ${P}30`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0,pointerEvents:"none" }}>🗓</div>
                 <div style={{ flex:1,minWidth:0,pointerEvents:"none" }}>
-                  <div style={{ fontSize:10,fontWeight:800,color:P,letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:3 }}>Training Calendar</div>
-                  <div style={{ fontSize:12,color:"#94a3b8",lineHeight:1.4 }}>Weekly plan & drill history →</div>
+                  <div style={{ fontSize:12,fontWeight:800,color:P,letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:3 }}>Training Calendar</div>
+                  <div style={{ fontSize:12,color:"var(--fkh-text-muted)",lineHeight:1.4 }}>Weekly plan & drill history →</div>
                 </div>
               </div>
 
               {/* Active Challenge Progress */}
               <div style={{ padding:"0 20px 10px" }}>
-                <div style={lbl}>Active Challenges</div>
+                <div style={homeLbl}>Active Challenges</div>
                 <div style={{ display:"flex",flexDirection:"column",gap:7 }}>
                   {CHALLENGES_DEF.map(def=>{
                     const {cur,target}=getChallengeProgress(def,completed);
@@ -8806,7 +8817,7 @@ export default function SummerTrainingApp() {
                         <span style={{ fontSize:18,lineHeight:1 }}>{def.emoji}</span>
                         <div style={{ flex:1,minWidth:0 }}>
                           <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4 }}>
-                            <span style={{ fontSize:11,fontWeight:700,color:done2?"#22c55e":"#cbd5e1" }}>{def.name}</span>
+                            <span style={{ fontSize:11,fontWeight:700,color:done2?"#22c55e":"var(--fkh-text)" }}>{def.name}</span>
                             <span style={{ fontSize:10,color:done2?"#22c55e":"#475569",fontFamily:"'DM Mono',monospace",flexShrink:0,marginLeft:6 }}>{Math.min(cur,target)}/{target}</span>
                           </div>
                           <div style={{ height:4,background:"rgba(255,255,255,0.06)",borderRadius:99,overflow:"hidden" }}>
@@ -8823,7 +8834,7 @@ export default function SummerTrainingApp() {
 
               {/* Level Progress */}
               <div style={{ margin:"0 20px 10px",padding:"14px 16px",borderRadius:16,background:`${S}0e`,border:`1px solid ${S}25` }}>
-                <div style={{ fontSize:9,fontWeight:800,color:`${S}90`,letterSpacing:"0.14em",textTransform:"uppercase",marginBottom:8 }}>⭐ Level Progress</div>
+                <div style={{ fontSize:11,fontWeight:800,color:S,letterSpacing:"0.14em",textTransform:"uppercase",marginBottom:8 }}>⭐ Level Progress</div>
                 <div style={{ display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6 }}>
                   <div style={{ fontSize:14,fontWeight:800,color:S }}>{currentLevel.emoji} {currentLevel.name}</div>
                   <div style={{ fontSize:11,fontFamily:"'DM Mono',monospace",fontWeight:700,color:S }}>{xpData.total}<span style={{ fontSize:8,color:"#475569" }}> xp</span></div>
@@ -8849,7 +8860,7 @@ export default function SummerTrainingApp() {
               {/* Upcoming Unlocks */}
               {upcomingBadges.length>0&&(
                 <div style={{ padding:"0 20px 10px" }}>
-                  <div style={lbl}>Upcoming Unlocks</div>
+                  <div style={homeLbl}>Upcoming Unlocks</div>
                   <div style={{ display:"flex",flexDirection:"column",gap:7 }}>
                     {upcomingBadges.map(b=>(
                       <div key={b.id} onClick={()=>setView("badges")} style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:12,
@@ -8915,7 +8926,7 @@ export default function SummerTrainingApp() {
               title={`${prof.emoji} ${prof.label} Spotlight`}
               open={homeSections.spotlight}
               onToggle={() => toggleHomeSection("spotlight")}
-              labelStyle={{ ...homeLbl, color:`${posColor}99` }}
+              labelStyle={{ ...homeLbl, color:posColor }}
               accentColor={posColor}>
             <div style={{ padding:"0 20px 16px" }}>
               <div style={{ display:"flex",alignItems:"center",justifyContent:"flex-end",marginBottom:8 }}>

@@ -16,8 +16,8 @@ export default function PushStatsPrompt({ daysSince, athleteName, P, onPush, onD
           <div style={{ fontSize: 13, fontWeight: 800, color: P, marginBottom: 4 }}>
             Update the leaderboard
           </div>
-          <div style={{ fontSize: 12, color: "#94a3b8", lineHeight: 1.5, marginBottom: 12 }}>
-            {label} Push as <span style={{ color: "#e2e8f0", fontWeight: 700 }}>{athleteName}</span> to show up with your age group.
+          <div style={{ fontSize: 12, color: "var(--fkh-text-muted)", lineHeight: 1.5, marginBottom: 12 }}>
+            {label} Push as <span style={{ color: "var(--fkh-text)", fontWeight: 700 }}>{athleteName}</span> to show up with your age group.
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <button

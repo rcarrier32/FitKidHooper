@@ -2,8 +2,8 @@
 
 const TAB_LIMITS = {
   accent:    { lMin: 38, lMax: 72, sMin: 55 },
-  bg:        { lMin: 2, lMax: 25 },
-  surface:   { lMin: 6, lMax: 22 },
+  bg:        { lMin: 2, lMax: 35 },
+  surface:   { lMin: 6, lMax: 30 },
   button:    { lMin: 8, lMax: 40 },
   text:      { lMin: 72, lMax: 98, sMax: 42 },
   secondary: { lMin: 35, lMax: 75, sMin: 50 },
@@ -19,9 +19,9 @@ export const THEME_PRESETS = [
     label: "💙 Neon Blue",
     colors: {
       accent:    [195, 100, 58],
-      bg:        [222, 47, 6],
-      surface:   [222, 38, 11],
-      button:    [222, 32, 18],
+      bg:        [222, 47, 10],
+      surface:   [222, 38, 15],
+      button:    [222, 32, 20],
       text:      [210, 28, 94],
       secondary: [265, 82, 62],
       strength:  [158, 85, 50],
@@ -32,9 +32,9 @@ export const THEME_PRESETS = [
     label: "🏀 Detroit Pistons",
     colors: {
       accent:    [192, 88, 46],
-      bg:        [215, 52, 6],
-      surface:   [215, 42, 11],
-      button:    [215, 36, 17],
+      bg:        [215, 52, 10],
+      surface:   [215, 42, 15],
+      button:    [215, 36, 20],
       text:      [210, 18, 92],
       secondary: [350, 88, 52],
       strength:  [350, 75, 48],
@@ -45,9 +45,9 @@ export const THEME_PRESETS = [
     label: "🟣🟡 Lakers",
     colors: {
       accent:    [265, 85, 55],
-      bg:        [250, 42, 5],
-      surface:   [250, 34, 10],
-      button:    [250, 28, 16],
+      bg:        [250, 42, 9],
+      surface:   [250, 34, 14],
+      button:    [250, 28, 19],
       text:      [220, 18, 93],
       secondary: [45,  95, 52],
       strength:  [145, 70, 45],
@@ -58,9 +58,9 @@ export const THEME_PRESETS = [
     label: "🔵🟡 Warriors",
     colors: {
       accent:    [210, 88, 52],
-      bg:        [220, 50, 5],
-      surface:   [220, 40, 10],
-      button:    [220, 34, 16],
+      bg:        [220, 50, 9],
+      surface:   [220, 40, 14],
+      button:    [220, 34, 19],
       text:      [215, 20, 92],
       secondary: [45,  98, 55],
       strength:  [25,  90, 52],
@@ -71,9 +71,9 @@ export const THEME_PRESETS = [
     label: "🟢⚪ Celtics",
     colors: {
       accent:    [145, 78, 42],
-      bg:        [155, 35, 5],
-      surface:   [155, 28, 10],
-      button:    [155, 24, 16],
+      bg:        [155, 35, 9],
+      surface:   [155, 28, 14],
+      button:    [155, 24, 19],
       text:      [140, 15, 93],
       secondary: [0,   0,  88],
       strength:  [145, 75, 38],
@@ -84,9 +84,9 @@ export const THEME_PRESETS = [
     label: "🔴⚫ Bulls",
     colors: {
       accent:    [350, 88, 50],
-      bg:        [220, 25, 4],
-      surface:   [220, 20, 9],
-      button:    [220, 18, 15],
+      bg:        [220, 25, 8],
+      surface:   [220, 20, 13],
+      button:    [220, 18, 18],
       text:      [210, 12, 92],
       secondary: [0,   0,  75],
       strength:  [350, 80, 45],
@@ -97,9 +97,9 @@ export const THEME_PRESETS = [
     label: "🏀 Court Orange",
     colors: {
       accent:    [28,  95, 55],
-      bg:        [25,  40, 5],
-      surface:   [25,  32, 10],
-      button:    [25,  28, 16],
+      bg:        [25,  40, 9],
+      surface:   [25,  32, 14],
+      button:    [25,  28, 19],
       text:      [35,  20, 93],
       secondary: [200, 75, 50],
       strength:  [15,  90, 52],
@@ -110,9 +110,9 @@ export const THEME_PRESETS = [
     label: "🌊 Ocean",
     colors: {
       accent:    [175, 85, 48],
-      bg:        [200, 55, 5],
-      surface:   [200, 45, 10],
-      button:    [200, 38, 16],
+      bg:        [200, 55, 9],
+      surface:   [200, 45, 14],
+      button:    [200, 38, 19],
       text:      [195, 22, 92],
       secondary: [280, 70, 60],
       strength:  [190, 80, 45],
@@ -200,8 +200,8 @@ export function clampTabHSL(tab, h, s, l, settings = {}) {
 }
 
 export function brightnessMaxForTab(tab) {
-  if (tab === "bg") return 25;
-  if (tab === "surface") return 22;
+  if (tab === "bg") return 35;
+  if (tab === "surface") return 30;
   if (tab === "button") return 40;
   if (tab === "text") return 98;
   return 75;
