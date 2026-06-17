@@ -1,8 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
 import { computeAllPeriodStats, getAgeGroup } from "./periodStats.js";
-
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "";
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
+import { getSupabaseClient, isSupabaseConfigured } from "./supabaseClient.js";
 
 const ATHLETE_ID_KEY = "fkh-athlete-id";
 const LAST_PUSH_KEY = "fkh-last-push";
@@ -11,16 +8,12 @@ const PUSH_DISMISS_KEY = "fkh-push-prompt-dismissed-until";
 /** Days without a push before we nudge the athlete. */
 export const PUSH_STALE_DAYS = 3;
 
-let client = null;
-
 export function isLeaderboardConfigured() {
-  return Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
+  return isSupabaseConfigured();
 }
 
 function getClient() {
-  if (!isLeaderboardConfigured()) return null;
-  if (!client) client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  return client;
+  return getSupabaseClient();
 }
 
 export function getAthleteId() {
