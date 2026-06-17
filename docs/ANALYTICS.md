@@ -108,7 +108,7 @@ select * from analytics_top_exercises limit 20;
 ## In-app surfaces
 
 - **Feedback Center** — Settings → Open Feedback Center (thumbs, 1–5 stars, category, message).
-- **Admin dashboard** — `https://your-app/?admin=1` or `?admin=YOUR_KEY` if `VITE_ADMIN_DASHBOARD_KEY` is set.
+- **Admin dashboard** — `https://rcarrier32.github.io/FitKidHooper/?admin=YOUR_KEY` (key in GitHub secrets / `.env.local`). Click any stat card or table row to drill down; nested drill opens athlete event timelines. **Live event feed** in the header shows the latest 100 events.
 
 ## Integration map
 

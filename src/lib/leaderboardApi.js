@@ -1,5 +1,6 @@
 import { computeAllPeriodStats, getAgeGroup } from "./periodStats.js";
 import { getSupabaseClient, isSupabaseConfigured } from "./supabaseClient.js";
+import { profileForCloud } from "./identity.js";
 
 const ATHLETE_ID_KEY = "fkh-athlete-id";
 const LAST_PUSH_KEY = "fkh-last-push";
@@ -67,8 +68,11 @@ export function dismissPushPrompt(hours = 24) {
   } catch {}
 }
 
-export function buildPushPayload({ displayName, dateOfBirth, ageGroup, completed, shotLog, missionLog, getCategory }) {
-  const athleteId = getAthleteId();
+export function buildPushPayload({
+  displayName, dateOfBirth, ageGroup, completed, shotLog, missionLog, getCategory,
+  athleteId: athleteIdIn, profileExtras = {},
+}) {
+  const athleteId = athleteIdIn || getAthleteId();
   if (!athleteId) throw new Error("Could not create athlete id on this device");
 
   const statsByPeriod = computeAllPeriodStats({ completed, shotLog, missionLog, getCategory });
@@ -82,6 +86,7 @@ export function buildPushPayload({ displayName, dateOfBirth, ageGroup, completed
       age_group: ageGroup,
       date_of_birth: dateOfBirth || null,
       updated_at: pushedAt,
+      ...profileExtras,
     },
     stats: Object.entries(statsByPeriod).map(([period, stats]) => ({
       athlete_id: athleteId,
@@ -182,6 +187,12 @@ export async function pushFromAppState({ settings, completed, missionLog, getCat
   } catch {}
 
   const ageGroup = getAgeGroup(settings.dateOfBirth);
+  const cloudProfile = profileForCloud(settings);
+  let athleteId = getAthleteId();
+  try {
+    const { getEffectiveAthleteId } = await import("./auth.js");
+    athleteId = (await getEffectiveAthleteId()) || athleteId;
+  } catch {}
 
   const payload = buildPushPayload({
     displayName,
@@ -191,6 +202,13 @@ export async function pushFromAppState({ settings, completed, missionLog, getCat
     shotLog,
     missionLog,
     getCategory,
+    athleteId,
+    profileExtras: {
+      jersey_number: cloudProfile.jersey_number,
+      favorite_player: cloudProfile.favorite_player,
+      position: cloudProfile.position,
+      user_id: athleteId,
+    },
   });
 
   return pushLeaderboardStats(payload);

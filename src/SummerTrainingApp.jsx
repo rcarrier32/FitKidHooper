@@ -1,7 +1,22 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import LeaderboardView from "./components/LeaderboardView.jsx";
+import BoardView from "./components/BoardView.jsx";
+import AthleteCard from "./components/AthleteCard.jsx";
+import AuthSheet from "./components/AuthSheet.jsx";
 import FeedbackCenter from "./components/FeedbackCenter.jsx";
+import { useAuth } from "./hooks/useAuth.js";
 import { getAgeGroup, getAgeGroupLabel } from "./lib/periodStats.js";
+import { exportCanonicalSave, importCanonicalSave } from "./lib/canonicalSave.js";
+import { migrateIdentitySettings, normalizeJerseyNumber, POSITIONS } from "./lib/identity.js";
+import { getStreak, getWeekShotGoal } from "./lib/progressStats.js";
+import { resolveDailyAction, pickChallengeNudge } from "./lib/dailyAction.js";
+import {
+  consumeInviteDeepLink,
+  consumeMissionDeepLink,
+  getNotificationPref,
+  requestNotificationPermission,
+  scheduleMissionReminder,
+  setNotificationPref,
+} from "./lib/notifications.js";
 import {
   readDailyWorkoutStore,
   getOrCreateWorkout,
@@ -54,6 +69,7 @@ const DEFAULT = {
   accentHue:158, accentSat:85, accentLight:50,
   customSecondary:false,
   athleteName:"Champ", avatar:null,
+  jerseyNumber:null, favoritePlayer:"",
   dateOfBirth:null, experience:"beginner", goals:[], playStyle:"any",
   workoutTimers:true,
   leaderboardSharing:true,
@@ -2362,8 +2378,8 @@ const ALL_EXERCISES = Object.fromEntries(
 
 const HOME_SECTION_DEFAULTS = {
   mission: true,
-  activeProgram: true,
-  workout: true,
+  activeProgram: false,
+  workout: false,
   favorites: true,
   dashboard: false,
   modules: true,
@@ -3684,7 +3700,7 @@ function isInstallIOS() {
 }
 
 /* ═══════════════════════ SETTINGS SHEET ═══════════════════════ */
-function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback }) {
+function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenAuth, isSignedIn, onCloudSync, cloudSyncStatus }) {
   const [tab, setTab] = useState("accent");
   const [showAdvancedColors, setShowAdvancedColors] = useState(false);
   const [guardrailNote, setGuardrailNote] = useState(null);
@@ -3719,14 +3735,12 @@ function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback }) {
   }, [onClose]);
 
   const exportData = () => {
-    const keys = ['shot_log_v2','s_done','s_settings','s_strday','fkh-program-progress','fkh-set-log','fkh-max-reps'];
-    const data = { _exported: new Date().toISOString() };
-    keys.forEach(k => { try { data[k] = JSON.parse(localStorage.getItem(k)||'null'); } catch {} });
-    const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    const data = exportCanonicalSave();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = `fitkidhooper-backup-${new Date().toLocaleDateString('en-CA')}.json`;
+    a.download = `fitkidhooper-backup-${new Date().toLocaleDateString("en-CA")}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -3735,12 +3749,9 @@ function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback }) {
     const reader = new FileReader();
     reader.onload = e => {
       try {
-        const data = JSON.parse(e.target.result);
-        ['shot_log_v2','s_done','s_settings','s_strday','fkh-program-progress','fkh-set-log','fkh-max-reps'].forEach(k => {
-          if (data[k] != null) localStorage.setItem(k, JSON.stringify(data[k]));
-        });
+        importCanonicalSave(JSON.parse(e.target.result));
         window.location.reload();
-      } catch { alert('Could not restore — invalid backup file'); }
+      } catch { alert("Could not restore — invalid backup file"); }
     };
     reader.readAsText(file);
   };
@@ -3816,6 +3827,20 @@ function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback }) {
               <input value={settings.athleteName} onChange={e=>setSettings(p=>({...p,athleteName:e.target.value}))}
                 placeholder="Athlete Name"
                 style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.05)",border:`1.5px solid ${P}44`,borderRadius:10,padding:"8px 12px",fontSize:14,fontWeight:700,color:P,outline:"none",marginBottom:8 }}/>
+              <div style={{ display:"flex",gap:8,marginBottom:8 }}>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:11,color:"#475569",marginBottom:4,fontWeight:600 }}>Jersey #</div>
+                  <input type="number" min={0} max={99} value={settings.jerseyNumber ?? ""} placeholder="—"
+                    onChange={e=>setSettings(p=>({...p,jerseyNumber:normalizeJerseyNumber(e.target.value)}))}
+                    style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.05)",border:`1.5px solid ${P}44`,borderRadius:10,padding:"8px 12px",fontSize:14,color:"var(--fkh-text)",outline:"none" }}/>
+                </div>
+                <div style={{ flex:2 }}>
+                  <div style={{ fontSize:11,color:"#475569",marginBottom:4,fontWeight:600 }}>Favorite Player</div>
+                  <input value={settings.favoritePlayer||""} placeholder="e.g. Curry"
+                    onChange={e=>setSettings(p=>({...p,favoritePlayer:e.target.value}))}
+                    style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.05)",border:`1.5px solid ${P}44`,borderRadius:10,padding:"8px 12px",fontSize:14,color:"var(--fkh-text)",outline:"none" }}/>
+                </div>
+              </div>
               <div style={{ fontSize:11,color:"#475569",marginBottom:4,fontWeight:600 }}>Training Start Date</div>
               <input type="date" value={settings.startDate||''} onChange={e=>setSettings(p=>({...p,startDate:e.target.value}))}
                 style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.05)",border:`1.5px solid ${P}44`,borderRadius:10,padding:"8px 12px",fontSize:14,color:"var(--fkh-text)",outline:"none" }}/>
@@ -3900,15 +3925,15 @@ function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback }) {
             </div>
           </div>
 
-          {/* Play Style */}
+          {/* Position */}
           <div>
-            <div style={{ fontSize:11,color:"#475569",fontWeight:600,marginBottom:7 }}>Play Style</div>
+            <div style={{ fontSize:11,color:"#475569",fontWeight:600,marginBottom:7 }}>Position</div>
             <div style={{ display:"flex",gap:6 }}>
-              {[["guard","🏃 Guard"],["wing","🏀 Wing"],["post","💪 Post"],["any","⭐ Any"]].map(([val,lbl])=>(
-                <button key={val} onClick={()=>setSettings(p=>({...p,playStyle:val}))}
+              {POSITIONS.map(pos=>(
+                <button key={pos.id} onClick={()=>setSettings(p=>({...p,playStyle:pos.id}))}
                   style={{ flex:1,padding:"8px 4px",borderRadius:10,fontSize:11,fontWeight:700,cursor:"pointer",
-                    ...chipStyle(settings, settings.playStyle===val, P) }}>
-                  {lbl}
+                    ...chipStyle(settings, settings.playStyle===pos.id, P) }}>
+                  {pos.emoji} {pos.label}
                 </button>
               ))}
             </div>
@@ -4030,15 +4055,39 @@ function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback }) {
           </div>
         </div>
 
-        {/* Leaderboard */}
+        {/* Account & cloud */}
         <div style={{ padding:"0 20px 16px", borderTop:"1px solid rgba(255,255,255,0.06)" }}>
-          <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:"#334155",marginBottom:12,textTransform:"uppercase" }}>Leaderboard</div>
+          <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:"#334155",marginBottom:12,textTransform:"uppercase" }}>Account</div>
+          <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
+            <button onClick={onOpenAuth} style={{ width:"100%",padding:"12px 14px",borderRadius:12,cursor:"pointer",...actionBtnStyle(settings) }}>
+              <div style={{ fontSize:13,fontWeight:700,color:P }}>{isSignedIn ? "✓ Signed in (parent)" : "Parent sign-in & cloud save"}</div>
+              <div style={{ fontSize:10,color:"#64748b",marginTop:3 }}>Sync progress across devices</div>
+            </button>
+            {isSignedIn && (
+              <button onClick={onCloudSync} style={{ width:"100%",padding:"10px 14px",borderRadius:12,cursor:"pointer",...chipStyle(settings, cloudSyncStatus==="ok", P) }}>
+                <div style={{ fontSize:12,fontWeight:700,color:P }}>
+                  {cloudSyncStatus==="syncing" ? "Syncing…" : cloudSyncStatus==="ok" ? "✓ Cloud synced" : "Sync to cloud now"}
+                </div>
+              </button>
+            )}
+            <button onClick={async()=>{ const r=await requestNotificationPermission(); setNotificationPref(r==="granted"); }}
+              style={{ width:"100%",padding:"10px 14px",borderRadius:12,cursor:"pointer",...actionBtnStyle(settings) }}>
+              <div style={{ fontSize:12,fontWeight:700,color:getNotificationPref()?P:"#94a3b8" }}>
+                {getNotificationPref() ? "✓ Mission reminders on" : "Enable mission reminders"}
+              </div>
+            </button>
+          </div>
+        </div>
+
+        {/* Boards */}
+        <div style={{ padding:"0 20px 16px", borderTop:"1px solid rgba(255,255,255,0.06)" }}>
+          <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:"#334155",marginBottom:12,textTransform:"uppercase" }}>Boards</div>
           <button
             onClick={()=>setSettings(p=>({...p,leaderboardSharing:!p.leaderboardSharing}))}
             style={{ width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 14px",borderRadius:12,cursor:"pointer",
               ...(settings.leaderboardSharing ? chipStyle(settings, true, P) : actionBtnStyle(settings)) }}>
             <div style={{ textAlign:"left" }}>
-              <div style={{ fontSize:13,fontWeight:700,color:settings.leaderboardSharing?P:"#94a3b8" }}>Share on Leaderboard</div>
+              <div style={{ fontSize:13,fontWeight:700,color:settings.leaderboardSharing?P:"#94a3b8" }}>Share on Boards</div>
               <div style={{ fontSize:10,color:"#64748b",marginTop:3 }}>
                 Push as <span style={{ color:"var(--fkh-text)" }}>{settings.athleteName}</span>
                 {settings.dateOfBirth ? ` · ${getAgeGroupLabel(getAgeGroup(settings.dateOfBirth))}` : " · set DOB for age group"}
@@ -4156,7 +4205,7 @@ function HelpSheet({ P, SF, onClose }) {
     { e:"🏅", t:"Earn XP & badges",   d:"Training and making shots earns XP and levels you up from Rookie to Elite Hooper. Collect badges on the Badges tab and show them off on your Profile." },
   ];
   const TIPS = [
-    { e:"🧭", d:"Get around with the tabs at the bottom: Home, Shots, Programs, Badges, and Ranks. Tap your avatar on Home for profile and settings." },
+    { e:"🧭", d:"Get around with the tabs at the bottom: Home, Shots, Programs, Badges, and Boards. Tap your avatar on Home for profile and settings." },
     { e:"🏆", d:"Your stats sync to age-group leaderboards automatically when sharing is on (This Week, Month, YTD, All Time)." },
     { e:"⭐", d:"Tap the star on any drill or program to save it as a favorite." },
     { e:"🔍", d:"Use Search drills on Home to find any exercise by name — crossover, Mikan, plank, and more." },
@@ -5713,38 +5762,16 @@ function ProfileView({ settings, totalXP, xpData, currentLevel, earnedBadges, co
   return (
     <div style={{ padding:"0 20px 100px" }}>
 
-      {/* Hero ── Avatar + Name + Level */}
-      <div style={{ textAlign:"center",padding:"32px 0 24px" }}>
-        <div style={{ position:"relative",display:"inline-block",marginBottom:14 }}>
-          <div style={{ width:88,height:88,borderRadius:"50%",
-            background:`${P}20`,border:`3px solid ${P}`,
-            display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",margin:"0 auto" }}>
-            {settings.avatar
-              ? <img src={settings.avatar} alt="" style={{ width:"100%",height:"100%",objectFit:"cover" }}/>
-              : <span style={{ fontSize:38 }}>👤</span>}
-          </div>
-          {/* Level badge overlay */}
-          <div style={{ position:"absolute",bottom:-6,right:-6,
-            background:BG,borderRadius:20,padding:"3px 9px",
-            border:`1.5px solid ${P}`,fontSize:11,fontWeight:800,color:P }}>
-            {currentLevel.emoji} {currentLevel.rank}
-          </div>
-        </div>
-        <div style={{ fontSize:24,fontWeight:800,color:"var(--fkh-text)",marginBottom:4 }}>
-          {settings.athleteName}
-        </div>
-        <div style={{ fontSize:14,color:P,fontWeight:700,marginBottom:4 }}>
-          {currentLevel.emoji} {currentLevel.name}
-        </div>
+      <div style={{ padding:"20px 0 16px" }}>
+        <AthleteCard settings={settings} currentLevel={currentLevel} totalXP={totalXP} variant="full" P={P} />
         {settings.dateOfBirth ? (
-          <div style={{ fontSize:12,color:"#475569" }}>
+          <div style={{ fontSize:12,color:"#475569",textAlign:"center",marginTop:10 }}>
             {isBirthday(settings.dateOfBirth)
               ? <span style={{ color:P,fontWeight:700 }}>🎂 Happy Birthday! Age {calcAge(settings.dateOfBirth)}</span>
-              : `Age ${calcAge(settings.dateOfBirth)}`
-            }
+              : `Age ${calcAge(settings.dateOfBirth)}`}
           </div>
         ) : (
-          <div style={{ fontSize:11,color:"#334155" }}>Set your birthday in Settings</div>
+          <div style={{ fontSize:11,color:"#334155",textAlign:"center",marginTop:10 }}>Set your birthday in Settings</div>
         )}
       </div>
 
@@ -5899,8 +5926,8 @@ function ProfileView({ settings, totalXP, xpData, currentLevel, earnedBadges, co
       {/* Leaderboard teaser ───────────────────────────────── */}
       <div style={{ background:`${P}08`,border:`1px solid ${P}1c`,borderRadius:14,padding:"14px 16px",marginBottom:16 }}>
         <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10 }}>
-          <span style={{ fontSize:13,fontWeight:700,color:P }}>🏆 Leaderboard</span>
-          <button onClick={onViewLeaderboard} style={{ background:"none",border:"none",color:"#64748b",fontSize:12,cursor:"pointer",fontWeight:700 }}>View Ranks →</button>
+          <span style={{ fontSize:13,fontWeight:700,color:P }}>🏆 Boards</span>
+          <button onClick={onViewLeaderboard} style={{ background:"none",border:"none",color:"#64748b",fontSize:12,cursor:"pointer",fontWeight:700 }}>View Boards →</button>
         </div>
         <p style={{ fontSize:11,color:"#64748b",margin:"0 0 10px",lineHeight:1.5 }}>
           {settings.leaderboardSharing
@@ -7002,10 +7029,14 @@ export default function SummerTrainingApp() {
         raw.dateOfBirth = `${year}-06-15`;
       }
       delete raw.athleteAge; // remove stale key regardless
-      return migrateThemeSettings({ ...DEFAULT, ...raw });
+      return migrateIdentitySettings(migrateThemeSettings({ ...DEFAULT, ...raw }));
     } catch { return DEFAULT; }
   });
   const [showSettings, setShowSettings] = useState(false);
+  const [showAuth, setShowAuth] = useState(false);
+  const [inviteCode, setInviteCode] = useState(() => consumeInviteDeepLink());
+  const [missionDeepLink, setMissionDeepLink] = useState(() => consumeMissionDeepLink());
+  const auth = useAuth(settings);
   const [showFeedback, setShowFeedback] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [view, setView] = useState("home");
@@ -7101,7 +7132,7 @@ export default function SummerTrainingApp() {
     try {
       const result = await syncLeaderboard({ force: true });
       if (!result.ok) throw new Error(result.error || "Sync failed");
-      if (goToRanks) setView("ranks");
+      if (goToRanks) setView("boards");
     } catch (e) {
       const msg = e.message || "Sync failed";
       setPushError(msg);
@@ -7357,7 +7388,13 @@ export default function SummerTrainingApp() {
   }, []);
 
   const settingsSheet = showSettings ? (
-    <SettingsSheet settings={settings} setSettings={setSettings} onClose={() => setShowSettings(false)} onOpenFeedback={openFeedback} />
+    <SettingsSheet settings={settings} setSettings={setSettings} onClose={() => setShowSettings(false)} onOpenFeedback={openFeedback}
+      onOpenAuth={() => { setShowSettings(false); setShowAuth(true); }}
+      isSignedIn={auth.isSignedIn} onCloudSync={auth.syncNow} cloudSyncStatus={auth.syncStatus} />
+  ) : null;
+
+  const authSheet = showAuth ? (
+    <AuthSheet P={pri(settings)} SF={surf(settings)} onClose={() => setShowAuth(false)} onSignedIn={async() => { await auth.syncNow(); setShowAuth(false); }} />
   ) : null;
 
   const feedbackSheet = showFeedback ? (
@@ -7470,6 +7507,61 @@ export default function SummerTrainingApp() {
     }),
   [todayMission, completed, today, programProgress]);
 
+  const challengeNudge = useMemo(
+    () => pickChallengeNudge(CHALLENGES_DEF, getChallengeProgress, completed),
+    [completed]
+  );
+
+  const activeProgForMission = useMemo(
+    () => PROGRAMS.find(p => enrolledPrograms[p.id]),
+    [enrolledPrograms]
+  );
+
+  const dueSessionForMission = useMemo(() => {
+    if (!activeProgForMission) return null;
+    const enrollment = enrolledPrograms[activeProgForMission.id];
+    return findDueProgramSession(activeProgForMission, enrollment, programProgress, today);
+  }, [activeProgForMission, enrolledPrograms, programProgress, today]);
+
+  const missionHasProgramTask = todayMission.tasks.some(t => t.type === "program");
+
+  const dailyAction = useMemo(() => resolveDailyAction({
+    mission: todayMission,
+    enrolledPrograms,
+    programProgress,
+    todayStr: today,
+    challenges: CHALLENGES_DEF,
+    getChallengeProgress,
+    completed,
+    coachTemplateKey: coachRec?.templateKey,
+    activeProgram: activeProgForMission,
+    dueSession: dueSessionForMission,
+  }), [todayMission, enrolledPrograms, programProgress, today, completed, coachRec, activeProgForMission, dueSessionForMission]);
+
+  useEffect(() => {
+    if (missionDeepLink) {
+      setView("home");
+      setHomeSections(p => ({ ...p, mission: true }));
+      setMissionDeepLink(false);
+    }
+  }, [missionDeepLink]);
+
+  useEffect(() => {
+    if (inviteCode) setView("boards");
+  }, [inviteCode]);
+
+  useEffect(() => {
+    if (auth.isSignedIn) auth.syncNow();
+  }, [auth.isSignedIn]);
+
+  useEffect(() => {
+    scheduleMissionReminder({
+      missionComplete: missionClaimed,
+      missionTitle: todayMission.title,
+      athleteName: settings.athleteName,
+    });
+  }, [missionClaimed, todayMission.title, settings.athleteName]);
+
   // Reset per-day task celebration tracking at midnight rollover
   useEffect(() => {
     const stored = missionLog[today]?.celebratedTasks;
@@ -7526,7 +7618,7 @@ export default function SummerTrainingApp() {
     {id:"shots",    emoji:"🏀",label:"Shots"},
     {id:"programs", emoji:"📋",label:"Programs"},
     {id:"badges",   emoji:"🏅",label:"Badges"},
-    {id:"ranks",    emoji:"🏆",label:"Ranks"},
+    {id:"boards",  emoji:"🏆",label:"Boards"},
   ];
 
   const renderBottomNav = () => (
@@ -7584,10 +7676,9 @@ export default function SummerTrainingApp() {
 
         return (
           <div style={{ background:BG,minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:80 }}>
-            {settingsSheet}{feedbackSheet}
+            {settingsSheet}{feedbackSheet}{authSheet}
             {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]} onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
         {renderMissionOverlays()}
-            {renderMissionOverlays()}
             {activeExercise&&<ExerciseDetailSheet exercise={activeExercise} color={prog.color}
               bg2={SF} brd={`${prog.color}22`} BG={BG} SF={SF}
               isDone={detailContext
@@ -7741,7 +7832,7 @@ export default function SummerTrainingApp() {
 
     return (
       <div style={{ background:BG,minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:80 }}>
-        {settingsSheet}{feedbackSheet}
+        {settingsSheet}{feedbackSheet}{authSheet}
         {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]} onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
         {renderMissionOverlays()}
         {activeExercise&&<ExerciseDetailSheet exercise={activeExercise} color={P}
@@ -7861,7 +7952,7 @@ export default function SummerTrainingApp() {
   /* SHOTS */
   if (view==="shots") return (
     <div style={{ background:BG,minHeight:"100vh",maxWidth:680,margin:"0 auto" }}>
-      {settingsSheet}{feedbackSheet}
+      {settingsSheet}{feedbackSheet}{authSheet}
       {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]}
         onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
       {renderMissionOverlays()}
@@ -7898,25 +7989,28 @@ export default function SummerTrainingApp() {
       onBack={()=>setView("profile")}/>
   );
 
-  /* LEADERBOARD / RANKS */
-  if (view==="ranks") return (
+  /* BOARDS */
+  if (view==="boards") return (
     <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"var(--fkh-text)",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
-      {settingsSheet}{feedbackSheet}
+      {settingsSheet}{feedbackSheet}{authSheet}
       {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]}
         onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
       {renderMissionOverlays()}
       <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 20px",borderBottom:`1px solid ${P}14`,position:"sticky",top:0,background:BG,backdropFilter:"blur(10px)",zIndex:10 }}>
-        <h1 style={{ fontSize:16,fontWeight:800,margin:0,color:P }}>🏆 Ranks</h1>
+        <h1 style={{ fontSize:16,fontWeight:800,margin:0,color:P }}>🏆 Boards</h1>
         <div style={{ fontSize:10,color:"#475569",fontFamily:"'DM Mono',monospace" }}>
           {settings.dateOfBirth ? getAgeGroupLabel(getAgeGroup(settings.dateOfBirth)) : "Set DOB for age group"}
         </div>
       </div>
-      <LeaderboardView
+      <BoardView
         settings={settings}
         completed={completed}
         missionLog={missionLog}
         getCategory={getExerciseCategory}
+        currentLevel={currentLevel}
+        xpData={xpData}
         P={P} BG={BG} SF={SF} bd={bd} lbl={lbl}
+        initialInviteCode={inviteCode}
         onPushSuccess={()=>{ setPushPromptHidden(true); setPushError(null); }}
       />
       {renderBottomNav()}
@@ -7926,7 +8020,7 @@ export default function SummerTrainingApp() {
   /* PROFILE */
   if (view==="profile") return (
     <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"var(--fkh-text)",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
-      {settingsSheet}{feedbackSheet}
+      {settingsSheet}{feedbackSheet}{authSheet}
       {showHelp&&<HelpSheet P={P} SF={SF} onClose={()=>setShowHelp(false)}/>}
       {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]}
         onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
@@ -7956,7 +8050,7 @@ export default function SummerTrainingApp() {
         onViewHistory={()=>setView("history")}
         onViewSchedule={()=>openSchedule("profile", "calendar")}
         onViewBadges={()=>setView("badges")}
-        onViewLeaderboard={()=>setView("ranks")}
+        onViewLeaderboard={()=>setView("boards")}
         onPushStats={()=>handlePushStats({ goToRanks: false })}
         pushBusy={pushBusy}
         pushError={pushError}/>
@@ -7973,7 +8067,7 @@ export default function SummerTrainingApp() {
       : WORKOUTS[activeCat];
     return (
       <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"var(--fkh-text)",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
-        {settingsSheet}{feedbackSheet}
+        {settingsSheet}{feedbackSheet}{authSheet}
         <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 16px",borderBottom:`2px solid ${color}40`,position:"sticky",top:0,background:NV,backdropFilter:"blur(10px)",zIndex:10 }}>
           <button onClick={()=>setView(prevView)} style={{ background:`${color}14`,border:`1px solid ${color}30`,borderRadius:8,color,fontSize:12,fontWeight:700,cursor:"pointer",padding:"5px 10px",letterSpacing:"0.02em" }}>← Back</button>
           <span style={{ fontSize:15,fontWeight:800,color,letterSpacing:"-0.01em" }}>{CATS[activeCat].emoji} {CATS[activeCat].label}</span>
@@ -8045,7 +8139,7 @@ export default function SummerTrainingApp() {
 
     return (
       <div style={{ background:BG,minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:80 }}>
-        {settingsSheet}{feedbackSheet}
+        {settingsSheet}{feedbackSheet}{authSheet}
         {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]} onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
         {renderMissionOverlays()}
         {activeExercise&&<ExerciseDetailSheet exercise={activeExercise} color={P}
@@ -8252,7 +8346,7 @@ export default function SummerTrainingApp() {
     const scheduleBack = ["home", "profile", "report"].includes(prevView) ? prevView : "home";
     return (
       <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"var(--fkh-text)",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
-        {settingsSheet}{feedbackSheet}
+        {settingsSheet}{feedbackSheet}{authSheet}
         {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]} onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
         {renderMissionOverlays()}
         <div style={{ padding:"16px 20px 12px",borderBottom:`1px solid ${P}14`,position:"sticky",top:0,background:BG,backdropFilter:"blur(10px)",zIndex:10 }}>
@@ -8356,7 +8450,7 @@ export default function SummerTrainingApp() {
   /* HOME */
   return (
     <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"var(--fkh-text)",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
-      {settingsSheet}{feedbackSheet}
+      {settingsSheet}{feedbackSheet}{authSheet}
       {activeExercise&&<ExerciseDetailSheet
         exercise={activeExercise} color={catColor(activeExercise._cat)}
         bg2={catBg(activeExercise._cat)} brd={catBrd(activeExercise._cat)}
@@ -8647,6 +8741,29 @@ export default function SummerTrainingApp() {
                 })}
               </div>
 
+              {challengeNudge && !claimed && (
+                <div style={{ margin:"0 12px 12px",padding:"10px 12px",borderRadius:10,
+                  background:`${S}12`,border:`1px solid ${S}28` }}>
+                  <div style={{ fontSize:10,fontWeight:800,color:S,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:4 }}>
+                    Challenge push
+                  </div>
+                  <div style={{ fontSize:12,color:"var(--fkh-text)",lineHeight:1.45 }}>
+                    {challengeNudge.emoji} {challengeNudge.target - challengeNudge.cur} more to finish {challengeNudge.name}
+                  </div>
+                  {dailyAction.workoutTemplate && WORKOUT_TEMPLATES[dailyAction.workoutTemplate] && (
+                    <button
+                      onClick={() => {
+                        selectTemplate(dailyAction.workoutTemplate);
+                        setHomeSections(p => ({ ...p, workout: true }));
+                      }}
+                      style={{ marginTop:8,padding:"7px 12px",borderRadius:8,border:`1px solid ${S}44`,
+                        background:"transparent",color:S,fontSize:11,fontWeight:700,cursor:"pointer" }}>
+                      Try {WORKOUT_TEMPLATES[dailyAction.workoutTemplate].name} workout →
+                    </button>
+                  )}
+                </div>
+              )}
+
               {/* Overall progress / claimed state */}
               {(()=>{
                 const reqTasks = mission.tasks.filter(t=>t.required);
@@ -8673,8 +8790,8 @@ export default function SummerTrainingApp() {
         })()}
         </HomeCollapsibleSection>
 
-        {/* Active Program — above quick workout */}
-        {(() => {
+        {/* Active Program — folded into mission when program task is present */}
+        {!missionHasProgramTask && (() => {
           const activeProg = PROGRAMS.find(p => enrolledPrograms[p.id]);
           if (!activeProg) return null;
           const enrollment = enrolledPrograms[activeProg.id];
@@ -8938,12 +9055,12 @@ export default function SummerTrainingApp() {
 
         {/* ── PROGRESS DASHBOARD ────────────────────────────────── */}
         {(()=>{
-          const streak = (()=>{ let s=0,d=new Date(); for(let i=0;i<60;i++){const k=d.toLocaleDateString("en-CA"); if(Object.keys(completed).some(c=>c.startsWith(k)&&completed[c])){s++;d.setDate(d.getDate()-1);}else break;} return s; })();
+          const streak = getStreak(completed);
           const nextLv  = LEVELS.find(l=>l.xpMin>xpData.total)||null;
           const xpPct   = nextLv&&currentLevel.xpNext ? Math.min(100,Math.round(((xpData.total-currentLevel.xpMin)/(currentLevel.xpNext-currentLevel.xpMin))*100)) : 100;
           const xpLeft  = nextLv ? nextLv.xpMin-xpData.total : 0;
           const weekMakesNow = (()=>{ try{ const sl=JSON.parse(localStorage.getItem("shot_log_v2")||"{}"),ws=_ws(); return Object.keys(sl).filter(k=>k>=ws).flatMap(k=>sl[k]||[]).filter(s=>s.made!==false).length; }catch{return 0;} })();
-          const weekShotGoal = (()=>{ try{return parseInt(localStorage.getItem("shot_week_goal")||"100");}catch{return 100;} })();
+          const weekShotGoal = getWeekShotGoal();
           const allUnearned  = BADGES_DEF.filter(b=>!earnedBadges.includes(b.id)).map(b=>{ const {cur,target}=getBadgeProgress(b,completed,programProgress); return {...b,cur,target,pct:cur/target}; }).sort((a,b)=>b.pct-a.pct||a.target-b.target);
           const nextBadge    = allUnearned[0]||null;
 
@@ -9013,35 +9130,6 @@ export default function SummerTrainingApp() {
                 <div style={{ flex:1,minWidth:0,pointerEvents:"none" }}>
                   <div style={{ fontSize:12,fontWeight:800,color:P,letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:3 }}>Training Calendar</div>
                   <div style={{ fontSize:12,color:"var(--fkh-text-muted)",lineHeight:1.4 }}>Weekly plan & drill history →</div>
-                </div>
-              </div>
-
-              {/* Active Challenge Progress */}
-              <div style={{ padding:"0 20px 10px" }}>
-                <div style={homeLbl}>Active Challenges</div>
-                <div style={{ display:"flex",flexDirection:"column",gap:7 }}>
-                  {CHALLENGES_DEF.map(def=>{
-                    const {cur,target}=getChallengeProgress(def,completed);
-                    const pct=Math.min(1,cur/target), done2=pct>=1;
-                    return (
-                      <div key={def.id} style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:12,
-                        background:done2?"rgba(34,197,94,0.08)":"rgba(255,255,255,0.04)",
-                        border:`1px solid ${done2?"rgba(34,197,94,0.2)":"rgba(255,255,255,0.07)"}` }}>
-                        <span style={{ fontSize:18,lineHeight:1 }}>{def.emoji}</span>
-                        <div style={{ flex:1,minWidth:0 }}>
-                          <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4 }}>
-                            <span style={{ fontSize:11,fontWeight:700,color:done2?"#22c55e":"var(--fkh-text)" }}>{def.name}</span>
-                            <span style={{ fontSize:10,color:done2?"#22c55e":"#475569",fontFamily:"'DM Mono',monospace",flexShrink:0,marginLeft:6 }}>{Math.min(cur,target)}/{target}</span>
-                          </div>
-                          <div style={{ height:4,background:"rgba(255,255,255,0.06)",borderRadius:99,overflow:"hidden" }}>
-                            <div style={{ height:"100%",width:`${pct*100}%`,background:done2?"#22c55e":P,borderRadius:99,transition:"width 0.5s ease" }}/>
-                          </div>
-                          <div style={{ fontSize:9,color:"#334155",marginTop:3 }}>{def.desc}</div>
-                        </div>
-                        {done2&&<span style={{ fontSize:14,flexShrink:0 }}>🏆</span>}
-                      </div>
-                    );
-                  })}
                 </div>
               </div>
 

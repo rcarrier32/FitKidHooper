@@ -11,6 +11,8 @@ export function isSupabaseConfigured() {
 
 export function getSupabaseClient() {
   if (!isSupabaseConfigured()) return null;
-  if (!client) client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  if (!client) client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+  });
   return client;
 }

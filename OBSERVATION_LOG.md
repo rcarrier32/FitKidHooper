@@ -222,8 +222,8 @@ select message, rating, created_at from feedback_feature_requests limit 20;
 select message, created_at from feedback_bugs limit 20;
 ```
 
-**Or** open the in-app admin dashboard:  
-https://rcarrier32.github.io/FitKidHooper/?admin=1
+**Or** open the admin dashboard (use your key from `.env.local`):  
+https://rcarrier32.github.io/FitKidHooper/?admin=YOUR_KEY
 
 ---
 
@@ -309,7 +309,7 @@ https://rcarrier32.github.io/FitKidHooper/?admin=1
 | Tracked event types | 16 |
 | Analytics SQL views | 17 |
 | In-app feedback | Settings → Feedback Center |
-| Admin dashboard | `?admin=1` on app URL |
+| Admin dashboard | `https://rcarrier32.github.io/FitKidHooper/?admin=YOUR_KEY` |
 
 ---
 

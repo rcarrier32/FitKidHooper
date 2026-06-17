@@ -1,39 +1,77 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getSupabaseClient, isSupabaseConfigured } from "../lib/supabaseClient.js";
+import { loadDrilldown } from "../lib/adminDrilldown.js";
 
-function StatCard({ label, value, sub }) {
+const panelStyle = {
+  background: "rgba(15,23,42,0.98)",
+  border: "1px solid rgba(255,255,255,0.12)",
+  borderRadius: 14,
+  padding: "16px 18px",
+  marginBottom: 24,
+};
+
+function StatCard({ label, value, sub, onClick, active }) {
+  const clickable = Boolean(onClick);
   return (
-    <div style={{ background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:12,padding:"14px 16px" }}>
-      <div style={{ fontSize:11,color:"#64748b",marginBottom:6,textTransform:"uppercase",letterSpacing:"0.08em" }}>{label}</div>
-      <div style={{ fontSize:28,fontWeight:800,color:"#f8fafc",fontFamily:"'DM Mono',monospace" }}>{value ?? "—"}</div>
-      {sub && <div style={{ fontSize:11,color:"#475569",marginTop:4 }}>{sub}</div>}
+    <div
+      onClick={onClick}
+      role={clickable ? "button" : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onKeyDown={clickable ? e => { if (e.key === "Enter" || e.key === " ") onClick?.(); } : undefined}
+      style={{
+        background: active ? "rgba(56,189,248,0.12)" : "rgba(255,255,255,0.04)",
+        border: `1px solid ${active ? "rgba(56,189,248,0.45)" : "rgba(255,255,255,0.08)"}`,
+        borderRadius: 12,
+        padding: "14px 16px",
+        cursor: clickable ? "pointer" : "default",
+        transition: "border-color 0.15s, background 0.15s",
+      }}
+    >
+      <div style={{ fontSize: 11, color: "#64748b", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+        {label}{clickable && <span style={{ marginLeft: 6, color: "#38bdf8" }}>↗</span>}
+      </div>
+      <div style={{ fontSize: 28, fontWeight: 800, color: "#f8fafc", fontFamily: "'DM Mono',monospace" }}>{value ?? "—"}</div>
+      {sub && <div style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>{sub}</div>}
     </div>
   );
 }
 
-function Table({ title, columns, rows }) {
+function DataTable({ title, columns, rows, onRowClick, hint }) {
   return (
-    <div style={{ marginBottom:24 }}>
-      <h3 style={{ fontSize:14,fontWeight:700,color:"#e2e8f0",margin:"0 0 10px" }}>{title}</h3>
-      <div style={{ overflowX:"auto",border:"1px solid rgba(255,255,255,0.08)",borderRadius:12 }}>
-        <table style={{ width:"100%",borderCollapse:"collapse",fontSize:12 }}>
+    <div style={{ marginBottom: 24 }}>
+      <h3 style={{ fontSize: 14, fontWeight: 700, color: "#e2e8f0", margin: "0 0 4px" }}>{title}</h3>
+      {hint && <p style={{ fontSize: 11, color: "#64748b", margin: "0 0 10px" }}>{hint}</p>}
+      <div style={{ overflowX: "auto", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
           <thead>
-            <tr style={{ background:"rgba(255,255,255,0.04)" }}>
+            <tr style={{ background: "rgba(255,255,255,0.04)" }}>
               {columns.map(c => (
-                <th key={c.key} style={{ textAlign:"left",padding:"10px 12px",color:"#94a3b8",fontWeight:600 }}>{c.label}</th>
+                <th key={c.key} style={{ textAlign: "left", padding: "10px 12px", color: "#94a3b8", fontWeight: 600 }}>{c.label}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {(rows || []).slice(0, 15).map((row, i) => (
-              <tr key={i} style={{ borderTop:"1px solid rgba(255,255,255,0.06)" }}>
+            {(rows || []).slice(0, 50).map((row, i) => (
+              <tr
+                key={i}
+                onClick={onRowClick ? () => onRowClick(row) : undefined}
+                style={{
+                  borderTop: "1px solid rgba(255,255,255,0.06)",
+                  cursor: onRowClick ? "pointer" : "default",
+                  background: onRowClick ? "transparent" : undefined,
+                }}
+                onMouseEnter={onRowClick ? e => { e.currentTarget.style.background = "rgba(56,189,248,0.06)"; } : undefined}
+                onMouseLeave={onRowClick ? e => { e.currentTarget.style.background = "transparent"; } : undefined}
+              >
                 {columns.map(c => (
-                  <td key={c.key} style={{ padding:"9px 12px",color:"#cbd5e1" }}>{row[c.key] ?? "—"}</td>
+                  <td key={c.key} style={{ padding: "9px 12px", color: "#cbd5e1", maxWidth: c.key === "message" ? 360 : undefined, wordBreak: c.key === "message" ? "break-word" : undefined }}>
+                    {row[c.key] ?? "—"}
+                  </td>
                 ))}
               </tr>
             ))}
             {(!rows || rows.length === 0) && (
-              <tr><td colSpan={columns.length} style={{ padding:16,color:"#475569",textAlign:"center" }}>No data yet</td></tr>
+              <tr><td colSpan={columns.length} style={{ padding: 16, color: "#475569", textAlign: "center" }}>No data yet</td></tr>
             )}
           </tbody>
         </table>
@@ -42,11 +80,112 @@ function Table({ title, columns, rows }) {
   );
 }
 
+function DrillPanel({ drill, data, loading, onBack, onClose, onRowClick }) {
+  if (!drill) return null;
+
+  return (
+    <div style={panelStyle}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 11, color: "#38bdf8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>
+            Drill-down
+          </div>
+          <h2 style={{ fontSize: 17, fontWeight: 800, margin: 0, color: "#f8fafc" }}>{data?.title || drill.label || "Loading…"}</h2>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          {onBack && (
+            <button type="button" onClick={onBack} style={btnStyle()}>← Back</button>
+          )}
+          <button type="button" onClick={onClose} style={btnStyle()}>✕ Close</button>
+        </div>
+      </div>
+
+      {data?.meta && Object.keys(data.meta).length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 14, fontSize: 12, color: "#94a3b8" }}>
+          {Object.entries(data.meta).map(([k, v]) => (
+            <span key={k}><strong style={{ color: "#cbd5e1" }}>{k.replace(/_/g, " ")}:</strong> {v}</span>
+          ))}
+        </div>
+      )}
+
+      {loading ? (
+        <p style={{ color: "#64748b", fontSize: 13 }}>Loading detail…</p>
+      ) : (
+        <DataTable
+          title=""
+          columns={data?.columns || []}
+          rows={data?.rows || []}
+          onRowClick={data?.rowDrill && onRowClick ? row => {
+            const rd = data.rowDrill;
+            const id = row[rd.idKey];
+            if (!id) return;
+            onRowClick({
+              type: rd.type,
+              value: id,
+              label: `${rd.labelKey ? row[rd.labelKey] : id}`,
+            }, true);
+          } : undefined}
+          hint={data?.rowDrill ? "Click a row to drill further (e.g. athlete timeline)" : undefined}
+        />
+      )}
+    </div>
+  );
+}
+
+function btnStyle() {
+  return {
+    padding: "6px 12px",
+    borderRadius: 8,
+    border: "1px solid rgba(255,255,255,0.15)",
+    background: "rgba(255,255,255,0.05)",
+    color: "#cbd5e1",
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: "pointer",
+  };
+}
+
 export default function AdminDashboard() {
   const configured = isSupabaseConfigured();
   const [data, setData] = useState(null);
   const [error, setError] = useState(configured ? null : "Supabase is not configured.");
   const [loading, setLoading] = useState(configured);
+  const [drill, setDrill] = useState(null);
+  const [drillData, setDrillData] = useState(null);
+  const [drillLoading, setDrillLoading] = useState(false);
+  const [drillStack, setDrillStack] = useState([]);
+
+  const openDrill = useCallback(async (nextDrill, pushStack = false) => {
+    const sb = getSupabaseClient();
+    if (!sb) return;
+    if (pushStack && drill) setDrillStack(s => [...s, drill]);
+    setDrill(nextDrill);
+    setDrillLoading(true);
+    try {
+      const result = await loadDrilldown(sb, nextDrill);
+      setDrillData(result);
+    } catch (e) {
+      setDrillData({ title: "Error", columns: [], rows: [], error: e.message });
+    } finally {
+      setDrillLoading(false);
+    }
+  }, [drill]);
+
+  const closeDrill = () => {
+    setDrill(null);
+    setDrillData(null);
+    setDrillStack([]);
+  };
+
+  const drillBack = () => {
+    const prev = drillStack.at(-1);
+    if (!prev) {
+      closeDrill();
+      return;
+    }
+    setDrillStack(s => s.slice(0, -1));
+    openDrill(prev, false);
+  };
 
   useEffect(() => {
     if (!configured) return;
@@ -56,21 +195,9 @@ export default function AdminDashboard() {
     (async () => {
       try {
         const [
-          summary,
-          dau,
-          wau,
-          mau,
-          retention,
-          sessions,
-          trainingDays,
-          screens,
-          exercises,
-          programs,
-          mission,
-          challenges,
-          badges,
-          feedbackSummary,
-          featureRequests,
+          summary, dau, wau, mau, retention, sessions, trainingDays,
+          screens, exercises, programs, mission, challenges, badges,
+          feedbackSummary, featureRequests,
         ] = await Promise.all([
           sb.from("analytics_athlete_summary").select("*").maybeSingle(),
           sb.from("analytics_dau").select("*").order("day", { ascending: false }).limit(14),
@@ -79,12 +206,12 @@ export default function AdminDashboard() {
           sb.from("analytics_retention").select("*").order("cohort_day", { ascending: false }).limit(12),
           sb.from("analytics_sessions_per_week").select("*").order("week_start", { ascending: false }).limit(8),
           sb.from("analytics_training_days_per_week").select("*").order("week_start", { ascending: false }).limit(8),
-          sb.from("analytics_top_screens").select("*").limit(10),
-          sb.from("analytics_top_exercises").select("*").limit(10),
-          sb.from("analytics_top_programs").select("*").limit(10),
+          sb.from("analytics_top_screens").select("*").limit(15),
+          sb.from("analytics_top_exercises").select("*").limit(15),
+          sb.from("analytics_top_programs").select("*").limit(15),
           sb.from("analytics_mission_completion").select("*").order("day", { ascending: false }).limit(14),
-          sb.from("analytics_challenge_completion").select("*").limit(10),
-          sb.from("analytics_badge_distribution").select("*").limit(10),
+          sb.from("analytics_challenge_completion").select("*").limit(15),
+          sb.from("analytics_badge_distribution").select("*").limit(15),
           sb.from("feedback_summary").select("*").maybeSingle(),
           sb.from("feedback_feature_requests").select("*").limit(10),
         ]);
@@ -119,15 +246,14 @@ export default function AdminDashboard() {
   }, [configured]);
 
   if (loading) {
-    return <div style={{ minHeight:"100vh",background:"#060b14",color:"#94a3b8",display:"flex",alignItems:"center",justifyContent:"center" }}>Loading analytics…</div>;
+    return <div style={{ minHeight: "100vh", background: "#060b14", color: "#94a3b8", display: "flex", alignItems: "center", justifyContent: "center" }}>Loading analytics…</div>;
   }
 
   if (error) {
     return (
-      <div style={{ minHeight:"100vh",background:"#060b14",color:"#f87171",padding:24,maxWidth:720,margin:"0 auto" }}>
-        <h1 style={{ color:"#f8fafc" }}>FKH Admin Dashboard</h1>
+      <div style={{ minHeight: "100vh", background: "#060b14", color: "#f87171", padding: 24, maxWidth: 720, margin: "0 auto" }}>
+        <h1 style={{ color: "#f8fafc" }}>FKH Admin Dashboard</h1>
         <p>{error}</p>
-        <p style={{ color:"#64748b",fontSize:13 }}>Run <code>supabase/analytics.sql</code> in your Supabase SQL editor.</p>
       </div>
     );
   }
@@ -140,73 +266,95 @@ export default function AdminDashboard() {
   const latestTraining = data.trainingDays?.[0];
   const fb = data.feedbackSummary;
 
-  return (
-    <div style={{ minHeight:"100vh",background:"#060b14",color:"#e2e8f0",fontFamily:"'DM Sans',sans-serif",padding:"24px 20px 48px" }}>
-      <div style={{ maxWidth:960,margin:"0 auto" }}>
-        <h1 style={{ fontSize:24,fontWeight:800,margin:"0 0 4px",letterSpacing:"-0.02em" }}>FKH Product Dashboard</h1>
-        <p style={{ fontSize:13,color:"#64748b",margin:"0 0 24px" }}>First-100-users learning view · refresh to update</p>
+  const isActive = type => drill?.type === type;
 
-        <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:12,marginBottom:28 }}>
-          <StatCard label="Active (7d)" value={data.summary?.active_athletes_7d} />
-          <StatCard label="New (7d)" value={data.summary?.new_athletes_7d} />
-          <StatCard label="Total athletes" value={data.summary?.total_athletes} />
-          <StatCard label="DAU" value={latestDau?.dau} sub={latestDau?.day} />
+  return (
+    <div style={{ minHeight: "100vh", background: "#060b14", color: "#e2e8f0", fontFamily: "'DM Sans',sans-serif", padding: "24px 20px 48px" }}>
+      <div style={{ maxWidth: 960, margin: "0 auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 24 }}>
+          <div>
+            <h1 style={{ fontSize: 24, fontWeight: 800, margin: "0 0 4px", letterSpacing: "-0.02em" }}>FKH Product Dashboard</h1>
+            <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>Click any metric or table row to drill down</p>
+          </div>
+          <button type="button" onClick={() => openDrill({ type: "recent_events", label: "Recent events" })}
+            style={{ ...btnStyle(), padding: "8px 14px", color: "#38bdf8", borderColor: "rgba(56,189,248,0.35)" }}>
+            Live event feed ↗
+          </button>
+        </div>
+
+        <DrillPanel
+          drill={drill}
+          data={drillData}
+          loading={drillLoading}
+          onBack={drillStack.length ? drillBack : null}
+          onClose={closeDrill}
+          onRowClick={(next, push) => openDrill(next, push)}
+        />
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(160px,1fr))", gap: 12, marginBottom: 28 }}>
+          <StatCard label="Active (7d)" value={data.summary?.active_athletes_7d} active={isActive("athletes_active")}
+            onClick={() => openDrill({ type: "athletes_active", label: "Active athletes (7d)" })} />
+          <StatCard label="New (7d)" value={data.summary?.new_athletes_7d} active={isActive("athletes_new")}
+            onClick={() => openDrill({ type: "athletes_new", label: "New athletes (7d)" })} />
+          <StatCard label="Total athletes" value={data.summary?.total_athletes} active={isActive("athletes_all")}
+            onClick={() => openDrill({ type: "athletes_all", label: "All athletes" })} />
+          <StatCard label="DAU" value={latestDau?.dau} sub={latestDau?.day} active={isActive("dau_trend")}
+            onClick={() => openDrill({ type: "dau_trend", label: "DAU trend" })} />
           <StatCard label="WAU" value={latestWau?.wau} sub={latestWau?.week_start} />
           <StatCard label="MAU" value={latestMau?.mau} sub={latestMau?.month_start} />
-          <StatCard label="D1 retention" value={latestRetention?.d1_pct != null ? `${latestRetention.d1_pct}%` : "—"} sub={latestRetention?.cohort_day} />
+          <StatCard label="D1 retention" value={latestRetention?.d1_pct != null ? `${latestRetention.d1_pct}%` : "—"} sub={latestRetention?.cohort_day}
+            active={isActive("retention")} onClick={() => openDrill({ type: "retention", label: "Retention cohorts" })} />
           <StatCard label="D7 retention" value={latestRetention?.d7_pct != null ? `${latestRetention.d7_pct}%` : "—"} />
           <StatCard label="D30 retention" value={latestRetention?.d30_pct != null ? `${latestRetention.d30_pct}%` : "—"} />
           <StatCard label="Sessions / athlete / wk" value={latestSessions?.avg_sessions_per_athlete} sub={latestSessions?.week_start} />
           <StatCard label="Training days / wk" value={latestTraining?.avg_training_days_per_athlete} sub={latestTraining?.week_start} />
         </div>
 
-        <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:12,marginBottom:28 }}>
-          <StatCard label="Feedback total" value={fb?.total ?? 0} />
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 12, marginBottom: 28 }}>
+          <StatCard label="Feedback total" value={fb?.total ?? 0} active={isActive("feedback")}
+            onClick={() => openDrill({ type: "feedback", value: "general", label: "All feedback" })} />
           <StatCard label="Avg rating" value={fb?.avg_rating ?? "—"} />
           <StatCard label="👍 / 👎" value={`${fb?.thumbs_up ?? 0} / ${fb?.thumbs_down ?? 0}`} />
-          <StatCard label="Feature requests" value={fb?.feature_requests ?? 0} sub={`${fb?.bugs ?? 0} bugs`} />
+          <StatCard label="Feature requests" value={fb?.feature_requests ?? 0} sub={`${fb?.bugs ?? 0} bugs`}
+            onClick={() => openDrill({ type: "feedback", value: "feature_request", label: "Feature requests" })} />
+          <StatCard label="Bugs reported" value={fb?.bugs ?? 0} active={drill?.value === "bug"}
+            onClick={() => openDrill({ type: "feedback", value: "bug", label: "Bug reports" })} />
         </div>
 
-        <Table title="Top screens" columns={[
-          { key:"screen", label:"Screen" },
-          { key:"views", label:"Views" },
-          { key:"unique_athletes", label:"Athletes" },
-        ]} rows={data.screens} />
+        <DataTable title="Top screens" hint="Click a row for recent views"
+          columns={[{ key: "screen", label: "Screen" }, { key: "views", label: "Views" }, { key: "unique_athletes", label: "Athletes" }]}
+          rows={data.screens}
+          onRowClick={row => openDrill({ type: "screen", value: row.screen, label: `Screen: ${row.screen}` })} />
 
-        <Table title="Top exercises" columns={[
-          { key:"exercise_id", label:"Exercise" },
-          { key:"completions", label:"Completions" },
-          { key:"unique_athletes", label:"Athletes" },
-        ]} rows={data.exercises} />
+        <DataTable title="Top exercises" hint="Click a row for recent completions"
+          columns={[{ key: "exercise_id", label: "Exercise" }, { key: "completions", label: "Completions" }, { key: "unique_athletes", label: "Athletes" }]}
+          rows={data.exercises}
+          onRowClick={row => openDrill({ type: "exercise", value: row.exercise_id, label: `Exercise: ${row.exercise_id}` })} />
 
-        <Table title="Top programs" columns={[
-          { key:"program_id", label:"Program" },
-          { key:"session_completions", label:"Sessions done" },
-          { key:"unique_athletes", label:"Athletes" },
-        ]} rows={data.programs} />
+        <DataTable title="Top programs" hint="Click a row for session completions"
+          columns={[{ key: "program_id", label: "Program" }, { key: "session_completions", label: "Sessions" }, { key: "unique_athletes", label: "Athletes" }]}
+          rows={data.programs}
+          onRowClick={row => openDrill({ type: "program", value: row.program_id, label: `Program: ${row.program_id}` })} />
 
-        <Table title="Mission completion (recent days)" columns={[
-          { key:"day", label:"Day" },
-          { key:"active", label:"Active" },
-          { key:"mission_claims", label:"Claims" },
-          { key:"mission_rate_pct", label:"Rate %" },
-        ]} rows={data.mission} />
+        <DataTable title="Mission completion" hint="Click a day for mission claims"
+          columns={[{ key: "day", label: "Day" }, { key: "active", label: "Active" }, { key: "mission_claims", label: "Claims" }, { key: "mission_rate_pct", label: "Rate %" }]}
+          rows={data.mission}
+          onRowClick={row => openDrill({ type: "mission_day", value: row.day, label: `Missions — ${row.day}` })} />
 
-        <Table title="Challenge completions" columns={[
-          { key:"challenge_id", label:"Challenge" },
-          { key:"completions", label:"Completions" },
-        ]} rows={data.challenges} />
+        <DataTable title="Challenges" hint="Click for completion events"
+          columns={[{ key: "challenge_id", label: "Challenge" }, { key: "completions", label: "Completions" }, { key: "unique_athletes", label: "Athletes" }]}
+          rows={data.challenges}
+          onRowClick={row => openDrill({ type: "challenge", value: row.challenge_id, label: `Challenge: ${row.challenge_id}` })} />
 
-        <Table title="Badge earns" columns={[
-          { key:"badge_id", label:"Badge" },
-          { key:"earns", label:"Earns" },
-        ]} rows={data.badges} />
+        <DataTable title="Badges" hint="Click for earn events"
+          columns={[{ key: "badge_id", label: "Badge" }, { key: "earns", label: "Earns" }, { key: "unique_athletes", label: "Athletes" }]}
+          rows={data.badges}
+          onRowClick={row => openDrill({ type: "badge", value: row.badge_id, label: `Badge: ${row.badge_id}` })} />
 
-        <Table title="Recent feature requests" columns={[
-          { key:"message", label:"Message" },
-          { key:"rating", label:"Rating" },
-          { key:"created_at", label:"When" },
-        ]} rows={data.featureRequests} />
+        <DataTable title="Recent feature requests" hint="Click Feedback cards above for full lists"
+          columns={[{ key: "message", label: "Message" }, { key: "rating", label: "Rating" }, { key: "created_at", label: "When" }]}
+          rows={data.featureRequests}
+          onRowClick={() => openDrill({ type: "feedback", value: "feature_request", label: "Feature requests" })} />
       </div>
     </div>
   );
