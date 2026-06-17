@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import LeaderboardView from "./components/LeaderboardView.jsx";
-import PushStatsPrompt from "./components/PushStatsPrompt.jsx";
 import FeedbackCenter from "./components/FeedbackCenter.jsx";
 import { getAgeGroup, getAgeGroupLabel } from "./lib/periodStats.js";
 import {
@@ -13,11 +12,10 @@ import {
 } from "./lib/dailyWorkouts.js";
 import { useWakeLock } from "./lib/useWakeLock.js";
 import {
-  daysSinceLastPush,
   getLastPushTime,
   isLeaderboardConfigured,
-  pushFromAppState,
-  shouldShowPushPrompt,
+  maybeAutoSyncLeaderboard,
+  canAutoSyncLeaderboard,
 } from "./lib/leaderboardApi.js";
 import {
   initAnalytics,
@@ -4050,8 +4048,10 @@ function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback }) {
           </button>
           <p style={{ fontSize:10,color:"#334155",margin:"8px 0 0",lineHeight:1.5 }}>
             {getLastPushTime()
-              ? `Last pushed ${new Date(getLastPushTime()).toLocaleDateString()}`
-              : "Not pushed yet — open Ranks tab to share stats"}
+              ? `Last synced ${new Date(getLastPushTime()).toLocaleString()}`
+              : settings.leaderboardSharing
+                ? "Syncs automatically when you train"
+                : "Leaderboard sharing is off"}
             {!isLeaderboardConfigured() && " · Supabase env vars needed for live rankings"}
           </p>
         </div>
@@ -4157,7 +4157,7 @@ function HelpSheet({ P, SF, onClose }) {
   ];
   const TIPS = [
     { e:"🧭", d:"Get around with the tabs at the bottom: Home, Shots, Programs, Badges, and Ranks. Tap your avatar on Home for profile and settings." },
-    { e:"🏆", d:"Push your stats on the Ranks tab to show up on age-group leaderboards (This Week, Month, YTD, All Time)." },
+    { e:"🏆", d:"Your stats sync to age-group leaderboards automatically when sharing is on (This Week, Month, YTD, All Time)." },
     { e:"⭐", d:"Tap the star on any drill or program to save it as a favorite." },
     { e:"🔍", d:"Use Search drills on Home to find any exercise by name — crossover, Mikan, plank, and more." },
     { e:"🗓", d:"Open Training Calendar from Profile or Home → Progress & Stats to see your weekly plan and tap any day for drill history." },
@@ -5904,17 +5904,17 @@ function ProfileView({ settings, totalXP, xpData, currentLevel, earnedBadges, co
         </div>
         <p style={{ fontSize:11,color:"#64748b",margin:"0 0 10px",lineHeight:1.5 }}>
           {settings.leaderboardSharing
-            ? `Compete in ${settings.dateOfBirth ? getAgeGroupLabel(getAgeGroup(settings.dateOfBirth)) : "your age group"} — push stats to update the board.`
+            ? `Stats sync to the ${settings.dateOfBirth ? getAgeGroupLabel(getAgeGroup(settings.dateOfBirth)) : "age group"} board automatically.`
             : "Leaderboard sharing is off. Turn it on in Settings."}
         </p>
         {pushError && <div style={{ fontSize:11,color:"#f87171",marginBottom:8 }}>{pushError}</div>}
         <button
           onClick={onPushStats}
           disabled={pushBusy || !settings.leaderboardSharing}
-          style={{ width:"100%",padding:"11px",borderRadius:10,border:"none",cursor:settings.leaderboardSharing?"pointer":"not-allowed",
-            background:settings.leaderboardSharing?P:"rgba(255,255,255,0.06)",color:settings.leaderboardSharing?"#000":"#64748b",
-            fontSize:12,fontWeight:800 }}>
-          {pushBusy ? "Pushing…" : "Push Stats to Leaderboard ↑"}
+          style={{ width:"100%",padding:"11px",borderRadius:10,border:`1px solid ${P}44`,cursor:settings.leaderboardSharing?"pointer":"not-allowed",
+            background:"transparent",color:settings.leaderboardSharing?P:"#64748b",
+            fontSize:12,fontWeight:700 }}>
+          {pushBusy ? "Syncing…" : "Sync leaderboard now"}
         </button>
       </div>
 
@@ -7040,7 +7040,6 @@ export default function SummerTrainingApp() {
   const [showOnboarding, setShowOnboarding] = useState(()=>!localStorage.getItem('s_onboarded')&&settings.athleteName===DEFAULT.athleteName);
   const [pushBusy, setPushBusy] = useState(false);
   const [pushError, setPushError] = useState(null);
-  const [pushPromptHidden, setPushPromptHidden] = useState(false);
   const [exerciseSearch, setExerciseSearch] = useState("");
   const [homeSections, setHomeSections] = useState(() => {
     try {
@@ -7060,33 +7059,57 @@ export default function SummerTrainingApp() {
   }, []);
 
   const getExerciseCategory = useCallback(exId => (ALL_EXERCISES[exId] || {})._cat, []);
-  const showPushBanner = useMemo(
-    () => !pushPromptHidden && shouldShowPushPrompt({ sharingEnabled: settings.leaderboardSharing !== false }),
-    [pushPromptHidden, settings.leaderboardSharing]
-  );
+
+  const syncLeaderboard = useCallback(async ({ force = false } = {}) => {
+    const result = await maybeAutoSyncLeaderboard({
+      settings,
+      completed,
+      missionLog,
+      getCategory: getExerciseCategory,
+      force,
+    });
+    if (result.ok) {
+      track(ANALYTICS_EVENTS.LEADERBOARD_PUSH, { success: true, auto: !force });
+    } else if (result.error) {
+      track(ANALYTICS_EVENTS.LEADERBOARD_PUSH, { success: false, auto: !force, error: result.error });
+    }
+    return result;
+  }, [settings, completed, missionLog, getExerciseCategory]);
+
+  const syncLeaderboardRef = useRef(syncLeaderboard);
+  syncLeaderboardRef.current = syncLeaderboard;
+
+  useEffect(() => {
+    const run = () => syncLeaderboardRef.current();
+    run();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") run();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, []);
+
+  useEffect(() => {
+    if (!canAutoSyncLeaderboard(settings)) return;
+    const timer = setTimeout(() => syncLeaderboardRef.current(), 90_000);
+    return () => clearTimeout(timer);
+  }, [completed, missionLog, settings.leaderboardSharing, settings.athleteName]);
 
   const handlePushStats = useCallback(async ({ goToRanks = false } = {}) => {
     setPushBusy(true);
     setPushError(null);
     try {
-      await pushFromAppState({
-        settings,
-        completed,
-        missionLog,
-        getCategory: getExerciseCategory,
-      });
-      track(ANALYTICS_EVENTS.LEADERBOARD_PUSH, { success: true });
-      setPushPromptHidden(true);
+      const result = await syncLeaderboard({ force: true });
+      if (!result.ok) throw new Error(result.error || "Sync failed");
       if (goToRanks) setView("ranks");
     } catch (e) {
-      const msg = e.message || "Push failed";
-      track(ANALYTICS_EVENTS.LEADERBOARD_PUSH, { success: false, error: msg });
+      const msg = e.message || "Sync failed";
       setPushError(msg);
       if (goToRanks) alert(msg);
     } finally {
       setPushBusy(false);
     }
-  }, [settings, completed, missionLog, getExerciseCategory]);
+  }, [syncLeaderboard]);
 
   /* PWA install prompt ─────────────────────────────────────────── */
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
@@ -8418,16 +8441,6 @@ export default function SummerTrainingApp() {
           </div>
           <button onClick={dismissInstall} style={{ background:"none",border:"none",color:"#475569",fontSize:16,cursor:"pointer",padding:0,lineHeight:1,flexShrink:0 }}>✕</button>
         </div>
-      )}
-
-      {showPushBanner && view==="home" && (
-        <PushStatsPrompt
-          daysSince={daysSinceLastPush()}
-          athleteName={settings.athleteName}
-          P={P}
-          onPush={()=>handlePushStats({ goToRanks: true })}
-          onDismiss={()=>setPushPromptHidden(true)}
-        />
       )}
 
       {/* Badge Earned Notification Banner (home screen) */}

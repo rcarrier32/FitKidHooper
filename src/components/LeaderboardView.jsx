@@ -10,16 +10,16 @@ import {
   getAthleteId,
   getLastPushTime,
   isLeaderboardConfigured,
-  pushFromAppState,
+  maybeAutoSyncLeaderboard,
 } from "../lib/leaderboardApi.js";
 
 function fmtRelativePush(ts) {
-  if (!ts) return "Never pushed";
+  if (!ts) return "Not synced yet";
   const d = new Date(ts);
   const days = Math.floor((Date.now() - ts) / 86400000);
-  if (days === 0) return "Pushed today";
-  if (days === 1) return "Pushed yesterday";
-  return `Pushed ${days} days ago`;
+  if (days === 0) return "Synced today";
+  if (days === 1) return "Synced yesterday";
+  return `Synced ${days} days ago`;
 }
 
 function medalForRank(rank) {
@@ -62,11 +62,18 @@ export default function LeaderboardView({
     setLoading(false);
   }, [ageGroup, period, configured]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  const syncAndLoad = useCallback(async (force = false) => {
+    if (configured && settings.leaderboardSharing) {
+      await maybeAutoSyncLeaderboard({ settings, completed, missionLog, getCategory, force });
+    }
+    await load();
+  }, [configured, settings, completed, missionLog, getCategory, load]);
 
-  const handlePush = async () => {
+  useEffect(() => {
+    syncAndLoad();
+  }, [syncAndLoad]);
+
+  const handleSyncNow = async () => {
     if (!settings.leaderboardSharing) {
       setError("Turn on “Share on Leaderboard” in Settings first");
       return;
@@ -75,12 +82,15 @@ export default function LeaderboardView({
     setError(null);
     setPushMsg(null);
     try {
-      await pushFromAppState({ settings, completed, missionLog, getCategory });
-      setPushMsg("Stats pushed! You're on the board.");
+      const result = await maybeAutoSyncLeaderboard({
+        settings, completed, missionLog, getCategory, force: true,
+      });
+      if (!result.ok) throw new Error(result.error || "Sync failed");
+      setPushMsg("Leaderboard updated.");
       onPushSuccess?.();
       await load();
     } catch (e) {
-      setError(e.message || "Push failed");
+      setError(e.message || "Sync failed");
     } finally {
       setPushing(false);
     }
@@ -108,9 +118,11 @@ export default function LeaderboardView({
       }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: P, marginBottom: 4 }}>Push your stats</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: P, marginBottom: 4 }}>Leaderboard sync</div>
             <div style={{ fontSize: 11, color: "#64748b" }}>
-              Sharing as <span style={{ color: "var(--fkh-text)", fontWeight: 700 }}>{settings.athleteName}</span>
+              {settings.leaderboardSharing
+                ? <>Auto-syncs as <span style={{ color: "var(--fkh-text)", fontWeight: 700 }}>{settings.athleteName}</span> trains</>
+                : "Sharing is off — enable in Settings"}
               {" · "}{getAgeGroupLabel(myAgeGroup)}
             </div>
             <div style={{ fontSize: 10, color: "#475569", marginTop: 4, fontFamily: "'DM Mono',monospace" }}>
@@ -118,16 +130,17 @@ export default function LeaderboardView({
             </div>
           </div>
           <button
-            onClick={handlePush}
+            onClick={handleSyncNow}
             disabled={!configured || pushing || !settings.leaderboardSharing}
             style={{
-              padding: "10px 16px", borderRadius: 12, border: "none", flexShrink: 0,
-              background: configured && settings.leaderboardSharing ? P : "rgba(255,255,255,0.08)",
-              color: configured && settings.leaderboardSharing ? "#000" : "#64748b",
-              fontSize: 12, fontWeight: 800, cursor: configured ? "pointer" : "not-allowed",
+              padding: "10px 16px", borderRadius: 12, flexShrink: 0,
+              background: "transparent",
+              border: `1px solid ${configured && settings.leaderboardSharing ? P : "rgba(255,255,255,0.12)"}`,
+              color: configured && settings.leaderboardSharing ? P : "#64748b",
+              fontSize: 12, fontWeight: 700, cursor: configured ? "pointer" : "not-allowed",
             }}
           >
-            {pushing ? "Pushing…" : "Push Stats ↑"}
+            {pushing ? "Syncing…" : "Sync now"}
           </button>
         </div>
         {pushMsg && (
@@ -218,7 +231,7 @@ export default function LeaderboardView({
           background: SF, borderRadius: 14, border: `1px solid ${bd}`,
         }}>
           No one on the board yet for {getAgeGroupLabel(ageGroup)} · {LEADERBOARD_PERIODS.find(p => p.id === period)?.label}.
-          <br />Be the first — push your stats!
+          <br />Be the first — set your name in Settings and train!
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

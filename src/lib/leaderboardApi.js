@@ -134,6 +134,42 @@ export async function fetchLeaderboard({ ageGroup, period, limit = 50 }) {
   return { rows: data || [], error: null };
 }
 
+/** Minimum time between automatic leaderboard syncs (ms). */
+export const AUTO_SYNC_MIN_MS = 30 * 60 * 1000;
+
+export function canAutoSyncLeaderboard(settings) {
+  if (!isLeaderboardConfigured()) return false;
+  if (settings?.leaderboardSharing === false) return false;
+  const name = settings?.athleteName?.trim();
+  if (!name || name === "Champ") return false;
+  return true;
+}
+
+/** Sync leaderboard stats when sharing is on. Throttled unless `force`. */
+export async function maybeAutoSyncLeaderboard({
+  settings,
+  completed,
+  missionLog,
+  getCategory,
+  force = false,
+} = {}) {
+  if (!canAutoSyncLeaderboard(settings)) {
+    return { skipped: true, reason: "not_eligible" };
+  }
+
+  const last = getLastPushTime();
+  if (!force && last && Date.now() - last < AUTO_SYNC_MIN_MS) {
+    return { skipped: true, reason: "throttled" };
+  }
+
+  try {
+    await pushFromAppState({ settings, completed, missionLog, getCategory });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message || "Sync failed" };
+  }
+}
+
 export async function pushFromAppState({ settings, completed, missionLog, getCategory }) {
   const displayName = settings.athleteName?.trim();
   if (!displayName || displayName === "Champ") {
