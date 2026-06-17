@@ -2746,6 +2746,7 @@ function getActiveProgramScheduleStatus(program, enrollment, programProgress, to
 
 /** Seven-day program week plan with REST labels on off days (Tier 2). */
 function buildProgramWeekPlan(program, enrollment, programProgress, todayStr) {
+  if (!enrollment?.startDate) return null;
   const curWeek = programCurrentWeek(enrollment.startDate, program.duration);
   const weekData = program.weeks.find(w => w.week === curWeek);
   if (!weekData) return null;
@@ -2797,6 +2798,37 @@ function buildProgramWeekPlan(program, enrollment, programProgress, todayStr) {
   }
 
   return { curWeek, weekComplete, days };
+}
+
+/** Compact Mon–Sun strip: S1/S2/S3, ✓, and REST (Tier 2). */
+function ProgramWeekStrip({ plan, color }) {
+  if (!plan?.days?.length) return null;
+  return (
+    <div style={{ display:"flex", gap:3, marginTop:10 }}>
+      {plan.days.map(day => {
+        const isRest = day.kind === "rest";
+        const isDone = day.kind === "done";
+        const highlight = day.isToday;
+        const cellColor = isDone ? "#22c55e" : isRest ? (highlight ? "#94a3b8" : "#475569") : color;
+        return (
+          <div key={day.dayIndex} style={{ flex:1, minWidth:0, textAlign:"center" }}>
+            <div style={{ fontSize:8, color:highlight ? cellColor : "#475569", fontWeight:highlight ? 700 : 500, marginBottom:3, letterSpacing:"0.02em" }}>
+              {day.weekdayLabel}
+            </div>
+            <div title={day.title}
+              style={{
+                fontSize:8, fontWeight:800, padding:"5px 1px", borderRadius:6, lineHeight:1.2,
+                color:cellColor,
+                background:highlight ? (isRest ? "rgba(148,163,184,0.12)" : `${color}18`) : "rgba(255,255,255,0.03)",
+                border:`1px solid ${highlight ? (isRest ? "rgba(148,163,184,0.35)" : `${color}44`) : "rgba(255,255,255,0.06)"}`,
+              }}>
+              {day.label}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 /* ═══════════════════════ PROGRESS REPORT ════════════════════ */
@@ -3950,7 +3982,8 @@ function SettingsSheet({ settings, setSettings, onClose }) {
 
 /* ═══════════════════════ HELP SHEET ═══════════════════════ */
 /* ═══════════════════════ HOME UI HELPERS ════════════════════ */
-function HomeCollapsibleSection({ title, hint, open, onToggle, children, labelStyle }) {
+function HomeCollapsibleSection({ title, hint, open, onToggle, children, labelStyle, accentColor }) {
+  const caretColor = accentColor || labelStyle?.color || "#475569";
   return (
     <div style={{ marginBottom: 2 }}>
       <button type="button" onClick={onToggle}
@@ -3958,7 +3991,7 @@ function HomeCollapsibleSection({ title, hint, open, onToggle, children, labelSt
           cursor:"pointer", display:"flex", alignItems:"center", gap:8, textAlign:"left" }}>
         <div style={{ ...labelStyle, marginBottom:0, flex:1 }}>{title}</div>
         {hint && <span style={{ fontSize:10, color:"#334155", fontWeight:600 }}>{hint}</span>}
-        <span style={{ fontSize:10, color:"#475569", flexShrink:0, transform:open ? "rotate(0deg)" : "rotate(-90deg)", transition:"transform 0.2s" }}>▼</span>
+        <span style={{ fontSize:12, color:caretColor, fontWeight:700, flexShrink:0, transform:open ? "rotate(0deg)" : "rotate(-90deg)", transition:"transform 0.2s" }}>▼</span>
       </button>
       {open && children}
     </div>
@@ -8176,7 +8209,8 @@ export default function SummerTrainingApp() {
           hint={missionClaimed ? "complete" : requiredTasksDone ? "ready" : undefined}
           open={homeSections.mission}
           onToggle={() => toggleHomeSection("mission")}
-          labelStyle={lbl}>
+          labelStyle={lbl}
+          accentColor={P}>
         {/* ── DAILY MISSION CARD ─────────────────────────────────── */}
         {(()=>{
           const mission = todayMission;
@@ -8340,7 +8374,8 @@ export default function SummerTrainingApp() {
               hint={`${pct}% · week ${curWeek}`}
               open={homeSections.activeProgram}
               onToggle={() => toggleHomeSection("activeProgram")}
-              labelStyle={lbl}>
+              labelStyle={lbl}
+              accentColor={P}>
             <div onClick={() => { setView("programs"); setSelectedProgram(activeProg.id); }}
               style={{ margin:"0 20px 12px", borderRadius:14, border:`1px solid ${activeProg.color}44`, background:`${activeProg.color}0c`, padding:"13px 14px", cursor:"pointer" }}>
               <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:9 }}>
@@ -8368,7 +8403,8 @@ export default function SummerTrainingApp() {
           hint={quickWorkoutComplete ? "complete" : todaysWorkout ? todaysWorkout.templateName : undefined}
           open={homeSections.workout}
           onToggle={() => toggleHomeSection("workout")}
-          labelStyle={lbl}>
+          labelStyle={lbl}
+          accentColor={P}>
 
         {/* ── WORKOUT TEMPLATE PICKER ─────────────────────────────── */}
         <div style={{ position:"relative" }}>
@@ -8513,7 +8549,8 @@ export default function SummerTrainingApp() {
               hint={favHint}
               open={homeSections.favorites}
               onToggle={() => toggleHomeSection("favorites")}
-              labelStyle={lbl}>
+              labelStyle={lbl}
+              accentColor={P}>
               {allFavs.length === 0 ? (
                 <div style={{ margin:"0 20px 14px", padding:"14px 16px", borderRadius:12, background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.07)" }}>
                   <div style={{ fontSize:12, color:"#64748b", lineHeight:1.5 }}>Star drills, workouts, or programs to save them here for quick access.</div>
@@ -8600,7 +8637,8 @@ export default function SummerTrainingApp() {
               hint={`${streak}d streak`}
               open={homeSections.dashboard}
               onToggle={() => toggleHomeSection("dashboard")}
-              labelStyle={lbl}>
+              labelStyle={lbl}
+              accentColor={P}>
 
               {/* Quick Stats — streak + shot challenge */}
               <div style={{ padding:"0 20px 10px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:8 }}>
@@ -8737,7 +8775,8 @@ export default function SummerTrainingApp() {
           title="Training Modules"
           open={homeSections.modules}
           onToggle={() => toggleHomeSection("modules")}
-          labelStyle={lbl}>
+          labelStyle={lbl}
+          accentColor={P}>
         <div style={{ padding:"0 20px 14px" }}>
           <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10 }}>
             {Object.entries(CATS).map(([key,cat])=>{
@@ -8773,7 +8812,8 @@ export default function SummerTrainingApp() {
               title={`${prof.emoji} ${prof.label} Spotlight`}
               open={homeSections.spotlight}
               onToggle={() => toggleHomeSection("spotlight")}
-              labelStyle={{ ...lbl, color:`${posColor}99` }}>
+              labelStyle={{ ...lbl, color:`${posColor}99` }}
+              accentColor={posColor}>
             <div style={{ padding:"0 20px 16px" }}>
               <div style={{ display:"flex",alignItems:"center",justifyContent:"flex-end",marginBottom:8 }}>
                 <button onClick={()=>setShowSettings(true)} style={{ background:"none",border:"none",fontSize:10,color:"#334155",cursor:"pointer",padding:0 }}>change position</button>
