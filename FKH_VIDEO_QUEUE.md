@@ -260,7 +260,7 @@ FKH original videos are hosted in Supabase Storage. Public bucket: `fkh-videos`.
 
 Public URL pattern:
 ```
-https://[project-ref].supabase.co/storage/v1/object/public/fkh-videos/FILENAME.mp4
+https://jjwaspyuldkwasfyrqbw.supabase.co/storage/v1/object/public/fkh-videos/FILENAME.mp4
 ```
 
 Upload steps:
@@ -274,7 +274,7 @@ When a video is filmed and ready:
 2. Copy the public URL (format above)
 3. In `SummerTrainingApp.jsx`, find the exercise by `id`
 4. Add: `videoSource: "fkh"`
-5. Add: `videoUrl: "https://[project-ref].supabase.co/storage/v1/object/public/fkh-videos/FILENAME.mp4"`
+5. Add: `videoUrl: "https://jjwaspyuldkwasfyrqbw.supabase.co/storage/v1/object/public/fkh-videos/FILENAME.mp4"`
 6. Optionally add: `thumbnailUrl: "https://..."` (upload a JPG to the same bucket for fast thumbnail)
 7. Remove: `videoId` and `videoTitle` (or leave as fallback — won't be shown once `videoSource: "fkh"`)
 8. Add: `coachNotes: "..."` (1–2 sentences, coach voice)

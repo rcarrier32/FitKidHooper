@@ -6269,6 +6269,13 @@ function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onTogg
   /* Video player ─────────────────────────────────────────── */
   const [videoPlaying, setVideoPlaying] = useState(false);
   useEffect(() => { setVideoPlaying(false); }, [exercise?.id]);
+  useEffect(() => {
+    if (!videoPlaying || !exercise?.id) return;
+    track(ANALYTICS_EVENTS.VIDEO_PLAY, {
+      exercise_id: exercise.id,
+      source: exercise.videoSource === "fkh" ? "fkh" : "youtube",
+    });
+  }, [videoPlaying, exercise?.id, exercise?.videoSource]);
 
   /* Progression chain ────────────────────────────────────── */
   const chain       = getChainForExercise(exercise.id);
@@ -7068,10 +7075,12 @@ export default function SummerTrainingApp() {
         missionLog,
         getCategory: getExerciseCategory,
       });
+      track(ANALYTICS_EVENTS.LEADERBOARD_PUSH, { success: true });
       setPushPromptHidden(true);
       if (goToRanks) setView("ranks");
     } catch (e) {
       const msg = e.message || "Push failed";
+      track(ANALYTICS_EVENTS.LEADERBOARD_PUSH, { success: false, error: msg });
       setPushError(msg);
       if (goToRanks) alert(msg);
     } finally {
@@ -7385,6 +7394,17 @@ export default function SummerTrainingApp() {
   /* XP / Level / Badges ──────────────────────────────────── */
   const xpData       = useMemo(()=>computeXP(completed, programProgress, missionLog),[completed, programProgress, missionLog]);
   const currentLevel = useMemo(()=>getLevel(xpData.total),[xpData.total]);
+  const prevLevelRankRef = useRef(currentLevel.rank);
+  useEffect(() => {
+    if (currentLevel.rank > prevLevelRankRef.current) {
+      track(ANALYTICS_EVENTS.LEVEL_UP, {
+        level: currentLevel.rank,
+        level_name: currentLevel.name,
+        total_xp: xpData.total,
+      });
+    }
+    prevLevelRankRef.current = currentLevel.rank;
+  }, [currentLevel, xpData.total]);
   const earnedBadges = useMemo(()=>getEarnedBadges(completed, programProgress),[completed, programProgress]);
   const coachMsg = useMemo(
     () => buildCoachMessage(completed, xpData, earnedBadges, programProgress),

@@ -16,6 +16,7 @@ Lightweight instrumentation for learning from the first ~100 users. Uses the sam
 
 1. Run `supabase/schema.sql` (leaderboard) if not already applied.
 2. Run `supabase/analytics.sql` in the Supabase SQL editor.
+3. Run `supabase/storage.sql` for the `fkh-videos` bucket.
 3. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (same as leaderboard).
 4. Optional: `VITE_APP_VERSION` for release tagging; `VITE_ADMIN_DASHBOARD_KEY` for dashboard access.
 
@@ -62,6 +63,9 @@ Events are queued in `localStorage` (`fkh-analytics-queue`) and flushed every 30
 | `badge_earn` | New badge unlocked |
 | `workout_complete` | Quick workout template fully done for the day |
 | `shot_session` | Shot batch logged |
+| `video_play` | Exercise video played |
+| `level_up` | XP rank increased |
+| `leaderboard_push` | Opt-in stats push to Ranks |
 
 ## SQL views (Supabase SQL editor)
 

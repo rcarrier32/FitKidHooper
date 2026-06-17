@@ -95,6 +95,16 @@ if (insertErr) {
   await sb.from("events").delete().eq("athlete_id", testId).eq("event_name", "setup_verification");
 }
 
+// Test storage bucket for FKH videos (list objects — works with anon if bucket is public)
+const { error: bucketErr } = await sb.storage.from("fkh-videos").list("", { limit: 1 });
+if (bucketErr) {
+  console.error(`❌ Storage bucket "fkh-videos" — ${bucketErr.message}`);
+  console.error("   → Run supabase/storage.sql in SQL Editor");
+  errors++;
+} else {
+  ok('Storage bucket "fkh-videos" exists and is reachable');
+}
+
 console.log("");
 if (errors) {
   console.error(`${errors} issue(s) found. Fix SQL migrations, then re-run this script.\n`);
@@ -103,5 +113,5 @@ if (errors) {
 
 console.log("All checks passed! Next steps:");
 console.log("  • Local dev:  npm run dev");
-console.log("  • Production: add GitHub secrets, then git push origin main");
-console.log("  • Admin dash: http://localhost:5173/FitKidHooper/?admin=1\n");
+console.log("  • Production: git push origin main");
+console.log("  • Admin dash: use ?admin=YOUR_KEY (see .env.local)\n");

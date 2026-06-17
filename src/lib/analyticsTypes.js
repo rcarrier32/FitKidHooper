@@ -13,6 +13,9 @@ export const ANALYTICS_EVENTS = {
   BADGE_EARN: "badge_earn",
   WORKOUT_COMPLETE: "workout_complete",
   SHOT_SESSION: "shot_session",
+  VIDEO_PLAY: "video_play",
+  LEVEL_UP: "level_up",
+  LEADERBOARD_PUSH: "leaderboard_push",
 };
 
 export const FEEDBACK_CATEGORIES = {

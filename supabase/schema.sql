@@ -52,3 +52,4 @@ create policy "athlete_profiles_upsert"
   on public.athlete_profiles for all using (true) with check (true);
 
 -- Product analytics: run supabase/analytics.sql after this file.
+-- FKH videos: run supabase/storage.sql after analytics.sql.

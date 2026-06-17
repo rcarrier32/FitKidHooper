@@ -22,117 +22,46 @@
 
 ---
 
-## ⚠️ Supabase Setup — REQUIRED (you have not finished this)
+## ✅ Supabase — LIVE (2026-06-17)
 
-> **Status: 2026-06-16** — Analytics + feedback + leaderboard code is **shipped in the app**.  
-> Events will **not** reach the database until you complete the steps below.
+> **Project:** FTHFitKidHooper (`jjwaspyuldkwasfyrqbw`)  
+> **Dashboard:** https://supabase.com/dashboard/project/jjwaspyuldkwasfyrqbw
 
-The app sends data to Supabase when `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are set in the build **and** the SQL migrations have been run.
+Infrastructure is connected. The app sends events when athletes use it.
 
 ### Quick links
 
-| Resource | Path / URL |
-|----------|------------|
-| Supabase dashboard | https://supabase.com/dashboard |
-| Leaderboard schema | `supabase/schema.sql` |
-| Analytics schema | `supabase/analytics.sql` |
-| Full analytics docs | `docs/ANALYTICS.md` |
+| Resource | URL |
+|----------|-----|
 | Production app | https://rcarrier32.github.io/FitKidHooper/ |
-| Admin dashboard | https://rcarrier32.github.io/FitKidHooper/?admin=1 |
+| Admin dashboard | https://rcarrier32.github.io/FitKidHooper/?admin=KEY *(key in your password manager / `.env.local`)* |
+| Verify locally | `npm run verify:supabase` |
 
----
+### Setup checklist (completed)
 
-## Supabase setup checklist
+- [x] **A1–A4.** Supabase project, API keys, GitHub secrets, `.env.local`
+- [x] **A5.** Admin dashboard key set (`VITE_ADMIN_DASHBOARD_KEY`)
+- [x] **B1.** `supabase/schema.sql` — leaderboard
+- [x] **B2.** `supabase/analytics.sql` — events, feedback, views
+- [x] **B3.** `supabase/storage.sql` — `fkh-videos` bucket (public read)
+- [x] **E1.** Production deploy with secrets
 
-Work through in order. Check each box when done.
+### Still on you (cannot be automated)
 
-### A. Project & secrets
+- [ ] **E2–E6.** Real athlete smoke test (browse, drill, feedback, check `events` table)
+- [ ] **F1–F2.** Leaderboard push test (set name → Ranks → push stats)
+- [ ] **G1–G2.** Tighten RLS before 100+ users (optional for now)
+- [ ] **Observation window** — qualitative logs below (quotes, friction, parent context)
+- [ ] **FKH videos** — film + upload to `fkh-videos` bucket (see `FKH_VIDEO_QUEUE.md`)
+- [ ] **Calendar Tier 3** — only if product data demands it (`CALENDAR_ROADMAP.md`)
 
-- [ ] **A1.** Create or open your Supabase project at [supabase.com](https://supabase.com)
-- [ ] **A2.** Copy **Project URL** and **anon public** key (Settings → API)
-- [ ] **A3.** Add to **GitHub Actions secrets** (for production deploy):
-  - `VITE_SUPABASE_URL`
-  - `VITE_SUPABASE_ANON_KEY`
-- [ ] **A4.** Add same values to local `.env.local` for dev testing
-- [ ] **A5.** (Optional) Set `VITE_ADMIN_DASHBOARD_KEY` in secrets + use `?admin=YOUR_KEY` on prod
-- [ ] **A6.** (Optional) Set `VITE_APP_VERSION` to tag events by release (e.g. `rc2`)
+### SQL files (reference — already applied)
 
-### B. Database — run SQL in Supabase SQL Editor
-
-Run **both** files in order (paste full file → Run):
-
-- [ ] **B1.** `supabase/schema.sql` — leaderboard tables  
-  - Creates: `athlete_profiles`, `leaderboard_stats`  
-  - Enables RLS + anon read/upsert policies
-
-- [ ] **B2.** `supabase/analytics.sql` — product intelligence  
-  - Creates tables: `events`, `athlete_analytics`, `feedback`  
-  - Creates **17 analytics views** (DAU, WAU, MAU, retention, top screens/exercises/programs, mission rate, etc.)  
-  - Creates feedback views: `feedback_general`, `feedback_bugs`, `feedback_feature_requests`, `feedback_summary`  
-  - Enables RLS + anon insert/select (MVP — tighten before public scale)
-
-### C. Verify tables exist
-
-In Supabase → **Table Editor**, confirm these tables appear:
-
-| Table | Purpose |
-|-------|---------|
-| `athlete_profiles` | Leaderboard display names (opt-in push) |
-| `leaderboard_stats` | Aggregated XP / shots / streak per period |
-| `events` | Anonymous behavioral events from the app |
-| `athlete_analytics` | One row per device — cohort anchor for retention |
-| `feedback` | In-app Feedback Center submissions |
-
-### D. Verify views exist
-
-In Supabase → **SQL Editor** → run:
-
-```sql
-select table_name from information_schema.views
-where table_schema = 'public' and table_name like 'analytics_%' or table_name like 'feedback_%'
-order by 1;
-```
-
-Expected views include:
-
-| View | Answers |
+| File | Purpose |
 |------|---------|
-| `analytics_dau` | Daily active users |
-| `analytics_wau` | Weekly active users |
-| `analytics_mau` | Monthly active users |
-| `analytics_retention` | D1 / D7 / D30 retention by cohort |
-| `analytics_sessions_per_week` | Avg sessions per athlete per week |
-| `analytics_training_days_per_week` | Avg training days per athlete per week |
-| `analytics_top_screens` | Most visited screens |
-| `analytics_top_exercises` | Most completed exercises |
-| `analytics_top_programs` | Most completed program sessions |
-| `analytics_mission_completion` | Daily mission claim rate |
-| `analytics_challenge_completion` | Challenge completion counts |
-| `analytics_badge_distribution` | Badge earn distribution |
-| `analytics_athlete_summary` | Active / new / total athletes (7d) |
-| `feedback_summary` | Ratings, thumbs, counts by category |
-| `feedback_feature_requests` | Feature ideas |
-| `feedback_bugs` | Bug reports |
-| `feedback_general` | General feedback |
-
-### E. Verify the app is connected
-
-- [ ] **E1.** Redeploy after secrets are set (push to `main` or manual workflow run)
-- [ ] **E2.** Open the app on a test device, use it for 1–2 minutes (open tabs, complete a drill, submit feedback)
-- [ ] **E3.** In Supabase → `events` table → confirm new rows with `session_start`, `screen_view`, etc.
-- [ ] **E4.** In Supabase → `athlete_analytics` → confirm one row for your test device UUID
-- [ ] **E5.** Settings → **Open Feedback Center** → submit test feedback → confirm row in `feedback`
-- [ ] **E6.** Open admin dashboard: https://rcarrier32.github.io/FitKidHooper/?admin=1 — confirm metrics load (not “Supabase is not configured”)
-
-### F. Leaderboard (separate from analytics)
-
-- [ ] **F1.** Set athlete name in Settings (not default “Champ”)
-- [ ] **F2.** Ranks tab → push stats → confirm `leaderboard_stats` updates
-
-### G. Before 100 users (security note)
-
-- [ ] **G1.** Review RLS: `events` and `feedback` currently allow public SELECT (fine for small team + admin dashboard)
-- [ ] **G2.** Before broader launch: restrict SELECT to service role or add auth — see `docs/ANALYTICS.md`
+| `supabase/schema.sql` | Leaderboard tables |
+| `supabase/analytics.sql` | Analytics + feedback + 17 views |
+| `supabase/storage.sql` | FKH video bucket |
 
 ---
 
@@ -160,6 +89,9 @@ Expected views include:
 | `badge_earn` | Milestone / progression |
 | `workout_complete` | Quick workout completion |
 | `shot_session` | Shooting practice volume |
+| `video_play` | Exercise video opened (YouTube or FKH) |
+| `level_up` | XP rank increased |
+| `leaderboard_push` | Stats pushed to Ranks tab |
 
 Events queue offline in `localStorage` (`fkh-analytics-queue`) and batch-upload every ~30s or on background.
 
@@ -374,7 +306,7 @@ https://rcarrier32.github.io/FitKidHooper/?admin=1
 | Training programs | 5 |
 | Total badges | 27 |
 | Shot zones | 9 court + 6 quick-tap |
-| Tracked event types | 13 |
+| Tracked event types | 16 |
 | Analytics SQL views | 17 |
 | In-app feedback | Settings → Feedback Center |
 | Admin dashboard | `?admin=1` on app URL |
@@ -385,17 +317,18 @@ https://rcarrier32.github.io/FitKidHooper/?admin=1
 
 | Date | Item | Status |
 |------|------|--------|
-| 2026-06-01 | Supabase project | ⚠️ Needed — noted in original RC1 log |
-| 2026-06-16 | `events` + `feedback` tables + views | ✅ SQL in `supabase/analytics.sql` — **run in dashboard** |
-| 2026-06-16 | Client `track()` + offline queue | ✅ Shipped in app |
-| 2026-06-16 | Feedback Center (Settings) | ✅ Shipped in app |
-| 2026-06-16 | Admin product dashboard | ✅ Shipped (`?admin=1`) |
-| 2026-06-16 | GitHub secrets + redeploy | ❌ **You still need to do this** |
-| 2026-06-16 | Run `schema.sql` + `analytics.sql` | ❌ **You still need to do this** |
-| 2026-06-16 | End-to-end verification (E1–E6) | ❌ **You still need to do this** |
+| 2026-06-17 | Supabase project linked + all SQL applied | ✅ Done |
+| 2026-06-17 | GitHub secrets (URL, anon key, admin key) | ✅ Done |
+| 2026-06-17 | `fkh-videos` storage bucket | ✅ Done |
+| 2026-06-17 | `video_play`, `level_up`, `leaderboard_push` events | ✅ Shipped |
+| 2026-06-17 | Admin dashboard key protected | ✅ `?admin=KEY` required on prod |
+| 2026-06-17 | Real athlete usage + observation window | ⏳ Waiting on you |
+| 2026-06-17 | FKH original videos (0 filmed) | ⏳ Content production |
+| 2026-06-17 | Calendar Tier 3 | ⏳ Deferred |
+| 2026-06-17 | RLS hardening before 100 users | ⏳ Before scale |
 
 ---
 
 *Created: 2026-05-30*  
-*Last updated: 2026-06-16*  
-*Next action: Complete Supabase checklist sections A → E*
+*Last updated: 2026-06-17*  
+*Next action: Run first real athlete session; log qualitative notes below*
