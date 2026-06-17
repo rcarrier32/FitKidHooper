@@ -18,6 +18,17 @@ import {
   pushFromAppState,
   shouldShowPushPrompt,
 } from "./lib/leaderboardApi.js";
+import {
+  THEME_PRESETS,
+  applyThemePreset,
+  getTabHSL,
+  patchTabHSL,
+  brightnessMaxForTab,
+  MAIN_THEME_TABS,
+  ADVANCED_THEME_TABS,
+  tabPreviewLabel,
+  migrateThemeSettings,
+} from "./lib/theme.js";
 
 /* ═══════════════════════════════════════════════════════════════
    SETTINGS & COLOR HELPERS
@@ -26,8 +37,11 @@ const DEFAULT = {
   primaryHue:38, primarySat:92, primaryLight:55,
   secondaryHue:245, secondarySat:80, secondaryLight:60,
   bgHue:222, bgSat:47, bgLight:6,
-  accentHue:158, accentSat:85, accentLight:50,
+  surfaceHue:222, surfaceSat:37, surfaceLight:11,
   buttonHue:222, buttonSat:38, buttonLight:18,
+  textHue:210, textSat:25, textLight:94,
+  accentHue:158, accentSat:85, accentLight:50,
+  customSecondary:false,
   athleteName:"Champ", avatar:null,
   dateOfBirth:null, experience:"beginner", goals:[], playStyle:"any",
   workoutTimers:true,
@@ -170,8 +184,14 @@ const bg   = s => hsl(s.bgHue, s.bgSat, s.bgLight);
 const btn  = s => s.buttonHue !== undefined
   ? hsl(s.buttonHue, s.buttonSat, s.buttonLight)
   : hsl(s.bgHue, Math.max(s.bgSat - 8, 0), Math.min(s.bgLight + 14, 24));
-const surf = s => hsl(s.bgHue, Math.max(s.bgSat-10,0), Math.min(s.bgLight+5,20));
-const nav  = s => hsl(s.bgHue, s.bgSat, Math.max(s.bgLight-1,2));
+const surf = s => s.surfaceHue !== undefined
+  ? hsl(s.surfaceHue, s.surfaceSat, s.surfaceLight)
+  : hsl(s.bgHue, Math.max(s.bgSat-10,0), Math.min(s.bgLight+5,20));
+const nav  = s => s.surfaceHue !== undefined
+  ? hsl(s.surfaceHue, s.surfaceSat, Math.max(s.surfaceLight-1,2))
+  : hsl(s.bgHue, s.bgSat, Math.max(s.bgLight-1,2));
+const textPri   = s => hsl(s.textHue ?? 210, s.textSat ?? 25, s.textLight ?? 94);
+const textMuted = s => hsl(s.textHue ?? 210, Math.max((s.textSat ?? 25)-10,0), Math.max((s.textLight ?? 94)-30,52));
 const str3 = s => s.accentHue !== undefined ? hsl(s.accentHue, s.accentSat, s.accentLight) : hsl((s.primaryHue+120)%360, Math.min(s.primarySat+5,100), Math.max(s.primaryLight,50));
 
 /** Idle vs selected chip/button surfaces (settings toggles, template pills, tabs). */
@@ -180,17 +200,12 @@ function chipStyle(settings, selected, accent) {
   const b = btn(settings);
   return selected
     ? { background:`${a}20`, border:`1.5px solid ${a}`, color:a }
-    : { background:`${b}2e`, border:`1.5px solid ${b}66`, color:"#94a3b8" };
+    : { background:`${b}2e`, border:`1.5px solid ${b}66`, color:textMuted(settings) };
 }
 
 function actionBtnStyle(settings) {
   const b = btn(settings);
-  return { background:`${b}2e`, border:`1px solid ${b}66`, color:"#94a3b8" };
-}
-
-/** Button surface color derived from a preset background swatch. */
-function presetButtonHSL(bgHSL) {
-  return [bgHSL[0], Math.max(bgHSL[1] - 6, 0), Math.min(bgHSL[2] + 12, 28)];
+  return { background:`${b}2e`, border:`1px solid ${b}66`, color:textMuted(settings) };
 }
 
 /** Parse "#rrggbb" (or "#rgb") → {h,s,l} in [0,360]/[0,100]/[0,100], or null if invalid. */
@@ -3629,23 +3644,42 @@ function GradientSlider({ value, min, max, gradient, accent, onChange }) {
   );
 }
 
-/* ═══════════════════════ SETTINGS SHEET ═══════════════════════ */
-const PRESETS = [
-  { label:"Amber + Indigo", p:[38,92,55],  s:[245,80,60], b:[222,47,6],  a:[158,85,50] },
-  { label:"Red + Blue",     p:[0,90,55],   s:[210,88,55], b:[220,50,5],  a:[120,80,45] },
-  { label:"Green + Purple", p:[145,75,45], s:[280,70,62], b:[230,45,5],  a:[265,80,58] },
-  { label:"Cyan + Orange",  p:[190,85,50], s:[25,95,55],  b:[210,55,5],  a:[310,80,60] },
-  { label:"Pink + Teal",    p:[330,80,60], s:[172,70,45], b:[240,40,6],  a:[90,75,48]  },
-  { label:"Gold + Navy",    p:[45,100,50], s:[220,75,40], b:[215,60,8],  a:[165,80,45] },
-  { label:"Neon + Dark",    p:[120,100,50],s:[285,90,65], b:[140,30,4],  a:[240,85,60] },
-  { label:"Sunset",         p:[20,95,58],  s:[300,75,60], b:[240,35,5],  a:[60,95,55]  },
-];
+function isPWAStandalone() {
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
 
+function isInstallIOS() {
+  const ua = navigator.userAgent;
+  return /iphone|ipad|ipod/i.test(ua) || (/macintosh/i.test(ua) && navigator.maxTouchPoints > 1);
+}
+
+/* ═══════════════════════ SETTINGS SHEET ═══════════════════════ */
 function SettingsSheet({ settings, setSettings, onClose }) {
-  const [tab, setTab] = useState("primary");
+  const [tab, setTab] = useState("accent");
+  const [showAdvancedColors, setShowAdvancedColors] = useState(false);
+  const [guardrailNote, setGuardrailNote] = useState(null);
+  const [installPrompt, setInstallPrompt] = useState(() => window._installPrompt || null);
   const fileRef = useRef(null);
   const importRef = useRef(null);
   const P = pri(settings), S = sec(settings), B = bg(settings), BTN = btn(settings), A = str3(settings);
+  const SURF = surf(settings), TXT = textPri(settings);
+  const appInstalled = isPWAStandalone();
+  const installIOS = isInstallIOS();
+
+  useEffect(() => {
+    const handler = () => setInstallPrompt(window._installPrompt || null);
+    window.addEventListener('installpromptready', handler);
+    return () => window.removeEventListener('installpromptready', handler);
+  }, []);
+
+  const handleInstall = async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    window._installPrompt = null;
+    setInstallPrompt(null);
+    if (outcome === 'accepted') localStorage.setItem('fkh-install-dismissed', '1');
+  };
 
   // Escape key closes the sheet
   useEffect(() => {
@@ -3681,20 +3715,30 @@ function SettingsSheet({ settings, setSettings, onClose }) {
     reader.readAsText(file);
   };
 
-  const cur = tab==="primary"   ? { h:settings.primaryHue,   s:settings.primarySat,   l:settings.primaryLight }
-            : tab==="secondary" ? { h:settings.secondaryHue, s:settings.secondarySat, l:settings.secondaryLight }
-            : tab==="accent"    ? { h:settings.accentHue,    s:settings.accentSat,    l:settings.accentLight }
-            : tab==="button"    ? { h:settings.buttonHue ?? DEFAULT.buttonHue, s:settings.buttonSat ?? DEFAULT.buttonSat, l:settings.buttonLight ?? DEFAULT.buttonLight }
-            :                     { h:settings.bgHue,        s:settings.bgSat,        l:settings.bgLight };
+  const cur = getTabHSL(settings, tab);
 
-  // tab is one of primary|secondary|accent|bg, which matches the field prefixes.
-  const setHS  = (h,s)   => setSettings(p => ({...p,[`${tab}Hue`]:h, [`${tab}Sat`]:s}));
-  const setL   = l       => setSettings(p => ({...p,[`${tab}Light`]:l}));
-  const setHSL = (h,s,l) => setSettings(p => ({...p,[`${tab}Hue`]:h, [`${tab}Sat`]:s, [`${tab}Light`]:l}));
+  const applyHSL = (h, s, l) => {
+    const { patch, adjusted } = patchTabHSL(settings, tab, h, s, l);
+    setSettings(p => ({ ...p, ...patch }));
+    setGuardrailNote(adjusted ? "Adjusted slightly for readability" : null);
+  };
+  const setHS  = (h, s)   => applyHSL(h, s, cur.l);
+  const setL   = l        => applyHSL(cur.h, cur.s, l);
+  const setHSL = (h, s, l) => applyHSL(h, s, l);
 
   const activeCol = hsl(cur.h, cur.s, cur.l);
-  const briMax = tab==="bg" ? 25 : tab==="button" ? 40 : 75;
+  const briMax = brightnessMaxForTab(tab);
   const clampL = l => Math.max(2, Math.min(l, briMax));
+
+  const tabColor = id => {
+    if (id === "accent") return P;
+    if (id === "bg") return B;
+    if (id === "surface") return SURF;
+    if (id === "button") return BTN;
+    if (id === "text") return TXT;
+    if (id === "secondary") return S;
+    return A;
+  };
 
   // Hex field: a local draft so partial/invalid input doesn't fight the store;
   // commits live whenever the text parses to a valid color.
@@ -3860,34 +3904,56 @@ function SettingsSheet({ settings, setSettings, onClose }) {
 
         {/* Colors */}
         <div style={{ padding:"0 20px" }}>
-          <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:"#334155",marginBottom:12,textTransform:"uppercase" }}>App Colors</div>
-          <div style={{ display:"flex",flexWrap:"wrap",gap:6,marginBottom:14 }}>
-            {PRESETS.map(pr2 => {
-              const bt = presetButtonHSL(pr2.b);
-              return (
-              <button key={pr2.label} onClick={()=>setSettings(p=>({...p,
-                primaryHue:pr2.p[0],primarySat:pr2.p[1],primaryLight:pr2.p[2],
-                secondaryHue:pr2.s[0],secondarySat:pr2.s[1],secondaryLight:pr2.s[2],
-                bgHue:pr2.b[0],bgSat:pr2.b[1],bgLight:pr2.b[2],
-                accentHue:pr2.a[0],accentSat:pr2.a[1],accentLight:pr2.a[2],
-                buttonHue:bt[0],buttonSat:bt[1],buttonLight:bt[2],
-              }))} style={{ display:"flex",alignItems:"center",gap:3,padding:"5px 10px",borderRadius:20,cursor:"pointer",...actionBtnStyle(settings) }}>
-                {[pr2.p,pr2.s,pr2.b,hsl(bt[0],bt[1],bt[2])].map((c,i)=>(
-                  <span key={i} style={{ width:10,height:10,borderRadius:"50%",background:typeof c==="string"?c:hsl(c[0],c[1],c[2]),display:"inline-block",marginLeft:i?-3:0,border:"2px solid #0d1526" }}/>
-                ))}
-                <span style={{ fontSize:11,color:"#94a3b8",marginLeft:4 }}>{pr2.label}</span>
-              </button>
-            );})}
+          <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:"#334155",marginBottom:8,textTransform:"uppercase" }}>App Colors</div>
+          <div style={{ fontSize:11,color:"#64748b",marginBottom:12,lineHeight:1.45 }}>
+            Pick a team vibe, then fine-tune. Accent stays bold; text and surfaces auto-guard for readability.
           </div>
           <div style={{ display:"flex",flexWrap:"wrap",gap:6,marginBottom:14 }}>
-            {[["primary","Primary",P],["secondary","Secondary",S],["accent","Strength",A],["button","Buttons",BTN],["bg","Background",B]].map(([id,lbl,col])=>(
-              <button key={id} onClick={()=>setTab(id)} style={{ flex:"1 1 30%",padding:"9px 6px",borderRadius:10,fontSize:11,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:5,
-                background:tab===id?`${col}20`:`${BTN}24`,border:`1px solid ${tab===id?col:`${BTN}66`}`,color:tab===id?col:"#94a3b8" }}>
-                <span style={{ width:10,height:10,borderRadius:"50%",background:col,display:"inline-block",flexShrink:0 }}/>
+            {THEME_PRESETS.map(pr2 => (
+              <button key={pr2.id} onClick={()=>{
+                setSettings(p => ({ ...p, ...applyThemePreset(pr2) }));
+                setGuardrailNote(null);
+              }} style={{ display:"flex",alignItems:"center",gap:5,padding:"6px 11px",borderRadius:20,cursor:"pointer",...actionBtnStyle(settings) }}>
+                {[pr2.colors.accent, pr2.colors.bg, pr2.colors.surface, pr2.colors.button].map((c, i) => (
+                  <span key={i} style={{ width:10,height:10,borderRadius:"50%",background:hsl(c[0],c[1],c[2]),display:"inline-block",marginLeft:i?-3:0,border:"2px solid #0d1526" }}/>
+                ))}
+                <span style={{ fontSize:11,color:textMuted(settings),marginLeft:2,fontWeight:600 }}>{pr2.label}</span>
+              </button>
+            ))}
+          </div>
+          <div style={{ display:"flex",flexWrap:"wrap",gap:6,marginBottom:10 }}>
+            {MAIN_THEME_TABS.map(([id, lbl]) => (
+              <button key={id} onClick={()=>{ setTab(id); setGuardrailNote(null); }}
+                style={{ flex:"1 1 30%",padding:"9px 6px",borderRadius:10,fontSize:11,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:5,
+                  background:tab===id?`${tabColor(id)}20`:`${BTN}24`,border:`1px solid ${tab===id?tabColor(id):`${BTN}66`}`,color:tab===id?tabColor(id):textMuted(settings) }}>
+                <span style={{ width:10,height:10,borderRadius:"50%",background:tabColor(id),display:"inline-block",flexShrink:0 }}/>
                 {lbl}
               </button>
             ))}
           </div>
+          <button type="button" onClick={()=>setShowAdvancedColors(v=>!v)}
+            style={{ width:"100%",padding:"8px 10px",marginBottom:10,borderRadius:10,cursor:"pointer",fontSize:11,fontWeight:600,
+              background:"transparent",border:`1px solid ${BTN}44`,color:textMuted(settings),textAlign:"left" }}>
+            {showAdvancedColors ? "▾" : "▸"} Advanced colors
+            <span style={{ fontSize:10,color:"#475569",marginLeft:6 }}>Secondary accent · Strength category</span>
+          </button>
+          {showAdvancedColors && (
+            <div style={{ display:"flex",flexWrap:"wrap",gap:6,marginBottom:10 }}>
+              {ADVANCED_THEME_TABS.map(([id, lbl]) => (
+                <button key={id} onClick={()=>{ setTab(id); setGuardrailNote(null); }}
+                  style={{ flex:"1 1 45%",padding:"9px 6px",borderRadius:10,fontSize:11,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:5,
+                    background:tab===id?`${tabColor(id)}20`:`${BTN}24`,border:`1px solid ${tab===id?tabColor(id):`${BTN}66`}`,color:tab===id?tabColor(id):textMuted(settings) }}>
+                  <span style={{ width:10,height:10,borderRadius:"50%",background:tabColor(id),display:"inline-block",flexShrink:0 }}/>
+                  {lbl}
+                </button>
+              ))}
+            </div>
+          )}
+          {guardrailNote && (
+            <div style={{ fontSize:10,color:"#fbbf24",marginBottom:10,padding:"6px 10px",borderRadius:8,background:"rgba(251,191,36,0.08)",border:"1px solid rgba(251,191,36,0.2)" }}>
+              {guardrailNote}
+            </div>
+          )}
           <div style={{ display:"flex",gap:16,alignItems:"flex-start",marginBottom:18 }}>
             <ColorWheel hue={cur.h} sat={cur.s} light={cur.l} onChange={setHS} size={168}/>
             <div style={{ flex:1,display:"flex",flexDirection:"column",gap:13 }}>
@@ -3918,13 +3984,18 @@ function SettingsSheet({ settings, setSettings, onClose }) {
                   )}
                 </div>
               </div>
-              <div style={{ height:32,borderRadius:10,background:activeCol,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:"rgba(0,0,0,0.55)" }}>
-                {tab==="primary"?"Primary":tab==="secondary"?"Secondary":tab==="accent"?"Strength Accent":tab==="button"?"Buttons":"Background"}
+              <div style={{ height:32,borderRadius:10,background:activeCol,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:contrastOn(activeCol) }}>
+                {tabPreviewLabel(tab)}
               </div>
               <div style={{ display:"flex",alignItems:"center",gap:4 }}>
-                {[P,S,A,BTN,B].map((col,i)=>(<div key={i} style={{ width:22,height:22,borderRadius:"50%",background:col,border:"2px solid #0d1526",marginLeft:i?-6:0 }}/>))}
+                {[P, SURF, BTN, TXT, B].map((col,i)=>(<div key={i} style={{ width:22,height:22,borderRadius:"50%",background:col,border:"2px solid #0d1526",marginLeft:i?-6:0 }}/>))}
                 <span style={{ fontSize:10,color:"#334155",marginLeft:8 }}>Live palette</span>
               </div>
+              {tab === "accent" && !settings.customSecondary && (
+                <div style={{ fontSize:10,color:"#475569",lineHeight:1.4 }}>
+                  Secondary accent auto-pairs with Accent. Open Advanced to customize.
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -3951,6 +4022,36 @@ function SettingsSheet({ settings, setSettings, onClose }) {
               : "Not pushed yet — open Ranks tab to share stats"}
             {!isLeaderboardConfigured() && " · Supabase env vars needed for live rankings"}
           </p>
+        </div>
+
+        <div style={{ padding:"0 20px 16px" }}>
+          <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:"#334155",marginBottom:12,textTransform:"uppercase" }}>App</div>
+          {appInstalled ? (
+            <div style={{ padding:"12px 14px",borderRadius:12,...chipStyle(settings, true, P) }}>
+              <div style={{ fontSize:13,fontWeight:700,color:P }}>✓ Installed on Home Screen</div>
+              <p style={{ fontSize:11,color:"#64748b",margin:"6px 0 0",lineHeight:1.5 }}>You're using the full app experience.</p>
+            </div>
+          ) : (
+            <div style={{ padding:"12px 14px",borderRadius:12,...actionBtnStyle(settings) }}>
+              <div style={{ fontSize:13,fontWeight:700,color:P,marginBottom:6 }}>📲 Install on Home Screen</div>
+              <p style={{ fontSize:11,color:"#94a3b8",lineHeight:1.5,margin:"0 0 10px" }}>
+                Opens full-screen, loads faster, and works offline.
+              </p>
+              {installIOS ? (
+                <p style={{ fontSize:11,color:"#94a3b8",lineHeight:1.5,margin:0 }}>
+                  Tap <span style={{ color:"#e2e8f0",fontWeight:700 }}>Share</span> → <span style={{ color:"#e2e8f0",fontWeight:700 }}>Add to Home Screen</span> in Safari.
+                </p>
+              ) : installPrompt ? (
+                <button onClick={handleInstall} style={{ padding:"8px 16px",borderRadius:20,background:P,border:"none",color:"#000",fontSize:12,fontWeight:800,cursor:"pointer" }}>
+                  Install App
+                </button>
+              ) : (
+                <p style={{ fontSize:11,color:"#94a3b8",lineHeight:1.5,margin:0 }}>
+                  Open your browser menu → <span style={{ color:"#e2e8f0",fontWeight:700 }}>Add to Home Screen</span>.
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         <div style={{ padding:"0 20px 20px" }}>
@@ -3987,11 +4088,11 @@ function HomeCollapsibleSection({ title, hint, open, onToggle, children, labelSt
   return (
     <div style={{ marginBottom: 2 }}>
       <button type="button" onClick={onToggle}
-        style={{ width:"calc(100% - 40px)", margin:"0 20px", padding:"8px 0 6px", border:"none", background:"transparent",
+        style={{ width:"calc(100% - 40px)", margin:"0 20px", padding:"10px 0 8px", border:"none", background:"transparent",
           cursor:"pointer", display:"flex", alignItems:"center", gap:8, textAlign:"left" }}>
         <div style={{ ...labelStyle, marginBottom:0, flex:1 }}>{title}</div>
-        {hint && <span style={{ fontSize:10, color:"#334155", fontWeight:600 }}>{hint}</span>}
-        <span style={{ fontSize:12, color:caretColor, fontWeight:700, flexShrink:0, transform:open ? "rotate(0deg)" : "rotate(-90deg)", transition:"transform 0.2s" }}>▼</span>
+        {hint && <span style={{ fontSize:11, color:"#334155", fontWeight:600 }}>{hint}</span>}
+        <span style={{ fontSize:14, color:caretColor, fontWeight:700, flexShrink:0, transform:open ? "rotate(0deg)" : "rotate(-90deg)", transition:"transform 0.2s" }}>▼</span>
       </button>
       {open && children}
     </div>
@@ -4020,7 +4121,7 @@ function HelpSheet({ P, onClose }) {
     { e:"🔍", d:"Use Search drills on Home to find any exercise by name — crossover, Mikan, plank, and more." },
     { e:"🗓", d:"Open Training Calendar from Profile or Home → Progress & Stats to see your weekly plan and tap any day for drill history." },
     { e:"⚙️", d:"On Profile → Settings you can set your birthday, pick your goals, and change the app colors." },
-    { e:"📲", d:"Add the app to your home screen (browser menu → Add to Home Screen) so it opens like a real app and keeps your progress safe." },
+    { e:"📲", d:"Add the app to your home screen anytime — open ⚙ Settings → Install on Home Screen. On iPhone use Share → Add to Home Screen in Safari." },
     { e:"💾", d:"Everything is saved on this device. To back it up, open ⚙ Settings → Advanced — Data & Backup." },
   ];
   const card = { background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:12,padding:"12px 14px" };
@@ -6803,7 +6904,7 @@ export default function SummerTrainingApp() {
         raw.dateOfBirth = `${year}-06-15`;
       }
       delete raw.athleteAge; // remove stale key regardless
-      return { ...DEFAULT, ...raw };
+      return migrateThemeSettings({ ...DEFAULT, ...raw });
     } catch { return DEFAULT; }
   });
   const [showSettings, setShowSettings] = useState(false);
@@ -7200,6 +7301,7 @@ export default function SummerTrainingApp() {
 
   const bd  = "rgba(255,255,255,0.07)";
   const lbl = { fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:`${P}80`,marginBottom:10,textTransform:"uppercase" };
+  const homeLbl = { fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:"0.16em",color:`${P}80`,marginBottom:10,textTransform:"uppercase" };
   const NAV = [
     {id:"home",     emoji:"🏠",label:"Home"},
     {id:"shots",    emoji:"🏀",label:"Shots"},
@@ -8069,11 +8171,12 @@ export default function SummerTrainingApp() {
             </div>
           </div>
         </div>
-        <div style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:5,marginLeft:12 }}>
-          <div onClick={()=>setView("profile")} style={{ width:56,height:56,borderRadius:"50%",background:`${P}18`,border:`3px solid ${P}`,overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0 }}>
+        <div style={{ display:"flex",flexDirection:"column",alignItems:"flex-start",gap:6,marginLeft:12,flexShrink:0 }}>
+          <button onClick={()=>setShowSettings(true)} aria-label="Settings"
+            style={{ marginLeft:-10,background:`${P}18`,border:`1px solid ${P}40`,borderRadius:8,color:P,fontSize:14,cursor:"pointer",padding:"4px 6px",lineHeight:1 }}>⚙</button>
+          <div onClick={()=>setView("profile")} style={{ width:56,height:56,borderRadius:"50%",background:`${P}18`,border:`3px solid ${P}`,overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer" }}>
             {settings.avatar?<img src={settings.avatar} alt="" style={{ width:"100%",height:"100%",objectFit:"cover" }}/>:<span style={{ fontSize:24 }}>👤</span>}
           </div>
-          <button onClick={()=>setShowSettings(true)} style={{ background:"none",border:"none",color:P,fontSize:17,cursor:"pointer",padding:0 }}>⚙</button>
         </div>
       </div>
 
@@ -8209,7 +8312,7 @@ export default function SummerTrainingApp() {
           hint={missionClaimed ? "complete" : requiredTasksDone ? "ready" : undefined}
           open={homeSections.mission}
           onToggle={() => toggleHomeSection("mission")}
-          labelStyle={lbl}
+          labelStyle={homeLbl}
           accentColor={P}>
         {/* ── DAILY MISSION CARD ─────────────────────────────────── */}
         {(()=>{
@@ -8374,7 +8477,7 @@ export default function SummerTrainingApp() {
               hint={`${pct}% · week ${curWeek}`}
               open={homeSections.activeProgram}
               onToggle={() => toggleHomeSection("activeProgram")}
-              labelStyle={lbl}
+              labelStyle={homeLbl}
               accentColor={P}>
             <div onClick={() => { setView("programs"); setSelectedProgram(activeProg.id); }}
               style={{ margin:"0 20px 12px", borderRadius:14, border:`1px solid ${activeProg.color}44`, background:`${activeProg.color}0c`, padding:"13px 14px", cursor:"pointer" }}>
@@ -8403,7 +8506,7 @@ export default function SummerTrainingApp() {
           hint={quickWorkoutComplete ? "complete" : todaysWorkout ? todaysWorkout.templateName : undefined}
           open={homeSections.workout}
           onToggle={() => toggleHomeSection("workout")}
-          labelStyle={lbl}
+          labelStyle={homeLbl}
           accentColor={P}>
 
         {/* ── WORKOUT TEMPLATE PICKER ─────────────────────────────── */}
@@ -8549,7 +8652,7 @@ export default function SummerTrainingApp() {
               hint={favHint}
               open={homeSections.favorites}
               onToggle={() => toggleHomeSection("favorites")}
-              labelStyle={lbl}
+              labelStyle={homeLbl}
               accentColor={P}>
               {allFavs.length === 0 ? (
                 <div style={{ margin:"0 20px 14px", padding:"14px 16px", borderRadius:12, background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.07)" }}>
@@ -8637,7 +8740,7 @@ export default function SummerTrainingApp() {
               hint={`${streak}d streak`}
               open={homeSections.dashboard}
               onToggle={() => toggleHomeSection("dashboard")}
-              labelStyle={lbl}
+              labelStyle={homeLbl}
               accentColor={P}>
 
               {/* Quick Stats — streak + shot challenge */}
@@ -8775,7 +8878,7 @@ export default function SummerTrainingApp() {
           title="Training Modules"
           open={homeSections.modules}
           onToggle={() => toggleHomeSection("modules")}
-          labelStyle={lbl}
+          labelStyle={homeLbl}
           accentColor={P}>
         <div style={{ padding:"0 20px 14px" }}>
           <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10 }}>
@@ -8812,7 +8915,7 @@ export default function SummerTrainingApp() {
               title={`${prof.emoji} ${prof.label} Spotlight`}
               open={homeSections.spotlight}
               onToggle={() => toggleHomeSection("spotlight")}
-              labelStyle={{ ...lbl, color:`${posColor}99` }}
+              labelStyle={{ ...homeLbl, color:`${posColor}99` }}
               accentColor={posColor}>
             <div style={{ padding:"0 20px 16px" }}>
               <div style={{ display:"flex",alignItems:"center",justifyContent:"flex-end",marginBottom:8 }}>
