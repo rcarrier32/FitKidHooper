@@ -3,6 +3,15 @@ import LeaderboardView from "./components/LeaderboardView.jsx";
 import PushStatsPrompt from "./components/PushStatsPrompt.jsx";
 import { getAgeGroup, getAgeGroupLabel } from "./lib/periodStats.js";
 import {
+  readDailyWorkoutStore,
+  getOrCreateWorkout,
+  setSelectedTemplateInStore,
+  applyDayRollover,
+  saveDailyWorkoutStore,
+  isQuickWorkoutCompleteToday,
+} from "./lib/dailyWorkouts.js";
+import { useWakeLock } from "./lib/useWakeLock.js";
+import {
   daysSinceLastPush,
   getLastPushTime,
   isLeaderboardConfigured,
@@ -18,6 +27,7 @@ const DEFAULT = {
   secondaryHue:245, secondarySat:80, secondaryLight:60,
   bgHue:222, bgSat:47, bgLight:6,
   accentHue:158, accentSat:85, accentLight:50,
+  buttonHue:222, buttonSat:38, buttonLight:18,
   athleteName:"Champ", avatar:null,
   dateOfBirth:null, experience:"beginner", goals:[], playStyle:"any",
   workoutTimers:true,
@@ -83,19 +93,41 @@ function countProgramSessionsDone(prog, progProgress) {
   return done;
 }
 
-/** Haptic + short beep for timer alerts (best-effort on mobile). */
-function timerAlert(kind) {
-  try { if (navigator.vibrate) navigator.vibrate(kind==="go"?[80,40,80]:[40]); } catch {}
+/** Haptic + beep + voice for timer alerts (best-effort on mobile). */
+function timerAlert(kind, countValue) {
+  const isBegin = kind === "go" || kind === "begin";
+  try { if (navigator.vibrate) navigator.vibrate(isBegin ? [80,40,80] : [40]); } catch {}
   try {
     const ctx = new (window.AudioContext||window.webkitAudioContext)();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain); gain.connect(ctx.destination);
-    osc.frequency.value = kind==="go" ? 880 : kind==="warn" ? 660 : 520;
+    osc.frequency.value = isBegin ? 880 : kind === "warn" ? 660 : 520;
     gain.gain.value = 0.12;
     osc.start();
-    osc.stop(ctx.currentTime + (kind==="go" ? 0.25 : 0.12));
+    osc.stop(ctx.currentTime + (isBegin ? 0.25 : 0.12));
   } catch {}
+  const speech =
+    kind === "rest" ? "Rest"
+    : isBegin ? "Begin"
+    : kind === "count" ? String(countValue)
+    : null;
+  if (!speech) return;
+  try {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(speech);
+    u.rate = 1.05;
+    u.volume = 1;
+    window.speechSynthesis.speak(u);
+  } catch {}
+}
+
+function announceCountdown(secs, delayMs = 0) {
+  if (secs < 1 || secs > TIMER_WARN_SECS) return;
+  const speak = () => timerAlert("count", secs);
+  if (delayMs > 0) setTimeout(speak, delayMs);
+  else speak();
 }
 
 function fmtTimerSecs(secs) {
@@ -135,9 +167,31 @@ const hsl  = (h,s,l) => {
 const pri  = s => hsl(s.primaryHue,   s.primarySat,   s.primaryLight);
 const sec  = s => hsl(s.secondaryHue, s.secondarySat, s.secondaryLight);
 const bg   = s => hsl(s.bgHue, s.bgSat, s.bgLight);
+const btn  = s => s.buttonHue !== undefined
+  ? hsl(s.buttonHue, s.buttonSat, s.buttonLight)
+  : hsl(s.bgHue, Math.max(s.bgSat - 8, 0), Math.min(s.bgLight + 14, 24));
 const surf = s => hsl(s.bgHue, Math.max(s.bgSat-10,0), Math.min(s.bgLight+5,20));
 const nav  = s => hsl(s.bgHue, s.bgSat, Math.max(s.bgLight-1,2));
 const str3 = s => s.accentHue !== undefined ? hsl(s.accentHue, s.accentSat, s.accentLight) : hsl((s.primaryHue+120)%360, Math.min(s.primarySat+5,100), Math.max(s.primaryLight,50));
+
+/** Idle vs selected chip/button surfaces (settings toggles, template pills, tabs). */
+function chipStyle(settings, selected, accent) {
+  const a = accent || pri(settings);
+  const b = btn(settings);
+  return selected
+    ? { background:`${a}20`, border:`1.5px solid ${a}`, color:a }
+    : { background:`${b}2e`, border:`1.5px solid ${b}66`, color:"#94a3b8" };
+}
+
+function actionBtnStyle(settings) {
+  const b = btn(settings);
+  return { background:`${b}2e`, border:`1px solid ${b}66`, color:"#94a3b8" };
+}
+
+/** Button surface color derived from a preset background swatch. */
+function presetButtonHSL(bgHSL) {
+  return [bgHSL[0], Math.max(bgHSL[1] - 6, 0), Math.min(bgHSL[2] + 12, 28)];
+}
 
 /** Parse "#rrggbb" (or "#rgb") → {h,s,l} in [0,360]/[0,100]/[0,100], or null if invalid. */
 function hexToHsl(hex) {
@@ -158,6 +212,11 @@ function hexToHsl(hex) {
   return { h:Math.round(h)%360, s:Math.round(s*100), l:Math.round(l*100) };
 }
 
+/** Text/icon stroke color that reads on a solid fill (theme-aware). */
+function contrastOn(hex) {
+  const c = hexToHsl(hex);
+  return c && c.l > 52 ? "#000" : "#fff";
+}
 
 /* ═══════════════════════════════════════════════════════════════
    WORKOUT DATA
@@ -2256,6 +2315,81 @@ const ALL_EXERCISES = Object.fromEntries(
   )
 );
 
+const HOME_SECTION_DEFAULTS = {
+  mission: true,
+  activeProgram: true,
+  workout: true,
+  favorites: true,
+  dashboard: false,
+  modules: true,
+  spotlight: false,
+};
+
+function buildCoachMessage(completed, xpData, earnedBadges, programProgress) {
+  const todayKey = new Date().toLocaleDateString("en-CA");
+  const streak = (() => {
+    let s = 0, d = new Date();
+    for (let i = 0; i < 60; i++) {
+      const k = d.toLocaleDateString("en-CA");
+      if (Object.keys(completed).some(c => c.startsWith(k) && completed[c])) { s++; d.setDate(d.getDate() - 1); }
+      else break;
+    }
+    return s;
+  })();
+  const nextLv = LEVELS.find(l => l.xpMin > xpData.total) || null;
+  const xpLeft = nextLv ? nextLv.xpMin - xpData.total : 0;
+  const allUnearned = BADGES_DEF.filter(b => !earnedBadges.includes(b.id))
+    .map(b => { const { cur, target } = getBadgeProgress(b, completed, programProgress); return { ...b, cur, target, pct: cur / target }; })
+    .sort((a, b) => b.pct - a.pct || a.target - b.target);
+  const nextBadge = allUnearned[0] || null;
+  const doneToday = Object.keys(completed).filter(k => k.startsWith(todayKey) && completed[k]).length;
+
+  const bballGapCheck = [
+    { key:"game_handles", label:"Game Handles" }, { key:"footwork_lab", label:"Footwork Lab" },
+    { key:"finishing_school", label:"Finishing School" }, { key:"shooting_lab", label:"Shooting Lab" },
+    { key:"post_moves", label:"Post Moves" }, { key:"basketball_iq", label:"Basketball IQ" },
+  ];
+  let gapCat = null;
+  const nowMs = Date.now();
+  for (const { key, label } of bballGapCheck) {
+    const ids = new Set((WORKOUTS[key] || []).map(e => e.id));
+    const lastMs = Object.keys(completed).filter(k => completed[k] && [...ids].some(id => k.includes(id)))
+      .map(k => new Date(k.split("-").slice(0, 3).join("-") + "T12:00:00").getTime()).sort((a, b) => b - a)[0] || 0;
+    if ((nowMs - lastMs) / 86400000 >= 7) { gapCat = label; break; }
+  }
+
+  const closeChallenge = CHALLENGES_DEF
+    .map(def => { const { cur, target } = getChallengeProgress(def, completed); return { ...def, cur, target, pct: cur / target }; })
+    .filter(c => c.pct < 1 && c.pct >= 0.6).sort((a, b) => b.pct - a.pct)[0] || null;
+
+  const catDoneCount = (keys) => keys.flatMap(k => (WORKOUTS[k] || []).filter(e => Object.keys(completed).some(c => completed[c] && c.includes(e.id)))).length;
+  const handlesDone = catDoneCount(["handles", "game_handles", "ballhandling"]);
+  const shootingDone = catDoneCount(["shooting", "shooting_lab", "shootingdrills"]);
+  let balanceMsg = null;
+  if (handlesDone >= 3 && shootingDone < 2) balanceMsg = "Your ball handling is ahead — get some shooting reps to balance your game. 🎯";
+  else if (shootingDone >= 3 && handlesDone < 2) balanceMsg = "Your shooting is ahead — your weak-hand development needs attention. 🤲";
+
+  if (streak >= 3 && doneToday === 0) return `Keep your ${streak}-day streak alive — train today! 🔥`;
+  if (doneToday === 0 && streak === 0) return "Every champion started at zero. Let's get your first rep in. 🏀";
+  if (nextBadge && nextBadge.target - nextBadge.cur === 1) return `One more and you unlock the ${nextBadge.name} badge! 🏆`;
+  if (nextLv && xpLeft <= 20) return `Only ${xpLeft} XP away from ${nextLv.name}. Finish strong! 🌟`;
+  if (closeChallenge) return `Only ${closeChallenge.target - closeChallenge.cur} more to complete ${closeChallenge.name}. 🎯`;
+  if (gapCat && doneToday === 0) return `You haven't trained ${gapCat} in a week — today's the day. 🏀`;
+  if (balanceMsg) return balanceMsg;
+  if (doneToday >= 3) return `${doneToday} drills today — you're locked in. Keep stacking! 🔥`;
+  if (doneToday >= 1) return "Good start today. One more session makes the difference. 💪";
+  return "Stay consistent. Every rep builds the player you're becoming. 📈";
+}
+
+function searchExercises(query, limit = 12) {
+  const q = query.trim().toLowerCase();
+  if (q.length < 2) return [];
+  return Object.values(ALL_EXERCISES).filter(ex => {
+    const hay = `${ex.name} ${ex.tag || ""} ${ex.desc || ""} ${CATS[ex._cat]?.label || ""} ${ex.trainer || ""}`.toLowerCase();
+    return hay.includes(q);
+  }).slice(0, limit);
+}
+
 /* ═══════════════════════ TRAINING PROGRAMS ═════════════════ */
 
 const PROGRAMS = [
@@ -2483,6 +2617,188 @@ function programCurrentWeek(startDate, duration) {
   return Math.min(duration, Math.max(1, Math.floor(days / 7) + 1));
 }
 
+/** Day index 0–6 within the current program week (0 = week start day). */
+function programWeekDayIndex(startDate, todayStr) {
+  if (!startDate) return 0;
+  const daysSinceStart = Math.floor(
+    (new Date(todayStr + "T12:00:00").getTime() - new Date(startDate + "T00:00:00").getTime()) / 86400000
+  );
+  return ((daysSinceStart % 7) + 7) % 7;
+}
+
+/** Session slot days within a program week — every other day for built-in rest (0, 2, 4…). */
+function programSessionScheduleDays(sessionCount) {
+  return Array.from({ length: sessionCount }, (_, i) => i * 2);
+}
+
+function getProgramSessionCompletionDate(programProgress, program, programId, week, sessionIdx) {
+  const session = program.weeks.find(w => w.week === week)?.sessions[sessionIdx];
+  if (!session || !isProgramSessionComplete(program, programProgress, week, sessionIdx)) return null;
+  const slotData = programProgress?.[programId]?.[programSessionSlot(week, sessionIdx)] || {};
+  let maxDate = null;
+  for (const exId of session.exercises) {
+    const d = slotData[exId];
+    if (!d) return null;
+    if (!maxDate || d > maxDate) maxDate = d;
+  }
+  return maxDate;
+}
+
+function wasProgramSessionCompletedOnDate(programProgress, program, programId, week, todayStr) {
+  const weekData = program.weeks.find(w => w.week === week);
+  if (!weekData) return false;
+  return weekData.sessions.some((_, si) =>
+    getProgramSessionCompletionDate(programProgress, program, programId, week, si) === todayStr
+  );
+}
+
+function formatProgramDayOffset(todayStr, daysUntil) {
+  if (daysUntil <= 0) return "today";
+  if (daysUntil === 1) return "tomorrow";
+  const d = new Date(todayStr + "T12:00:00");
+  d.setDate(d.getDate() + daysUntil);
+  return d.toLocaleDateString("en-US", { weekday:"short" });
+}
+
+/**
+ * Returns the program session due today (if any), respecting rest spacing and one session per day.
+ * null = rest day, week complete, or not yet time for the next session.
+ */
+function findDueProgramSession(program, enrollment, programProgress, todayStr) {
+  const curWeek = programCurrentWeek(enrollment.startDate, program.duration);
+  const weekData = program.weeks.find(w => w.week === curWeek);
+  if (!weekData) return null;
+
+  if (wasProgramSessionCompletedOnDate(programProgress, program, program.id, curWeek, todayStr)) {
+    return null;
+  }
+
+  const weekDay = programWeekDayIndex(enrollment.startDate, todayStr);
+  const scheduleDays = programSessionScheduleDays(weekData.sessions.length);
+
+  for (let si = 0; si < weekData.sessions.length; si++) {
+    if (isProgramSessionComplete(program, programProgress, curWeek, si)) continue;
+
+    const priorsDone = weekData.sessions.slice(0, si).every((_, i) =>
+      isProgramSessionComplete(program, programProgress, curWeek, i));
+    if (!priorsDone) break;
+
+    const scheduledDay = scheduleDays[si] ?? si * 2;
+    if (weekDay < scheduledDay) return null;
+
+    return { session: weekData.sessions[si], sessionIdx: si, week: curWeek };
+  }
+  return null;
+}
+
+/** Status for Active Program widget and schedule messaging. */
+function getActiveProgramScheduleStatus(program, enrollment, programProgress, todayStr) {
+  const curWeek = programCurrentWeek(enrollment.startDate, program.duration);
+  const weekData = program.weeks.find(w => w.week === curWeek);
+  if (!weekData) return { kind:"none" };
+
+  const due = findDueProgramSession(program, enrollment, programProgress, todayStr);
+  if (due) return { kind:"due", ...due };
+
+  const weekComplete = weekData.sessions.every((_, si) =>
+    isProgramSessionComplete(program, programProgress, curWeek, si));
+  if (weekComplete) return { kind:"weekComplete", week: curWeek };
+
+  const weekDay = programWeekDayIndex(enrollment.startDate, todayStr);
+  const scheduleDays = programSessionScheduleDays(weekData.sessions.length);
+
+  if (wasProgramSessionCompletedOnDate(programProgress, program, program.id, curWeek, todayStr)) {
+    for (let si = 0; si < weekData.sessions.length; si++) {
+      if (isProgramSessionComplete(program, programProgress, curWeek, si)) continue;
+      const scheduledDay = scheduleDays[si] ?? si * 2;
+      const daysUntil = Math.max(0, scheduledDay - weekDay);
+      return {
+        kind:"restAfterSession",
+        session: weekData.sessions[si],
+        sessionIdx: si,
+        week: curWeek,
+        opensLabel: formatProgramDayOffset(todayStr, daysUntil),
+      };
+    }
+  }
+
+  for (let si = 0; si < weekData.sessions.length; si++) {
+    if (isProgramSessionComplete(program, programProgress, curWeek, si)) continue;
+    const priorsDone = weekData.sessions.slice(0, si).every((_, i) =>
+      isProgramSessionComplete(program, programProgress, curWeek, i));
+    if (!priorsDone) {
+      return { kind:"due", session: weekData.sessions[si], sessionIdx: si, week: curWeek };
+    }
+    const scheduledDay = scheduleDays[si] ?? si * 2;
+    if (weekDay < scheduledDay) {
+      return {
+        kind:"rest",
+        session: weekData.sessions[si],
+        sessionIdx: si,
+        week: curWeek,
+        opensLabel: formatProgramDayOffset(todayStr, scheduledDay - weekDay),
+      };
+    }
+  }
+
+  return { kind:"weekComplete", week: curWeek };
+}
+
+/** Seven-day program week plan with REST labels on off days (Tier 2). */
+function buildProgramWeekPlan(program, enrollment, programProgress, todayStr) {
+  const curWeek = programCurrentWeek(enrollment.startDate, program.duration);
+  const weekData = program.weeks.find(w => w.week === curWeek);
+  if (!weekData) return null;
+
+  const weekDayToday = programWeekDayIndex(enrollment.startDate, todayStr);
+  const scheduleDays = programSessionScheduleDays(weekData.sessions.length);
+  const dayToSession = Object.fromEntries(scheduleDays.map((d, si) => [d, si]));
+
+  const enrollStart = new Date(enrollment.startDate + "T00:00:00");
+  const daysSinceStart = Math.floor(
+    (new Date(todayStr + "T12:00:00").getTime() - enrollStart.getTime()) / 86400000
+  );
+  const weekStartDayOffset = Math.floor(daysSinceStart / 7) * 7;
+
+  const weekComplete = weekData.sessions.every((_, si) =>
+    isProgramSessionComplete(program, programProgress, curWeek, si));
+
+  const days = [];
+  for (let d = 0; d < 7; d++) {
+    const calDate = new Date(enrollStart);
+    calDate.setDate(calDate.getDate() + weekStartDayOffset + d);
+    const weekdayLabel = calDate.toLocaleDateString("en-US", { weekday:"short" }).slice(0, 3);
+    const isToday = d === weekDayToday;
+
+    if (dayToSession[d] !== undefined) {
+      const si = dayToSession[d];
+      const session = weekData.sessions[si];
+      const done = isProgramSessionComplete(program, programProgress, curWeek, si);
+      days.push({
+        dayIndex: d,
+        weekdayLabel,
+        isToday,
+        kind: done ? "done" : "session",
+        sessionIdx: si,
+        label: done ? "✓" : `S${si + 1}`,
+        title: session.focus,
+        done,
+      });
+    } else {
+      days.push({
+        dayIndex: d,
+        weekdayLabel,
+        isToday,
+        kind: "rest",
+        label: "REST",
+        title: "Rest day",
+      });
+    }
+  }
+
+  return { curWeek, weekComplete, days };
+}
+
 /* ═══════════════════════ PROGRESS REPORT ════════════════════ */
 
 function computePeriodXP(periodEntries) {
@@ -2701,22 +3017,19 @@ function generateDailyMission(todayStr, settings, completed, enrolledPrograms, p
   let task1Cat = null;
   if (activeProg) {
     const enrollment = enrolledPrograms[activeProg.id];
-    const curWeek = programCurrentWeek(enrollment.startDate, activeProg.duration);
-    const weekData = activeProg.weeks.find(w=>w.week===curWeek);
-    const nextSession = weekData?.sessions.find((s, si) =>
-      !isProgramSessionComplete(activeProg, programProgress, curWeek, si));
-    if (nextSession) {
-      const sessionIdx = weekData.sessions.indexOf(nextSession);
-      title = `${activeProg.emoji} ${activeProg.name} — Week ${curWeek}`;
-      task1Cat = ALL_EXERCISES[nextSession.exercises[0]]?._cat || null;
+    const dueSession = findDueProgramSession(activeProg, enrollment, programProgress, todayStr);
+    if (dueSession) {
+      const { session, sessionIdx, week } = dueSession;
+      title = `${activeProg.emoji} ${activeProg.name} — Week ${week}`;
+      task1Cat = ALL_EXERCISES[session.exercises[0]]?._cat || null;
       tasks.push({
         id:"task-prog", type:"program",
-        label:`Finish "${nextSession.focus}" session`,
-        exercises: nextSession.exercises,
-        target: nextSession.exercises.length,
+        label:`Finish "${session.focus}" session`,
+        exercises: session.exercises,
+        target: session.exercises.length,
         required: true,
         programId: activeProg.id,
-        week: curWeek,
+        week,
         sessionIdx,
       });
       bonusXP = 75;
@@ -3102,7 +3415,7 @@ function computeRecommendation(settings, completed, currentTemplate) {
   // Priority 2 — recovery after a hard session
   if (!reasons.length && currentTemplate === "jump") {
     recommendedTemplate = "recovery";
-    reasons.push("You trained explosion today — recovery work tomorrow protects your joints and keeps you fresh.");
+    reasons.push("You trained explosion yesterday — today's recovery work protects your joints and keeps you fresh.");
   }
   if (!reasons.length && currentTemplate === "fullBody") {
     recommendedTemplate = "shooting";
@@ -3118,7 +3431,7 @@ function computeRecommendation(settings, completed, currentTemplate) {
 
   // Priority 4 — streak maintenance
   if (!reasons.length && streak >= 2) {
-    reasons.push(`You're on a ${streak}-day streak — keep the momentum going tomorrow.`);
+    reasons.push(`You're on a ${streak}-day streak — keep the momentum going today.`);
   }
 
   // Priority 5 — goal alignment
@@ -3141,7 +3454,7 @@ function computeRecommendation(settings, completed, currentTemplate) {
       recommendedTemplate = hardOpts[new Date().getDay() % hardOpts.length];
       reasons.push("Consistent, progressive training is how the best get better.");
     } else {
-      reasons.push("A balanced session tomorrow keeps your body developing from every angle.");
+      reasons.push("A balanced session today keeps your body developing from every angle.");
     }
   }
 
@@ -3151,7 +3464,7 @@ function computeRecommendation(settings, completed, currentTemplate) {
     templateName:  tmpl.name,
     templateEmoji: tmpl.emoji,
     templateDesc:  tmpl.desc,
-    reason:        reasons[0] || "Tomorrow is another chance to level up.",
+    reason:        reasons[0] || "Let's level up today.",
   };
 }
 
@@ -3300,7 +3613,7 @@ function SettingsSheet({ settings, setSettings, onClose }) {
   const [tab, setTab] = useState("primary");
   const fileRef = useRef(null);
   const importRef = useRef(null);
-  const P = pri(settings), S = sec(settings), B = bg(settings);
+  const P = pri(settings), S = sec(settings), B = bg(settings), BTN = btn(settings), A = str3(settings);
 
   // Escape key closes the sheet
   useEffect(() => {
@@ -3339,6 +3652,7 @@ function SettingsSheet({ settings, setSettings, onClose }) {
   const cur = tab==="primary"   ? { h:settings.primaryHue,   s:settings.primarySat,   l:settings.primaryLight }
             : tab==="secondary" ? { h:settings.secondaryHue, s:settings.secondarySat, l:settings.secondaryLight }
             : tab==="accent"    ? { h:settings.accentHue,    s:settings.accentSat,    l:settings.accentLight }
+            : tab==="button"    ? { h:settings.buttonHue ?? DEFAULT.buttonHue, s:settings.buttonSat ?? DEFAULT.buttonSat, l:settings.buttonLight ?? DEFAULT.buttonLight }
             :                     { h:settings.bgHue,        s:settings.bgSat,        l:settings.bgLight };
 
   // tab is one of primary|secondary|accent|bg, which matches the field prefixes.
@@ -3347,7 +3661,7 @@ function SettingsSheet({ settings, setSettings, onClose }) {
   const setHSL = (h,s,l) => setSettings(p => ({...p,[`${tab}Hue`]:h, [`${tab}Sat`]:s, [`${tab}Light`]:l}));
 
   const activeCol = hsl(cur.h, cur.s, cur.l);
-  const briMax = tab==="bg" ? 25 : 75;
+  const briMax = tab==="bg" ? 25 : tab==="button" ? 40 : 75;
   const clampL = l => Math.max(2, Math.min(l, briMax));
 
   // Hex field: a local draft so partial/invalid input doesn't fight the store;
@@ -3447,9 +3761,7 @@ function SettingsSheet({ settings, setSettings, onClose }) {
               {[["beginner","🌱 Beginner"],["intermediate","⚡ Intermediate"],["advanced","🔥 Advanced"]].map(([val,lbl])=>(
                 <button key={val} onClick={()=>setSettings(p=>({...p,experience:val}))}
                   style={{ flex:1,padding:"8px 4px",borderRadius:10,fontSize:11,fontWeight:700,cursor:"pointer",
-                    background:settings.experience===val?`${P}20`:"rgba(255,255,255,0.04)",
-                    border:`1.5px solid ${settings.experience===val?P:"rgba(255,255,255,0.1)"}`,
-                    color:settings.experience===val?P:"#64748b" }}>
+                    ...chipStyle(settings, settings.experience===val, P) }}>
                   {lbl}
                 </button>
               ))}
@@ -3489,9 +3801,7 @@ function SettingsSheet({ settings, setSettings, onClose }) {
               {[["guard","🏃 Guard"],["wing","🏀 Wing"],["post","💪 Post"],["any","⭐ Any"]].map(([val,lbl])=>(
                 <button key={val} onClick={()=>setSettings(p=>({...p,playStyle:val}))}
                   style={{ flex:1,padding:"8px 4px",borderRadius:10,fontSize:11,fontWeight:700,cursor:"pointer",
-                    background:settings.playStyle===val?`${P}20`:"rgba(255,255,255,0.04)",
-                    border:`1.5px solid ${settings.playStyle===val?P:"rgba(255,255,255,0.1)"}`,
-                    color:settings.playStyle===val?P:"#64748b" }}>
+                    ...chipStyle(settings, settings.playStyle===val, P) }}>
                   {lbl}
                 </button>
               ))}
@@ -3502,7 +3812,7 @@ function SettingsSheet({ settings, setSettings, onClose }) {
         {/* Workout Timers */}
         <div style={{ padding:"0 20px 16px" }}>
           <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:"#334155",marginBottom:12,textTransform:"uppercase" }}>Workout</div>
-          <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 14px",borderRadius:12,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)" }}>
+          <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 14px",borderRadius:12,...actionBtnStyle(settings) }}>
             <div>
               <div style={{ fontSize:13,fontWeight:700,color:"#e2e8f0",marginBottom:3 }}>⏱ Workout Timers</div>
               <div style={{ fontSize:11,color:"#64748b",lineHeight:1.45 }}>Countdown alerts, rest timers, and set cues during exercises</div>
@@ -3520,21 +3830,27 @@ function SettingsSheet({ settings, setSettings, onClose }) {
         <div style={{ padding:"0 20px" }}>
           <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:"#334155",marginBottom:12,textTransform:"uppercase" }}>App Colors</div>
           <div style={{ display:"flex",flexWrap:"wrap",gap:6,marginBottom:14 }}>
-            {PRESETS.map(pr2 => (
+            {PRESETS.map(pr2 => {
+              const bt = presetButtonHSL(pr2.b);
+              return (
               <button key={pr2.label} onClick={()=>setSettings(p=>({...p,
                 primaryHue:pr2.p[0],primarySat:pr2.p[1],primaryLight:pr2.p[2],
                 secondaryHue:pr2.s[0],secondarySat:pr2.s[1],secondaryLight:pr2.s[2],
                 bgHue:pr2.b[0],bgSat:pr2.b[1],bgLight:pr2.b[2],
                 accentHue:pr2.a[0],accentSat:pr2.a[1],accentLight:pr2.a[2],
-              }))} style={{ display:"flex",alignItems:"center",gap:3,padding:"5px 10px",borderRadius:20,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.09)",cursor:"pointer" }}>
-                {[pr2.p,pr2.s,pr2.b].map((c,i)=>(<span key={i} style={{ width:10,height:10,borderRadius:"50%",background:hsl(c[0],c[1],c[2]),display:"inline-block",marginLeft:i?-3:0,border:"2px solid #0d1526" }}/>))}
-                <span style={{ fontSize:11,color:"#64748b",marginLeft:4 }}>{pr2.label}</span>
+                buttonHue:bt[0],buttonSat:bt[1],buttonLight:bt[2],
+              }))} style={{ display:"flex",alignItems:"center",gap:3,padding:"5px 10px",borderRadius:20,cursor:"pointer",...actionBtnStyle(settings) }}>
+                {[pr2.p,pr2.s,pr2.b,hsl(bt[0],bt[1],bt[2])].map((c,i)=>(
+                  <span key={i} style={{ width:10,height:10,borderRadius:"50%",background:typeof c==="string"?c:hsl(c[0],c[1],c[2]),display:"inline-block",marginLeft:i?-3:0,border:"2px solid #0d1526" }}/>
+                ))}
+                <span style={{ fontSize:11,color:"#94a3b8",marginLeft:4 }}>{pr2.label}</span>
               </button>
-            ))}
+            );})}
           </div>
-          <div style={{ display:"flex",gap:6,marginBottom:14 }}>
-            {[["primary","Primary",P],["secondary","Secondary",S],["accent","Strength",str3(settings)],["bg","Background",B]].map(([id,lbl,col])=>(
-              <button key={id} onClick={()=>setTab(id)} style={{ flex:1,padding:"9px 6px",borderRadius:10,border:`1px solid ${tab===id?col:"rgba(255,255,255,0.1)"}`,background:tab===id?`${col}20`:"transparent",color:tab===id?col:"#64748b",fontSize:11,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:5 }}>
+          <div style={{ display:"flex",flexWrap:"wrap",gap:6,marginBottom:14 }}>
+            {[["primary","Primary",P],["secondary","Secondary",S],["accent","Strength",A],["button","Buttons",BTN],["bg","Background",B]].map(([id,lbl,col])=>(
+              <button key={id} onClick={()=>setTab(id)} style={{ flex:"1 1 30%",padding:"9px 6px",borderRadius:10,fontSize:11,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:5,
+                background:tab===id?`${col}20`:`${BTN}24`,border:`1px solid ${tab===id?col:`${BTN}66`}`,color:tab===id?col:"#94a3b8" }}>
                 <span style={{ width:10,height:10,borderRadius:"50%",background:col,display:"inline-block",flexShrink:0 }}/>
                 {lbl}
               </button>
@@ -3557,12 +3873,11 @@ function SettingsSheet({ settings, setSettings, onClose }) {
                 <div style={{ display:"flex",gap:6,alignItems:"center" }}>
                   <input value={hexDraft} onChange={e=>onHexInput(e.target.value)} spellCheck={false} maxLength={7} aria-label="Hex color"
                     style={{ flex:1,minWidth:0,fontFamily:"'DM Mono',monospace",fontSize:13,letterSpacing:"0.04em",textTransform:"uppercase",
-                      color:"#e2e8f0",background:"rgba(255,255,255,0.05)",borderRadius:8,padding:"8px 10px",outline:"none",
-                      border:`1px solid ${hexToHsl(hexDraft)?"rgba(255,255,255,0.12)":"#ef4444"}` }}/>
+                      color:"#e2e8f0",background:`${BTN}24`,borderRadius:8,padding:"8px 10px",outline:"none",
+                      border:`1px solid ${hexToHsl(hexDraft)?`${BTN}66`:"#ef4444"}` }}/>
                   {typeof window!=="undefined" && window.EyeDropper && (
                     <button onClick={pickEye} aria-label="Pick color from screen" title="Eyedropper"
-                      style={{ width:36,height:36,flexShrink:0,borderRadius:8,border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.05)",
-                        color:"#94a3b8",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center" }}>
+                      style={{ width:36,height:36,flexShrink:0,borderRadius:8,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",...actionBtnStyle(settings) }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="m2 22 1-1h3l9-9"/><path d="M3 21v-3l9-9"/>
                         <path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3l.4.4Z"/>
@@ -3572,10 +3887,10 @@ function SettingsSheet({ settings, setSettings, onClose }) {
                 </div>
               </div>
               <div style={{ height:32,borderRadius:10,background:activeCol,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:"rgba(0,0,0,0.55)" }}>
-                {tab==="primary"?"Primary":tab==="secondary"?"Secondary":tab==="accent"?"Strength Accent":"Background"}
+                {tab==="primary"?"Primary":tab==="secondary"?"Secondary":tab==="accent"?"Strength Accent":tab==="button"?"Buttons":"Background"}
               </div>
               <div style={{ display:"flex",alignItems:"center",gap:4 }}>
-                {[P,S,str3(settings),B].map((col,i)=>(<div key={i} style={{ width:22,height:22,borderRadius:"50%",background:col,border:"2px solid #0d1526",marginLeft:i?-6:0 }}/>))}
+                {[P,S,A,BTN,B].map((col,i)=>(<div key={i} style={{ width:22,height:22,borderRadius:"50%",background:col,border:"2px solid #0d1526",marginLeft:i?-6:0 }}/>))}
                 <span style={{ fontSize:10,color:"#334155",marginLeft:8 }}>Live palette</span>
               </div>
             </div>
@@ -3588,8 +3903,7 @@ function SettingsSheet({ settings, setSettings, onClose }) {
           <button
             onClick={()=>setSettings(p=>({...p,leaderboardSharing:!p.leaderboardSharing}))}
             style={{ width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 14px",borderRadius:12,cursor:"pointer",
-              background:settings.leaderboardSharing?`${P}14`:"rgba(255,255,255,0.04)",
-              border:`1.5px solid ${settings.leaderboardSharing?P:"rgba(255,255,255,0.1)"}` }}>
+              ...(settings.leaderboardSharing ? chipStyle(settings, true, P) : actionBtnStyle(settings)) }}>
             <div style={{ textAlign:"left" }}>
               <div style={{ fontSize:13,fontWeight:700,color:settings.leaderboardSharing?P:"#94a3b8" }}>Share on Leaderboard</div>
               <div style={{ fontSize:10,color:"#64748b",marginTop:3 }}>
@@ -3614,10 +3928,10 @@ function SettingsSheet({ settings, setSettings, onClose }) {
             </summary>
             <div style={{ marginTop:10 }}>
               <div style={{ display:"flex",gap:8,marginBottom:6 }}>
-                <button onClick={exportData} style={{ flex:1,padding:"9px 8px",borderRadius:8,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",color:"#64748b",fontSize:11,fontWeight:600,cursor:"pointer",minHeight:36 }}>
+                <button onClick={exportData} style={{ flex:1,padding:"9px 8px",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer",minHeight:36,...actionBtnStyle(settings) }}>
                   💾 Backup
                 </button>
-                <button onClick={()=>importRef.current?.click()} style={{ flex:1,padding:"9px 8px",borderRadius:8,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",color:"#64748b",fontSize:11,fontWeight:600,cursor:"pointer",minHeight:36 }}>
+                <button onClick={()=>importRef.current?.click()} style={{ flex:1,padding:"9px 8px",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer",minHeight:36,...actionBtnStyle(settings) }}>
                   📂 Restore
                 </button>
               </div>
@@ -3635,6 +3949,22 @@ function SettingsSheet({ settings, setSettings, onClose }) {
 }
 
 /* ═══════════════════════ HELP SHEET ═══════════════════════ */
+/* ═══════════════════════ HOME UI HELPERS ════════════════════ */
+function HomeCollapsibleSection({ title, hint, open, onToggle, children, labelStyle }) {
+  return (
+    <div style={{ marginBottom: 2 }}>
+      <button type="button" onClick={onToggle}
+        style={{ width:"calc(100% - 40px)", margin:"0 20px", padding:"8px 0 6px", border:"none", background:"transparent",
+          cursor:"pointer", display:"flex", alignItems:"center", gap:8, textAlign:"left" }}>
+        <div style={{ ...labelStyle, marginBottom:0, flex:1 }}>{title}</div>
+        {hint && <span style={{ fontSize:10, color:"#334155", fontWeight:600 }}>{hint}</span>}
+        <span style={{ fontSize:10, color:"#475569", flexShrink:0, transform:open ? "rotate(0deg)" : "rotate(-90deg)", transition:"transform 0.2s" }}>▼</span>
+      </button>
+      {open && children}
+    </div>
+  );
+}
+
 function HelpSheet({ P, onClose }) {
   useEffect(() => {
     const h = e => { if (e.key === "Escape") onClose(); };
@@ -3643,17 +3973,19 @@ function HelpSheet({ P, onClose }) {
   }, [onClose]);
 
   const TABS = [
-    { e:"🏀", t:"Log your shots",     d:"On the Shots tab, tap the spot on the court where you shot from, then tap ✓ Made or ✗ Miss. Quick-Tap buttons log layups and free throws fast. Your FG% and make-streak update by themselves." },
+    { e:"🏀", t:"Log your shots",     d:"On the Shots tab, tap a zone on the court — left and right are detected automatically. Enter makes and misses, then log. Quick Tap is for shot types when you are not using the court map." },
     { e:"🎯", t:"Set a weekly goal",  d:"On the Shots tab, tap Set Goal to pick how many makes you want this week. The bar fills as you score — try to beat it before the week runs out!" },
-    { e:"📈", t:"Check your stats",   d:"The History and Stats tabs show how your shooting is trending and which spots on the floor are your hottest." },
+    { e:"📈", t:"Check your stats",   d:"Training History and the Training Calendar (Profile or Home → Progress & Stats) show your streaks, monthly drill log, and weekly plan." },
     { e:"🏠", t:"Do today's workout", d:"Home shows today's workout and a daily mission. Tap any drill for a short video and coaching cues, then check it off when you finish to earn XP." },
     { e:"📋", t:"Follow a program",   d:"Programs are multi-week plans like Jump Higher. Open one, tap Start Program, and follow it session by session — your progress saves on its own, and finishing earns a badge." },
     { e:"🏅", t:"Earn XP & badges",   d:"Training and making shots earns XP and levels you up from Rookie to Elite Hooper. Collect badges on the Badges tab and show them off on your Profile." },
   ];
   const TIPS = [
-    { e:"🧭", d:"Get around with the tabs at the bottom: Home, Shots, Programs, Badges, Ranks, and Profile." },
+    { e:"🧭", d:"Get around with the tabs at the bottom: Home, Shots, Programs, Badges, and Ranks. Tap your avatar on Home for profile and settings." },
     { e:"🏆", d:"Push your stats on the Ranks tab to show up on age-group leaderboards (This Week, Month, YTD, All Time)." },
     { e:"⭐", d:"Tap the star on any drill or program to save it as a favorite." },
+    { e:"🔍", d:"Use Search drills on Home to find any exercise by name — crossover, Mikan, plank, and more." },
+    { e:"🗓", d:"Open Training Calendar from Profile or Home → Progress & Stats to see your weekly plan and tap any day for drill history." },
     { e:"⚙️", d:"On Profile → Settings you can set your birthday, pick your goals, and change the app colors." },
     { e:"📲", d:"Add the app to your home screen (browser menu → Add to Home Screen) so it opens like a real app and keeps your progress safe." },
     { e:"💾", d:"Everything is saved on this device. To back it up, open ⚙ Settings → Advanced — Data & Backup." },
@@ -3788,30 +4120,30 @@ function CourtMap({ priColor, onZoneSelect, lastShot }) {
   // carries a hover <title> for the name.
   const zones = [
     // ── Rim (smallest) ────────────────────────────────────────────
-    {id:"layup",        label:"Layup",        x:113, y:38,  r:11},
-    {id:"block_bank",   label:"Left Block",   x:70,  y:48,  r:8},
-    {id:"block_bank",   label:"Right Block",  x:156, y:48,  r:8},
+    {id:"layup",        label:"Layup",          loc:null, x:113, y:38,  r:11},
+    {id:"block_bank",   label:"Left Block",     loc:"Left Block",     x:70,  y:48,  r:8},
+    {id:"block_bank",   label:"Right Block",    loc:"Right Block",    x:156, y:48,  r:8},
     // ── Mid-range: baseline (short corner, inside the corner-3) ────
-    {id:"mid_baseline", label:"Left Baseline",  x:45,  y:58,  r:9},
-    {id:"mid_baseline", label:"Right Baseline", x:181, y:58,  r:9},
+    {id:"mid_baseline", label:"Left Baseline",  loc:"Left Baseline",  x:45,  y:58,  r:9},
+    {id:"mid_baseline", label:"Right Baseline", loc:"Right Baseline", x:181, y:58,  r:9},
     // ── 3pt: corner (on the corner line, down by the baseline) ────
-    {id:"three_corner", label:"Left Corner",  x:18,  y:48,  r:9},
-    {id:"three_corner", label:"Right Corner", x:208, y:48,  r:9},
+    {id:"three_corner", label:"Left Corner",    loc:"Left Corner",    x:18,  y:48,  r:9},
+    {id:"three_corner", label:"Right Corner",   loc:"Right Corner",   x:208, y:48,  r:9},
     // ── 3pt: wing (up the corner line, mid-height) ────────────────
-    {id:"three_wing",   label:"Left Wing 3",  x:18,  y:96,  r:9},
-    {id:"three_wing",   label:"Right Wing 3", x:208, y:96,  r:9},
+    {id:"three_wing",   label:"Left Wing 3",    loc:"Left Wing",      x:18,  y:96,  r:9},
+    {id:"three_wing",   label:"Right Wing 3",   loc:"Right Wing",     x:208, y:96,  r:9},
     // ── Mid-range: wing (inside the arc, off the sideline) ────────
-    {id:"mid",          label:"Left Wing",    x:48,  y:100, r:9},
-    {id:"mid",          label:"Right Wing",   x:178, y:100, r:9},
+    {id:"mid",          label:"Left Wing",      loc:"Left Wing",      x:48,  y:100, r:9},
+    {id:"mid",          label:"Right Wing",     loc:"Right Wing",     x:178, y:100, r:9},
     // ── Mid-range: elbows + free throw ────────────────────────────
-    {id:"mid_bank",     label:"Left Elbow",   x:74,  y:118, r:9},
-    {id:"mid_bank",     label:"Right Elbow",  x:152, y:118, r:9},
-    {id:"free_throw",   label:"Free Throw",   x:113, y:120, r:11},
+    {id:"mid_bank",     label:"Left Elbow",     loc:"Left Elbow",     x:74,  y:118, r:9},
+    {id:"mid_bank",     label:"Right Elbow",    loc:"Right Elbow",    x:152, y:118, r:9},
+    {id:"free_throw",   label:"Free Throw",     loc:null,             x:113, y:120, r:11},
     // ── 3pt: slot (upper, on the arc toward the top) ──────────────
-    {id:"three_slot",   label:"Left Slot",    x:33,  y:146, r:9},
-    {id:"three_slot",   label:"Right Slot",   x:193, y:146, r:9},
+    {id:"three_slot",   label:"Left Slot",      loc:"Left Slot",      x:33,  y:146, r:9},
+    {id:"three_slot",   label:"Right Slot",     loc:"Right Slot",     x:193, y:146, r:9},
     // ── 3pt: top of the key (arc apex) ────────────────────────────
-    {id:"three_center", label:"Top 3",        x:113, y:166, r:11},
+    {id:"three_center", label:"Top 3",          loc:null,             x:113, y:166, r:11},
   ];
   return (
     <svg viewBox="0 0 226 200" style={{ width:"100%",maxWidth:348,display:"block",margin:"0 auto" }}>
@@ -3828,9 +4160,10 @@ function CourtMap({ priColor, onZoneSelect, lastShot }) {
       <circle cx="113" cy="20" r="1.8" fill={priColor}/>
       <line x1="96" y1="16" x2="130" y2="16" stroke={priColor} strokeWidth="2.5" strokeLinecap="round"/>
       {zones.map((z,i) => {
-        const col = SHOT_COLORS[z.id], hit = lastShot&&lastShot.type===z.id;
+        const col = SHOT_COLORS[z.id];
+        const hit = lastShot && lastShot.type === z.id && (z.loc == null || lastShot.location === z.loc);
         return (
-          <g key={i} onClick={()=>onZoneSelect(z.id)} style={{ cursor:"pointer" }}>
+          <g key={i} onClick={()=>onZoneSelect(z.id, z.loc)} style={{ cursor:"pointer" }}>
             <title>{z.label}</title>
             {/* Label-free marker: translucent disc + colored ring + center dot. */}
             <circle cx={z.x} cy={z.y} r={z.r} fill={hit?col:`${col}30`} stroke={col} strokeWidth={hit?2.5:1.5}/>
@@ -3844,7 +4177,7 @@ function CourtMap({ priColor, onZoneSelect, lastShot }) {
 }
 
 /* ═══════════════════════ SHOT TRACKER ═══════════════════════ */
-function ShotTracker({ P, S, BG, athleteName }) {
+function ShotTracker({ P, S, BG, athleteName, settings }) {
   const [log, setLog] = useState(()=>{ try{return JSON.parse(localStorage.getItem("shot_log_v2")||"{}")}catch{return{}} });
   const [view, setView] = useState("log");
   const [activeType, setActiveType] = useState(null);
@@ -3884,12 +4217,20 @@ function ShotTracker({ P, S, BG, athleteName }) {
 
   const addShot = (tid, loc, made) => logBatch(tid, loc, made?1:0, made?0:1);
 
-  const selectType = tid => {
-    const st = SHOT_TYPES.find(s=>s.id===tid);
+  const selectZone = (tid, courtLoc = undefined) => {
+    const st = SHOT_TYPES.find(s => s.id === tid);
     setActiveType(tid);
-    setActiveLoc(st?.locations ? null : '__noloc__');
-    setShotCount({made:0, missed:0});
+    if (!st?.locations) {
+      setActiveLoc("__noloc__");
+    } else if (courtLoc && st.locations.includes(courtLoc)) {
+      setActiveLoc(courtLoc);
+    } else {
+      setActiveLoc(null);
+    }
+    setShotCount({ made:0, missed:0 });
   };
+
+  const selectType = tid => selectZone(tid);
   const undo = () => { const k=todayKey(); if(!(log[k]?.length)) return; save({...log,[k]:log[k].slice(0,-1)}); setLastShot(null); };
 
   const todayShots = log[todayKey()]||[];
@@ -4060,20 +4401,16 @@ function ShotTracker({ P, S, BG, athleteName }) {
                 <div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>
                   {[50,100,150,200,300,500].map(n=>(
                     <button key={n} onClick={()=>{ saveGoal(n); setEditingGoal(false); }}
-                      style={{ padding:"6px 13px",borderRadius:9,cursor:"pointer",
-                        border:`1px solid ${weekGoal===n?P+"60":"rgba(255,255,255,0.1)"}`,
-                        background:weekGoal===n?`${P}20`:"rgba(255,255,255,0.04)",
-                        color:weekGoal===n?P:"#94a3b8",
-                        fontSize:13,fontWeight:weekGoal===n?800:500,
+                      style={{ padding:"6px 13px",borderRadius:9,cursor:"pointer",fontSize:13,
+                        fontWeight:weekGoal===n?800:500,
                         boxShadow:weekGoal===n?`0 0 8px ${P}40`:"none",
-                        transition:"all 0.15s" }}>
+                        transition:"all 0.15s",
+                        ...chipStyle(settings, weekGoal===n, P) }}>
                       {n}
                     </button>
                   ))}
                   {/* Custom input */}
-                  <div style={{ display:"flex",alignItems:"center",gap:4,
-                    background:"rgba(255,255,255,0.04)",borderRadius:9,
-                    border:"1px solid rgba(255,255,255,0.1)",padding:"0 8px" }}>
+                  <div style={{ display:"flex",alignItems:"center",gap:4,borderRadius:9,padding:"0 8px",...actionBtnStyle(settings) }}>
                     <input
                       type="number" inputMode="numeric" min="1"
                       placeholder="Custom"
@@ -4107,7 +4444,7 @@ function ShotTracker({ P, S, BG, athleteName }) {
       {view==="log" && (
         <div style={{ padding:"14px 16px 0" }}>
           <div style={lbl}>Tap Court Zone to Log</div>
-          <CourtMap priColor={P} onZoneSelect={selectType} lastShot={lastShot}/>
+          <CourtMap priColor={P} onZoneSelect={selectZone} lastShot={lastShot}/>
           {activeType && !activeLoc && (
             <div style={{ background:`${P}10`,border:`1px solid ${P}28`,borderRadius:12,padding:"12px 14px",margin:"12px 0" }}>
               <div style={{ fontSize:12,fontWeight:700,color:P,marginBottom:10 }}>
@@ -5182,7 +5519,7 @@ function BadgesView({ earnedBadges, badgeDates, completed, programProgress={}, P
   );
 }
 
-function ProfileView({ settings, totalXP, xpData, currentLevel, earnedBadges, completed, programProgress, badgeDates, P, S, ST, BG, SF, bd, lbl, onOpenSettings, onViewHistory, onViewBadges, onViewLeaderboard, onPushStats, pushBusy, pushError }) {
+function ProfileView({ settings, totalXP, xpData, currentLevel, earnedBadges, completed, programProgress, badgeDates, P, S, ST, BG, SF, bd, lbl, onOpenSettings, onViewHistory, onViewSchedule, onViewBadges, onViewLeaderboard, onPushStats, pushBusy, pushError }) {
   const nextLevel = LEVELS.find(l=>l.rank===currentLevel.rank+1);
   const xpInLevel  = totalXP - currentLevel.xpMin;
   const xpSpan     = nextLevel ? nextLevel.xpMin - currentLevel.xpMin : 500;
@@ -5271,20 +5608,31 @@ function ProfileView({ settings, totalXP, xpData, currentLevel, earnedBadges, co
 
         {/* Level ladder */}
         <div style={{ display:"flex",gap:4,marginTop:12,justifyContent:"center" }}>
-          {LEVELS.map(l=>(
-            <div key={l.rank} style={{ flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:3 }}>
-              <div style={{ width:28,height:28,borderRadius:"50%",fontSize:14,
-                display:"flex",alignItems:"center",justifyContent:"center",
-                background:totalXP>=l.xpMin?`${P}22`:"rgba(255,255,255,0.04)",
-                border:`2px solid ${totalXP>=l.xpMin?P:"rgba(255,255,255,0.07)"}` }}>
-                {totalXP>=l.xpMin?l.emoji:<span style={{ fontSize:9,color:"#334155" }}>?</span>}
+          {LEVELS.map(l=>{
+            const earned = totalXP >= l.xpMin;
+            const isCurrent = l.rank === currentLevel.rank;
+            const fill = isCurrent ? `linear-gradient(135deg,${P},${ST})` : P;
+            const ring = contrastOn(P);
+            return (
+              <div key={l.rank} style={{ flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:3 }}>
+                <div style={{ width:28,height:28,borderRadius:"50%",fontSize:14,
+                  display:"flex",alignItems:"center",justifyContent:"center",
+                  background:earned?fill:"rgba(255,255,255,0.04)",
+                  border:earned
+                    ? `2px solid ${isCurrent?ring:`${ring}55`}`
+                    : "2px solid rgba(255,255,255,0.07)",
+                  boxShadow:earned
+                    ? (isCurrent?`0 0 10px ${P}55`:`inset 0 0 0 1px ${ring}22`)
+                    : undefined }}>
+                  {earned?l.emoji:<span style={{ fontSize:9,color:"#334155" }}>?</span>}
+                </div>
+                <div style={{ fontSize:7,color:earned?P:"#334155",textAlign:"center",fontWeight:isCurrent?800:400,
+                  fontFamily:"'DM Mono',monospace",letterSpacing:"0.03em",lineHeight:1.2 }}>
+                  {l.name.split(" ").map((w,i)=><div key={i}>{w}</div>)}
+                </div>
               </div>
-              <div style={{ fontSize:7,color:totalXP>=l.xpMin?P:"#334155",textAlign:"center",
-                fontFamily:"'DM Mono',monospace",letterSpacing:"0.03em",lineHeight:1.2 }}>
-                {l.name.split(" ").map((w,i)=><div key={i}>{w}</div>)}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -5433,8 +5781,13 @@ function ProfileView({ settings, totalXP, xpData, currentLevel, earnedBadges, co
         </button>
         <button onClick={onViewHistory}
           style={{ marginTop:10, padding:"12px 28px", borderRadius:12, fontSize:13, fontWeight:700,
-            cursor:"pointer", background:`${P}14`, border:`1px solid ${P}30`, color:P, display:"block", margin:"10px auto 0" }}>
+            cursor:"pointer", background:`${P}14`, border:`1px solid ${P}30`, color:P, display:"block", margin:"10px auto 0", width:"100%", maxWidth:280 }}>
           📊 Training History
+        </button>
+        <button onClick={onViewSchedule}
+          style={{ marginTop:10, padding:"12px 28px", borderRadius:12, fontSize:13, fontWeight:700,
+            cursor:"pointer", background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", color:"#94a3b8", display:"block", margin:"10px auto 0", width:"100%", maxWidth:280 }}>
+          🗓 Training Calendar
         </button>
       </div>
     </div>
@@ -5456,7 +5809,7 @@ function ExerciseSetTracker({
   const [activeSetIdx, setActiveSetIdx] = useState(null);
   const [liveReps, setLiveReps] = useState(0);
   const liveRepsRef = useRef(0);
-  const warnedRef = useRef({ fifteen:false, five:false });
+  const warnedRef = useRef({ fifteen:false });
   const phaseRef = useRef(null);
   const setIdxRef = useRef(null);
 
@@ -5484,8 +5837,9 @@ function ExerciseSetTracker({
       setActiveSetIdx(idx);
       setTimerPhase("rest");
       setTimerSecs(restSecs);
-      warnedRef.current = { fifteen:false, five:false };
+      warnedRef.current = { fifteen:false };
       timerAlert("rest");
+      announceCountdown(restSecs, restSecs <= TIMER_WARN_SECS ? 900 : 0);
     } else {
       stopTimer();
     }
@@ -5501,24 +5855,25 @@ function ExerciseSetTracker({
         const idx = setIdxRef.current;
 
         if (phase === "prep") {
+          if (next >= 1 && next <= TIMER_WARN_SECS) timerAlert("count", next);
           if (next <= 0) {
-            timerAlert("go");
+            timerAlert("begin");
             if (prescription.type === "time") {
               const workDur = prescription.value || 30;
               phaseRef.current = "work";
               setTimerPhase("work");
               setLiveReps(0);
               liveRepsRef.current = 0;
+              announceCountdown(workDur, workDur <= TIMER_WARN_SECS ? 900 : 0);
               return workDur;
             }
             stopTimer();
             return 0;
           }
-          if (next === 1) timerAlert("tick");
           return next;
         }
         if (phase === "work") {
-          if (next === TIMER_WARN_SECS) timerAlert("warn");
+          if (next >= 1 && next <= TIMER_WARN_SECS) timerAlert("count", next);
           if (next <= 0) {
             completeSet(idx, liveRepsRef.current);
             return 0;
@@ -5530,20 +5885,20 @@ function ExerciseSetTracker({
             warnedRef.current.fifteen = true;
             timerAlert("warn");
           }
-          if (next === TIMER_WARN_SECS && !warnedRef.current.five) {
-            warnedRef.current.five = true;
-            timerAlert("warn");
-          }
+          if (next >= 1 && next <= TIMER_WARN_SECS) timerAlert("count", next);
           if (next <= 0) {
             const nextIdx = idx + 1;
-            if (timersEnabled) {
-              phaseRef.current = "prep";
+            timerAlert("begin");
+            if (timersEnabled && prescription.type === "time") {
+              const workDur = prescription.value || 30;
+              phaseRef.current = "work";
               setIdxRef.current = nextIdx;
               setActiveSetIdx(nextIdx);
-              setTimerPhase("prep");
-              setTimerSecs(TIMER_PREP_SECS);
-              timerAlert("tick");
-              return TIMER_PREP_SECS;
+              setTimerPhase("work");
+              setLiveReps(0);
+              liveRepsRef.current = 0;
+              announceCountdown(workDur, workDur <= TIMER_WARN_SECS ? 900 : 0);
+              return workDur;
             }
             stopTimer();
             return 0;
@@ -5573,7 +5928,7 @@ function ExerciseSetTracker({
     phaseRef.current = "prep";
     setTimerPhase("prep");
     setTimerSecs(TIMER_PREP_SECS);
-    timerAlert("tick");
+    announceCountdown(TIMER_PREP_SECS);
   };
 
   const toggleRepSet = idx => {
@@ -5592,8 +5947,9 @@ function ExerciseSetTracker({
         phaseRef.current = "rest";
         setTimerPhase("rest");
         setTimerSecs(restSecs);
-        warnedRef.current = { fifteen:false, five:false };
+        warnedRef.current = { fifteen:false };
         timerAlert("rest");
+        announceCountdown(restSecs, restSecs <= TIMER_WARN_SECS ? 900 : 0);
       }
     }
   };
@@ -5711,6 +6067,8 @@ function ExerciseSetTracker({
 /* ═══════════════════════ EXERCISE DETAIL SHEET ════════════ */
 function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onToggle, onClose, onNext, completed, favored, onToggleFav, navLabel,
   programContext, setLog, onSetLogChange, maxRepsMap, onMaxRepsChange, settings, today }) {
+  useWakeLock(true);
+
   const meta      = exercise.meta || {};
   const cat       = exercise._cat || "speed";
   const catInfo   = CATS[cat] || { label:cat, emoji:"⚡" };
@@ -6450,6 +6808,23 @@ export default function SummerTrainingApp() {
   const [pushBusy, setPushBusy] = useState(false);
   const [pushError, setPushError] = useState(null);
   const [pushPromptHidden, setPushPromptHidden] = useState(false);
+  const [exerciseSearch, setExerciseSearch] = useState("");
+  const [homeSections, setHomeSections] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("fkh-home-sections") || "{}");
+      return { ...HOME_SECTION_DEFAULTS, ...saved };
+    } catch { return { ...HOME_SECTION_DEFAULTS }; }
+  });
+
+  const toggleHomeSection = useCallback(key => {
+    setHomeSections(prev => ({ ...prev, [key]: !prev[key] }));
+  }, []);
+
+  const openSchedule = useCallback((returnView = "home", tab = "calendar") => {
+    setPrevView(returnView);
+    setSchedTab(tab);
+    setView("schedule");
+  }, []);
 
   const getExerciseCategory = useCallback(exId => (ALL_EXERCISES[exId] || {})._cat, []);
   const showPushBanner = useMemo(
@@ -6519,6 +6894,7 @@ export default function SummerTrainingApp() {
   useEffect(()=>{ try{localStorage.setItem("fkh-programs",JSON.stringify(enrolledPrograms))}catch{} },[enrolledPrograms]);
   useEffect(()=>{ try{localStorage.setItem("fkh-missions",JSON.stringify(missionLog))}catch{} },[missionLog]);
   useEffect(()=>{ try{localStorage.setItem("fkh-favs",JSON.stringify(favorites))}catch{} },[favorites]);
+  useEffect(()=>{ try{localStorage.setItem("fkh-home-sections",JSON.stringify(homeSections))}catch{} },[homeSections]);
 
   const isFav      = (type, id) => !!(favorites[type]||{})[id];
   const toggleFav  = (type, id) => setFavorites(prev=>{
@@ -6528,7 +6904,7 @@ export default function SummerTrainingApp() {
   });
 
   const today = todayKey();
-  const P = pri(settings), S = sec(settings), BG = bg(settings), ST = str3(settings);
+  const P = pri(settings), S = sec(settings), BG = bg(settings), ST = str3(settings), BTN = btn(settings);
   const NV = nav(settings), SF = surf(settings);
 
   const isDone  = id => !!completed[`${today}-${id}`];
@@ -6599,7 +6975,9 @@ export default function SummerTrainingApp() {
 
   /* Workout generator ──────────────────────────────────────────── */
   const defaultTmpl = todayPlan.cats.map(c=>SCHED_TO_TEMPLATE[c]).find(Boolean)||"quickFeet";
+  const workoutStoreRef = useRef(null);
   const [selectedTemplate, setSelectedTemplate] = useState(defaultTmpl);
+  const [coachBasisTemplate, setCoachBasisTemplate] = useState(null);
   const [todaysWorkout, setTodaysWorkout] = useState(null);
 
   const recentExIds = useMemo(()=>{
@@ -6609,20 +6987,102 @@ export default function SummerTrainingApp() {
       .map(k=>k.split("-").slice(3).join("-"));
   },[completed]);
 
-  const refreshWorkout = useCallback(()=>{
-    setTodaysWorkout(generateWorkout(settings, selectedTemplate, recentExIds));
-  },[settings, selectedTemplate, recentExIds]);
+  const loadWorkoutForTemplate = useCallback((templateKey, { forceRegenerate = false } = {}) => {
+    if (!workoutStoreRef.current) {
+      const raw = readDailyWorkoutStore();
+      workoutStoreRef.current = applyDayRollover(raw, today, completed);
+      saveDailyWorkoutStore(workoutStoreRef.current);
+    }
+    const { workout, store } = getOrCreateWorkout({
+      store: workoutStoreRef.current,
+      templateKey,
+      settings,
+      recentExIds,
+      generateWorkout,
+      forceRegenerate,
+    });
+    workoutStoreRef.current = store;
+    setTodaysWorkout(workout);
+    return workout;
+  }, [today, completed, settings, recentExIds]);
 
-  useEffect(()=>{ refreshWorkout(); },[selectedTemplate, settings.dateOfBirth, settings.experience]);
+  // Restore cached workouts on mount — auto-pick coach recommendation on new day
+  const workoutInitRef = useRef(false);
+  useEffect(() => {
+    if (workoutInitRef.current) return;
+    workoutInitRef.current = true;
+    const raw = readDailyWorkoutStore();
+    const didRollover = raw && raw.activeDate !== today;
+    const rolled = applyDayRollover(raw, today, completed);
+    let store = rolled;
+    let tmpl;
 
-  const recommendation = useMemo(()=>
-    computeRecommendation(settings, completed, selectedTemplate),
-  [settings, completed, selectedTemplate]);
+    if (didRollover) {
+      const basis = rolled.coachBasisTemplate || defaultTmpl;
+      const rec = computeRecommendation(settings, completed, basis);
+      tmpl = rec.templateKey;
+      store = setSelectedTemplateInStore(rolled, tmpl);
+    } else {
+      tmpl = rolled.selectedTemplate || defaultTmpl;
+    }
+
+    saveDailyWorkoutStore(store);
+    workoutStoreRef.current = store;
+    setCoachBasisTemplate(store.coachBasisTemplate ?? null);
+    setSelectedTemplate(tmpl);
+    loadWorkoutForTemplate(tmpl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount init only
+  }, []);
+
+  // New calendar day while app is open: apply coach pick and refresh workout
+  useEffect(() => {
+    if (!workoutInitRef.current) return;
+    const prev = workoutStoreRef.current;
+    const rolled = applyDayRollover(prev, today, completed);
+    if (prev && rolled.activeDate !== prev.activeDate) {
+      const basis = rolled.coachBasisTemplate || defaultTmpl;
+      const rec = computeRecommendation(settings, completed, basis);
+      const store = setSelectedTemplateInStore(rolled, rec.templateKey);
+      workoutStoreRef.current = store;
+      saveDailyWorkoutStore(store);
+      setCoachBasisTemplate(store.coachBasisTemplate ?? null);
+      setSelectedTemplate(rec.templateKey);
+      loadWorkoutForTemplate(rec.templateKey);
+    }
+  }, [today, completed, settings, defaultTmpl, loadWorkoutForTemplate]);
+
+  const selectTemplate = useCallback((templateKey) => {
+    setSelectedTemplate(templateKey);
+    if (!workoutStoreRef.current) {
+      const raw = readDailyWorkoutStore();
+      workoutStoreRef.current = applyDayRollover(raw, today, completed);
+    }
+    workoutStoreRef.current = setSelectedTemplateInStore(workoutStoreRef.current, templateKey);
+    loadWorkoutForTemplate(templateKey);
+  }, [today, completed, loadWorkoutForTemplate]);
+
+  const refreshWorkout = useCallback(() => {
+    loadWorkoutForTemplate(selectedTemplate, { forceRegenerate: true });
+  }, [selectedTemplate, loadWorkoutForTemplate]);
+
+  const quickWorkoutComplete = useMemo(
+    () => isQuickWorkoutCompleteToday(todaysWorkout, completed, today),
+    [todaysWorkout, completed, today]
+  );
+
+  const coachRec = useMemo(() =>
+    computeRecommendation(settings, completed, coachBasisTemplate ?? defaultTmpl),
+  [settings, completed, coachBasisTemplate, defaultTmpl]);
 
   /* XP / Level / Badges ──────────────────────────────────── */
   const xpData       = useMemo(()=>computeXP(completed, programProgress, missionLog),[completed, programProgress, missionLog]);
   const currentLevel = useMemo(()=>getLevel(xpData.total),[xpData.total]);
   const earnedBadges = useMemo(()=>getEarnedBadges(completed, programProgress),[completed, programProgress]);
+  const coachMsg = useMemo(
+    () => buildCoachMessage(completed, xpData, earnedBadges, programProgress),
+    [completed, xpData, earnedBadges, programProgress]
+  );
+  const exerciseSearchResults = useMemo(() => searchExercises(exerciseSearch), [exerciseSearch]);
 
   // Detect newly unlocked badges → queue celebration + record dates
   useEffect(()=>{
@@ -6713,7 +7173,6 @@ export default function SummerTrainingApp() {
     {id:"programs", emoji:"📋",label:"Programs"},
     {id:"badges",   emoji:"🏅",label:"Badges"},
     {id:"ranks",    emoji:"🏆",label:"Ranks"},
-    {id:"profile",  emoji:"👤",label:"Profile"},
   ];
 
   const renderBottomNav = () => (
@@ -7039,7 +7498,7 @@ export default function SummerTrainingApp() {
       {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]}
         onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
       {renderMissionOverlays()}
-      <ShotTracker P={P} S={S} BG={BG} athleteName={settings.athleteName}/>
+      <ShotTracker P={P} S={S} BG={BG} athleteName={settings.athleteName} settings={settings}/>
       {renderBottomNav()}
     </div>
   );
@@ -7128,6 +7587,7 @@ export default function SummerTrainingApp() {
         P={P} S={S} ST={ST} BG={BG} SF={SF} bd={bd} lbl={lbl}
         onOpenSettings={()=>setShowSettings(true)}
         onViewHistory={()=>setView("history")}
+        onViewSchedule={()=>openSchedule("profile", "calendar")}
         onViewBadges={()=>setView("badges")}
         onViewLeaderboard={()=>setView("ranks")}
         onPushStats={()=>handlePushStats({ goToRanks: false })}
@@ -7245,8 +7705,9 @@ export default function SummerTrainingApp() {
             {[["7d","7 Days"],["30d","30 Days"],["all","All Time"]].map(([key,label])=>(
               <button key={key} onClick={()=>setReportPeriod(key)}
                 style={{ flex:1,padding:"9px 0",borderRadius:10,fontSize:11,fontWeight:700,cursor:"pointer",border:"none",
-                  background:reportPeriod===key?P:"rgba(255,255,255,0.06)",
-                  color:reportPeriod===key?"#000":"#64748b" }}>
+                  ...(reportPeriod===key
+                    ? { background:P, color:"#000" }
+                    : chipStyle(settings, false, P)) }}>
                 {label}
               </button>
             ))}
@@ -7419,7 +7880,113 @@ export default function SummerTrainingApp() {
     );
   }
 
-  /* HOME / SCHEDULE */
+  /* SCHEDULE / CALENDAR (Tier 1 — expose existing views) */
+  if (view==="schedule") {
+    const scheduleBack = ["home", "profile", "report"].includes(prevView) ? prevView : "home";
+    return (
+      <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"#e2e8f0",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
+        {showSettings&&<SettingsSheet settings={settings} setSettings={setSettings} onClose={()=>setShowSettings(false)}/>}
+        {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]} onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
+        {renderMissionOverlays()}
+        <div style={{ padding:"16px 20px 12px",borderBottom:`1px solid ${P}14`,position:"sticky",top:0,background:BG,backdropFilter:"blur(10px)",zIndex:10 }}>
+          <button onClick={()=>setView(scheduleBack)}
+            style={{ marginBottom:10,padding:"5px 12px",borderRadius:8,border:`1px solid ${P}30`,background:`${P}14`,color:P,fontSize:11,fontWeight:700,cursor:"pointer" }}>
+            ← {scheduleBack==="profile"?"Profile":scheduleBack==="report"?"Progress":"Home"}
+          </button>
+          <h1 style={{ fontSize:20,fontWeight:800,margin:0,color:"#f1f5f9" }}>🗓 Training Calendar</h1>
+          <p style={{ fontSize:12,color:"#64748b",margin:"4px 0 0" }}>Weekly plan & training history</p>
+          <div style={{ display:"flex",gap:8,marginTop:12 }}>
+            {[
+              { id:"week",     label:"📋 This Week" },
+              { id:"calendar", label:"🗓 Calendar"   },
+            ].map(t=>(
+              <button key={t.id} onClick={()=>setSchedTab(t.id)}
+                style={{ flex:1,padding:"9px 0",borderRadius:10,fontSize:12,fontWeight:700,cursor:"pointer",
+                  ...(schedTab===t.id
+                    ? { background:P, border:`1px solid ${P}`, color:"#000" }
+                    : chipStyle(settings, false, P)) }}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {schedTab==="week"&&(
+          <div style={{ padding:"4px 20px 20px" }}>
+            {(() => {
+              const activeProg = PROGRAMS.find(p => enrolledPrograms[p.id]);
+              if (!activeProg) return null;
+              const enrollment = enrolledPrograms[activeProg.id];
+              const weekPlan = buildProgramWeekPlan(activeProg, enrollment, programProgress, today);
+              if (!weekPlan) return null;
+              return (
+                <div style={{ marginBottom:16,padding:"12px 14px",borderRadius:14,background:`${activeProg.color}0c`,border:`1px solid ${activeProg.color}33` }}>
+                  <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:2 }}>
+                    <span style={{ fontSize:16 }}>{activeProg.emoji}</span>
+                    <span style={{ fontSize:12,fontWeight:700,color:"#f1f5f9" }}>{activeProg.name}</span>
+                    <span style={{ fontSize:10,color:activeProg.color,fontWeight:700,marginLeft:"auto" }}>Week {weekPlan.curWeek}</span>
+                  </div>
+                  <ProgramWeekStrip plan={weekPlan} color={activeProg.color} />
+                </div>
+              );
+            })()}
+            <div style={lbl}>General Training Plan</div>
+            {SCHEDULE.map((d,i)=>{
+              const isToday = i===todayIdx;
+              const hasWork = d.cats.length > 0;
+              const dayData = Object.entries(buildCalendarData(completed))
+                .filter(([k])=>{
+                  const date=new Date(k+"T12:00:00");
+                  return date.getDay()===(i+1)%7 && (new Date()-date)<7*86400000;
+                })[0]?.[1];
+              return (
+                <div key={i}
+                  onClick={hasWork?()=>{ setActiveCat(d.cats[0]); setPrevView("schedule"); setView("cat"); }:undefined}
+                  style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:10,
+                    marginBottom:4,
+                    background:isToday?`${P}0e`:"transparent",
+                    border:`1px solid ${isToday?`${P}30`:"transparent"}`,
+                    cursor:hasWork?"pointer":undefined }}>
+                  <div style={{ fontFamily:"'DM Mono',monospace",fontSize:11,
+                    color:isToday?P:`${P}99`,width:32,flexShrink:0,fontWeight:isToday?800:400 }}>
+                    {d.day}
+                  </div>
+                  <div style={{ fontSize:13,color:isToday?P:`${P}dd`,flex:1,fontWeight:600 }}>{d.label}</div>
+                  {dayData?.xp>0&&(
+                    <span style={{ fontSize:9,fontFamily:"'DM Mono',monospace",color:"#22c55e",
+                      background:"rgba(34,197,94,0.1)",border:"1px solid rgba(34,197,94,0.2)",
+                      borderRadius:20,padding:"2px 7px",flexShrink:0 }}>
+                      +{dayData.xp} XP
+                    </span>
+                  )}
+                  {isToday&&!dayData&&<span style={{ fontSize:9,fontWeight:800,color:P,letterSpacing:"0.06em" }}>TODAY</span>}
+                  <div style={{ display:"flex",gap:5 }}>
+                    {d.cats.map(c=>(
+                      <button key={c}
+                        onClick={e=>{ e.stopPropagation(); setActiveCat(c); setPrevView("schedule"); setView("cat"); }}
+                        style={{ fontSize:11,padding:"3px 9px",borderRadius:20,background:catBg(c),
+                          color:catColor(c),border:`1px solid ${catBrd(c)}`,fontWeight:600,cursor:"pointer" }}>
+                        {CATS[c].emoji} {CATS[c].label.split(" ")[0]}
+                      </button>
+                    ))}
+                  </div>
+                  {hasWork&&<span style={{ fontSize:16,color:`${P}80`,flexShrink:0,lineHeight:1 }}>›</span>}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {schedTab==="calendar"&&(
+          <CalendarView completed={completed} P={P} S={S} BG={BG} SF={SF} bd={bd} lbl={lbl}/>
+        )}
+
+        {renderBottomNav()}
+      </div>
+    );
+  }
+
+  /* HOME */
   return (
     <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"#e2e8f0",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
       {showSettings&&<SettingsSheet settings={settings} setSettings={setSettings} onClose={()=>setShowSettings(false)}/>}
@@ -7555,11 +8122,61 @@ export default function SummerTrainingApp() {
 
       {view==="home" && (<>
 
-        {/* ── TODAY'S MISSION (top priority) ──────────────────────── */}
-        <div style={{ padding:"6px 20px 4px" }}>
-          <div style={lbl}>Today's Mission</div>
+        {/* Coach FKH — compact motivational bar */}
+        <div style={{ margin:"8px 20px 10px", padding:"10px 14px", borderRadius:12, background:`${P}0d`, border:`1px solid ${P}22`,
+          display:"flex", alignItems:"flex-start", gap:10 }}>
+          <span style={{ fontSize:16, flexShrink:0, lineHeight:1.4 }}>🏀</span>
+          <div style={{ flex:1, minWidth:0 }}>
+            <span style={{ fontSize:9, fontWeight:800, color:P, letterSpacing:"0.12em", textTransform:"uppercase", marginRight:6 }}>Coach FKH</span>
+            <span style={{ fontSize:12, color:"#cbd5e1", lineHeight:1.5 }}>{coachMsg}</span>
+          </div>
         </div>
 
+        {/* Exercise search */}
+        <div style={{ margin:"0 20px 12px", position:"relative" }}>
+          <span style={{ position:"absolute", left:12, top:12, fontSize:14, pointerEvents:"none", lineHeight:1 }}>🔍</span>
+          <input
+            type="search"
+            value={exerciseSearch}
+            onChange={e => setExerciseSearch(e.target.value)}
+            placeholder="Search drills…"
+            aria-label="Search drills"
+            style={{ width:"100%", padding:"11px 14px 11px 36px", borderRadius:12, border:`1px solid ${bd}`, background:SF,
+              color:"#e2e8f0", fontSize:14, boxSizing:"border-box", outline:"none" }}
+          />
+          {exerciseSearch.trim().length >= 2 && (
+            <div style={{ marginTop:8, borderRadius:12, border:`1px solid ${bd}`, background:NV, overflow:"hidden", maxHeight:280, overflowY:"auto" }}>
+              {exerciseSearchResults.length === 0 ? (
+                <div style={{ padding:"14px", fontSize:12, color:"#64748b", textAlign:"center" }}>
+                  No drills match &ldquo;{exerciseSearch.trim()}&rdquo;
+                </div>
+              ) : exerciseSearchResults.map(ex => {
+                const catInfo = CATS[ex._cat] || { emoji:"🏀", label:ex._cat };
+                const done2 = isDone(ex.id);
+                return (
+                  <button key={ex.id} type="button"
+                    onClick={() => { openDetail({ ...ex }, []); setExerciseSearch(""); }}
+                    style={{ width:"100%", padding:"10px 14px", border:"none", borderBottom:`1px solid ${bd}`, background:"transparent",
+                      cursor:"pointer", textAlign:"left", display:"flex", alignItems:"center", gap:10 }}>
+                    <span style={{ fontSize:16, flexShrink:0 }}>{catInfo.emoji}</span>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:12, fontWeight:700, color:done2 ? "#22c55e" : "#f1f5f9", lineHeight:1.3 }}>{ex.name}</div>
+                      <div style={{ fontSize:10, color:"#64748b", marginTop:2 }}>{catInfo.label} · {ex.sets}</div>
+                    </div>
+                    <span style={{ fontSize:12, color:"#475569", flexShrink:0 }}>{done2 ? "✓" : "›"}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <HomeCollapsibleSection
+          title="Today's Mission"
+          hint={missionClaimed ? "complete" : requiredTasksDone ? "ready" : undefined}
+          open={homeSections.mission}
+          onToggle={() => toggleHomeSection("mission")}
+          labelStyle={lbl}>
         {/* ── DAILY MISSION CARD ─────────────────────────────────── */}
         {(()=>{
           const mission = todayMission;
@@ -7693,6 +8310,65 @@ export default function SummerTrainingApp() {
             </div>
           );
         })()}
+        </HomeCollapsibleSection>
+
+        {/* Active Program — above quick workout */}
+        {(() => {
+          const activeProg = PROGRAMS.find(p => enrolledPrograms[p.id]);
+          if (!activeProg) return null;
+          const enrollment = enrolledPrograms[activeProg.id];
+          const curWeek = programCurrentWeek(enrollment.startDate, activeProg.duration);
+          const pct = Math.round(computeProgramProgress(activeProg, programProgress) * 100);
+          const sched = getActiveProgramScheduleStatus(activeProg, enrollment, programProgress, today);
+          const weekPlan = buildProgramWeekPlan(activeProg, enrollment, programProgress, today);
+          let statusLine = "";
+          let statusColor = activeProg.color;
+          if (sched.kind === "due") {
+            statusLine = `Today: ${sched.session.focus} →`;
+          } else if (sched.kind === "weekComplete") {
+            statusLine = `Week ${sched.week} complete ✓`;
+            statusColor = "#22c55e";
+          } else if (sched.kind === "rest" || sched.kind === "restAfterSession") {
+            statusColor = "#94a3b8";
+            statusLine = sched.opensLabel
+              ? `REST today · ${sched.session.focus} ${sched.opensLabel}`
+              : "REST today";
+          }
+          return (
+            <HomeCollapsibleSection
+              title="Active Program"
+              hint={`${pct}% · week ${curWeek}`}
+              open={homeSections.activeProgram}
+              onToggle={() => toggleHomeSection("activeProgram")}
+              labelStyle={lbl}>
+            <div onClick={() => { setView("programs"); setSelectedProgram(activeProg.id); }}
+              style={{ margin:"0 20px 12px", borderRadius:14, border:`1px solid ${activeProg.color}44`, background:`${activeProg.color}0c`, padding:"13px 14px", cursor:"pointer" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:9 }}>
+                <span style={{ fontSize:18 }}>{activeProg.emoji}</span>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:13, fontWeight:700, color:"#f1f5f9", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{activeProg.name}</div>
+                </div>
+                <span style={{ fontSize:11, fontWeight:700, color:activeProg.color }}>{pct}%</span>
+              </div>
+              <div style={{ height:4, borderRadius:99, background:"rgba(255,255,255,0.08)", marginBottom:8 }}>
+                <div style={{ height:"100%", width:`${pct}%`, borderRadius:99, background:activeProg.color }}/>
+              </div>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                <span style={{ fontSize:11, color:"#64748b" }}>Week {curWeek} of {activeProg.duration}</span>
+                {statusLine && <span style={{ fontSize:11, color:statusColor, fontWeight:600 }}>{statusLine}</span>}
+              </div>
+              {weekPlan && <ProgramWeekStrip plan={weekPlan} color={activeProg.color} />}
+            </div>
+            </HomeCollapsibleSection>
+          );
+        })()}
+
+        <HomeCollapsibleSection
+          title="Quick Workout"
+          hint={quickWorkoutComplete ? "complete" : todaysWorkout ? todaysWorkout.templateName : undefined}
+          open={homeSections.workout}
+          onToggle={() => toggleHomeSection("workout")}
+          labelStyle={lbl}>
 
         {/* ── WORKOUT TEMPLATE PICKER ─────────────────────────────── */}
         <div style={{ position:"relative" }}>
@@ -7700,11 +8376,11 @@ export default function SummerTrainingApp() {
           style={{ display:"flex",gap:7,overflowX:"auto",padding:"0 20px 10px",scrollbarWidth:"none",WebkitOverflowScrolling:"touch" }}>
           {Object.entries(WORKOUT_TEMPLATES).map(([key,tmpl])=>(
             <div key={key} style={{ flexShrink:0,display:"flex",alignItems:"center",gap:3 }}>
-              <button onClick={()=>setSelectedTemplate(key)}
+              <button onClick={()=>selectTemplate(key)}
                 style={{ padding:"7px 13px",borderRadius:20,fontSize:11,fontWeight:700,cursor:"pointer",
-                  background:selectedTemplate===key?P:"rgba(255,255,255,0.05)",
-                  border:`1.5px solid ${selectedTemplate===key?P:"rgba(255,255,255,0.09)"}`,
-                  color:selectedTemplate===key?"#000":"#64748b" }}>
+                  ...(selectedTemplate===key
+                    ? { background:P, border:`1.5px solid ${P}`, color:"#000" }
+                    : chipStyle(settings, false, P)) }}>
                 {tmpl.emoji} {tmpl.name}
               </button>
               <button onClick={()=>toggleFav("workouts",key)}
@@ -7720,16 +8396,34 @@ export default function SummerTrainingApp() {
         </div>
 
         {todaysWorkout ? (
-          <div style={{ margin:"0 20px 14px",borderRadius:16,background:`${P}09`,border:`1px solid ${P}22`,overflow:"hidden" }}>
+          <div style={{ margin:"0 20px 14px",borderRadius:16,overflow:"hidden",
+            background:quickWorkoutComplete?"rgba(34,197,94,0.08)":`${P}09`,
+            border:`1px solid ${quickWorkoutComplete?"rgba(34,197,94,0.28)":`${P}22`}` }}>
             <div style={{ padding:"14px 16px 8px",display:"flex",alignItems:"flex-start",gap:10 }}>
               <span style={{ fontSize:28,lineHeight:1 }}>{todaysWorkout.templateEmoji}</span>
               <div style={{ flex:1,minWidth:0 }}>
-                <div style={{ fontSize:15,fontWeight:800,color:P,lineHeight:1.2 }}>{todaysWorkout.templateName}</div>
-                <div style={{ fontSize:11,color:"#64748b",marginTop:2 }}>{todaysWorkout.templateDesc}</div>
+                <div style={{ fontSize:15,fontWeight:800,color:quickWorkoutComplete?"#22c55e":P,lineHeight:1.2 }}>{todaysWorkout.templateName}</div>
+                <div style={{ fontSize:11,color:quickWorkoutComplete?"#4ade80":"#64748b",marginTop:2 }}>
+                  {quickWorkoutComplete ? "All drills done for today!" : todaysWorkout.templateDesc}
+                </div>
+                {!quickWorkoutComplete && coachRec && selectedTemplate === coachRec.templateKey && (
+                  <div style={{ fontSize:11,color:ST,lineHeight:1.45,marginTop:6,opacity:0.9 }}>
+                    Coach FKH: {coachRec.reason}
+                  </div>
+                )}
               </div>
               <div style={{ textAlign:"right",flexShrink:0 }}>
-                <div style={{ fontSize:22,fontWeight:800,color:P,fontFamily:"'DM Mono',monospace",lineHeight:1 }}>{Math.max(1,Math.round(todaysWorkout.totalSecs/60))}</div>
-                <div style={{ fontSize:9,color:"#475569",letterSpacing:"0.07em" }}>MIN</div>
+                {quickWorkoutComplete ? (
+                  <>
+                    <div style={{ fontSize:22,lineHeight:1 }}>✓</div>
+                    <div style={{ fontSize:9,color:"#22c55e",letterSpacing:"0.07em",fontWeight:800,marginTop:2 }}>DONE</div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ fontSize:22,fontWeight:800,color:P,fontFamily:"'DM Mono',monospace",lineHeight:1 }}>{Math.max(1,Math.round(todaysWorkout.totalSecs/60))}</div>
+                    <div style={{ fontSize:9,color:"#475569",letterSpacing:"0.07em" }}>MIN</div>
+                  </>
+                )}
               </div>
             </div>
             <div style={{ padding:"4px 12px 10px" }}>
@@ -7760,15 +8454,41 @@ export default function SummerTrainingApp() {
                 );
               })}
             </div>
-            <div style={{ padding:"8px 14px 14px",borderTop:"1px solid rgba(255,255,255,0.05)",display:"flex",gap:8 }}>
-              <button onClick={()=>{ const first=todaysWorkout.exercises[0]; if(first){ setActiveCat(first._cat||"explosion"); setPrevView("home"); setView("cat"); } }}
-                style={{ flex:1,padding:"11px",borderRadius:12,background:P,border:"none",color:"#000",fontSize:13,fontWeight:800,cursor:"pointer" }}>
-                Start Workout →
-              </button>
-              <button onClick={refreshWorkout} title="Shuffle exercises"
-                style={{ padding:"11px 15px",borderRadius:12,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.09)",color:"#64748b",fontSize:16,cursor:"pointer" }}>
-                🔀
-              </button>
+            <div style={{ padding:"8px 14px 14px",borderTop:`1px solid ${quickWorkoutComplete?"rgba(34,197,94,0.12)":"rgba(255,255,255,0.05)"}` }}>
+              {quickWorkoutComplete ? (
+                <>
+                  <div style={{ textAlign:"center",marginBottom:10,fontSize:12,color:"#22c55e",fontWeight:700,lineHeight:1.45 }}>
+                    🎉 Workout complete — {todaysWorkout.exercises.length} drills done! Come back tomorrow for a fresh shuffle.
+                  </div>
+                  <div style={{ display:"flex",gap:8 }}>
+                    <button onClick={()=>{
+                      const exs = todaysWorkout.exercises.map(e=>({ ...e, meta: e.meta || EXERCISE_META[e.id] || {} }));
+                      if (exs[0]) openDetail(exs[0], exs);
+                    }}
+                      style={{ flex:1,padding:"11px",borderRadius:12,background:"rgba(34,197,94,0.12)",border:"1px solid rgba(34,197,94,0.25)",color:"#22c55e",fontSize:13,fontWeight:700,cursor:"pointer" }}>
+                      Review Drills
+                    </button>
+                    <button onClick={refreshWorkout} title="Shuffle a new workout"
+                      style={{ padding:"11px 15px",borderRadius:12,fontSize:16,cursor:"pointer",...actionBtnStyle(settings) }}>
+                      🔀
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div style={{ display:"flex",gap:8 }}>
+                  <button onClick={()=>{
+                    const exs = todaysWorkout.exercises.map(e=>({ ...e, meta: e.meta || EXERCISE_META[e.id] || {} }));
+                    if (exs[0]) openDetail(exs[0], exs);
+                  }}
+                    style={{ flex:1,padding:"11px",borderRadius:12,background:P,border:"none",color:"#000",fontSize:13,fontWeight:800,cursor:"pointer" }}>
+                    Start Workout →
+                  </button>
+                  <button onClick={refreshWorkout} title="Shuffle exercises"
+                    style={{ padding:"11px 15px",borderRadius:12,fontSize:16,cursor:"pointer",...actionBtnStyle(settings) }}>
+                    🔀
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         ) : (
@@ -7777,21 +8497,30 @@ export default function SummerTrainingApp() {
           </div>
         )}
 
+        </HomeCollapsibleSection>
+
         {/* ── FAVORITES ──────────────────────────────────────────── */}
         {(()=>{
           const allFavs = [
             ...Object.entries(favorites.exercises||{}).map(([id,ts])=>({type:"exercise",id,ts})),
             ...Object.entries(favorites.workouts||{}).map(([id,ts])=>({type:"workout",id,ts})),
             ...Object.entries(favorites.programs||{}).map(([id,ts])=>({type:"program",id,ts})),
-          ].sort((a,b)=>b.ts-a.ts).slice(0,5);
-          if (allFavs.length===0) return null;
+          ].sort((a,b)=>b.ts-a.ts);
+          const favHint = allFavs.length > 0 ? `${allFavs.length} saved` : undefined;
           return (
-            <div style={{ marginBottom:4 }}>
-              <div style={{ padding:"2px 20px 8px" }}>
-                <div style={lbl}>⭐ Favorites</div>
-              </div>
+            <HomeCollapsibleSection
+              title="⭐ Favorites"
+              hint={favHint}
+              open={homeSections.favorites}
+              onToggle={() => toggleHomeSection("favorites")}
+              labelStyle={lbl}>
+              {allFavs.length === 0 ? (
+                <div style={{ margin:"0 20px 14px", padding:"14px 16px", borderRadius:12, background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.07)" }}>
+                  <div style={{ fontSize:12, color:"#64748b", lineHeight:1.5 }}>Star drills, workouts, or programs to save them here for quick access.</div>
+                </div>
+              ) : (
               <div style={{ display:"flex",gap:8,overflowX:"auto",padding:"0 20px 14px",scrollbarWidth:"none",WebkitOverflowScrolling:"touch" }}>
-                {allFavs.map(item=>{
+                {allFavs.slice(0,8).map(item=>{
                   if (item.type==="exercise") {
                     const ex = ALL_EXERCISES[item.id];
                     if (!ex) return null;
@@ -7812,7 +8541,7 @@ export default function SummerTrainingApp() {
                     if (!tmpl) return null;
                     return (
                       <div key={item.id}
-                        onClick={()=>setSelectedTemplate(item.id)}
+                        onClick={()=>selectTemplate(item.id)}
                         style={{ flexShrink:0,padding:"10px 13px",borderRadius:12,cursor:"pointer",
                           background:SF,border:`1px solid ${P}22`,minWidth:140,maxWidth:165 }}>
                         <div style={{ fontSize:10,color:"#475569",marginBottom:4,fontWeight:600 }}>Workout</div>
@@ -7838,11 +8567,12 @@ export default function SummerTrainingApp() {
                   return null;
                 })}
               </div>
-            </div>
+              )}
+            </HomeCollapsibleSection>
           );
         })()}
 
-        {/* ── COACH FKH + DASHBOARD ────────────────────────────────── */}
+        {/* ── PROGRESS DASHBOARD ────────────────────────────────── */}
         {(()=>{
           const streak = (()=>{ let s=0,d=new Date(); for(let i=0;i<60;i++){const k=d.toLocaleDateString("en-CA"); if(Object.keys(completed).some(c=>c.startsWith(k)&&completed[c])){s++;d.setDate(d.getDate()-1);}else break;} return s; })();
           const nextLv  = LEVELS.find(l=>l.xpMin>xpData.total)||null;
@@ -7853,7 +8583,6 @@ export default function SummerTrainingApp() {
           const allUnearned  = BADGES_DEF.filter(b=>!earnedBadges.includes(b.id)).map(b=>{ const {cur,target}=getBadgeProgress(b,completed,programProgress); return {...b,cur,target,pct:cur/target}; }).sort((a,b)=>b.pct-a.pct||a.target-b.target);
           const nextBadge    = allUnearned[0]||null;
 
-          /* ── Upcoming Unlocks: badges + next level merged, sorted by proximity ── */
           const levelItem = nextLv ? {
             id:"__level__", emoji:nextLv.emoji, name:`${nextLv.name} Level`,
             color:S, cur:xpData.total-currentLevel.xpMin,
@@ -7865,91 +8594,13 @@ export default function SummerTrainingApp() {
             : allUnearned;
           const upcomingBadges = upcomingPool.slice(0,3);
 
-          const doneToday    = Object.keys(completed).filter(k=>k.startsWith(new Date().toLocaleDateString("en-CA"))&&completed[k]).length;
-
-          /* ── Training gap: which basketball cat hasn't been hit in 7+ days ── */
-          const bballGapCheck = [
-            {key:"game_handles",label:"Game Handles"},{key:"footwork_lab",label:"Footwork Lab"},
-            {key:"finishing_school",label:"Finishing School"},{key:"shooting_lab",label:"Shooting Lab"},
-            {key:"post_moves",label:"Post Moves"},{key:"basketball_iq",label:"Basketball IQ"},
-          ];
-          let gapCat = null;
-          const nowMs = Date.now();
-          for (const {key,label} of bballGapCheck) {
-            const ids = new Set((WORKOUTS[key]||[]).map(e=>e.id));
-            const lastMs = Object.keys(completed).filter(k=>completed[k]&&[...ids].some(id=>k.includes(id)))
-              .map(k=>new Date(k.split("-").slice(0,3).join("-")+"T12:00:00").getTime()).sort((a,b)=>b-a)[0]||0;
-            if ((nowMs-lastMs)/86400000 >= 7) { gapCat=label; break; }
-          }
-
-          /* ── Closest incomplete challenge (≥60% done) ── */
-          const closeChallenge = CHALLENGES_DEF
-            .map(def=>{ const {cur,target}=getChallengeProgress(def,completed); return {...def,cur,target,pct:cur/target}; })
-            .filter(c=>c.pct<1&&c.pct>=0.6).sort((a,b)=>b.pct-a.pct)[0]||null;
-
-          /* ── Cross-category balance: handles vs shooting ── */
-          const catDoneCount = (keys) => keys.flatMap(k=>(WORKOUTS[k]||[]).filter(e=>Object.keys(completed).some(c=>completed[c]&&c.includes(e.id)))).length;
-          const handlesDone  = catDoneCount(["handles","game_handles","ballhandling"]);
-          const shootingDone = catDoneCount(["shooting","shooting_lab","shootingdrills"]);
-          let balanceMsg = null;
-          if (handlesDone>=3 && shootingDone<2)  balanceMsg="Your ball handling is ahead — get some shooting reps to balance your game. 🎯";
-          else if (shootingDone>=3 && handlesDone<2) balanceMsg="Your shooting is ahead — your weak-hand development needs attention. 🤲";
-
-          /* ── Smart coach message (priority order) ── */
-          let coachMsg = "";
-          if      (streak>=3&&doneToday===0)                        coachMsg=`Keep your ${streak}-day streak alive — train today! 🔥`;
-          else if (doneToday===0&&streak===0)                       coachMsg="Every champion started at zero. Let's get your first rep in. 🏀";
-          else if (nextBadge&&nextBadge.target-nextBadge.cur===1)   coachMsg=`One more and you unlock the ${nextBadge.name} badge! 🏆`;
-          else if (nextLv&&xpLeft<=20)                              coachMsg=`Only ${xpLeft} XP away from ${nextLv.name}. Finish strong! 🌟`;
-          else if (closeChallenge)                                   coachMsg=`Only ${closeChallenge.target-closeChallenge.cur} more to complete ${closeChallenge.name}. 🎯`;
-          else if (gapCat&&doneToday===0)                           coachMsg=`You haven't trained ${gapCat} in a week — today's the day. 🏀`;
-          else if (balanceMsg)                                       coachMsg=balanceMsg;
-          else if (doneToday>=3)                                    coachMsg=`${doneToday} drills today — you're locked in. Keep stacking! 🔥`;
-          else if (doneToday>=1)                                    coachMsg="Good start today. One more session makes the difference. 💪";
-          else                                                      coachMsg="Stay consistent. Every rep builds the player you're becoming. 📈";
-
           return (
-            <>
-              {/* Coach FKH */}
-              <div style={{ margin:"0 20px 10px",padding:"13px 16px",borderRadius:14,background:`${P}0d`,border:`1px solid ${P}22`,display:"flex",alignItems:"flex-start",gap:12 }}>
-                <div style={{ width:36,height:36,borderRadius:10,background:`${P}1a`,border:`1px solid ${P}35`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:19,flexShrink:0 }}>🏀</div>
-                <div style={{ flex:1,minWidth:0 }}>
-                  <div style={{ fontSize:9,fontWeight:800,color:P,letterSpacing:"0.14em",textTransform:"uppercase",marginBottom:4 }}>Coach FKH</div>
-                  <div style={{ fontSize:12,color:"#cbd5e1",lineHeight:1.55 }}>{coachMsg}</div>
-                </div>
-              </div>
-
-              {/* Active Program Widget */}
-              {(()=>{
-                const activeProg = PROGRAMS.find(p => enrolledPrograms[p.id]);
-                if (!activeProg) return null;
-                const enrollment = enrolledPrograms[activeProg.id];
-                const curWeek = programCurrentWeek(enrollment.startDate, activeProg.duration);
-                const pct = Math.round(computeProgramProgress(activeProg, programProgress) * 100);
-                const weekData = activeProg.weeks.find(w => w.week === curWeek);
-                const nextSession = weekData?.sessions.find((s, si) => !isProgramSessionComplete(activeProg, programProgress, curWeek, si));
-                return (
-                  <div onClick={()=>{ setView("programs"); setSelectedProgram(activeProg.id); }}
-                    style={{ margin:"0 20px 10px",borderRadius:14,border:`1px solid ${activeProg.color}44`,background:`${activeProg.color}0c`,padding:"13px 14px",cursor:"pointer" }}>
-                    <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:9 }}>
-                      <span style={{ fontSize:18 }}>{activeProg.emoji}</span>
-                      <div style={{ flex:1,minWidth:0 }}>
-                        <div style={{ fontSize:9,fontWeight:800,color:activeProg.color,letterSpacing:"0.14em",textTransform:"uppercase",marginBottom:1 }}>Active Program</div>
-                        <div style={{ fontSize:13,fontWeight:700,color:"#f1f5f9",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{activeProg.name}</div>
-                      </div>
-                      <span style={{ fontSize:11,fontWeight:700,color:activeProg.color }}>{pct}%</span>
-                    </div>
-                    <div style={{ height:4,borderRadius:99,background:"rgba(255,255,255,0.08)",marginBottom:8 }}>
-                      <div style={{ height:"100%",width:`${pct}%`,borderRadius:99,background:activeProg.color }}/>
-                    </div>
-                    <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between" }}>
-                      <span style={{ fontSize:11,color:"#64748b" }}>Week {curWeek} of {activeProg.duration}</span>
-                      {nextSession && <span style={{ fontSize:11,color:activeProg.color,fontWeight:600 }}>Next: {nextSession.focus} →</span>}
-                      {!nextSession && <span style={{ fontSize:11,color:"#22c55e",fontWeight:600 }}>Week {curWeek} complete ✓</span>}
-                    </div>
-                  </div>
-                );
-              })()}
+            <HomeCollapsibleSection
+              title="📈 Progress & Stats"
+              hint={`${streak}d streak`}
+              open={homeSections.dashboard}
+              onToggle={() => toggleHomeSection("dashboard")}
+              labelStyle={lbl}>
 
               {/* Quick Stats — streak + shot challenge */}
               <div style={{ padding:"0 20px 10px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:8 }}>
@@ -7984,6 +8635,19 @@ export default function SummerTrainingApp() {
                 <div style={{ flex:1,minWidth:0,pointerEvents:"none" }}>
                   <div style={{ fontSize:10,fontWeight:800,color:S,letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:3 }}>Progress Report</div>
                   <div style={{ fontSize:12,color:"#94a3b8",lineHeight:1.4 }}>See how you've improved this month →</div>
+                </div>
+              </div>
+
+              {/* Training Calendar teaser */}
+              <div onClick={()=>openSchedule("home", "calendar")}
+                onKeyDown={e=>{if(e.key==="Enter"||e.key===" ")openSchedule("home", "calendar");}}
+                role="button" tabIndex={0}
+                style={{ margin:"0 20px 10px",padding:"12px 14px",borderRadius:14,cursor:"pointer",
+                  background:`${P}0c`,border:`1px solid ${P}28`,display:"flex",alignItems:"center",gap:12 }}>
+                <div style={{ width:36,height:36,borderRadius:10,background:`${P}18`,border:`1px solid ${P}30`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0,pointerEvents:"none" }}>🗓</div>
+                <div style={{ flex:1,minWidth:0,pointerEvents:"none" }}>
+                  <div style={{ fontSize:10,fontWeight:800,color:P,letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:3 }}>Training Calendar</div>
+                  <div style={{ fontSize:12,color:"#94a3b8",lineHeight:1.4 }}>Weekly plan & drill history →</div>
                 </div>
               </div>
 
@@ -8065,46 +8729,16 @@ export default function SummerTrainingApp() {
                   </div>
                 </div>
               )}
-            </>
+            </HomeCollapsibleSection>
           );
         })()}
 
-        {/* ── Tomorrow's Rec (Coach FKH) ──────────────────────────── */}
-        {recommendation && (()=>{
-          const A = str3(settings);
-          const isAlreadySelected = recommendation.templateKey === selectedTemplate;
-          return (
-            <div style={{ margin:"0 20px 14px",borderRadius:16,background:`${A}0d`,border:`1px solid ${A}28`,overflow:"hidden" }}>
-              <div style={{ padding:"11px 14px 0",display:"flex",alignItems:"center",justifyContent:"space-between" }}>
-                <span style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:`${A}90`,textTransform:"uppercase" }}>Tomorrow's Rec</span>
-                <span style={{ fontSize:9,color:"#334155",fontFamily:"'DM Mono',monospace" }}>Coach FKH</span>
-              </div>
-              <div style={{ padding:"10px 14px 12px",display:"flex",alignItems:"center",gap:11 }}>
-                <div style={{ width:44,height:44,borderRadius:12,background:`${A}18`,border:`1px solid ${A}30`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0,lineHeight:1 }}>
-                  {recommendation.templateEmoji}
-                </div>
-                <div style={{ flex:1,minWidth:0 }}>
-                  <div style={{ fontSize:14,fontWeight:800,color:A,lineHeight:1.2,marginBottom:3 }}>{recommendation.templateName}</div>
-                  <div style={{ fontSize:11,color:"#94a3b8",lineHeight:1.45 }}>{recommendation.reason}</div>
-                </div>
-              </div>
-              <div style={{ padding:"0 14px 13px" }}>
-                <button onClick={()=>{ if(!isAlreadySelected) setSelectedTemplate(recommendation.templateKey); }}
-                  style={{ width:"100%",padding:"9px",borderRadius:10,fontSize:12,fontWeight:700,
-                    cursor:isAlreadySelected?"default":"pointer",
-                    background:isAlreadySelected?`${A}18`:`${A}22`,
-                    border:`1px solid ${isAlreadySelected?`${A}30`:`${A}50`}`,
-                    color:isAlreadySelected?`${A}70`:A,transition:"all 0.2s" }}>
-                  {isAlreadySelected?"✓ Already loaded":"Load for Today →"}
-                </button>
-              </div>
-            </div>
-          );
-        })()}
-
-        {/* ── Training Modules ───────────────────────────────────── */}
+        <HomeCollapsibleSection
+          title="Training Modules"
+          open={homeSections.modules}
+          onToggle={() => toggleHomeSection("modules")}
+          labelStyle={lbl}>
         <div style={{ padding:"0 20px 14px" }}>
-          <div style={lbl}>Training Modules</div>
           <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10 }}>
             {Object.entries(CATS).map(([key,cat])=>{
               const done2=WORKOUTS[key].filter(w=>isDone(w.id)).length, total=WORKOUTS[key].length, c=catColor(key);
@@ -8123,6 +8757,7 @@ export default function SummerTrainingApp() {
             })}
           </div>
         </div>
+        </HomeCollapsibleSection>
 
         {/* ── Position Spotlight ─────────────────────────────────── */}
         {(()=>{
@@ -8134,11 +8769,13 @@ export default function SummerTrainingApp() {
           if (!spotExs.length) return null;
           const posColor = pos==="guard"?"#3b82f6":pos==="wing"?"#a855f7":"#f97316";
           return (
+            <HomeCollapsibleSection
+              title={`${prof.emoji} ${prof.label} Spotlight`}
+              open={homeSections.spotlight}
+              onToggle={() => toggleHomeSection("spotlight")}
+              labelStyle={{ ...lbl, color:`${posColor}99` }}>
             <div style={{ padding:"0 20px 16px" }}>
-              <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8 }}>
-                <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:`${posColor}99`,textTransform:"uppercase" }}>
-                  {prof.emoji} {prof.label} Spotlight
-                </div>
+              <div style={{ display:"flex",alignItems:"center",justifyContent:"flex-end",marginBottom:8 }}>
                 <button onClick={()=>setShowSettings(true)} style={{ background:"none",border:"none",fontSize:10,color:"#334155",cursor:"pointer",padding:0 }}>change position</button>
               </div>
               <div style={{ fontSize:11,color:"#475569",marginBottom:10,lineHeight:1.5 }}>{prof.desc}</div>
@@ -8146,7 +8783,7 @@ export default function SummerTrainingApp() {
                 {spotExs.map(ex=>{
                   const c=catColor(ex._cat), done2=isDone(ex.id);
                   return (
-                    <button key={ex.id} onClick={()=>setActiveExercise(ex)}
+                    <button key={ex.id} onClick={()=>openDetail(ex, spotExs)}
                       style={{ flexShrink:0,width:148,textAlign:"left",padding:"12px",borderRadius:14,cursor:"pointer",
                         background:done2?`${c}18`:`${posColor}0b`,border:`1.5px solid ${done2?c:posColor}30`,position:"relative",overflow:"hidden" }}>
                       {done2&&<div style={{ position:"absolute",top:6,right:8,fontSize:10,color:c,fontWeight:800 }}>✓</div>}
@@ -8158,85 +8795,11 @@ export default function SummerTrainingApp() {
                 })}
               </div>
             </div>
+            </HomeCollapsibleSection>
           );
         })()}
 
       </>)}
-
-      {view==="schedule" && (
-        <div>
-          {/* ── Sub-tab switcher ─────────────────────────────── */}
-          <div style={{ display:"flex",gap:8,padding:"12px 20px 10px" }}>
-            {[
-              { id:"week",     label:"📋 This Week" },
-              { id:"calendar", label:"🗓 History"   },
-            ].map(t=>(
-              <button key={t.id} onClick={()=>setSchedTab(t.id)}
-                style={{ flex:1,padding:"9px 0",borderRadius:10,fontSize:12,fontWeight:700,cursor:"pointer",
-                  background:schedTab===t.id?P:"rgba(255,255,255,0.05)",
-                  border:`1px solid ${schedTab===t.id?P:"rgba(255,255,255,0.09)"}`,
-                  color:schedTab===t.id?"#000":"#64748b" }}>
-                {t.label}
-              </button>
-            ))}
-          </div>
-
-          {/* ── This Week ─────────────────────────────────────── */}
-          {schedTab==="week"&&(
-            <div style={{ padding:"4px 20px 20px" }}>
-              <div style={lbl}>Weekly Training Plan</div>
-              {SCHEDULE.map((d,i)=>{
-                const isToday = i===todayIdx;
-                const hasWork = d.cats.length > 0;
-                const dayData = Object.entries(buildCalendarData(completed))
-                  .filter(([k])=>{
-                    const date=new Date(k+"T12:00:00");
-                    return date.getDay()===(i+1)%7 && (new Date()-date)<7*86400000;
-                  })[0]?.[1];
-                return (
-                  <div key={i}
-                    onClick={hasWork?()=>{ setActiveCat(d.cats[0]); setPrevView("schedule"); setView("cat"); }:undefined}
-                    style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:10,
-                      marginBottom:4,
-                      background:isToday?`${P}0e`:"transparent",
-                      border:`1px solid ${isToday?`${P}30`:"transparent"}`,
-                      cursor:hasWork?"pointer":undefined }}>
-                    <div style={{ fontFamily:"'DM Mono',monospace",fontSize:11,
-                      color:isToday?P:`${P}99`,width:32,flexShrink:0,fontWeight:isToday?800:400 }}>
-                      {d.day}
-                    </div>
-                    <div style={{ fontSize:13,color:isToday?P:`${P}dd`,flex:1,fontWeight:600 }}>{d.label}</div>
-                    {dayData?.xp>0&&(
-                      <span style={{ fontSize:9,fontFamily:"'DM Mono',monospace",color:"#22c55e",
-                        background:"rgba(34,197,94,0.1)",border:"1px solid rgba(34,197,94,0.2)",
-                        borderRadius:20,padding:"2px 7px",flexShrink:0 }}>
-                        +{dayData.xp} XP
-                      </span>
-                    )}
-                    {isToday&&!dayData&&<span style={{ fontSize:9,fontWeight:800,color:P,letterSpacing:"0.06em" }}>TODAY</span>}
-                    <div style={{ display:"flex",gap:5 }}>
-                      {d.cats.map(c=>(
-                        <button key={c}
-                          onClick={e=>{ e.stopPropagation(); setActiveCat(c); setPrevView("schedule"); setView("cat"); }}
-                          style={{ fontSize:11,padding:"3px 9px",borderRadius:20,background:catBg(c),
-                            color:catColor(c),border:`1px solid ${catBrd(c)}`,fontWeight:600,cursor:"pointer" }}>
-                          {CATS[c].emoji} {CATS[c].label.split(' ')[0]}
-                        </button>
-                      ))}
-                    </div>
-                    {hasWork&&<span style={{ fontSize:16,color:`${P}80`,flexShrink:0,lineHeight:1 }}>›</span>}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* ── History calendar ──────────────────────────────── */}
-          {schedTab==="calendar"&&(
-            <CalendarView completed={completed} P={P} S={S} BG={BG} SF={SF} bd={bd} lbl={lbl}/>
-          )}
-        </div>
-      )}
 
       {renderBottomNav()}
     </div>
