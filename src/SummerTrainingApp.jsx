@@ -8753,34 +8753,6 @@ export default function SummerTrainingApp() {
         </div>
       </div>
 
-      {/* Install App Banner */}
-      {showInstallBanner && view==="home" && (
-        <div style={{ margin:"10px 20px 0",padding:"12px 14px",borderRadius:14,background:"rgba(255,255,255,0.05)",border:`1px solid ${P}40`,display:"flex",alignItems:"flex-start",gap:12 }}>
-          <div style={{ fontSize:22,lineHeight:1,paddingTop:2 }}>📲</div>
-          <div style={{ flex:1 }}>
-            <div style={{ fontSize:13,fontWeight:700,color:P,marginBottom:3 }}>Add FKH to Your Home Screen</div>
-            {isIOS ? (
-              <div style={{ fontSize:11,color:"var(--fkh-text-muted)",lineHeight:1.5 }}>
-                Tap <span style={{ color:"var(--fkh-text)",fontWeight:700 }}>Share</span> → <span style={{ color:"var(--fkh-text)",fontWeight:700 }}>Add to Home Screen</span> to install the app and get offline access.
-              </div>
-            ) : installPrompt ? (
-              <div style={{ fontSize:11,color:"var(--fkh-text-muted)",lineHeight:1.5 }}>
-                Install for offline access, faster loading, and a full-screen experience.
-              </div>
-            ) : (
-              <div style={{ fontSize:11,color:"var(--fkh-text-muted)",lineHeight:1.5 }}>
-                Use your browser menu → <span style={{ color:"var(--fkh-text)",fontWeight:700 }}>Add to Home Screen</span> to install.
-              </div>
-            )}
-            {!isIOS && installPrompt && (
-              <button onClick={triggerInstall} style={{ marginTop:8,padding:"6px 16px",borderRadius:20,background:P,border:"none",color:"#000",fontSize:12,fontWeight:800,cursor:"pointer" }}>
-                Install App
-              </button>
-            )}
-          </div>
-          <button onClick={dismissInstall} style={{ background:"none",border:"none",color:"#475569",fontSize:16,cursor:"pointer",padding:0,lineHeight:1,flexShrink:0 }}>✕</button>
-        </div>
-      )}
 
       {/* Badge Earned Notification Banner (home screen) */}
       {lastEarnedBadge && view==="home" && (
@@ -8870,13 +8842,6 @@ export default function SummerTrainingApp() {
           )}
         </div>
 
-        {/* Warm up before training — emphasized on high-impact days, rest-aware. */}
-        {(()=>{
-          const dow = new Date(today+"T12:00:00").toLocaleDateString("en-US",{weekday:"short"});
-          const cats = (SCHEDULE.find(s=>s.day===dow)?.cats) || [];
-          return <WarmUpCard emphasize={isHighImpactDay(cats)} growthStatus={computeGrowth(growthLog).status} P={P} />;
-        })()}
-
         <HomeCollapsibleSection
           title="Today's Mission"
           hint={missionClaimed ? "complete" : requiredTasksDone ? "ready" : undefined}
@@ -8884,6 +8849,12 @@ export default function SummerTrainingApp() {
           onToggle={() => toggleHomeSection("mission")}
           labelStyle={homeLbl}
           accentColor={P}>
+        {/* Warm up first — part of the mission, emphasized on high-impact days. */}
+        {(()=>{
+          const dow = new Date(today+"T12:00:00").toLocaleDateString("en-US",{weekday:"short"});
+          const cats = (SCHEDULE.find(s=>s.day===dow)?.cats) || [];
+          return <WarmUpCard emphasize={isHighImpactDay(cats)} growthStatus={computeGrowth(growthLog).status} P={P} />;
+        })()}
         {/* ── DAILY MISSION CARD ─────────────────────────────────── */}
         {(()=>{
           const mission = todayMission;
