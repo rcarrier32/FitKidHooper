@@ -17,8 +17,10 @@ import {
 } from "./lib/achievements.js";
 import { recordBenchmark, recordLocalPB, readLocalPBs } from "./lib/benchmarksApi.js";
 import GrowthCard from "./components/GrowthCard.jsx";
-import { readGrowthLog, addGrowthEntry } from "./lib/growth.js";
+import { readGrowthLog, addGrowthEntry, computeGrowth } from "./lib/growth.js";
 import ShootingCard from "./components/ShootingCard.jsx";
+import WarmUpCard from "./components/WarmUpCard.jsx";
+import { isHighImpactDay } from "./lib/warmup.js";
 import {
   readLocalLedger, ledgerIdSet, mergeIntoLocalLedger, pushLedgerEntries, pullLedger,
   pushEquippedIdentity,
@@ -8867,6 +8869,13 @@ export default function SummerTrainingApp() {
             </div>
           )}
         </div>
+
+        {/* Warm up before training — emphasized on high-impact days, rest-aware. */}
+        {(()=>{
+          const dow = new Date(today+"T12:00:00").toLocaleDateString("en-US",{weekday:"short"});
+          const cats = (SCHEDULE.find(s=>s.day===dow)?.cats) || [];
+          return <WarmUpCard emphasize={isHighImpactDay(cats)} growthStatus={computeGrowth(growthLog).status} P={P} />;
+        })()}
 
         <HomeCollapsibleSection
           title="Today's Mission"
