@@ -19,6 +19,7 @@ import {
   getInviteUrl,
 } from "../lib/boardsApi.js";
 import AthleteCard from "./AthleteCard.jsx";
+import { getAchievementMeta } from "../lib/achievements.js";
 
 function fmtRelativePush(ts) {
   if (!ts) return "Not synced yet";
@@ -48,6 +49,8 @@ export default function BoardView({
   lbl,
   onPushSuccess,
   initialInviteCode,
+  isSignedIn,
+  onOpenAuth,
 }) {
   const myAgeGroup = getAgeGroup(settings.dateOfBirth);
   const [boardType, setBoardType] = useState("age_group");
@@ -195,11 +198,24 @@ export default function BoardView({
 
       {boardType === "friends" && (
         <div style={{ background: SF, border: `1px solid ${bd}`, borderRadius: 14, padding: 14, marginBottom: 16 }}>
+          {!isSignedIn && (
+            <div style={{
+              marginBottom: 12, padding: "10px 12px", borderRadius: 10,
+              background: `${P}12`, border: `1px solid ${P}28`, fontSize: 11, color: "var(--fkh-text-muted)", lineHeight: 1.5,
+            }}>
+              Sign in to add friends and keep your friend list across devices.
+              <button type="button" onClick={onOpenAuth} style={{
+                display: "block", marginTop: 8, padding: "8px 12px", borderRadius: 8, border: `1px solid ${P}44`,
+                background: "transparent", color: P, fontSize: 11, fontWeight: 700, cursor: "pointer", width: "100%",
+              }}>Sign in</button>
+            </div>
+          )}
           <div style={{ fontSize: 12, fontWeight: 700, color: P, marginBottom: 8 }}>Add a friend</div>
           <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-            <button onClick={handleCreateInvite} style={{
+            <button onClick={handleCreateInvite} disabled={!isSignedIn} style={{
               flex: 1, padding: "8px 10px", borderRadius: 8, border: `1px solid ${P}44`,
-              background: "transparent", color: P, fontSize: 11, fontWeight: 700, cursor: "pointer",
+              background: "transparent", color: isSignedIn ? P : "#64748b", fontSize: 11, fontWeight: 700,
+              cursor: isSignedIn ? "pointer" : "not-allowed", opacity: isSignedIn ? 1 : 0.6,
             }}>Get friend code</button>
           </div>
           {inviteCode && (
@@ -329,6 +345,7 @@ export default function BoardView({
           {rows.map((row, i) => {
             const rank = i + 1;
             const isMe = row.athlete_id === athleteId;
+            const rowTitle = row.active_title ? getAchievementMeta(row.active_title) : null;
             return (
               <div key={row.athlete_id} style={{
                 display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 12,
@@ -340,16 +357,26 @@ export default function BoardView({
                   fontWeight: 800, color: rank <= 3 ? P : "#64748b", minWidth: 32, textAlign: "center",
                 }}>{medalForRank(rank)}</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{
-                    fontSize: 13, fontWeight: 700,
-                    color: isMe ? P : "var(--fkh-text)",
-                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                  }}>
-                    {row.display_name}{isMe ? " (you)" : ""}
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                    <span style={{
+                      fontSize: 13, fontWeight: 700,
+                      color: isMe ? P : "var(--fkh-text)",
+                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                    }}>
+                      {row.display_name}{isMe ? " (you)" : ""}
+                    </span>
+                    {rowTitle && (
+                      <span style={{
+                        flexShrink: 0, fontSize: 9, fontWeight: 800, color: rowTitle.color,
+                        background: `${rowTitle.color}1f`, border: `1px solid ${rowTitle.color}55`,
+                        padding: "1px 6px", borderRadius: 999,
+                      }}>{rowTitle.emoji} {rowTitle.name}</span>
+                    )}
                   </div>
                   <div style={{ fontSize: 10, color: "#64748b", marginTop: 2 }}>
                     {row.shots_made.toLocaleString()} makes · {row.training_days} days
                     {row.streak >= 3 ? ` · 🔥 ${row.streak}d` : ""}
+                    {row.play_like ? ` · 🎯 plays like ${row.play_like}` : ""}
                   </div>
                 </div>
                 <div style={{ textAlign: "right" }}>

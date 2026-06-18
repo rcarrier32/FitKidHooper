@@ -105,10 +105,12 @@ create policy "board_members_insert"
     select owner_id from public.boards where id = board_id
   ));
 
--- Friend invites: inviter manages; anyone can read by code for accept flow
+-- Friend invites: inviter manages. Accepting goes through the accept_friend_invite()
+-- SECURITY DEFINER RPC, so clients never select this table by code — reads are
+-- scoped to the inviter's own invites (codes must not be world-enumerable).
 drop policy if exists "friend_invites_select" on public.friend_invites;
 create policy "friend_invites_select"
-  on public.friend_invites for select using (true);
+  on public.friend_invites for select using (inviter_id = auth.uid());
 
 drop policy if exists "friend_invites_insert" on public.friend_invites;
 create policy "friend_invites_insert"
@@ -153,11 +155,35 @@ create policy "athlete_profiles_update"
   using (id = auth.uid() or user_id = auth.uid() or auth.uid() is null)
   with check (id = auth.uid() or user_id = auth.uid() or auth.uid() is null);
 
+-- Restrict profile reads: a minor's date_of_birth must not be world-readable.
+-- Boards/leaderboards read denormalized name + stats from leaderboard_stats,
+-- so a profile is only visible to the athlete, their friends, or co-board members.
+drop policy if exists "athlete_profiles_select" on public.athlete_profiles;
+create policy "athlete_profiles_select"
+  on public.athlete_profiles for select
+  using (
+    id = auth.uid()
+    or user_id = auth.uid()
+    or exists (
+      select 1 from public.friendships f
+      where (f.athlete_a = auth.uid() and f.athlete_b = athlete_profiles.id)
+         or (f.athlete_b = auth.uid() and f.athlete_a = athlete_profiles.id)
+    )
+    or exists (
+      select 1
+      from public.board_members m_self
+      join public.board_members m_other on m_self.board_id = m_other.board_id
+      where m_self.athlete_id = auth.uid()
+        and m_other.athlete_id = athlete_profiles.id
+    )
+  );
+
 -- ── Helpers ─────────────────────────────────────────────────────
 create or replace function public.ensure_friends_board(p_athlete_id uuid)
 returns uuid
 language plpgsql
 security definer
+set search_path = public
 as $$
 declare
   v_board_id uuid;
@@ -185,6 +211,7 @@ create or replace function public.accept_friend_invite(p_code text, p_accepter_i
 returns jsonb
 language plpgsql
 security definer
+set search_path = public
 as $$
 declare
   v_inv public.friend_invites%rowtype;
@@ -226,3 +253,79 @@ begin
   return jsonb_build_object('ok', true, 'friend_id', v_inv.inviter_id);
 end;
 $$;
+
+-- ── Device → user migration ─────────────────────────────────────
+-- Called once on first sign-in (see linkDeviceProfileOnAuth). Re-parents all
+-- device-keyed board data onto the authenticated user id, so the athlete keeps
+-- their leaderboard standing, friends, boards, and invites. Idempotent and
+-- collision-safe (drops device rows that would duplicate existing user rows).
+create or replace function public.claim_device_stats(p_device_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user uuid := auth.uid();
+  v_moved int := 0;
+begin
+  if v_user is null then
+    return jsonb_build_object('ok', false, 'error', 'not_authenticated');
+  end if;
+  if p_device_id is null or p_device_id = v_user then
+    return jsonb_build_object('ok', true, 'moved', 0);
+  end if;
+
+  -- Leaderboard stats: drop device rows that collide on period, move the rest.
+  delete from public.leaderboard_stats d
+   where d.athlete_id = p_device_id
+     and exists (
+       select 1 from public.leaderboard_stats u
+       where u.athlete_id = v_user and u.period = d.period
+     );
+  update public.leaderboard_stats
+     set athlete_id = v_user
+   where athlete_id = p_device_id;
+  get diagnostics v_moved = row_count;
+
+  -- Board ownership + membership.
+  update public.boards set owner_id = v_user where owner_id = p_device_id;
+
+  delete from public.board_members d
+   where d.athlete_id = p_device_id
+     and exists (
+       select 1 from public.board_members u
+       where u.board_id = d.board_id and u.athlete_id = v_user
+     );
+  update public.board_members
+     set athlete_id = v_user
+   where athlete_id = p_device_id;
+
+  -- Friend invites created while anonymous.
+  update public.friend_invites set inviter_id = v_user where inviter_id = p_device_id;
+
+  -- Friendships: re-normalize (athlete_a < athlete_b), drop self/duplicate pairs.
+  insert into public.friendships (athlete_a, athlete_b)
+  select least(v_user, other), greatest(v_user, other)
+  from (
+    select case when athlete_a = p_device_id then athlete_b else athlete_a end as other
+    from public.friendships
+    where athlete_a = p_device_id or athlete_b = p_device_id
+  ) s
+  where other <> v_user
+  on conflict do nothing;
+
+  delete from public.friendships
+   where athlete_a = p_device_id or athlete_b = p_device_id;
+
+  return jsonb_build_object('ok', true, 'moved', v_moved);
+end;
+$$;
+
+-- ── Function execute grants ─────────────────────────────────────
+-- These SECURITY DEFINER helpers are only called by signed-in clients. Revoke the
+-- implicit PUBLIC grant (which would let anon call them) and grant authenticated.
+revoke execute on function public.ensure_friends_board(uuid) from public;
+revoke execute on function public.claim_device_stats(uuid) from public;
+grant execute on function public.ensure_friends_board(uuid) to authenticated;
+grant execute on function public.claim_device_stats(uuid) to authenticated;

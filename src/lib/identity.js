@@ -27,7 +27,19 @@ export function migrateIdentitySettings(raw) {
   if (s.jerseyNumber === undefined) s.jerseyNumber = null;
   if (s.favoritePlayer === undefined) s.favoritePlayer = "";
   if (!s.playStyle) s.playStyle = "any";
+  if (s.activeTitle === undefined) s.activeTitle = null;
+  if (s.equipped === undefined || s.equipped === null) s.equipped = {};
+  // Three favorite dimensions. Seed all-time from the legacy single field.
+  if (s.favoriteAllTime === undefined) s.favoriteAllTime = s.favoritePlayer || "";
+  if (s.favoriteCurrent === undefined) s.favoriteCurrent = "";
+  if (s.favoritePlayLike === undefined) s.favoritePlayLike = "";
   return s;
+}
+
+/** Best single favorite for display/cloud: all-time, then play-like, then current. */
+export function primaryFavorite(settings) {
+  return (settings.favoriteAllTime || settings.favoritePlayLike
+    || settings.favoriteCurrent || settings.favoritePlayer || "").trim();
 }
 
 export function profileForCloud(settings) {
@@ -35,7 +47,11 @@ export function profileForCloud(settings) {
     display_name: settings.athleteName?.trim() || "Hooper",
     date_of_birth: settings.dateOfBirth || null,
     jersey_number: normalizeJerseyNumber(settings.jerseyNumber),
-    favorite_player: (settings.favoritePlayer || "").trim() || null,
+    favorite_player: primaryFavorite(settings) || null,
+    favorite_current: (settings.favoriteCurrent || "").trim() || null,
+    favorite_playlike: (settings.favoritePlayLike || "").trim() || null,
     position: settings.playStyle || "any",
+    active_title: settings.activeTitle || null,
+    equipped: settings.equipped || {},
   };
 }

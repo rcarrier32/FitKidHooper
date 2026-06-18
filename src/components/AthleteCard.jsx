@@ -1,4 +1,5 @@
-import { getPositionLabel, getPositionEmoji } from "../lib/identity.js";
+import { getPositionLabel, getPositionEmoji, primaryFavorite } from "../lib/identity.js";
+import { getAchievementMeta } from "../lib/achievements.js";
 
 export default function AthleteCard({
   settings,
@@ -12,17 +13,22 @@ export default function AthleteCard({
   const position = getPositionLabel(settings.playStyle);
   const posEmoji = getPositionEmoji(settings.playStyle);
   const jersey = settings.jerseyNumber != null ? `#${settings.jerseyNumber}` : null;
-  const fav = settings.favoritePlayer?.trim();
+  const title = settings.activeTitle ? getAchievementMeta(settings.activeTitle) : null;
+  const frame = settings.equipped?.frame ? getAchievementMeta(settings.equipped.frame) : null;
+  const frameC = frame?.color || null;
+  const allTime = settings.favoriteAllTime?.trim() || primaryFavorite(settings);
+  const playLike = settings.favoritePlayLike?.trim();
 
   const cardStyle = {
-    background: `${P}0c`,
-    border: `1px solid ${P}30`,
+    background: frameC ? `linear-gradient(135deg, ${frameC}1f 0%, ${P}0c 70%)` : `${P}0c`,
+    border: `${frameC ? 2 : 1}px solid ${frameC || `${P}30`}`,
     borderRadius: isCompact ? 12 : 16,
     padding: isCompact ? "10px 12px" : "16px 18px",
     display: "flex",
     alignItems: "center",
     gap: isCompact ? 10 : 14,
     cursor: onPress ? "pointer" : "default",
+    boxShadow: frameC ? `0 0 16px ${frameC}33` : "none",
   };
 
   const avatarSize = isCompact ? 44 : 64;
@@ -52,6 +58,18 @@ export default function AthleteCard({
             }}>{jersey}</span>
           )}
         </div>
+        {title && (
+          <div style={{
+            display: "inline-flex", alignItems: "center", gap: 4, marginTop: 3,
+            fontSize: isCompact ? 10 : 11, fontWeight: 800,
+            color: title.color || P,
+            background: `${title.color || P}1f`,
+            border: `1px solid ${title.color || P}55`,
+            padding: "1px 8px", borderRadius: 999,
+          }}>
+            <span>{title.emoji}</span><span>{title.name}</span>
+          </div>
+        )}
         {!isCompact && (
           <div style={{ fontSize: 13, fontWeight: 700, color: P, marginTop: 2 }}>
             {currentLevel?.emoji} {currentLevel?.name}
@@ -59,7 +77,8 @@ export default function AthleteCard({
         )}
         <div style={{ fontSize: isCompact ? 10 : 11, color: "var(--fkh-text-muted)", marginTop: 3, lineHeight: 1.4 }}>
           {posEmoji} {position}
-          {fav ? ` · Looks up to ${fav}` : ""}
+          {allTime ? ` · 🐐 ${allTime}` : ""}
+          {!isCompact && playLike ? ` · plays like ${playLike}` : ""}
           {!isCompact && totalXP != null ? ` · ${totalXP.toLocaleString()} XP` : ""}
         </div>
       </div>

@@ -1,8 +1,8 @@
 import { computeAllPeriodStats, getAgeGroup } from "./periodStats.js";
 import { getSupabaseClient, isSupabaseConfigured } from "./supabaseClient.js";
 import { profileForCloud } from "./identity.js";
+import { getDeviceAthleteId, getEffectiveAthleteId } from "./auth.js";
 
-const ATHLETE_ID_KEY = "fkh-athlete-id";
 const LAST_PUSH_KEY = "fkh-last-push";
 const PUSH_DISMISS_KEY = "fkh-push-prompt-dismissed-until";
 
@@ -17,17 +17,12 @@ function getClient() {
   return getSupabaseClient();
 }
 
+/**
+ * Device-scoped athlete id. Identity has a single source of truth in auth.js;
+ * this delegates so leaderboard/analytics/boards all key off the same value.
+ */
 export function getAthleteId() {
-  try {
-    let id = localStorage.getItem(ATHLETE_ID_KEY);
-    if (!id) {
-      id = crypto.randomUUID();
-      localStorage.setItem(ATHLETE_ID_KEY, id);
-    }
-    return id;
-  } catch {
-    return null;
-  }
+  return getDeviceAthleteId();
 }
 
 export function getLastPushTime() {
@@ -70,7 +65,7 @@ export function dismissPushPrompt(hours = 24) {
 
 export function buildPushPayload({
   displayName, dateOfBirth, ageGroup, completed, shotLog, missionLog, getCategory,
-  athleteId: athleteIdIn, profileExtras = {},
+  athleteId: athleteIdIn, profileExtras = {}, activeTitle = null, playLike = null,
 }) {
   const athleteId = athleteIdIn || getAthleteId();
   if (!athleteId) throw new Error("Could not create athlete id on this device");
@@ -97,6 +92,8 @@ export function buildPushPayload({
       shots_made: stats.shotsMade,
       training_days: stats.trainingDays,
       streak: stats.streak,
+      active_title: activeTitle || null,
+      play_like: playLike || null,
       pushed_at: pushedAt,
     })),
   };
@@ -128,7 +125,7 @@ export async function fetchLeaderboard({ ageGroup, period, limit = 50 }) {
 
   const { data, error } = await sb
     .from("leaderboard_stats")
-    .select("athlete_id, display_name, age_group, period, xp, shots_made, training_days, streak, pushed_at")
+    .select("athlete_id, display_name, age_group, period, xp, shots_made, training_days, streak, active_title, play_like, pushed_at")
     .eq("age_group", ageGroup)
     .eq("period", period)
     .order("xp", { ascending: false })
@@ -188,11 +185,8 @@ export async function pushFromAppState({ settings, completed, missionLog, getCat
 
   const ageGroup = getAgeGroup(settings.dateOfBirth);
   const cloudProfile = profileForCloud(settings);
-  let athleteId = getAthleteId();
-  try {
-    const { getEffectiveAthleteId } = await import("./auth.js");
-    athleteId = (await getEffectiveAthleteId()) || athleteId;
-  } catch {}
+  // Prefer the authenticated user id; fall back to the device id when signed out.
+  const athleteId = (await getEffectiveAthleteId()) || getAthleteId();
 
   const payload = buildPushPayload({
     displayName,
@@ -203,10 +197,16 @@ export async function pushFromAppState({ settings, completed, missionLog, getCat
     missionLog,
     getCategory,
     athleteId,
+    activeTitle: settings.activeTitle || null,
+    playLike: cloudProfile.favorite_playlike || cloudProfile.favorite_current || cloudProfile.favorite_player || null,
     profileExtras: {
       jersey_number: cloudProfile.jersey_number,
       favorite_player: cloudProfile.favorite_player,
+      favorite_current: cloudProfile.favorite_current,
+      favorite_playlike: cloudProfile.favorite_playlike,
       position: cloudProfile.position,
+      active_title: cloudProfile.active_title,
+      equipped: cloudProfile.equipped,
       user_id: athleteId,
     },
   });

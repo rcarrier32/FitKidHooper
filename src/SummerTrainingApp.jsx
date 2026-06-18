@@ -7,6 +7,19 @@ import { useAuth } from "./hooks/useAuth.js";
 import { getAgeGroup, getAgeGroupLabel } from "./lib/periodStats.js";
 import { exportCanonicalSave, importCanonicalSave } from "./lib/canonicalSave.js";
 import { migrateIdentitySettings, normalizeJerseyNumber, POSITIONS } from "./lib/identity.js";
+import ProgressionView from "./components/ProgressionView.jsx";
+import ChallengeStrip from "./components/ChallengeStrip.jsx";
+import { claimChallengeRewards } from "./lib/challengesApi.js";
+import {
+  evaluateEarned, computeCatCounts, grantEntries, getAchievementMeta,
+  equipTitle, equipCosmetic, unequipSlot,
+  getBenchmark, benchmarkCertTitle,
+} from "./lib/achievements.js";
+import { recordBenchmark, recordLocalPB, readLocalPBs } from "./lib/benchmarksApi.js";
+import {
+  readLocalLedger, ledgerIdSet, mergeIntoLocalLedger, pushLedgerEntries, pullLedger,
+  pushEquippedIdentity,
+} from "./lib/achievementsApi.js";
 import { getStreak, getWeekShotGoal } from "./lib/progressStats.js";
 import { resolveDailyAction, pickChallengeNudge } from "./lib/dailyAction.js";
 import {
@@ -31,7 +44,7 @@ import {
   isLeaderboardConfigured,
   maybeAutoSyncLeaderboard,
   canAutoSyncLeaderboard,
-} from "./lib/leaderboardApi.js";
+} from "./lib/boardsApi.js";
 import {
   initAnalytics,
   setAnalyticsAgeGroup,
@@ -69,7 +82,7 @@ const DEFAULT = {
   accentHue:158, accentSat:85, accentLight:50,
   customSecondary:false,
   athleteName:"Champ", avatar:null,
-  jerseyNumber:null, favoritePlayer:"",
+  jerseyNumber:null, favoritePlayer:"", favoriteCurrent:"", favoriteAllTime:"", favoritePlayLike:"",
   dateOfBirth:null, experience:"beginner", goals:[], playStyle:"any",
   workoutTimers:true,
   leaderboardSharing:true,
@@ -3700,7 +3713,7 @@ function isInstallIOS() {
 }
 
 /* ═══════════════════════ SETTINGS SHEET ═══════════════════════ */
-function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenAuth, isSignedIn, onCloudSync, cloudSyncStatus }) {
+function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenAuth, isSignedIn, signedInUsername, onCloudSync, cloudSyncStatus, onLogout }) {
   const [tab, setTab] = useState("accent");
   const [showAdvancedColors, setShowAdvancedColors] = useState(false);
   const [guardrailNote, setGuardrailNote] = useState(null);
@@ -3835,9 +3848,23 @@ function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenA
                     style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.05)",border:`1.5px solid ${P}44`,borderRadius:10,padding:"8px 12px",fontSize:14,color:"var(--fkh-text)",outline:"none" }}/>
                 </div>
                 <div style={{ flex:2 }}>
-                  <div style={{ fontSize:11,color:"#475569",marginBottom:4,fontWeight:600 }}>Favorite Player</div>
-                  <input value={settings.favoritePlayer||""} placeholder="e.g. Curry"
-                    onChange={e=>setSettings(p=>({...p,favoritePlayer:e.target.value}))}
+                  <div style={{ fontSize:11,color:"#475569",marginBottom:4,fontWeight:600 }}>Wants to play like 🎯</div>
+                  <input value={settings.favoritePlayLike||""} placeholder="e.g. Curry — picks your journey"
+                    onChange={e=>setSettings(p=>({...p,favoritePlayLike:e.target.value}))}
+                    style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.05)",border:`1.5px solid ${P}44`,borderRadius:10,padding:"8px 12px",fontSize:14,color:"var(--fkh-text)",outline:"none" }}/>
+                </div>
+              </div>
+              <div style={{ display:"flex",gap:10,marginBottom:14 }}>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:11,color:"#475569",marginBottom:4,fontWeight:600 }}>Favorite player (now)</div>
+                  <input value={settings.favoriteCurrent||""} placeholder="Current player"
+                    onChange={e=>setSettings(p=>({...p,favoriteCurrent:e.target.value}))}
+                    style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.05)",border:`1.5px solid ${P}44`,borderRadius:10,padding:"8px 12px",fontSize:14,color:"var(--fkh-text)",outline:"none" }}/>
+                </div>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:11,color:"#475569",marginBottom:4,fontWeight:600 }}>All-time favorite 🐐</div>
+                  <input value={settings.favoriteAllTime||""} placeholder="Legend / GOAT"
+                    onChange={e=>setSettings(p=>({...p,favoriteAllTime:e.target.value}))}
                     style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.05)",border:`1.5px solid ${P}44`,borderRadius:10,padding:"8px 12px",fontSize:14,color:"var(--fkh-text)",outline:"none" }}/>
                 </div>
               </div>
@@ -4060,15 +4087,24 @@ function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenA
           <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:"#334155",marginBottom:12,textTransform:"uppercase" }}>Account</div>
           <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
             <button onClick={onOpenAuth} style={{ width:"100%",padding:"12px 14px",borderRadius:12,cursor:"pointer",...actionBtnStyle(settings) }}>
-              <div style={{ fontSize:13,fontWeight:700,color:P }}>{isSignedIn ? "✓ Signed in (parent)" : "Parent sign-in & cloud save"}</div>
-              <div style={{ fontSize:10,color:"#64748b",marginTop:3 }}>Sync progress across devices</div>
+              <div style={{ fontSize:13,fontWeight:700,color:P }}>
+                {isSignedIn ? `✓ Signed in as @${signedInUsername || "athlete"}` : "Back up & sync"}
+              </div>
+              <div style={{ fontSize:10,color:"#64748b",marginTop:3 }}>
+                {isSignedIn ? "Cloud save & friends on Boards" : "Username + passcode · optional"}
+              </div>
             </button>
             {isSignedIn && (
+              <>
               <button onClick={onCloudSync} style={{ width:"100%",padding:"10px 14px",borderRadius:12,cursor:"pointer",...chipStyle(settings, cloudSyncStatus==="ok", P) }}>
                 <div style={{ fontSize:12,fontWeight:700,color:P }}>
                   {cloudSyncStatus==="syncing" ? "Syncing…" : cloudSyncStatus==="ok" ? "✓ Cloud synced" : "Sync to cloud now"}
                 </div>
               </button>
+              <button onClick={onLogout} style={{ width:"100%",padding:"10px 14px",borderRadius:12,cursor:"pointer",...actionBtnStyle(settings) }}>
+                <div style={{ fontSize:12,fontWeight:700,color:"#94a3b8" }}>Log out</div>
+              </button>
+              </>
             )}
             <button onClick={async()=>{ const r=await requestNotificationPermission(); setNotificationPref(r==="granted"); }}
               style={{ width:"100%",padding:"10px 14px",borderRadius:12,cursor:"pointer",...actionBtnStyle(settings) }}>
@@ -4925,14 +4961,19 @@ function BadgeCelebration({ badge, onDismiss }) {
 
         <div style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:4,marginBottom:8,
           animation:"fkh-fade-up 0.4s ease 0.5s both" }}>
-          <div style={{ fontSize:11,fontFamily:"'DM Mono',monospace",letterSpacing:"0.3em",
-            color:badge.color,textTransform:"uppercase" }}>
-            Badge Unlocked!
+          <div style={{ fontSize:badge.conquest?13:11,fontFamily:"'DM Mono',monospace",letterSpacing:"0.3em",
+            color:badge.color,textTransform:"uppercase",fontWeight:badge.conquest?800:400 }}>
+            {badge.conquest ? "🏆 Conquest Complete!" : badge.kind==="milestone" ? "Rank Up!" : "Badge Unlocked!"}
           </div>
           {badge.cat && BADGE_CATS[badge.cat] && (
             <div style={{ fontSize:9,color:"#64748b",fontFamily:"'DM Mono',monospace",
               letterSpacing:"0.15em",textTransform:"uppercase" }}>
               {BADGE_CATS[badge.cat].emoji} {BADGE_CATS[badge.cat].label}
+            </div>
+          )}
+          {badge.inspo && (
+            <div style={{ fontSize:10,color:"#94a3b8",fontStyle:"italic" }}>
+              in the lineage of {badge.inspo}
             </div>
           )}
         </div>
@@ -7049,6 +7090,8 @@ export default function SummerTrainingApp() {
     try{return new Set(JSON.parse(localStorage.getItem("fkh-celebrated-badges")||"[]"));}catch{return new Set();}
   });
   const [celebrationQueue, setCelebrationQueue] = useState([]);
+  const [ledger, setLedger] = useState(()=>readLocalLedger());
+  const [benchmarkPBs, setBenchmarkPBs] = useState(()=>readLocalPBs());
   const [badgeDates, setBadgeDates] = useState(()=>{
     try{return JSON.parse(localStorage.getItem("fkh-badge-dates")||"{}");}catch{return {};}
   });
@@ -7390,7 +7433,11 @@ export default function SummerTrainingApp() {
   const settingsSheet = showSettings ? (
     <SettingsSheet settings={settings} setSettings={setSettings} onClose={() => setShowSettings(false)} onOpenFeedback={openFeedback}
       onOpenAuth={() => { setShowSettings(false); setShowAuth(true); }}
-      isSignedIn={auth.isSignedIn} onCloudSync={auth.syncNow} cloudSyncStatus={auth.syncStatus} />
+      isSignedIn={auth.isSignedIn}
+      signedInUsername={auth.username}
+      onCloudSync={auth.syncNow}
+      cloudSyncStatus={auth.syncStatus}
+      onLogout={async () => { await auth.logout(); }} />
   ) : null;
 
   const authSheet = showAuth ? (
@@ -7492,6 +7539,86 @@ export default function SummerTrainingApp() {
       return next;
     });
   },[earnedBadges]);
+
+  // Shared progression context — drives both the grant ledger and the journey UI.
+  const progressCtx = useMemo(()=>{
+    let makes = 0;
+    try {
+      const sl = JSON.parse(localStorage.getItem("shot_log_v2")||"{}");
+      makes = Object.values(sl).flatMap(v=>v).filter(s=>s.made!==false).length;
+    } catch {}
+    // streak gates only use the 7/14/30 thresholds, which the streak badges encode exactly.
+    const maxStreak = earnedBadges.includes("streak-30") ? 30
+      : earnedBadges.includes("streak-14") ? 14
+      : earnedBadges.includes("streak-7") ? 7 : 0;
+    return {
+      earnedBadgeIds: new Set(earnedBadges),
+      ledgerIds: new Set(Object.keys(ledger)),
+      makes,
+      maxStreak,
+      catCounts: computeCatCounts(completed, getExerciseCategory),
+    };
+  },[earnedBadges, completed, getExerciseCategory, ledger]);
+
+  // Progression ledger — the single grant path. Records legacy badges AND mastery
+  // journey milestones/titles/cosmetics, syncs to the cloud ledger, and celebrates
+  // newly reached ranks with the same confetti moment as badges.
+  useEffect(()=>{
+    const earnedAll = new Set([...earnedBadges, ...evaluateEarned(progressCtx)]);
+    const owned = ledgerIdSet(readLocalLedger());
+    const entries = grantEntries(earnedAll, owned, {});
+    if (!entries.length) return;
+    mergeIntoLocalLedger(entries);
+    setLedger(readLocalLedger());
+    pushLedgerEntries(entries).catch(()=>{});
+    // Celebrate the milestone rungs (titles/cosmetics ride along with each rung).
+    const milestoneDefs = entries
+      .filter(e => e.kind === "milestone")
+      .map(e => { const m = getAchievementMeta(e.achievement_id); return m && { id: m.id, name: m.name, emoji: m.emoji, color: m.color, desc: m.flavor, kind: "milestone", conquest: m.conquest, inspo: m.inspo }; })
+      .filter(Boolean);
+    if (milestoneDefs.length) setCelebrationQueue(q=>[...q, ...milestoneDefs]);
+  },[progressCtx, earnedBadges]);
+
+  // On open: claim any challenge rewards earned (server-validated, immediate),
+  // then pull the cloud ledger so progression + new rewards follow across devices.
+  useEffect(()=>{
+    claimChallengeRewards()
+      .catch(()=>0)
+      .then(()=>pullLedger())
+      .then(()=>setLedger(readLocalLedger()))
+      .catch(()=>{});
+  },[]);
+
+  // Equip system — ownership is the ledger; equipped state lives in settings and
+  // is mirrored to the profile so friends/boards see it.
+  const ledgerSet = useMemo(()=>ledgerIdSet(ledger),[ledger]);
+  const persistEquip = useCallback((next)=>{
+    setSettings(next);
+    pushEquippedIdentity({ activeTitle: next.activeTitle, equipped: next.equipped }).catch(()=>{});
+  },[]);
+  const handleEquipTitle = useCallback(id=>persistEquip(equipTitle(settings, id, ledgerSet)),[settings, ledgerSet, persistEquip]);
+  const handleEquipCosmetic = useCallback(id=>persistEquip(equipCosmetic(settings, id, ledgerSet)),[settings, ledgerSet, persistEquip]);
+  const handleUnequipSlot = useCallback(slot=>persistEquip(unequipSlot(settings, slot)),[settings, persistEquip]);
+
+  // Log a benchmark test → update PB, append to the cloud series, and (if the
+  // threshold is met) certify it as an equippable title via the one grant path.
+  const handleLogBenchmark = useCallback((benchmarkId, value)=>{
+    const b = getBenchmark(benchmarkId);
+    if (!b || !Number.isFinite(value)) return;
+    setBenchmarkPBs(recordLocalPB(benchmarkId, value));
+    recordBenchmark(benchmarkId, value).catch(()=>{});
+    const certId = benchmarkCertTitle(b, value);
+    if (!certId) return;
+    const owned = ledgerIdSet(readLocalLedger());
+    const entries = grantEntries(new Set([certId]), owned, { context:{ benchmark: benchmarkId, value } });
+    if (!entries.length) return;
+    mergeIntoLocalLedger(entries);
+    setLedger(readLocalLedger());
+    pushLedgerEntries(entries).catch(()=>{});
+    const m = getAchievementMeta(certId);
+    if (m) setCelebrationQueue(q=>[...q, { id:m.id, name:m.name, emoji:m.emoji, color:m.color,
+      desc:`Certified: ${b.label} ${value}${b.unit}`, kind:"milestone" }]);
+  },[]);
 
   /* Daily Mission ─────────────────────────────────────────────── */
   const todayMission = useMemo(()=>
@@ -7969,14 +8096,29 @@ export default function SummerTrainingApp() {
       {renderMissionOverlays()}
       <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 20px",borderBottom:`1px solid ${P}14`,position:"sticky",top:0,background:BG,backdropFilter:"blur(10px)",zIndex:10 }}>
         <h1 style={{ fontSize:16,fontWeight:800,margin:0,color:P }}>🏅 Badges</h1>
-        <div style={{ fontSize:10,color:"#475569",fontFamily:"'DM Mono',monospace" }}>
-          {earnedBadges.length}/{BADGES_DEF.length} earned
-        </div>
+        <button onClick={()=>setView("progression")} style={{ background:`${P}18`,border:`1px solid ${P}40`,borderRadius:999,color:P,fontSize:11,fontWeight:800,cursor:"pointer",padding:"6px 12px" }}>
+          🏀 Journeys →
+        </button>
       </div>
       <BadgesView
         earnedBadges={earnedBadges} badgeDates={badgeDates} completed={completed}
         programProgress={programProgress}
         P={P} S={S} BG={BG} SF={SF} bd={bd} lbl={lbl}/>
+      {renderBottomNav()}
+    </div>
+  );
+
+  /* PROGRESSION — mastery journeys + equip */
+  if (view==="progression") return (
+    <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"var(--fkh-text)",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
+      {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]}
+        onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
+      {renderMissionOverlays()}
+      <ProgressionView
+        settings={settings} ledgerIds={ledgerSet} ledger={ledger} ctx={progressCtx} P={P}
+        benchmarkPBs={benchmarkPBs} onLogBenchmark={handleLogBenchmark}
+        onEquipTitle={handleEquipTitle} onEquipCosmetic={handleEquipCosmetic}
+        onUnequipSlot={handleUnequipSlot} onBack={()=>setView("badges")}/>
       {renderBottomNav()}
     </div>
   );
@@ -8011,6 +8153,8 @@ export default function SummerTrainingApp() {
         xpData={xpData}
         P={P} BG={BG} SF={SF} bd={bd} lbl={lbl}
         initialInviteCode={inviteCode}
+        isSignedIn={auth.isSignedIn}
+        onOpenAuth={() => setShowAuth(true)}
         onPushSuccess={()=>{ setPushPromptHidden(true); setPushError(null); }}
       />
       {renderBottomNav()}
@@ -8789,6 +8933,9 @@ export default function SummerTrainingApp() {
           );
         })()}
         </HomeCollapsibleSection>
+
+        {/* Challenges — reinforce the Daily Mission; never their own nav tab. */}
+        <ChallengeStrip P={P} onAddFriends={()=>setView("boards")} />
 
         {/* Active Program — folded into mission when program task is present */}
         {!missionHasProgramTask && (() => {
