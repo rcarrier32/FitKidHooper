@@ -19,6 +19,7 @@ import {
   getInviteUrl,
 } from "../lib/boardsApi.js";
 import AthleteCard from "./AthleteCard.jsx";
+import FeedView from "./FeedView.jsx";
 import { getAchievementMeta } from "../lib/achievements.js";
 
 function fmtRelativePush(ts) {
@@ -53,6 +54,7 @@ export default function BoardView({
   onOpenAuth,
 }) {
   const myAgeGroup = getAgeGroup(settings.dateOfBirth);
+  const [mode, setMode] = useState("rankings"); // rankings | feed
   const [boardType, setBoardType] = useState("age_group");
   const [ageGroup, setAgeGroup] = useState(myAgeGroup);
   const [period, setPeriod] = useState("week");
@@ -165,6 +167,21 @@ export default function BoardView({
         variant="compact"
         P={P}
       />
+
+      <div style={{ display: "flex", gap: 6, margin: "14px 0 0" }}>
+        {[["rankings", "🏆 Rankings"], ["feed", "📣 Feed"]].map(([m, label]) => (
+          <button key={m} onClick={() => setMode(m)} style={{
+            flex: 1, padding: "9px 4px", borderRadius: 10, fontSize: 11, fontWeight: 800, cursor: "pointer",
+            border: `1px solid ${mode === m ? P : bd}`,
+            background: mode === m ? `${P}18` : "transparent",
+            color: mode === m ? P : "#64748b",
+          }}>{label}</button>
+        ))}
+      </div>
+
+      {mode === "feed" ? (
+        <div style={{ marginTop: 16 }}><FeedView P={P} SF={SF} bd={bd} /></div>
+      ) : (<>
 
       {!configured && (
         <div style={{
@@ -390,6 +407,7 @@ export default function BoardView({
           })}
         </div>
       )}
+      </>)}
     </div>
   );
 }
