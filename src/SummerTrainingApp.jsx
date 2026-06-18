@@ -18,6 +18,7 @@ import {
 import { recordBenchmark, recordLocalPB, readLocalPBs } from "./lib/benchmarksApi.js";
 import GrowthCard from "./components/GrowthCard.jsx";
 import { readGrowthLog, addGrowthEntry } from "./lib/growth.js";
+import ShootingCard from "./components/ShootingCard.jsx";
 import {
   readLocalLedger, ledgerIdSet, mergeIntoLocalLedger, pushLedgerEntries, pullLedger,
   pushEquippedIdentity,
@@ -8205,6 +8206,7 @@ export default function SummerTrainingApp() {
               {statTile("Shots Made", (progressCtx.makes||0).toLocaleString())}
               {statTile("Badges", earnedBadges.length)}
             </div>
+            <ShootingCard P={P} SF={SF} bd={bd} />
             <GrowthCard log={growthLog} onLog={handleLogHeight} P={P} SF={SF} bd={bd} />
             <ProgressStatsPanel totalXP={xpData?.total||0} xpData={xpData} currentLevel={currentLevel}
               P={P} ST={ST} SF={SF} bd={bd} lbl={lbl} />
