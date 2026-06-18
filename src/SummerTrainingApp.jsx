@@ -5867,12 +5867,12 @@ function BadgesView({ earnedBadges, badgeDates, completed, programProgress={}, P
   );
 }
 
-function ProfileView({ settings, totalXP, xpData, currentLevel, earnedBadges, completed, programProgress, badgeDates, P, S, ST, BG, SF, bd, lbl, onOpenSettings, onViewHistory, onViewSchedule, onViewBadges, onViewLeaderboard, onPushStats, pushBusy, pushError }) {
+/* Rich stats panel — lives in Progress → Stats (the single stats home). */
+function ProgressStatsPanel({ totalXP, xpData, currentLevel, P, ST, SF, bd, lbl }) {
   const nextLevel = LEVELS.find(l=>l.rank===currentLevel.rank+1);
   const xpInLevel  = totalXP - currentLevel.xpMin;
   const xpSpan     = nextLevel ? nextLevel.xpMin - currentLevel.xpMin : 500;
   const pct        = nextLevel ? Math.min(1, xpInLevel / xpSpan) : 1;
-
   const xpRows = [
     { label:"Exercises completed", value:xpData.exXP,       unit:`${xpData.exXP/5} × 5 XP` },
     { label:"Workouts completed",  value:xpData.workoutXP,  unit:`${xpData.workoutXP/25} × 25 XP` },
@@ -5881,6 +5881,115 @@ function ProfileView({ settings, totalXP, xpData, currentLevel, earnedBadges, co
     { label:"Streak bonus",        value:xpData.streakXP,   unit:"consistency bonus" },
     { label:"Shots made",          value:xpData.shotXP,     unit:`${xpData.shotXP*50} makes → ${xpData.shotXP} XP` },
   ].filter(r=>r.value>0);
+
+  return (
+    <>
+      {/* Level meter */}
+      <div style={{ background:`${P}0d`,border:`1px solid ${P}22`,borderRadius:16,padding:"18px 18px",marginBottom:16 }}>
+        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:12 }}>
+          <div>
+            <div style={{ fontFamily:"'DM Mono',monospace",fontSize:28,fontWeight:800,color:P,lineHeight:1 }}>{totalXP.toLocaleString()}</div>
+            <div style={{ fontSize:10,color:"#475569",marginTop:3,letterSpacing:"0.08em" }}>TOTAL XP</div>
+          </div>
+          <div style={{ textAlign:"right" }}>
+            <div style={{ fontSize:12,fontWeight:700,color:"var(--fkh-text-muted)" }}>{nextLevel ? `→ ${nextLevel.name}` : "Max Level 👑"}</div>
+            {nextLevel && <div style={{ fontSize:10,color:"#475569",marginTop:2 }}>{(nextLevel.xpMin-totalXP).toLocaleString()} XP to go</div>}
+          </div>
+        </div>
+        <div style={{ height:10,background:"rgba(255,255,255,0.07)",borderRadius:99,overflow:"hidden",marginBottom:8 }}>
+          <div style={{ height:"100%",borderRadius:99,transition:"width 1s ease",width:`${pct*100}%`,
+            background:pct>=1 ? `linear-gradient(90deg,${P},${ST})` : `linear-gradient(90deg,${P}aa,${P})` }}/>
+        </div>
+        <div style={{ display:"flex",gap:4,marginTop:12,justifyContent:"center" }}>
+          {LEVELS.map(l=>{
+            const earned = totalXP >= l.xpMin;
+            const isCurrent = l.rank === currentLevel.rank;
+            const ring = contrastOn(P);
+            return (
+              <div key={l.rank} style={{ flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:3 }}>
+                <div style={{ width:28,height:28,borderRadius:"50%",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",
+                  background:earned?(isCurrent?`linear-gradient(135deg,${P},${ST})`:P):"rgba(255,255,255,0.04)",
+                  border:earned?`2px solid ${isCurrent?ring:`${ring}55`}`:"2px solid rgba(255,255,255,0.07)" }}>
+                  {earned?l.emoji:<span style={{ fontSize:9,color:"#334155" }}>?</span>}
+                </div>
+                <div style={{ fontSize:7,color:earned?P:"#334155",textAlign:"center",fontWeight:isCurrent?800:400,fontFamily:"'DM Mono',monospace",lineHeight:1.2 }}>
+                  {l.name.split(" ").map((w,i)=><div key={i}>{w}</div>)}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Shooting milestones */}
+      {(()=>{
+        const SHOT_TIERS = [
+          { name:"100 Makes Club", emoji:"🏀", target:100,   color:"#60a5fa" },
+          { name:"1K Shooter",     emoji:"🎯", target:1000,  color:"#f43f5e" },
+          { name:"2.5K Shooter",   emoji:"🔮", target:2500,  color:"#8b5cf6" },
+          { name:"5K Shooter",     emoji:"🌠", target:5000,  color:"#06b6d4" },
+          { name:"10K Shooter",    emoji:"🏆", target:10000, color:"#f97316" },
+        ];
+        let allMakes = 0;
+        try { const sl=JSON.parse(localStorage.getItem("shot_log_v2")||"{}"); allMakes=Object.values(sl).flatMap(v=>v).filter(s=>s.made!==false).length; } catch {}
+        const tierIdx = SHOT_TIERS.filter(t=>allMakes>=t.target).length - 1;
+        const curTier = tierIdx>=0 ? SHOT_TIERS[tierIdx] : null;
+        const nxtTier = SHOT_TIERS[tierIdx+1] || null;
+        const pctShot = nxtTier ? Math.min(1,(allMakes-(curTier?.target||0))/(nxtTier.target-(curTier?.target||0))) : 1;
+        const tColor = curTier?.color || "#60a5fa";
+        return (
+          <div style={{ background:`${tColor}0d`,border:`1px solid ${tColor}22`,borderRadius:16,padding:"18px 18px",marginBottom:16 }}>
+            <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:12 }}>
+              <div>
+                <div style={{ fontFamily:"'DM Mono',monospace",fontSize:28,fontWeight:800,color:tColor,lineHeight:1 }}>{allMakes.toLocaleString()}</div>
+                <div style={{ fontSize:10,color:"#475569",marginTop:3,letterSpacing:"0.08em" }}>SHOTS MADE</div>
+              </div>
+              <div style={{ textAlign:"right" }}>
+                <div style={{ fontSize:13,fontWeight:700,color:curTier?tColor:"#475569" }}>{curTier ? `${curTier.emoji} ${curTier.name}` : "🏀 Shooting Beginner"}</div>
+                {nxtTier && <div style={{ fontSize:10,color:"#475569",marginTop:2 }}>{(nxtTier.target-allMakes).toLocaleString()} makes to {nxtTier.name}</div>}
+              </div>
+            </div>
+            <div style={{ height:8,background:"rgba(255,255,255,0.07)",borderRadius:99,overflow:"hidden",marginBottom:8 }}>
+              <div style={{ height:"100%",borderRadius:99,transition:"width 1s ease",width:`${pctShot*100}%`,background:`linear-gradient(90deg,${tColor}aa,${tColor})` }}/>
+            </div>
+            <div style={{ display:"flex",gap:4,marginTop:12,justifyContent:"center" }}>
+              {SHOT_TIERS.map(t=>(
+                <div key={t.name} style={{ flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:3 }}>
+                  <div style={{ width:28,height:28,borderRadius:"50%",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",
+                    background:allMakes>=t.target?`${t.color}22`:"rgba(255,255,255,0.04)",
+                    border:`2px solid ${allMakes>=t.target?t.color:"rgba(255,255,255,0.07)"}` }}>
+                    {allMakes>=t.target?t.emoji:<span style={{ fontSize:9,color:"#334155" }}>?</span>}
+                  </div>
+                  <div style={{ fontSize:6,color:allMakes>=t.target?t.color:"#334155",textAlign:"center",fontFamily:"'DM Mono',monospace",lineHeight:1.2 }}>
+                    {t.name.split(" ").map((w,i)=><div key={i}>{w}</div>)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* XP sources */}
+      {xpRows.length>0&&(
+        <div style={{ background:SF,border:`1px solid ${bd}`,borderRadius:14,padding:"14px 16px",marginBottom:16 }}>
+          <div style={lbl}>XP Breakdown</div>
+          <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
+            {xpRows.map(({ label,value,unit })=>(
+              <div key={label} style={{ display:"flex",alignItems:"center",gap:10 }}>
+                <div style={{ flex:1,fontSize:12,color:"var(--fkh-text-muted)" }}>{label}</div>
+                <div style={{ fontSize:10,color:"#475569",fontFamily:"'DM Mono',monospace" }}>{unit}</div>
+                <div style={{ fontFamily:"'DM Mono',monospace",fontSize:14,fontWeight:800,color:P,minWidth:48,textAlign:"right" }}>+{value}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function ProfileView({ settings, totalXP, xpData, currentLevel, earnedBadges, completed, programProgress, badgeDates, P, S, ST, BG, SF, bd, lbl, onOpenSettings, onViewHistory, onViewSchedule, onViewBadges, onViewLeaderboard, onPushStats, pushBusy, pushError }) {
 
   return (
     <div style={{ padding:"0 20px 100px" }}>
@@ -5897,154 +6006,6 @@ function ProfileView({ settings, totalXP, xpData, currentLevel, earnedBadges, co
           <div style={{ fontSize:11,color:"#334155",textAlign:"center",marginTop:10 }}>Set your birthday in Settings</div>
         )}
       </div>
-
-      {/* XP Bar ──────────────────────────────────────────────── */}
-      <div style={{ background:`${P}0d`,border:`1px solid ${P}22`,borderRadius:16,padding:"18px 18px",marginBottom:16 }}>
-        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:12 }}>
-          <div>
-            <div style={{ fontFamily:"'DM Mono',monospace",fontSize:28,fontWeight:800,color:P,lineHeight:1 }}>
-              {totalXP.toLocaleString()}
-            </div>
-            <div style={{ fontSize:10,color:"#475569",marginTop:3,letterSpacing:"0.08em" }}>TOTAL XP</div>
-          </div>
-          <div style={{ textAlign:"right" }}>
-            <div style={{ fontSize:12,fontWeight:700,color:"var(--fkh-text-muted)" }}>
-              {nextLevel ? `→ ${nextLevel.name}` : "Max Level 👑"}
-            </div>
-            {nextLevel && <div style={{ fontSize:10,color:"#475569",marginTop:2 }}>
-              {(nextLevel.xpMin-totalXP).toLocaleString()} XP to go
-            </div>}
-          </div>
-        </div>
-
-        {/* Progress bar */}
-        <div style={{ height:10,background:"rgba(255,255,255,0.07)",borderRadius:99,overflow:"hidden",marginBottom:8 }}>
-          <div style={{
-            height:"100%",borderRadius:99,transition:"width 1s ease",
-            width:`${pct*100}%`,
-            background:pct>=1
-              ? `linear-gradient(90deg,${P},${ST})`
-              : `linear-gradient(90deg,${P}aa,${P})`,
-          }}/>
-        </div>
-        <div style={{ display:"flex",justifyContent:"space-between",fontSize:9,color:"#334155",fontFamily:"'DM Mono',monospace" }}>
-          <span>{currentLevel.name} ({currentLevel.xpMin} XP)</span>
-          {nextLevel&&<span>{nextLevel.name} ({nextLevel.xpMin} XP)</span>}
-        </div>
-
-        {/* Level ladder */}
-        <div style={{ display:"flex",gap:4,marginTop:12,justifyContent:"center" }}>
-          {LEVELS.map(l=>{
-            const earned = totalXP >= l.xpMin;
-            const isCurrent = l.rank === currentLevel.rank;
-            const fill = isCurrent ? `linear-gradient(135deg,${P},${ST})` : P;
-            const ring = contrastOn(P);
-            return (
-              <div key={l.rank} style={{ flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:3 }}>
-                <div style={{ width:28,height:28,borderRadius:"50%",fontSize:14,
-                  display:"flex",alignItems:"center",justifyContent:"center",
-                  background:earned?fill:"rgba(255,255,255,0.04)",
-                  border:earned
-                    ? `2px solid ${isCurrent?ring:`${ring}55`}`
-                    : "2px solid rgba(255,255,255,0.07)",
-                  boxShadow:earned
-                    ? (isCurrent?`0 0 10px ${P}55`:`inset 0 0 0 1px ${ring}22`)
-                    : undefined }}>
-                  {earned?l.emoji:<span style={{ fontSize:9,color:"#334155" }}>?</span>}
-                </div>
-                <div style={{ fontSize:7,color:earned?P:"#334155",textAlign:"center",fontWeight:isCurrent?800:400,
-                  fontFamily:"'DM Mono',monospace",letterSpacing:"0.03em",lineHeight:1.2 }}>
-                  {l.name.split(" ").map((w,i)=><div key={i}>{w}</div>)}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Shooting Level ─────────────────────────────────────── */}
-      {(()=>{
-        const SHOT_TIERS = [
-          { name:"100 Makes Club", emoji:"🏀", target:100,   color:"#60a5fa" },
-          { name:"1K Shooter",     emoji:"🎯", target:1000,  color:"#f43f5e" },
-          { name:"2.5K Shooter",   emoji:"🔮", target:2500,  color:"#8b5cf6" },
-          { name:"5K Shooter",     emoji:"🌠", target:5000,  color:"#06b6d4" },
-          { name:"10K Shooter",    emoji:"🏆", target:10000, color:"#f97316" },
-        ];
-        let allMakes = 0;
-        try { const sl=JSON.parse(localStorage.getItem("shot_log_v2")||"{}"); allMakes=Object.values(sl).flatMap(v=>v).filter(s=>s.made!==false).length; } catch {}
-        const tierIdx    = SHOT_TIERS.filter(t=>allMakes>=t.target).length - 1;
-        const curTier    = tierIdx >= 0 ? SHOT_TIERS[tierIdx] : null;
-        const nxtTier    = SHOT_TIERS[tierIdx+1] || null;
-        const pctShot    = nxtTier
-          ? Math.min(1, (allMakes - (curTier?.target||0)) / (nxtTier.target - (curTier?.target||0)))
-          : 1;
-        const tColor     = curTier?.color || "#60a5fa";
-        return (
-          <div style={{ background:`${tColor}0d`,border:`1px solid ${tColor}22`,borderRadius:16,padding:"18px 18px",marginBottom:16 }}>
-            <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:12 }}>
-              <div>
-                <div style={{ fontFamily:"'DM Mono',monospace",fontSize:28,fontWeight:800,color:tColor,lineHeight:1 }}>
-                  {allMakes.toLocaleString()}
-                </div>
-                <div style={{ fontSize:10,color:"#475569",marginTop:3,letterSpacing:"0.08em" }}>SHOTS MADE</div>
-              </div>
-              <div style={{ textAlign:"right" }}>
-                <div style={{ fontSize:13,fontWeight:700,color:curTier?tColor:"#475569" }}>
-                  {curTier ? `${curTier.emoji} ${curTier.name}` : "🏀 Shooting Beginner"}
-                </div>
-                {nxtTier && <div style={{ fontSize:10,color:"#475569",marginTop:2 }}>
-                  {(nxtTier.target - allMakes).toLocaleString()} makes to {nxtTier.name}
-                </div>}
-              </div>
-            </div>
-            <div style={{ height:8,background:"rgba(255,255,255,0.07)",borderRadius:99,overflow:"hidden",marginBottom:8 }}>
-              <div style={{ height:"100%",borderRadius:99,transition:"width 1s ease",width:`${pctShot*100}%`,background:`linear-gradient(90deg,${tColor}aa,${tColor})` }}/>
-            </div>
-            {nxtTier && (
-              <div style={{ display:"flex",justifyContent:"space-between",fontSize:9,color:"#334155",fontFamily:"'DM Mono',monospace" }}>
-                <span>{curTier?curTier.name:"Beginner"} ({(curTier?.target||0).toLocaleString()})</span>
-                <span>{nxtTier.name} ({nxtTier.target.toLocaleString()})</span>
-              </div>
-            )}
-            {/* Shooting tier ladder */}
-            <div style={{ display:"flex",gap:4,marginTop:12,justifyContent:"center" }}>
-              {SHOT_TIERS.map(t=>(
-                <div key={t.name} style={{ flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:3 }}>
-                  <div style={{ width:28,height:28,borderRadius:"50%",fontSize:14,
-                    display:"flex",alignItems:"center",justifyContent:"center",
-                    background:allMakes>=t.target?`${t.color}22`:"rgba(255,255,255,0.04)",
-                    border:`2px solid ${allMakes>=t.target?t.color:"rgba(255,255,255,0.07)"}` }}>
-                    {allMakes>=t.target?t.emoji:<span style={{ fontSize:9,color:"#334155" }}>?</span>}
-                  </div>
-                  <div style={{ fontSize:6,color:allMakes>=t.target?t.color:"#334155",textAlign:"center",
-                    fontFamily:"'DM Mono',monospace",letterSpacing:"0.02em",lineHeight:1.2 }}>
-                    {t.name.split(" ").map((w,i)=><div key={i}>{w}</div>)}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* XP Breakdown ───────────────────────────────────────── */}
-      {xpRows.length>0&&(
-        <div style={{ background:SF,border:`1px solid ${bd}`,borderRadius:14,padding:"14px 16px",marginBottom:16 }}>
-          <div style={lbl}>XP Breakdown</div>
-          <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
-            {xpRows.map(({ label,value,unit })=>(
-              <div key={label} style={{ display:"flex",alignItems:"center",gap:10 }}>
-                <div style={{ flex:1,fontSize:12,color:"var(--fkh-text-muted)" }}>{label}</div>
-                <div style={{ fontSize:10,color:"#475569",fontFamily:"'DM Mono',monospace" }}>{unit}</div>
-                <div style={{ fontFamily:"'DM Mono',monospace",fontSize:14,fontWeight:800,color:P,minWidth:48,textAlign:"right" }}>
-                  +{value}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Leaderboard teaser ───────────────────────────────── */}
       <div style={{ background:`${P}08`,border:`1px solid ${P}1c`,borderRadius:14,padding:"14px 16px",marginBottom:16 }}>
@@ -8240,6 +8201,8 @@ export default function SummerTrainingApp() {
               {statTile("Shots Made", (progressCtx.makes||0).toLocaleString())}
               {statTile("Badges", earnedBadges.length)}
             </div>
+            <ProgressStatsPanel totalXP={xpData?.total||0} xpData={xpData} currentLevel={currentLevel}
+              P={P} ST={ST} SF={SF} bd={bd} lbl={lbl} />
             <div style={{ display:"flex",gap:10 }}>
               {statBtn("📊 Training History", ()=>setView("history"))}
               {statBtn("🧠 Coach Report", ()=>setView("report"))}
