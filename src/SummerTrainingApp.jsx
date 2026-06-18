@@ -1484,6 +1484,82 @@ const W_BASKETBALL_IQ = [
     trainer:"Smart Offense Basketball", videoId:"1LxBSNKO26o", videoTitle:"Using The Whole Floor In Transition | Smart Offense for Basketball Coaches" },
 ];
 
+/* ── Passing (solo — wall + footwork; the missing fundamental, trainable alone) ── */
+const W_PASSING = [
+  { id:"pass-wall-chest", name:"Wall Chest Pass", tag:"Passing", setup:"solo",
+    sets:"3x20", rest:"20 s",
+    desc:"Two-hand chest passes into a wall target. Builds a snappy, accurate chest pass you can do alone.",
+    cues:["Step into the pass","Thumbs down on the follow-through","Hit the same spot every time","Catch with soft hands, fire it right back"] },
+  { id:"pass-wall-bounce", name:"Wall Bounce Pass", tag:"Passing", setup:"solo",
+    sets:"3x20", rest:"20 s",
+    desc:"Bounce pass off the floor into the wall so it comes back to your hips. Trains the bounce-pass angle.",
+    cues:["Aim the bounce about two-thirds of the way to the wall","Push through with the thumbs","Keep it crisp — no rainbow","Receive at hip height"] },
+  { id:"pass-one-hand", name:"One-Hand Push Pass", tag:"Passing", setup:"solo",
+    sets:"3x15 each hand", rest:"20 s",
+    desc:"Push pass to a wall target with one hand. Develops the off-the-dribble pass guards use to hit cutters.",
+    cues:["Push from the shoulder, not a throw","Work both hands equally","Step in the direction of the pass","Eyes on the target the whole time"] },
+  { id:"pass-pivot", name:"Pivot & Pass", tag:"Footwork", setup:"solo",
+    sets:"3x10 each side", rest:"25 s",
+    desc:"Catch off the wall, land in a jump stop, pivot, and fire the next pass. Links footwork to passing.",
+    cues:["Jump stop on the catch — establish your pivot foot","Pivot, then pass — don't drift","Stay low and balanced","Both pivot directions"] },
+  { id:"pass-off-dribble", name:"Pass Off the Dribble", tag:"Game Pass", setup:"solo",
+    sets:"3x12 each hand", rest:"25 s",
+    desc:"Take one dribble, then snap a pass to a wall spot without picking the ball up first. The live-action pass.",
+    cues:["Pass straight out of the dribble — no gather","Keep your eyes up, not on the ball","Both hands","Make the target small"] },
+];
+
+/* ── Rebounding (solo — self-toss + box-out footwork) ── */
+const W_REBOUNDING = [
+  { id:"reb-self-toss", name:"Self-Toss Rebound", tag:"Rebounding", setup:"solo",
+    sets:"3x10", rest:"30 s",
+    desc:"Toss the ball off the backboard, jump and grab it at its highest point, and chin it strong.",
+    cues:["Catch it at the peak — go get it, don't wait","Chin the ball — elbows out","Land balanced on two feet","Go right back up or pivot out"] },
+  { id:"reb-tips", name:"Tip Drill", tag:"Touch", setup:"solo",
+    sets:"3x8 each hand", rest:"30 s",
+    desc:"Tip the ball off the backboard repeatedly with one hand, then finish. Builds soft touch and timing up high.",
+    cues:["Fingertips, not palm","Keep the arm extended up high","Control the tip — don't slap","Finish the last one"] },
+  { id:"reb-boxout", name:"Box-Out Footwork", tag:"Fundamentals", setup:"solo",
+    sets:"3x8 each side", rest:"20 s",
+    desc:"Pivot, make contact, and seal — the box-out footwork, drilled solo so the movement is automatic in a game.",
+    cues:["Reverse pivot into the box-out","Wide base, butt low, forearms ready","Hold the seal for two seconds","Then go get the ball"] },
+  { id:"reb-outlet", name:"Rebound & Outlet", tag:"Transition", setup:"solo",
+    sets:"3x10", rest:"30 s",
+    desc:"Grab a self-toss rebound, turn, and fire an outlet pass to a wall target to start the break.",
+    cues:["Secure first, then turn","Turn to the sideline","Strong, accurate outlet","Quick — beat the defense down the floor"] },
+  { id:"reb-power", name:"Power Rebound Finish", tag:"Finishing", setup:"solo",
+    sets:"3x8", rest:"30 s",
+    desc:"Rebound a miss off the glass and go straight back up strong with two feet. Putbacks win games.",
+    cues:["Two feet, two hands","Chin it — don't bring it down","Go up strong and tall","Finish high off the glass"] },
+];
+
+/* ── Partner & Games (needs a teammate/defender — opt-in, not in solo missions) ── */
+const W_PARTNER_GAMES = [
+  { id:"pg-partner-pass", name:"Partner Passing", tag:"Passing", setup:"partner",
+    sets:"3x1 min", rest:"30 s",
+    desc:"Chest, bounce, and overhead passes with a partner — on the move and on the spot.",
+    cues:["Lead your partner — pass to where they're going","Call for it with a target hand","Crisp, catchable passes","Mix in bounce and overhead"] },
+  { id:"pg-closeout-read", name:"Closeout Read", tag:"Decision", setup:"partner",
+    sets:"5 reps each read", rest:"30 s",
+    desc:"Partner closes out; you read it — shoot if they're late, drive the side they over-run, reset if they're square.",
+    cues:["Make the read BEFORE you catch","Shoot the open one with confidence","Drive past a flying closeout","One dribble, then decide"] },
+  { id:"pg-1v1", name:"1v1 — Read the Defender", tag:"Game", setup:"partner",
+    sets:"Play to 5, 3 rounds", rest:"60 s",
+    desc:"Live 1v1 from the wing. The whole point: read the defender and pick the right move in real time.",
+    cues:["Attack the front foot","Change speeds — don't go 100% the whole way","Finish through contact","Defense: stay in a stance, no reaching"] },
+  { id:"pg-boxout-live", name:"Live Box-Out", tag:"Rebounding", setup:"partner",
+    sets:"3x6 each", rest:"30 s",
+    desc:"One shoots/tosses a miss; you box out your partner and go get the board. Real contact, real timing.",
+    cues:["Find your partner, then find the ball","Make contact and seal","Hold, then pursue","Chin every rebound"] },
+  { id:"pg-2v2", name:"2v2 Small-Sided", tag:"Team", setup:"group",
+    sets:"Play to 7, 2 rounds", rest:"90 s",
+    desc:"2v2 half-court. Space the floor, cut, and read help — where the game really clicks.",
+    cues:["Space out — don't crowd your teammate","Cut when you pass","Talk on defense","Help and recover"] },
+  { id:"pg-3v3", name:"3v3 Half-Court", tag:"Team", setup:"group",
+    sets:"Play to 11, 1+ rounds", rest:"as needed",
+    desc:"3v3 — the closest thing to the real game. Spacing, cutting, screening, and live decisions all at once.",
+    cues:["Keep good spacing — fill the open spots","Screen for a teammate","Read help defense before you drive","Communicate every possession"] },
+];
+
 const WORKOUTS = {
   speed:        W_SPEED,
   balance:      W_BALANCE,
@@ -1505,6 +1581,9 @@ const WORKOUTS = {
   game_handles:     W_GAME_HANDLES,
   shooting_lab:     W_SHOOTING_LAB,
   basketball_iq:    W_BASKETBALL_IQ,
+  passing:          W_PASSING,
+  rebounding:       W_REBOUNDING,
+  partner_games:    W_PARTNER_GAMES,
 };
 
 const CATS = {
@@ -1528,6 +1607,9 @@ const CATS = {
   game_handles:     { label:"Game Handles",          emoji:"🤲" },
   shooting_lab:     { label:"Shooting Lab",          emoji:"🏀" },
   basketball_iq:    { label:"Basketball IQ",         emoji:"🧠" },
+  passing:          { label:"Passing",               emoji:"↗️" },
+  rebounding:       { label:"Rebounding",            emoji:"🙌" },
+  partner_games:    { label:"Partner & Games",       emoji:"👥", partner:true },
 };
 
 const SCHEDULE = [
@@ -3142,7 +3224,7 @@ function generateDailyMission(todayStr, settings, completed, enrolledPrograms, p
     }
   }
   if (tasks.length===0) {
-    const bbCats = ["ballhandling","footwork","finishing","game_handles","shooting_lab","footwork_lab","shootingdrills"];
+    const bbCats = ["ballhandling","footwork","finishing","game_handles","shooting_lab","footwork_lab","shootingdrills","passing","rebounding"];
     const daySeed = new Date(todayStr+"T12:00:00").getDay();
     const underworked = bbCats.find(c=>!recentCats.has(c));
     const fallbackCat = underworked || bbCats[daySeed % bbCats.length];
@@ -3163,7 +3245,7 @@ function generateDailyMission(todayStr, settings, completed, enrolledPrograms, p
   /* ── Task 2: Complementary skill (skip when following a program — keep mission lean) ── */
   const hasProgramTask = tasks.some(t => t.type === "program");
   if (!hasProgramTask) {
-    const skillCats = ["ballhandling","footwork","finishing","game_handles","basketball_iq","shooting_lab","footwork_lab","shootingdrills","postmoves"];
+    const skillCats = ["ballhandling","footwork","finishing","game_handles","basketball_iq","shooting_lab","footwork_lab","shootingdrills","postmoves","passing","rebounding"];
     const dayOffset = new Date(todayStr+"T12:00:00").getDay();
     const available = skillCats.filter(c=>c!==task1Cat&&(WORKOUTS[c]||[]).length>=2);
     const skillCat = available.find(c=>!recentCats.has(c)) || available[(dayOffset+1)%available.length];
@@ -6423,8 +6505,8 @@ function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onTogg
         {/* Scrollable body */}
         <div style={{ flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch" }}>
 
-          {/* Video — inline player or thumbnail tap-to-play */}
-          {videoPlaying ? (
+          {/* Video — inline player or thumbnail tap-to-play (only when a video exists) */}
+          {(exercise.videoId || exercise.videoSource === "fkh") && (videoPlaying ? (
             /* ── Active Player ── */
             <div style={{ position:"relative",background:"#000",aspectRatio:"16/9",overflow:"hidden" }}>
               {exercise.videoSource === "fkh" ? (
@@ -6506,7 +6588,7 @@ function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onTogg
                 📺 {exercise.videoTitle}
               </div>
             </div>
-          )}
+          ))}
 
           <div style={{ padding:"18px 18px 8px" }}>
 
