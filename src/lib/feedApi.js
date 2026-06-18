@@ -41,6 +41,56 @@ export async function fetchFriendsFeed(limit = 40) {
   }));
 }
 
+/* ── Reactions (fixed emoji set, friends-only, kid-safe) ──────────────────── */
+export const REACTIONS = [
+  { id: "clap", emoji: "👏" },
+  { id: "fire", emoji: "🔥" },
+  { id: "ball", emoji: "🏀" },
+  { id: "goat", emoji: "🐐" },
+];
+
+export function reactionKey(targetId, achievementId) {
+  return `${targetId}|${achievementId}`;
+}
+
+/** Reactions visible to the signed-in athlete, grouped by feed item. */
+export async function fetchFeedReactions() {
+  if (!isSupabaseConfigured()) return { map: {}, me: null };
+  const sb = getSupabaseClient();
+  const me = await getBoardAthleteId();
+  if (!sb || !me) return { map: {}, me: null };
+
+  const { data, error } = await sb
+    .from("feed_reactions")
+    .select("actor_id, target_id, achievement_id, emoji");
+  if (error) return { map: {}, me };
+
+  const map = {};
+  for (const r of data || []) {
+    const k = reactionKey(r.target_id, r.achievement_id);
+    if (!map[k]) map[k] = { counts: {}, mine: new Set() };
+    map[k].counts[r.emoji] = (map[k].counts[r.emoji] || 0) + 1;
+    if (r.actor_id === me) map[k].mine.add(r.emoji);
+  }
+  return { map, me };
+}
+
+/** Add or remove the caller's reaction to a feed item. */
+export async function toggleReaction(targetId, achievementId, emoji, hasReacted) {
+  if (!isSupabaseConfigured()) return { ok: false };
+  const sb = getSupabaseClient();
+  const me = await getBoardAthleteId();
+  if (!sb || !me) return { ok: false };
+  if (hasReacted) {
+    const { error } = await sb.from("feed_reactions")
+      .delete().match({ actor_id: me, target_id: targetId, achievement_id: achievementId, emoji });
+    return { ok: !error };
+  }
+  const { error } = await sb.from("feed_reactions")
+    .insert({ actor_id: me, target_id: targetId, achievement_id: achievementId, emoji });
+  return { ok: !error };
+}
+
 export function relativeTime(iso) {
   if (!iso) return "";
   const diff = Date.now() - new Date(iso).getTime();
