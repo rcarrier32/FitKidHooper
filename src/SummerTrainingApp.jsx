@@ -7,7 +7,7 @@ import { useAuth } from "./hooks/useAuth.js";
 import { getAgeGroup, getAgeGroupLabel } from "./lib/periodStats.js";
 import { exportCanonicalSave, importCanonicalSave } from "./lib/canonicalSave.js";
 import { migrateIdentitySettings, normalizeJerseyNumber, POSITIONS } from "./lib/identity.js";
-import ProgressionView from "./components/ProgressionView.jsx";
+import ProgressionView, { JourneyHomeCard } from "./components/ProgressionView.jsx";
 import ChallengeStrip from "./components/ChallengeStrip.jsx";
 import { claimChallengeRewards } from "./lib/challengesApi.js";
 import {
@@ -8933,6 +8933,9 @@ export default function SummerTrainingApp() {
           );
         })()}
         </HomeCollapsibleSection>
+
+        {/* Your Journey — surface the legend mastery tracks on Home. */}
+        <JourneyHomeCard settings={settings} ctx={progressCtx} P={P} onOpen={()=>setView("progression")} />
 
         {/* Challenges — reinforce the Daily Mission; never their own nav tab. */}
         <ChallengeStrip P={P} onAddFriends={()=>setView("boards")} />

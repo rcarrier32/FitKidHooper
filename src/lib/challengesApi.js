@@ -68,12 +68,16 @@ export async function fetchChallengeStanding(challenge) {
   const sorted = [...(rows || [])].sort((a, b) => (b[field] || 0) - (a[field] || 0));
 
   const myIndex = sorted.findIndex(r => r.athlete_id === athleteId);
+  // No ranked data yet (no synced stats / not on the board) — let the strip show
+  // the "add friends / sync" nudge instead of rendering an empty standing.
+  if (!sorted.length || myIndex < 0) return null;
+
   return {
     rows: sorted,
     field,
     total: sorted.length,
-    myRank: myIndex >= 0 ? myIndex + 1 : null,
-    me: myIndex >= 0 ? sorted[myIndex] : null,
-    leader: sorted[0] || null,
+    myRank: myIndex + 1,
+    me: sorted[myIndex],
+    leader: sorted[0],
   };
 }

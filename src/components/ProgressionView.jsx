@@ -12,6 +12,35 @@ import {
   BENCHMARKS,
 } from "../lib/achievements.js";
 
+/** Compact Home card — surfaces the legend journey + current rank front-and-center. */
+export function JourneyHomeCard({ settings, ctx, P = "#f97316", onOpen }) {
+  const recId = recommendTrackForFavorite(settings);
+  const track = (recId && getTrack(recId)) || MASTERY_TRACKS[0];
+  if (!track) return null;
+  const info = trackRankInfo(track, ctx);
+  return (
+    <div onClick={onOpen} role="button" style={{
+      margin: "0 20px 14px", borderRadius: 16, cursor: "pointer",
+      border: `1px solid ${P}33`, background: `${P}0c`, padding: "12px 14px",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <span style={{ fontSize: 20 }}>{track.emoji}</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, letterSpacing: "0.14em",
+            color: P, textTransform: "uppercase", fontWeight: 800 }}>Your Journey · {track.archetype}</div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "var(--fkh-text)" }}>
+            Rank: {info.currentRank}{info.nextGoal ? ` → ${info.nextGoal}` : " 🏆"}
+          </div>
+        </div>
+        <span style={{ fontSize: 12, color: P, fontWeight: 800 }}>›</span>
+      </div>
+      <div style={{ height: 6, borderRadius: 99, background: "rgba(255,255,255,0.08)", overflow: "hidden", marginTop: 9 }}>
+        <div style={{ width: `${info.pct}%`, height: "100%", background: P }} />
+      </div>
+    </div>
+  );
+}
+
 function BenchmarkRow({ b, pb, certified, onLog, P }) {
   const [val, setVal] = useState("");
   const submit = () => {

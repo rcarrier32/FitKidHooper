@@ -66,6 +66,7 @@ export default function ChallengeStrip({ P = "#f97316", onAddFriends }) {
     );
   }
 
+  if (!standing || !standing.leader || !standing.me) return null;
   const { myRank, total, leader, me, field } = standing;
   const leaderVal = leader ? (leader[field] || 0) : 0;
   const myVal = me ? (me[field] || 0) : 0;
