@@ -1,4 +1,4 @@
-import { getAthleteId } from "./leaderboardApi.js";
+import { getDeviceAthleteId as getAthleteId } from "./auth.js";
 import { getSupabaseClient, isSupabaseConfigured } from "./supabaseClient.js";
 import { ANALYTICS_EVENTS } from "./analyticsTypes.js";
 

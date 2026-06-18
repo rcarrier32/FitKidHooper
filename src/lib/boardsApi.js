@@ -5,11 +5,10 @@ import {
   fetchLeaderboard,
   pushFromAppState,
   maybeAutoSyncLeaderboard,
+  canAutoSyncLeaderboard,
   getAthleteId,
   getLastPushTime,
   isLeaderboardConfigured,
-  buildPushPayload,
-  pushLeaderboardStats,
 } from "./leaderboardApi.js";
 import { getEffectiveAthleteId } from "./auth.js";
 import { getSupabaseClient } from "./supabaseClient.js";
@@ -20,10 +19,14 @@ export const BOARD_TYPES = [
   { id: "team", label: "Team", emoji: "🏟", comingSoon: true },
 ];
 
+// boardsApi is the single public entry point for all board/leaderboard reads
+// and syncs. leaderboardApi.js is an internal implementation detail — UI code
+// should import from here, never from leaderboardApi directly.
 export {
   fetchLeaderboard,
   pushFromAppState,
   maybeAutoSyncLeaderboard,
+  canAutoSyncLeaderboard,
   getLastPushTime,
   isLeaderboardConfigured,
 };
@@ -44,7 +47,7 @@ export async function fetchFriendsBoard({ athleteIds, period, limit = 50 }) {
 
   const { data, error } = await sb
     .from("leaderboard_stats")
-    .select("athlete_id, display_name, age_group, period, xp, shots_made, training_days, streak, pushed_at")
+    .select("athlete_id, display_name, age_group, period, xp, shots_made, training_days, streak, active_title, play_like, pushed_at")
     .in("athlete_id", athleteIds)
     .eq("period", period)
     .order("xp", { ascending: false })

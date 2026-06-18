@@ -1,5 +1,12 @@
-/** Single source of truth for localStorage keys included in backup + cloud sync. */
-
+/**
+ * Single source of truth for localStorage keys included in backup + cloud sync.
+ *
+ * FOUNDATION RULE: any new system that persists athlete state (Challenges,
+ * Community Feed, Athlete Store, Mastery, …) MUST register its localStorage
+ * key here. Do not build a parallel save/sync path — if a key is not listed,
+ * it silently won't back up or sync to the cloud, and the data will be lost on
+ * a new device. Add the key, and it is covered everywhere automatically.
+ */
 export const CANONICAL_SAVE_KEYS = [
   "s_settings",
   "s_done",
@@ -13,6 +20,8 @@ export const CANONICAL_SAVE_KEYS = [
   "fkh-favs",
   "fkh-badge-dates",
   "fkh-celebrated-badges",
+  "fkh-achievements",
+  "fkh-benchmarks",
   "fkh-daily-workouts",
   "fkh-home-sections",
   "fkh-shot-goal",

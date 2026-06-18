@@ -5,6 +5,7 @@ import {
   linkDeviceProfileOnAuth,
   signOut,
   isAuthConfigured,
+  getSignedInUsername,
 } from "../lib/auth.js";
 import { syncCloudSave } from "../lib/cloudSave.js";
 
@@ -50,5 +51,6 @@ export function useAuth(settings) {
     syncNow,
     logout,
     isSignedIn: Boolean(user?.id),
+    username: getSignedInUsername(user),
   };
 }

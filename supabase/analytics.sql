@@ -43,8 +43,38 @@ create table if not exists public.feedback (
 create index if not exists idx_feedback_created on public.feedback (created_at desc);
 create index if not exists idx_feedback_category on public.feedback (category, created_at desc);
 
--- ── RLS (MVP: anon insert + read for small-team dashboard) ───
--- Tighten SELECT policies before broader public launch.
+-- ── Admin allowlist (gates all analytics + feedback reads) ────
+-- Telemetry is append-only for anonymous clients; reading it back is
+-- restricted to dashboard admins. Seed an admin after they sign in once:
+--   insert into public.admin_allowlist (user_id, note)
+--   values ('<their-auth-user-uuid>', 'founder');
+
+create table if not exists public.admin_allowlist (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  note text,
+  created_at timestamptz not null default now()
+);
+
+alter table public.admin_allowlist enable row level security;
+
+drop policy if exists "admin_allowlist_self" on public.admin_allowlist;
+create policy "admin_allowlist_self" on public.admin_allowlist
+  for select using (user_id = auth.uid());
+
+create or replace function public.is_fkh_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (select 1 from public.admin_allowlist where user_id = auth.uid());
+$$;
+
+-- ── RLS ───────────────────────────────────────────────────────
+-- INSERT/UPDATE stay open so anonymous (pre-auth) clients can append
+-- telemetry and feedback. SELECT is admin-only — no client can read back
+-- another athlete's events or feedback.
 
 alter table public.events enable row level security;
 alter table public.athlete_analytics enable row level security;
@@ -54,16 +84,22 @@ drop policy if exists "events_insert" on public.events;
 create policy "events_insert" on public.events for insert with check (true);
 
 drop policy if exists "events_select" on public.events;
-create policy "events_select" on public.events for select using (true);
+create policy "events_select" on public.events for select using (public.is_fkh_admin());
 
+-- athlete_analytics is upserted (insert + update of own device row) by clients.
 drop policy if exists "athlete_analytics_all" on public.athlete_analytics;
-create policy "athlete_analytics_all" on public.athlete_analytics for all using (true) with check (true);
+drop policy if exists "athlete_analytics_insert" on public.athlete_analytics;
+create policy "athlete_analytics_insert" on public.athlete_analytics for insert with check (true);
+drop policy if exists "athlete_analytics_update" on public.athlete_analytics;
+create policy "athlete_analytics_update" on public.athlete_analytics for update using (true) with check (true);
+drop policy if exists "athlete_analytics_select" on public.athlete_analytics;
+create policy "athlete_analytics_select" on public.athlete_analytics for select using (public.is_fkh_admin());
 
 drop policy if exists "feedback_insert" on public.feedback;
 create policy "feedback_insert" on public.feedback for insert with check (true);
 
 drop policy if exists "feedback_select" on public.feedback;
-create policy "feedback_select" on public.feedback for select using (true);
+create policy "feedback_select" on public.feedback for select using (public.is_fkh_admin());
 
 -- ── Active users ──────────────────────────────────────────────
 
@@ -273,3 +309,25 @@ select
   count(*) filter (where category = 'bug') as bugs,
   count(*) filter (where category = 'general') as general
 from public.feedback;
+
+-- ── View security ─────────────────────────────────────────────
+-- Run views with the caller's privileges (Postgres 15+) so the admin-only
+-- RLS on events/feedback/athlete_analytics also governs these views. Without
+-- this, the views would expose base-table rows to anyone.
+alter view public.analytics_dau                    set (security_invoker = on);
+alter view public.analytics_wau                    set (security_invoker = on);
+alter view public.analytics_mau                    set (security_invoker = on);
+alter view public.analytics_retention              set (security_invoker = on);
+alter view public.analytics_sessions_per_week      set (security_invoker = on);
+alter view public.analytics_training_days_per_week set (security_invoker = on);
+alter view public.analytics_top_screens            set (security_invoker = on);
+alter view public.analytics_top_exercises          set (security_invoker = on);
+alter view public.analytics_top_programs           set (security_invoker = on);
+alter view public.analytics_mission_completion     set (security_invoker = on);
+alter view public.analytics_challenge_completion   set (security_invoker = on);
+alter view public.analytics_badge_distribution     set (security_invoker = on);
+alter view public.analytics_athlete_summary        set (security_invoker = on);
+alter view public.feedback_general                 set (security_invoker = on);
+alter view public.feedback_bugs                    set (security_invoker = on);
+alter view public.feedback_feature_requests        set (security_invoker = on);
+alter view public.feedback_summary                 set (security_invoker = on);
