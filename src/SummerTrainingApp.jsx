@@ -7092,6 +7092,8 @@ export default function SummerTrainingApp() {
   const [celebrationQueue, setCelebrationQueue] = useState([]);
   const [ledger, setLedger] = useState(()=>readLocalLedger());
   const [benchmarkPBs, setBenchmarkPBs] = useState(()=>readLocalPBs());
+  const [progressTab, setProgressTab] = useState("journeys");
+  const [lockerBadgesOpen, setLockerBadgesOpen] = useState(false);
   const [badgeDates, setBadgeDates] = useState(()=>{
     try{return JSON.parse(localStorage.getItem("fkh-badge-dates")||"{}");}catch{return {};}
   });
@@ -7744,7 +7746,7 @@ export default function SummerTrainingApp() {
     {id:"home",     emoji:"🏠",label:"Home"},
     {id:"shots",    emoji:"🏀",label:"Shots"},
     {id:"programs", emoji:"📋",label:"Programs"},
-    {id:"badges",   emoji:"🏅",label:"Badges"},
+    {id:"progress", emoji:"📈",label:"Progress"},
     {id:"boards",  emoji:"🏆",label:"Boards"},
   ];
 
@@ -8089,39 +8091,82 @@ export default function SummerTrainingApp() {
   );
 
   /* BADGES */
-  if (view==="badges") return (
-    <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"var(--fkh-text)",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
-      {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]}
-        onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
-      {renderMissionOverlays()}
-      <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 20px",borderBottom:`1px solid ${P}14`,position:"sticky",top:0,background:BG,backdropFilter:"blur(10px)",zIndex:10 }}>
-        <h1 style={{ fontSize:16,fontWeight:800,margin:0,color:P }}>🏅 Badges</h1>
-        <button onClick={()=>setView("progression")} style={{ background:`${P}18`,border:`1px solid ${P}40`,borderRadius:999,color:P,fontSize:11,fontWeight:800,cursor:"pointer",padding:"6px 12px" }}>
-          🏀 Journeys →
-        </button>
+  /* PROGRESS — one hub: Journeys · Skills · Locker · Stats (sub-tabs + collapsibles) */
+  if (view==="progress") {
+    const subTabs = [
+      { id:"journeys", label:"Journeys" },
+      { id:"skills",   label:"Skills" },
+      { id:"locker",   label:"Locker" },
+      { id:"stats",    label:"Stats" },
+    ];
+    const statTile = (label, value) => (
+      <div style={{ flex:1,minWidth:120,background:SF,border:`1px solid ${bd}`,borderRadius:14,padding:"12px 14px" }}>
+        <div style={{ fontSize:10,color:"#64748b",fontWeight:700,letterSpacing:"0.04em",textTransform:"uppercase" }}>{label}</div>
+        <div style={{ fontSize:18,fontWeight:800,color:P,marginTop:3,fontFamily:"'DM Mono',monospace" }}>{value}</div>
       </div>
-      <BadgesView
-        earnedBadges={earnedBadges} badgeDates={badgeDates} completed={completed}
-        programProgress={programProgress}
-        P={P} S={S} BG={BG} SF={SF} bd={bd} lbl={lbl}/>
-      {renderBottomNav()}
-    </div>
-  );
+    );
+    const statBtn = (label, onClick) => (
+      <button onClick={onClick} style={{ flex:1,padding:"12px 10px",borderRadius:12,border:`1px solid ${P}33`,background:`${P}0c`,color:P,fontSize:13,fontWeight:800,cursor:"pointer" }}>{label}</button>
+    );
+    return (
+      <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"var(--fkh-text)",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
+        {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]}
+          onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
+        {renderMissionOverlays()}
+        <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 20px",borderBottom:`1px solid ${P}14`,position:"sticky",top:0,background:BG,backdropFilter:"blur(10px)",zIndex:10 }}>
+          <h1 style={{ fontSize:16,fontWeight:800,margin:0,color:P }}>📈 Progress</h1>
+        </div>
+        <div style={{ display:"flex",gap:6,padding:"12px 18px 6px",overflowX:"auto" }}>
+          {subTabs.map(t=>(
+            <button key={t.id} onClick={()=>setProgressTab(t.id)} style={{
+              flexShrink:0,padding:"7px 14px",borderRadius:999,fontSize:12,fontWeight:800,cursor:"pointer",
+              border:`1px solid ${progressTab===t.id?P:bd}`,
+              background:progressTab===t.id?`${P}20`:"transparent",
+              color:progressTab===t.id?P:"#64748b",
+            }}>{t.label}</button>
+          ))}
+        </div>
 
-  /* PROGRESSION — mastery journeys + equip */
-  if (view==="progression") return (
-    <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"var(--fkh-text)",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
-      {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]}
-        onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
-      {renderMissionOverlays()}
-      <ProgressionView
-        settings={settings} ledgerIds={ledgerSet} ledger={ledger} ctx={progressCtx} P={P}
-        benchmarkPBs={benchmarkPBs} onLogBenchmark={handleLogBenchmark}
-        onEquipTitle={handleEquipTitle} onEquipCosmetic={handleEquipCosmetic}
-        onUnequipSlot={handleUnequipSlot} onBack={()=>setView("badges")}/>
-      {renderBottomNav()}
-    </div>
-  );
+        {progressTab!=="stats" && (
+          <ProgressionView
+            tab={progressTab}
+            settings={settings} ledgerIds={ledgerSet} ledger={ledger} ctx={progressCtx} P={P}
+            benchmarkPBs={benchmarkPBs} onLogBenchmark={handleLogBenchmark}
+            onEquipTitle={handleEquipTitle} onEquipCosmetic={handleEquipCosmetic}
+            onUnequipSlot={handleUnequipSlot}/>
+        )}
+
+        {progressTab==="locker" && (
+          <div style={{ padding:"0 18px" }}>
+            <HomeCollapsibleSection title="Badges" open={lockerBadgesOpen}
+              onToggle={()=>setLockerBadgesOpen(o=>!o)} labelStyle={lbl} accentColor={P}>
+              <BadgesView
+                earnedBadges={earnedBadges} badgeDates={badgeDates} completed={completed}
+                programProgress={programProgress}
+                P={P} S={S} BG={BG} SF={SF} bd={bd} lbl={lbl}/>
+            </HomeCollapsibleSection>
+          </div>
+        )}
+
+        {progressTab==="stats" && (
+          <div style={{ padding:"4px 18px 16px" }}>
+            <div style={{ display:"flex",flexWrap:"wrap",gap:10,marginBottom:14 }}>
+              {statTile("Level", `${currentLevel?.emoji||""} ${currentLevel?.name||"Rookie"}`)}
+              {statTile("Total XP", (xpData?.total||0).toLocaleString())}
+              {statTile("Shots Made", (progressCtx.makes||0).toLocaleString())}
+              {statTile("Badges", earnedBadges.length)}
+            </div>
+            <div style={{ display:"flex",gap:10 }}>
+              {statBtn("📊 Training History", ()=>setView("history"))}
+              {statBtn("🧠 Coach Report", ()=>setView("report"))}
+            </div>
+          </div>
+        )}
+
+        {renderBottomNav()}
+      </div>
+    );
+  }
 
   /* HISTORY */
   if (view==="history") return (
@@ -8193,7 +8238,7 @@ export default function SummerTrainingApp() {
         onOpenSettings={()=>setShowSettings(true)}
         onViewHistory={()=>setView("history")}
         onViewSchedule={()=>openSchedule("profile", "calendar")}
-        onViewBadges={()=>setView("badges")}
+        onViewBadges={()=>setView("progress")}
         onViewLeaderboard={()=>setView("boards")}
         onPushStats={()=>handlePushStats({ goToRanks: false })}
         pushBusy={pushBusy}
@@ -8704,7 +8749,7 @@ export default function SummerTrainingApp() {
               {lastEarnedBadge.name}
             </div>
           </div>
-          <button onClick={()=>{ setView("badges"); setLastEarnedBadge(null); }}
+          <button onClick={()=>{ setView("progress"); setLastEarnedBadge(null); }}
             style={{ background:lastEarnedBadge.color,border:"none",color:"#000",fontSize:10,
               fontWeight:800,cursor:"pointer",borderRadius:20,padding:"5px 12px",
               whiteSpace:"nowrap",flexShrink:0 }}>
@@ -8935,7 +8980,7 @@ export default function SummerTrainingApp() {
         </HomeCollapsibleSection>
 
         {/* Your Journey — surface the legend mastery tracks on Home. */}
-        <JourneyHomeCard settings={settings} ctx={progressCtx} P={P} onOpen={()=>setView("progression")} />
+        <JourneyHomeCard settings={settings} ctx={progressCtx} P={P} onOpen={()=>setView("progress")} />
 
         {/* Challenges — reinforce the Daily Mission; never their own nav tab. */}
         <ChallengeStrip P={P} onAddFriends={()=>setView("boards")} />
@@ -9295,7 +9340,7 @@ export default function SummerTrainingApp() {
                 </div>
                 <div style={{ fontSize:10,color:"#475569" }}>{nextLv?`${xpLeft} XP to reach ${nextLv.name}`:"Max Level reached 👑"}</div>
                 {nextBadge&&(
-                  <div onClick={()=>setView("badges")} style={{ display:"flex",alignItems:"center",gap:10,marginTop:12,paddingTop:10,borderTop:"1px solid rgba(255,255,255,0.06)",cursor:"pointer" }}>
+                  <div onClick={()=>setView("progress")} style={{ display:"flex",alignItems:"center",gap:10,marginTop:12,paddingTop:10,borderTop:"1px solid rgba(255,255,255,0.06)",cursor:"pointer" }}>
                     <span style={{ fontSize:18,lineHeight:1 }}>{nextBadge.emoji}</span>
                     <div style={{ flex:1,minWidth:0 }}>
                       <div style={{ fontSize:10,fontWeight:700,color:nextBadge.color,marginBottom:3 }}>🏆 Next Badge: {nextBadge.name}</div>
@@ -9314,7 +9359,7 @@ export default function SummerTrainingApp() {
                   <div style={homeLbl}>Upcoming Unlocks</div>
                   <div style={{ display:"flex",flexDirection:"column",gap:7 }}>
                     {upcomingBadges.map(b=>(
-                      <div key={b.id} onClick={()=>setView("badges")} style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:12,
+                      <div key={b.id} onClick={()=>setView("progress")} style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:12,
                         background:`${b.color}08`,border:`1px solid ${b.color}1a`,cursor:"pointer" }}>
                         <span style={{ fontSize:22,lineHeight:1 }}>{b.emoji}</span>
                         <div style={{ flex:1,minWidth:0 }}>

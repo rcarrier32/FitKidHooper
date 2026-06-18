@@ -68,6 +68,25 @@ function BenchmarkRow({ b, pb, certified, onLog, P }) {
 const SLOT_LABELS = { frame: "Card Frame", avatar_gear: "Gear", emote: "Emote" };
 const RARITY_RING = { common: "#64748b", rare: "#38bdf8", epic: "#a78bfa", legendary: "#f59e0b" };
 
+/** Collapsible section header (Home-style), used inside Progress sub-tabs. */
+function Collapsible({ title, count, P, children, defaultOpen = true }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <button onClick={() => setOpen(o => !o)} style={{
+        width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center",
+        background: "transparent", border: "none", cursor: "pointer", padding: "10px 0",
+      }}>
+        <span style={{ fontSize: 11, fontWeight: 800, color: "#64748b", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+          {title}{count != null ? ` (${count})` : ""}
+        </span>
+        <span style={{ color: P, fontSize: 12 }}>{open ? "▾" : "▸"}</span>
+      </button>
+      {open && children}
+    </div>
+  );
+}
+
 function Ladder({ track, info, P }) {
   return (
     <div style={{ display: "flex", gap: 6, marginTop: 12, overflowX: "auto", paddingBottom: 4 }}>
@@ -102,9 +121,10 @@ function Ladder({ track, info, P }) {
 }
 
 export default function ProgressionView({
+  tab = "journeys",
   settings, ledgerIds, ledger, ctx, P = "#f97316",
   benchmarkPBs = {}, onLogBenchmark,
-  onEquipTitle, onEquipCosmetic, onUnequipSlot, onBack,
+  onEquipTitle, onEquipCosmetic, onUnequipSlot,
 }) {
   const trophies = Object.entries(ledger || {})
     .filter(([, e]) => e.kind === "recognition")
@@ -129,15 +149,111 @@ export default function ProgressionView({
 
   const lbl = { fontSize: 11, fontWeight: 800, color: "#64748b", letterSpacing: "0.06em", textTransform: "uppercase", margin: "0 0 8px" };
 
-  return (
-    <div style={{ padding: "0 18px 110px" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 0 8px" }}>
-        {onBack && (
-          <button onClick={onBack} style={{ background: `${P}14`, border: `1px solid ${P}30`, borderRadius: 8, color: P, fontSize: 12, fontWeight: 700, cursor: "pointer", padding: "5px 10px" }}>← Back</button>
-        )}
-        <h1 style={{ fontSize: 17, fontWeight: 800, margin: 0, color: P }}>🏀 Your Journeys</h1>
+  /* ── SKILLS tab — benchmarks / certifications ─────────────────────────── */
+  if (tab === "skills") {
+    return (
+      <div style={{ padding: "4px 18px 16px" }}>
+        <div style={lbl}>Get Certified — log your accuracy</div>
+        <div style={{ background: "var(--fkh-surface)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: "4px 14px 8px" }}>
+          {BENCHMARKS.map(b => (
+            <BenchmarkRow key={b.id} b={b} pb={benchmarkPBs[b.id] ?? null}
+              certified={owned.has(b.title.id)} onLog={onLogBenchmark} P={P} />
+          ))}
+        </div>
+        <div style={{ fontSize: 11, color: "#64748b", marginTop: 10, lineHeight: 1.5 }}>
+          Hit the mark and you earn a certification Title — which unlocks the Conquest peak on the matching journey.
+        </div>
       </div>
+    );
+  }
 
+  /* ── LOCKER tab — equip titles / cosmetics, view trophies ─────────────── */
+  if (tab === "locker") {
+    return (
+      <div style={{ padding: "4px 18px 16px" }}>
+        <Collapsible title="Titles" count={ownedTitles.length || null} P={P}>
+          {ownedTitles.length === 0 ? (
+            <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>
+              Climb a journey to earn your first Title — then wear it on your card and the leaderboard.
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {ownedTitles.map(id => {
+                const m = getAchievementMeta(id);
+                const active = activeTitle === id;
+                return (
+                  <button key={id} onClick={() => onEquipTitle(active ? null : id)} style={{
+                    display: "inline-flex", alignItems: "center", gap: 5, padding: "7px 12px", borderRadius: 999,
+                    cursor: "pointer", fontSize: 12, fontWeight: 800,
+                    color: active ? "#0b1220" : (m?.color || P),
+                    background: active ? (m?.color || P) : `${m?.color || P}1c`,
+                    border: `1px solid ${m?.color || P}${active ? "" : "55"}`,
+                  }}>
+                    <span>{m?.emoji}</span><span>{m?.name}</span>{active && <span style={{ fontSize: 10 }}>✓ equipped</span>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </Collapsible>
+
+        <Collapsible title="Cosmetics" count={ownedCosmetics.length || null} P={P}>
+          {ownedCosmetics.length === 0 ? (
+            <div style={{ fontSize: 12, color: "#64748b" }}>Reach a new rank to unlock frames, gear, and emotes.</div>
+          ) : (
+            COSMETIC_SLOTS.map(slot => {
+              const inSlot = ownedCosmetics.filter(id => getAchievementMeta(id)?.slot === slot);
+              if (!inSlot.length) return null;
+              return (
+                <div key={slot} style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 10, color: "#64748b", fontWeight: 700, marginBottom: 6 }}>{SLOT_LABELS[slot] || slot}</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                    {inSlot.map(id => {
+                      const m = getAchievementMeta(id);
+                      const active = equipped[slot] === id;
+                      return (
+                        <button key={id} onClick={() => (active ? onUnequipSlot(slot) : onEquipCosmetic(id))} style={{
+                          display: "inline-flex", alignItems: "center", gap: 5, padding: "7px 11px", borderRadius: 10,
+                          cursor: "pointer", fontSize: 11.5, fontWeight: 700,
+                          color: active ? "#0b1220" : "var(--fkh-text)",
+                          background: active ? (m?.color || P) : "rgba(255,255,255,0.04)",
+                          border: `1px solid ${active ? (m?.color || P) : RARITY_RING[m?.rarity] || "rgba(255,255,255,0.1)"}`,
+                        }}>
+                          <span>{m?.emoji}</span><span>{m?.name}</span>{active && <span style={{ fontSize: 10 }}>✓</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </Collapsible>
+
+        <Collapsible title="Trophies" count={trophies.length || null} P={P}>
+          {trophies.length === 0 ? (
+            <div style={{ fontSize: 12, color: "#64748b" }}>Win a weekly challenge to earn a Champion trophy.</div>
+          ) : (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {trophies.map(t => (
+                <div key={t.id} style={{
+                  display: "inline-flex", alignItems: "center", gap: 5, padding: "8px 12px", borderRadius: 12,
+                  background: "#f59e0b1c", border: "1px solid #f59e0b55", fontSize: 12, fontWeight: 800, color: "#f59e0b",
+                }}>
+                  <span>{t.emoji || "🏆"}</span><span>{t.label || "Champion"}</span>
+                  {t.period && <span style={{ fontSize: 9, color: "#94a3b8", fontWeight: 700 }}>{t.period}</span>}
+                </div>
+              ))}
+            </div>
+          )}
+        </Collapsible>
+      </div>
+    );
+  }
+
+  /* ── JOURNEYS tab (default) — legend mastery tracks ───────────────────── */
+  return (
+    <div style={{ padding: "4px 18px 16px" }}>
       {/* Favorite-player personalization */}
       {recTrack && recInfo && (
         <div style={{
@@ -162,28 +278,6 @@ export default function ProgressionView({
         </div>
       )}
 
-      {/* Trophies — challenge wins (recognition), rendered from the ledger context */}
-      {trophies.length > 0 && (
-        <>
-          <div style={lbl}>Trophies ({trophies.length})</div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 18 }}>
-            {trophies.map(t => (
-              <div key={t.id} style={{
-                display: "inline-flex", alignItems: "center", gap: 5, padding: "8px 12px", borderRadius: 12,
-                background: "#f59e0b1c", border: "1px solid #f59e0b55",
-                fontSize: 12, fontWeight: 800, color: "#f59e0b",
-              }}>
-                <span>{t.emoji || "🏆"}</span>
-                <span>{t.label || "Champion"}</span>
-                {t.period && <span style={{ fontSize: 9, color: "#94a3b8", fontWeight: 700 }}>{t.period}</span>}
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {/* Mastery journeys */}
-      <div style={lbl}>Mastery Journeys</div>
       {orderedTracks.map(track => {
         const info = trackRankInfo(track, ctx);
         const isRec = recTrack && track.id === recTrack.id;
@@ -215,80 +309,6 @@ export default function ProgressionView({
           </div>
         );
       })}
-
-      {/* Benchmarks — log a test, earn a certification title by hitting the mark */}
-      {onLogBenchmark && (
-        <>
-          <div style={{ ...lbl, marginTop: 22 }}>Get Certified — log your accuracy</div>
-          <div style={{ background: "var(--fkh-surface)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: "4px 14px 8px", marginBottom: 14 }}>
-            {BENCHMARKS.map(b => (
-              <BenchmarkRow key={b.id} b={b} pb={benchmarkPBs[b.id] ?? null}
-                certified={owned.has(b.title.id)} onLog={onLogBenchmark} P={P} />
-            ))}
-          </div>
-        </>
-      )}
-
-      {/* Equip — Titles */}
-      <div style={{ ...lbl, marginTop: 22 }}>Titles {ownedTitles.length ? `(${ownedTitles.length})` : ""}</div>
-      {ownedTitles.length === 0 ? (
-        <div style={{ fontSize: 12, color: "#64748b", marginBottom: 14 }}>
-          Climb a journey to earn your first Title — then wear it on your card and the leaderboard.
-        </div>
-      ) : (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
-          {ownedTitles.map(id => {
-            const m = getAchievementMeta(id);
-            const active = activeTitle === id;
-            return (
-              <button key={id} onClick={() => onEquipTitle(active ? null : id)} style={{
-                display: "inline-flex", alignItems: "center", gap: 5, padding: "7px 12px", borderRadius: 999,
-                cursor: "pointer", fontSize: 12, fontWeight: 800,
-                color: active ? "#0b1220" : (m?.color || P),
-                background: active ? (m?.color || P) : `${m?.color || P}1c`,
-                border: `1px solid ${m?.color || P}${active ? "" : "55"}`,
-              }}>
-                <span>{m?.emoji}</span><span>{m?.name}</span>{active && <span style={{ fontSize: 10 }}>✓ equipped</span>}
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Equip — Cosmetics */}
-      <div style={lbl}>Cosmetics {ownedCosmetics.length ? `(${ownedCosmetics.length})` : ""}</div>
-      {ownedCosmetics.length === 0 ? (
-        <div style={{ fontSize: 12, color: "#64748b" }}>
-          Reach a new rank to unlock frames, gear, and emotes.
-        </div>
-      ) : (
-        COSMETIC_SLOTS.map(slot => {
-          const inSlot = ownedCosmetics.filter(id => getAchievementMeta(id)?.slot === slot);
-          if (!inSlot.length) return null;
-          return (
-            <div key={slot} style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 10, color: "#64748b", fontWeight: 700, marginBottom: 6 }}>{SLOT_LABELS[slot] || slot}</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {inSlot.map(id => {
-                  const m = getAchievementMeta(id);
-                  const active = equipped[slot] === id;
-                  return (
-                    <button key={id} onClick={() => (active ? onUnequipSlot(slot) : onEquipCosmetic(id))} style={{
-                      display: "inline-flex", alignItems: "center", gap: 5, padding: "7px 11px", borderRadius: 10,
-                      cursor: "pointer", fontSize: 11.5, fontWeight: 700,
-                      color: active ? "#0b1220" : "var(--fkh-text)",
-                      background: active ? (m?.color || P) : "rgba(255,255,255,0.04)",
-                      border: `1px solid ${active ? (m?.color || P) : RARITY_RING[m?.rarity] || "rgba(255,255,255,0.1)"}`,
-                    }}>
-                      <span>{m?.emoji}</span><span>{m?.name}</span>{active && <span style={{ fontSize: 10 }}>✓</span>}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })
-      )}
     </div>
   );
 }
