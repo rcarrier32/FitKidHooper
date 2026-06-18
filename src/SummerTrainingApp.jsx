@@ -20,7 +20,7 @@ import {
   readLocalLedger, ledgerIdSet, mergeIntoLocalLedger, pushLedgerEntries, pullLedger,
   pushEquippedIdentity,
 } from "./lib/achievementsApi.js";
-import { getStreak, getWeekShotGoal } from "./lib/progressStats.js";
+import { getStreak, getTrainingDays, getWeekShotGoal } from "./lib/progressStats.js";
 import { resolveDailyAction, pickChallengeNudge } from "./lib/dailyAction.js";
 import {
   consumeInviteDeepLink,
@@ -8153,6 +8153,8 @@ export default function SummerTrainingApp() {
             <div style={{ display:"flex",flexWrap:"wrap",gap:10,marginBottom:14 }}>
               {statTile("Level", `${currentLevel?.emoji||""} ${currentLevel?.name||"Rookie"}`)}
               {statTile("Total XP", (xpData?.total||0).toLocaleString())}
+              {statTile("Streak", `${getStreak(completed)}d 🔥`)}
+              {statTile("Training Days", getTrainingDays(completed))}
               {statTile("Shots Made", (progressCtx.makes||0).toLocaleString())}
               {statTile("Badges", earnedBadges.length)}
             </div>
