@@ -4175,7 +4175,7 @@ function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenA
           <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
             <button onClick={onOpenAuth} style={{ width:"100%",padding:"12px 14px",borderRadius:12,cursor:"pointer",...actionBtnStyle(settings) }}>
               <div style={{ fontSize:13,fontWeight:700,color:P }}>
-                {isSignedIn ? `✓ Signed in as @${signedInUsername || "athlete"}` : "Back up & sync"}
+                {isSignedIn ? `✓ Signed in as @${signedInUsername || "athlete"}` : "🔑 Sign in · Back up & sync"}
               </div>
               <div style={{ fontSize:10,color:"#64748b",marginTop:3 }}>
                 {isSignedIn ? "Cloud save & friends on Boards" : "Username + passcode · optional"}
@@ -6461,10 +6461,11 @@ function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onTogg
               </button>
             )}
             {isDone
-              ? <span style={{ fontSize:11,fontWeight:700,color:"#22c55e",
-                  padding:"4px 10px",background:"rgba(34,197,94,0.1)",
-                  border:"1px solid rgba(34,197,94,0.2)",borderRadius:20 }}>✓ Done</span>
-              : <div style={{ width:onToggleFav?0:56 }}/>}
+              ? <button onClick={onToggle} title="Tap to undo" style={{ fontSize:11,fontWeight:800,color:"#22c55e",
+                  padding:"6px 12px",background:"rgba(34,197,94,0.12)",cursor:"pointer",
+                  border:"1px solid rgba(34,197,94,0.3)",borderRadius:20,whiteSpace:"nowrap" }}>✓ Done</button>
+              : <button onClick={onToggle} style={{ fontSize:12,fontWeight:800,color:"#0b1220",
+                  padding:"7px 14px",background:"#22c55e",border:"none",borderRadius:20,cursor:"pointer",whiteSpace:"nowrap" }}>✓ Mark Done</button>}
           </div>
         </div>
 
