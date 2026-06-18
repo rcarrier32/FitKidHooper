@@ -9040,13 +9040,13 @@ export default function SummerTrainingApp() {
             </div>
           );
         })()}
-        </HomeCollapsibleSection>
 
         {/* Your Journey — surface the legend mastery tracks on Home. */}
         <JourneyHomeCard settings={settings} ctx={progressCtx} P={P} onOpen={()=>setView("progress")} />
 
         {/* Challenges — reinforce the Daily Mission; never their own nav tab. */}
         <ChallengeStrip P={P} onAddFriends={()=>setView("boards")} />
+        </HomeCollapsibleSection>
 
         {/* Active Program — folded into mission when program task is present */}
         {!missionHasProgramTask && (() => {
