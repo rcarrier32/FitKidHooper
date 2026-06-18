@@ -1,12 +1,16 @@
-import { shootingSnapshot, ZONES } from "../lib/shootingStats.js";
+import { useState } from "react";
+import { shootingSnapshot, computeSpotStats, ZONES } from "../lib/shootingStats.js";
 
 function readShotLog() {
   try { return JSON.parse(localStorage.getItem("shot_log_v2") || "{}"); } catch { return {}; }
 }
 
-/** Shooting accuracy — make %, not just raw makes — overall, this week, by zone. */
+/** Shooting accuracy — make %, not just raw makes — overall, this week, by zone,
+ * with a drill-down to per-spot accuracy. */
 export default function ShootingCard({ P = "#f97316", SF, bd }) {
-  const { allTime, week } = shootingSnapshot(readShotLog());
+  const [openSpots, setOpenSpots] = useState(false);
+  const log = readShotLog();
+  const { allTime, week } = shootingSnapshot(log);
 
   if (!allTime.attempts) {
     return (
@@ -55,6 +59,31 @@ export default function ShootingCard({ P = "#f97316", SF, bd }) {
           );
         })}
       </div>
+
+      {(() => {
+        const spots = computeSpotStats(log);
+        if (spots.length < 2) return null;
+        return (
+          <div style={{ marginTop: 12, borderTop: `1px solid ${bd}`, paddingTop: 10 }}>
+            <button onClick={() => setOpenSpots(o => !o)} style={{ background: "transparent", border: "none", cursor: "pointer", color: P, fontSize: 11, fontWeight: 800, padding: 0 }}>
+              {openSpots ? "▾ Hide shot spots" : "▸ Accuracy by spot"}
+            </button>
+            {openSpots && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
+                {spots.map(s => (
+                  <div key={s.key} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 11, color: "var(--fkh-text-muted)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.label}</span>
+                    <div style={{ width: 70, height: 5, borderRadius: 99, background: "rgba(255,255,255,0.07)", overflow: "hidden" }}>
+                      <div style={{ width: `${s.pct || 0}%`, height: "100%", background: P }} />
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 800, color: P, fontFamily: "'DM Mono',monospace", width: 62, textAlign: "right" }}>{s.pct}% · {s.m}/{s.a}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }
