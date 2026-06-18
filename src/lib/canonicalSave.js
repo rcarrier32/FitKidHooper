@@ -22,6 +22,7 @@ export const CANONICAL_SAVE_KEYS = [
   "fkh-celebrated-badges",
   "fkh-achievements",
   "fkh-benchmarks",
+  "fkh-growth",
   "fkh-daily-workouts",
   "fkh-home-sections",
   "fkh-shot-goal",
