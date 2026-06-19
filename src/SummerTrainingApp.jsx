@@ -5779,7 +5779,7 @@ function BadgesView({ earnedBadges, badgeDates, completed, programProgress={}, P
                       display:"flex",alignItems:"flex-start",gap:10,padding:"12px 12px",borderRadius:13,
                       background:earned?`${badge.color}0e`:"rgba(255,255,255,0.025)",
                       border:`1px solid ${earned?badge.color+"28":"rgba(255,255,255,0.05)"}`,
-                      opacity:earned?1:0.4,transition:"all 0.3s",
+                      opacity:earned?1:0.7,transition:"all 0.3s",
                     }}>
                       <div style={{ width:38,height:38,borderRadius:11,flexShrink:0,
                         background:earned?`${badge.color}16`:"rgba(255,255,255,0.04)",
@@ -5790,11 +5790,11 @@ function BadgesView({ earnedBadges, badgeDates, completed, programProgress={}, P
                       </div>
                       <div style={{ flex:1,minWidth:0 }}>
                         <div style={{ fontSize:11,fontWeight:700,lineHeight:1.25,
-                          color:earned?badge.color:"#334155",marginBottom:2 }}>
+                          color:earned?badge.color:"#94a3b8",marginBottom:2 }}>
                           {badge.name}
                         </div>
-                        <div style={{ fontSize:9,color:earned?"#475569":"#1e293b",lineHeight:1.4 }}>
-                          {badge.desc}
+                        <div style={{ fontSize:9,color:earned?"#475569":"#64748b",lineHeight:1.4 }}>
+                          {earned ? badge.desc : `🔒 ${badge.desc}`}
                         </div>
                         {earned && fmtDate && (
                           <div style={{ fontSize:8,color:"#334155",marginTop:3,
@@ -7137,7 +7137,7 @@ export default function SummerTrainingApp() {
   const [growthLog, setGrowthLog] = useState(()=>readGrowthLog());
   const handleLogHeight = useCallback(h=>setGrowthLog(addGrowthEntry(h)),[]);
   const [progressTab, setProgressTab] = useState("journeys");
-  const [lockerBadgesOpen, setLockerBadgesOpen] = useState(false);
+  const [lockerBadgesOpen, setLockerBadgesOpen] = useState(true);
   const [badgeDates, setBadgeDates] = useState(()=>{
     try{return JSON.parse(localStorage.getItem("fkh-badge-dates")||"{}");}catch{return {};}
   });
@@ -8140,7 +8140,7 @@ export default function SummerTrainingApp() {
     const subTabs = [
       { id:"journeys", label:"Journeys" },
       { id:"skills",   label:"Skills" },
-      { id:"locker",   label:"Locker" },
+      { id:"locker",   label:"🏅 Badges" },
       { id:"stats",    label:"Stats" },
     ];
     const statTile = (label, value) => (
@@ -8171,18 +8171,12 @@ export default function SummerTrainingApp() {
           ))}
         </div>
 
-        {progressTab!=="stats" && (
-          <ProgressionView
-            tab={progressTab}
-            settings={settings} ledgerIds={ledgerSet} ledger={ledger} ctx={progressCtx} P={P}
-            benchmarkPBs={benchmarkPBs} onLogBenchmark={handleLogBenchmark}
-            onEquipTitle={handleEquipTitle} onEquipCosmetic={handleEquipCosmetic}
-            onUnequipSlot={handleUnequipSlot}/>
-        )}
-
         {progressTab==="locker" && (
-          <div style={{ padding:"0 18px" }}>
-            <HomeCollapsibleSection title="Badges" open={lockerBadgesOpen}
+          <div style={{ padding:"0 18px 4px" }}>
+            <div style={{ fontSize:11,color:"#64748b",margin:"2px 2px 10px",lineHeight:1.5 }}>
+              🔓 Earned badges are lit up. <b style={{ color:P }}>Locked</b> ones show what to do to earn them.
+            </div>
+            <HomeCollapsibleSection title={`🏅 My Badges (${earnedBadges.length})`} open={lockerBadgesOpen}
               onToggle={()=>setLockerBadgesOpen(o=>!o)} labelStyle={lbl} accentColor={P}>
               <BadgesView
                 earnedBadges={earnedBadges} badgeDates={badgeDates} completed={completed}
@@ -8190,6 +8184,15 @@ export default function SummerTrainingApp() {
                 P={P} S={S} BG={BG} SF={SF} bd={bd} lbl={lbl}/>
             </HomeCollapsibleSection>
           </div>
+        )}
+
+        {progressTab!=="stats" && (
+          <ProgressionView
+            tab={progressTab}
+            settings={settings} ledgerIds={ledgerSet} ledger={ledger} ctx={progressCtx} P={P}
+            benchmarkPBs={benchmarkPBs} onLogBenchmark={handleLogBenchmark}
+            onEquipTitle={handleEquipTitle} onEquipCosmetic={handleEquipCosmetic}
+            onUnequipSlot={handleUnequipSlot}/>
         )}
 
         {progressTab==="stats" && (
@@ -8200,7 +8203,10 @@ export default function SummerTrainingApp() {
               {statTile("Streak", `${getStreak(completed)}d 🔥`)}
               {statTile("Training Days", getTrainingDays(completed))}
               {statTile("Shots Made", (progressCtx.makes||0).toLocaleString())}
-              {statTile("Badges", earnedBadges.length)}
+              <button onClick={()=>setProgressTab("locker")} style={{ flex:1,minWidth:120,textAlign:"left",cursor:"pointer",background:`${P}0c`,border:`1px solid ${P}33`,borderRadius:14,padding:"12px 14px" }}>
+                <div style={{ fontSize:10,color:"#64748b",fontWeight:700,letterSpacing:"0.04em",textTransform:"uppercase" }}>Badges ›</div>
+                <div style={{ fontSize:18,fontWeight:800,color:P,marginTop:3,fontFamily:"'DM Mono',monospace" }}>{earnedBadges.length}</div>
+              </button>
             </div>
             <ShootingCard P={P} SF={SF} bd={bd} />
             <GrowthCard log={growthLog} onLog={handleLogHeight} P={P} SF={SF} bd={bd} />
