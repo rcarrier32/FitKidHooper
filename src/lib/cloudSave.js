@@ -1,5 +1,5 @@
 import { getSupabaseClient } from "./supabaseClient.js";
-import { readCanonicalPayload, writeCanonicalPayload } from "./canonicalSave.js";
+import { readCanonicalPayload, writeCanonicalPayload, mergeCanonicalPayloads } from "./canonicalSave.js";
 import { isAuthConfigured } from "./auth.js";
 
 const LOCAL_CLOUD_VERSION_KEY = "fkh-cloud-version";
@@ -67,9 +67,41 @@ export async function pushCloudSave(userId) {
   return { ok: true, version, updated_at };
 }
 
+/**
+ * Merge-based sync: combine the local and cloud saves into a superset and write
+ * it to BOTH sides. Replaces the old pull-then-push (last-write-wins), which let
+ * one device silently overwrite another's progress. Since athlete state only
+ * grows, the merge never loses data from either device.
+ */
 export async function syncCloudSave(userId) {
   if (!isAuthConfigured() || !userId) return { ok: false };
-  const pull = await pullCloudSave(userId);
-  if (!pull.ok) return pull;
-  return pushCloudSave(userId);
+  const sb = getSupabaseClient();
+  if (!sb) return { ok: false, reason: "not_configured" };
+
+  const { data, error } = await sb
+    .from("athlete_save")
+    .select("payload, version, updated_at")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) return { ok: false, error: error.message };
+
+  // No cloud save yet → just push local up.
+  if (!data?.payload) return pushCloudSave(userId);
+
+  const local = readCanonicalPayload();
+  const merged = mergeCanonicalPayloads(local, data.payload);
+  writeCanonicalPayload(merged); // local now holds the superset too
+
+  const version = Math.max(getLocalCloudMeta().version, data.version || 0) + 1;
+  const updated_at = new Date().toISOString();
+  const { error: upErr } = await sb.from("athlete_save").upsert({
+    user_id: userId,
+    payload: merged,
+    version,
+    updated_at,
+  }, { onConflict: "user_id" });
+  if (upErr) return { ok: false, error: upErr.message };
+
+  setLocalCloudMeta(version, updated_at);
+  return { ok: true, merged: true, version };
 }

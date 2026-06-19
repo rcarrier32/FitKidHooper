@@ -77,6 +77,57 @@ export function importCanonicalSave(data, { mergeSettings = true } = {}) {
   }
 }
 
+function isPlainObject(v) {
+  return v != null && typeof v === "object" && !Array.isArray(v);
+}
+
+/**
+ * Conservative, additive merge of two values. This app's athlete state only ever
+ * grows (completions, shot logs, badges, counters), so we never delete — we keep
+ * the superset. Never corrupts shape: objects union their keys, primitive arrays
+ * set-union, object arrays keep the longer, numbers take the max, and anything
+ * else prefers the local device's value.
+ */
+function mergeValue(local, cloud) {
+  if (local === undefined || local === null) return cloud;
+  if (cloud === undefined || cloud === null) return local;
+  if (Array.isArray(local) && Array.isArray(cloud)) {
+    const allPrimitive = [...local, ...cloud].every(x => x === null || typeof x !== "object");
+    if (allPrimitive) return Array.from(new Set([...local, ...cloud]));
+    return local.length >= cloud.length ? local : cloud;
+  }
+  if (isPlainObject(local) && isPlainObject(cloud)) {
+    const out = { ...cloud };
+    for (const k of Object.keys(local)) out[k] = mergeValue(local[k], cloud[k]);
+    return out;
+  }
+  if (typeof local === "number" && typeof cloud === "number") return Math.max(local, cloud);
+  return local;
+}
+
+// Settings are preferences, not accumulative progress. Keep the device that has a
+// real (non-default) name; fall back to whichever exists. Avoids a fresh device's
+// defaults clobbering the real profile, and vice-versa.
+function mergeSettings(local, cloud) {
+  const named = s => s && s.athleteName && s.athleteName !== "Champ";
+  if (named(local)) return { ...(cloud || {}), ...local };
+  if (named(cloud)) return { ...(local || {}), ...cloud };
+  return local || cloud || null;
+}
+
+/** Merge a local canonical payload with a cloud one — superset, no data loss. */
+export function mergeCanonicalPayloads(localPayload, cloudPayload) {
+  const local = localPayload || {};
+  const cloud = cloudPayload || {};
+  const out = {};
+  const keys = new Set([...CANONICAL_SAVE_KEYS, ...Object.keys(local), ...Object.keys(cloud)]);
+  for (const k of keys) {
+    if (k === "s_settings") out[k] = mergeSettings(local[k], cloud[k]);
+    else out[k] = mergeValue(local[k], cloud[k]);
+  }
+  return out;
+}
+
 export function readCanonicalPayload() {
   const payload = {};
   for (const k of CANONICAL_SAVE_KEYS) {
