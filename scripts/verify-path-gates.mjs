@@ -40,4 +40,42 @@ const prog = trackStageProgress(getTrack("shooter"), { ...baseCtx, makes: 425 })
 assert(prog.stagePct > 0 && prog.stagePct < 100, "partial stage progress");
 assert(prog.progressLabel.includes("425"), "progress label shows current makes");
 
+// ── Signature drills: required subset of specific moves ──────────────────────
+const sigStage2 = getTrack("ballhandling").stages[1]; // ballhandling-2 (White Chocolate)
+
+// Volume met (handles bucket 45 ≥ 40) but signature mins not done → still locked.
+const volOnly = buildEvalCtx({
+  ...baseCtx, catCounts: { handles: 45 }, exCounts: { "bh-pound": 6, "bh-crossover": 6 },
+});
+assert(!evaluateStageGate(sigStage2, volOnly), "ballhandling-2 locked when signature drills not done despite volume");
+
+// Grinding only one move doesn't satisfy the variety gate.
+const oneMove = buildEvalCtx({ ...baseCtx, catCounts: { handles: 200 }, exCounts: { "bh-pound": 200 } });
+assert(!evaluateStageGate(sigStage2, oneMove), "grinding a single move doesn't unlock the rung");
+
+// Volume + all three signature mins met → unlocks.
+const volPlusSig = buildEvalCtx({
+  ...baseCtx, catCounts: { handles: 45 },
+  exCounts: { "bh-pound": 6, "bh-crossover": 6, "gh-behind-back": 8, "bh-in-out": 8, "gh-cross-btl": 8 },
+});
+assert(evaluateStageGate(sigStage2, volPlusSig), "ballhandling-2 unlocks once signature mins met");
+
+// trackStageProgress reflects the signature bottleneck (volume done, one drill short).
+const bottleneck = trackStageProgress(getTrack("ballhandling"), {
+  ...baseCtx, catCounts: { handles: 45 },
+  exCounts: { "bh-pound": 6, "bh-crossover": 6, "gh-behind-back": 8, "bh-in-out": 8 }, // gh-cross-btl missing
+});
+assert(bottleneck.next?.id === "ballhandling-2", "next rung is ballhandling-2");
+assert(bottleneck.stagePct < 100, "stagePct held back by incomplete signature drill");
+assert(bottleneck.signatureProgress?.length === 3, "signatureProgress is returned for the next rung");
+
+// Skywalker (legacy gate → structured) gates on signatures too.
+const skyS2 = getTrack("skywalker").stages[1];
+assert(!evaluateStageGate(skyS2, buildEvalCtx({ ...baseCtx, catCounts: { explosion: 50 } })),
+  "skywalker-2 locked without jump signature drills");
+assert(evaluateStageGate(skyS2, buildEvalCtx({
+  ...baseCtx, catCounts: { explosion: 50 },
+  exCounts: { "tuck-jumps": 8, "box-jump": 6, "pogo-to-tuck": 6 },
+})), "skywalker-2 unlocks with jump signature drills");
+
 console.log("verify-path-gates: OK");

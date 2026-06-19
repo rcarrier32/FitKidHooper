@@ -54,6 +54,8 @@ export default function MeView({
   onEquipCosmetic,
   onUnequipSlot,
   onLogHeight,
+  onOpenPlayerHighlight,
+  onOpenExercise,
   renderBottomNav,
 }) {
   const subTabs = [
@@ -160,6 +162,9 @@ export default function MeView({
           onEquipTitle={onEquipTitle}
           onEquipCosmetic={onEquipCosmetic}
           onUnequipSlot={onUnequipSlot}
+          allExercises={allExercises}
+          onOpenExercise={onOpenExercise}
+          onOpenPlayerHighlight={onOpenPlayerHighlight}
         />
       )}
 

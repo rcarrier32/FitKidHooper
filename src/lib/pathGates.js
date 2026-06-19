@@ -1,6 +1,9 @@
 /**
  * Structured path gate evaluation + within-stage progress for the Progress Rail.
  */
+import {
+  allSignaturesMet, signatureStagePct, getSignatureProgress, formatSignatureSummary,
+} from "./pathSignatures.js";
 
 export function getMetricValue(ctx, metric) {
   if (!metric) return 0;
@@ -36,11 +39,18 @@ export function evaluateRequirements(requirements, ctx) {
   return requirements.every(r => evaluateRequirement(r, ctx));
 }
 
-/** Supports legacy `gate(ctx)` fn or structured `requirements[]`. */
+/**
+ * A stage unlocks only when BOTH its base gate (legacy `gate(ctx)` fn or
+ * structured `requirements[]`) AND all its signature-drill minimums are met.
+ * Signature reps count toward the same volume buckets — they're a required
+ * subset, not a parallel currency.
+ */
 export function evaluateStageGate(stage, ctx) {
-  if (typeof stage?.gate === "function") return stage.gate(ctx);
-  if (stage?.requirements) return evaluateRequirements(stage.requirements, ctx);
-  return false;
+  const baseOk = typeof stage?.gate === "function"
+    ? stage.gate(ctx)
+    : (stage?.requirements ? evaluateRequirements(stage.requirements, ctx) : false);
+  if (!baseOk) return false;
+  return allSignaturesMet(stage, ctx);
 }
 
 export function getPrimaryVolumeReq(stage) {
@@ -86,34 +96,46 @@ export function trackStageProgress(track, ctxIn, { buildEvalCtx, trackRankInfo, 
       stagePct: 100,
       progressLabel: "Path complete 🏆",
       progressMetric: null,
+      signatureProgress: [],
     };
   }
 
   const next = info.next;
   if (!next) {
-    return { ...info, stagePct: 0, progressLabel: "", progressMetric: null };
+    return { ...info, stagePct: 0, progressLabel: "", progressMetric: null, signatureProgress: [] };
   }
+
+  // Signature drills: a required subset of specific moves for this rung.
+  const signatureProgress = getSignatureProgress(next, ctx);
+  const hasSig = signatureProgress.length > 0;
+  const sigPct = hasSig ? signatureStagePct(next, ctx) : 100;
+  const sigSummary = hasSig ? formatSignatureSummary(signatureProgress, ctxIn.nameForExId) : "";
 
   const primary = getPrimaryVolumeReq(next);
+  let volPct, baseLabel, metric;
   if (!primary) {
-    return {
-      ...info,
-      stagePct: info.pct,
-      progressLabel: next.unlockNote || `Reach ${rungLabel(next)}`,
-      progressMetric: null,
-    };
+    volPct = info.pct;
+    baseLabel = next.unlockNote || `Reach ${rungLabel(next)}`;
+    metric = null;
+  } else {
+    const prevVal = getPrevThreshold(track, info.reached, primary.metric);
+    const current = getMetricValue(ctx, primary.metric);
+    const target = primary.value;
+    const span = Math.max(1, target - prevVal);
+    volPct = Math.min(100, Math.max(0, Math.round(((current - prevVal) / span) * 100)));
+    baseLabel = formatProgressLabel(primary, current, target);
+    metric = primary.metric;
   }
 
-  const prevVal = getPrevThreshold(track, info.reached, primary.metric);
-  const current = getMetricValue(ctx, primary.metric);
-  const target = primary.value;
-  const span = Math.max(1, target - prevVal);
-  const stagePct = Math.min(100, Math.max(0, Math.round(((current - prevVal) / span) * 100)));
+  // The rung is gated on the slower of volume vs. signature progress.
+  const stagePct = hasSig ? Math.min(volPct, sigPct) : volPct;
+  const progressLabel = sigSummary && baseLabel ? `${baseLabel} · ${sigSummary}` : (baseLabel || sigSummary);
 
   return {
     ...info,
     stagePct,
-    progressLabel: formatProgressLabel(primary, current, target),
-    progressMetric: primary.metric,
+    progressLabel,
+    progressMetric: metric,
+    signatureProgress,
   };
 }

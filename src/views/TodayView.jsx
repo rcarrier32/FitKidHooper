@@ -1,6 +1,7 @@
 import WarmUpCard from "../components/WarmUpCard.jsx";
 import ProgressRail from "../components/ProgressRail.jsx";
 import ChallengeStrip from "../components/ChallengeStrip.jsx";
+import FriendsTeaser from "../components/FriendsTeaser.jsx";
 import FindDrillsSheet from "../components/FindDrillsSheet.jsx";
 import HomeCollapsibleSection from "../components/HomeCollapsibleSection.jsx";
 import { isHighImpactDay } from "../lib/warmup.js";
@@ -60,6 +61,7 @@ export default function TodayView({
   onPickCategory,
   onOpenPath,
   onSetFavorite,
+  onOpenPlayerHighlight,
   onFocusFriends,
   onOpenChallenges,
   onOpenProgram,
@@ -289,7 +291,10 @@ export default function TodayView({
         P={P}
         onOpenPath={onOpenPath}
         onSetFavorite={onSetFavorite}
+        onOpenPlayerHighlight={onOpenPlayerHighlight}
       />
+
+      <FriendsTeaser P={P} onOpenFriends={onFocusFriends} />
 
       <ChallengeStrip
         P={P}

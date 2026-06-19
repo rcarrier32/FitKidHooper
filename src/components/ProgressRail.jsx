@@ -1,4 +1,5 @@
 import { useState } from "react";
+import PlayerHighlightLink from "./PlayerHighlightLink.jsx";
 import {
   MASTERY_TRACKS,
   recommendTrackForFavorite,
@@ -13,7 +14,7 @@ import {
  * Always-visible passive path progress on Today (approved IA — Progress Rail).
  * No enrollment — all paths track from basketball activity automatically.
  */
-export default function ProgressRail({ settings, ctx, P = "#f97316", onOpenPath, onSetFavorite }) {
+export default function ProgressRail({ settings, ctx, P = "#f97316", onOpenPath, onSetFavorite, onOpenPlayerHighlight }) {
   const [expanded, setExpanded] = useState(false);
   const playLike = displayFavoritePlayer(settings);
   const primaryId = recommendTrackForFavorite(settings) || getMostActivePathId(ctx);
@@ -49,8 +50,17 @@ export default function ProgressRail({ settings, ctx, P = "#f97316", onOpenPath,
             </div>
             <div style={{ fontSize: 13, fontWeight: 800, color: "var(--fkh-text)", marginTop: 2 }}>
               Rank: {progress.currentRank}
-              {progress.nextGoal && !progress.complete && (
-                <span style={{ color: "#94a3b8", fontWeight: 600 }}> → {progress.nextGoal}</span>
+              {progress.next && !progress.complete && (
+                <span style={{ color: "#94a3b8", fontWeight: 600 }}>
+                  {" → "}
+                  <PlayerHighlightLink
+                    stage={progress.next}
+                    P={P}
+                    as="span"
+                    onOpenHighlight={onOpenPlayerHighlight}
+                    style={{ color: P, fontWeight: 700 }}
+                  />
+                </span>
               )}
               {progress.complete && <span style={{ color: "#22c55e" }}> 🏆</span>}
             </div>

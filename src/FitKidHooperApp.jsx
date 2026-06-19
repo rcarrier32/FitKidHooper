@@ -18,6 +18,7 @@ import {
   getBenchmark, benchmarkCertTitle,
   recommendProgramsForFavorite, PATHS, trackStageProgress,
 } from "./lib/achievements.js";
+import { computeExCounts, getSignatureProgress } from "./lib/pathSignatures.js";
 import { recordBenchmark, recordLocalPB, readLocalPBs } from "./lib/benchmarksApi.js";
 import { readGrowthLog, addGrowthEntry } from "./lib/growth.js";
 import {
@@ -69,6 +70,12 @@ import {
   tabPreviewLabel,
   migrateThemeSettings,
 } from "./lib/theme.js";
+import SettingsSheet from "./components/SettingsSheet.jsx";
+import HighlightVideoSheet from "./components/HighlightVideoSheet.jsx";
+import {
+  hsl, pri, sec, bg, btn, surf, nav, textPri, textMuted, str3,
+  chipStyle, actionBtnStyle, hexToHsl, contrastOn,
+} from "./lib/themeColors.js";
 import HelpSheet from "./components/HelpSheet.jsx";
 import ProgramWeekStrip from "./components/ProgramWeekStrip.jsx";
 import { CHALLENGES_DEF, getChallengeProgress, buildPersonalChallenges } from "./lib/personalChallenges.js";
@@ -117,24 +124,69 @@ const DEFAULT = {
 const TIMER_PREP_SECS = 5;
 const TIMER_WARN_SECS = 5;
 const TIMER_REST_WARN_SECS = 15;
+const TIMER_SWITCH_SECS = 3;
 
-/** Parse "3x10", "3x30s", "3x10-15 reps" into structured set prescription. */
+function exerciseSideLabel(prescription, sideIdx) {
+  if (!prescription?.bilateral) return null;
+  const side = sideIdx === 0 ? "Right" : "Left";
+  const u = prescription.bilateral.unit;
+  return u === "side" ? `${side} side` : `${side} ${u}`;
+}
+
+function switchSpeechFor(prescription, nextSideIdx) {
+  const label = exerciseSideLabel(prescription, nextSideIdx);
+  if (!label) return "Switch";
+  const u = prescription.bilateral.unit;
+  if (u === "hand") return `Switch hands — ${label}`;
+  if (u === "leg") return `Switch legs — ${label}`;
+  return `Switch — ${label}`;
+}
+
+/** Parse "3x10", "3x30s", "3x10-15 reps", "3x30 s each hand" into structured set prescription. */
 function parseExerciseSets(setsStr) {
   if (!setsStr || /follow video|as directed|dedicated/i.test(setsStr)) return null;
-  const s = setsStr.trim();
+  let s = setsStr.trim();
+  let bilateral = null;
+  const bilMatch = s.match(/\s+each\s+(hand|leg|side)\b/i);
+  if (bilMatch) {
+    bilateral = { unit: bilMatch[1].toLowerCase() };
+    s = s.replace(/\s+each\s+(hand|leg|side)\b.*$/i, "").trim();
+  }
+  const withBilateral = base => (bilateral ? { ...base, bilateral } : base);
   let m = s.match(/^(\d+)\s*[x×]\s*(\d+)\s*(?:reps?)?$/i);
-  if (m) return { count:+m[1], type:"reps", value:+m[2] };
+  if (m) return withBilateral({ count:+m[1], type:"reps", value:+m[2] });
   m = s.match(/^(\d+)\s*[x×]\s*(\d+)\s*-\s*(\d+)\s*(?:reps?|s(?:ec(?:onds?)?)?)?(?:\s+each)?$/i);
-  if (m) return { count:+m[1], type:/s(?:ec)?/i.test(m[0].split("-")[1]||"")?"time":"reps", value:+m[2], maxValue:+m[3] };
+  if (m) return withBilateral({ count:+m[1], type:/s(?:ec)?/i.test(m[0].split("-")[1]||"")?"time":"reps", value:+m[2], maxValue:+m[3] });
   m = s.match(/^(\d+)\s*[x×]\s*(\d+)(?:\s*-\s*(\d+))?\s*s(?:ec(?:onds?)?)?(?:\s+each)?$/i);
-  if (m) return { count:+m[1], type:"time", value:+m[2], maxValue:m[3]?+m[3]:null };
+  if (m) return withBilateral({ count:+m[1], type:"time", value:+m[2], maxValue:m[3]?+m[3]:null });
   m = s.match(/^(\d+)\s*[x×]\s*(\d+)(?:\s*-\s*(\d+))?\s*(?:reps?)?(?:\s+each\b.*)?$/i);
-  if (m && !/s(?:ec)?/i.test(s)) return { count:+m[1], type:"reps", value:+m[2], maxValue:m[3]?+m[3]:null };
+  if (m && !/s(?:ec)?/i.test(s)) return withBilateral({ count:+m[1], type:"reps", value:+m[2], maxValue:m[3]?+m[3]:null });
   m = s.match(/^(\d+)\s*rounds?$/i);
-  if (m) return { count:+m[1], type:"rounds", value:null };
+  if (m) return withBilateral({ count:+m[1], type:"rounds", value:null });
   m = s.match(/^(\d+)\s*[x×]/i);
-  if (m) return { count:+m[1], type:"generic", value:null };
+  if (m) return withBilateral({ count:+m[1], type:"generic", value:null });
   return null;
+}
+
+function bilateralModeLabel(unit, enabled) {
+  if (!enabled) return "One side";
+  if (unit === "hand") return "Both hands";
+  if (unit === "leg") return "Each leg";
+  return "Both sides";
+}
+
+function isBilateralEnabled(bilateralPrefs, exId, prescription) {
+  const pref = bilateralPrefs?.[exId];
+  if (pref !== undefined) return !!pref.on;
+  return !!prescription?.bilateral;
+}
+
+function resolvePrescription(prescription, bilateralPrefs, exId) {
+  if (!prescription) return null;
+  const enabled = isBilateralEnabled(bilateralPrefs, exId, prescription);
+  if (!enabled) return { ...prescription, bilateral: undefined };
+  const unit = bilateralPrefs?.[exId]?.unit || prescription.bilateral?.unit || "hand";
+  return { ...prescription, bilateral: { unit } };
 }
 
 function parseRestSeconds(restStr) {
@@ -168,6 +220,7 @@ function timerAlert(kind, countValue) {
   const speech =
     kind === "rest" ? "Rest"
     : isBegin ? "Begin"
+    : kind === "switch" ? (typeof countValue === "string" ? countValue : "Switch")
     : kind === "count" ? String(countValue)
     : null;
   if (!speech) return;
@@ -215,68 +268,6 @@ function isBirthday(dob) {
   const today = new Date();
   return birth.getMonth() === today.getMonth() && birth.getDate() === today.getDate();
 }
-const hsl  = (h,s,l) => {
-  // Output #rrggbb hex so that ${color}XX alpha-suffix trick produces valid 8-char hex (#rrggbbaa)
-  const _s = s/100, _l = l/100;
-  const a = _s * Math.min(_l, 1-_l);
-  const f = n => { const k=(n+h/30)%12; const c=_l-a*Math.max(Math.min(k-3,9-k,1),-1); return Math.round(255*c).toString(16).padStart(2,'0'); };
-  return `#${f(0)}${f(8)}${f(4)}`;
-};
-const pri  = s => hsl(s.primaryHue,   s.primarySat,   s.primaryLight);
-const sec  = s => hsl(s.secondaryHue, s.secondarySat, s.secondaryLight);
-const bg   = s => hsl(s.bgHue, s.bgSat, s.bgLight);
-const btn  = s => s.buttonHue !== undefined
-  ? hsl(s.buttonHue, s.buttonSat, s.buttonLight)
-  : hsl(s.bgHue, Math.max(s.bgSat - 8, 0), Math.min(s.bgLight + 14, 24));
-const surf = s => s.surfaceHue !== undefined
-  ? hsl(s.surfaceHue, s.surfaceSat, s.surfaceLight)
-  : hsl(s.bgHue, Math.max(s.bgSat-10,0), Math.min(s.bgLight+5,20));
-const nav  = s => s.surfaceHue !== undefined
-  ? hsl(s.surfaceHue, s.surfaceSat, Math.max(s.surfaceLight-1,2))
-  : hsl(s.bgHue, s.bgSat, Math.max(s.bgLight-1,2));
-const textPri   = s => hsl(s.textHue ?? 210, s.textSat ?? 25, s.textLight ?? 94);
-const textMuted = s => hsl(s.textHue ?? 210, Math.max((s.textSat ?? 25)-10,0), Math.max((s.textLight ?? 94)-30,52));
-const str3 = s => s.accentHue !== undefined ? hsl(s.accentHue, s.accentSat, s.accentLight) : hsl((s.primaryHue+120)%360, Math.min(s.primarySat+5,100), Math.max(s.primaryLight,50));
-
-/** Idle vs selected chip/button surfaces (settings toggles, template pills, tabs). */
-function chipStyle(settings, selected, accent) {
-  const a = accent || pri(settings);
-  const b = btn(settings);
-  return selected
-    ? { background:`${a}20`, border:`1.5px solid ${a}`, color:a }
-    : { background:`${b}2e`, border:`1.5px solid ${b}66`, color:textMuted(settings) };
-}
-
-function actionBtnStyle(settings) {
-  const b = btn(settings);
-  return { background:`${b}2e`, border:`1px solid ${b}66`, color:textMuted(settings) };
-}
-
-/** Parse "#rrggbb" (or "#rgb") → {h,s,l} in [0,360]/[0,100]/[0,100], or null if invalid. */
-function hexToHsl(hex) {
-  let m = /^#?([0-9a-f]{6})$/i.exec((hex||"").trim());
-  if (!m) { const s = /^#?([0-9a-f]{3})$/i.exec((hex||"").trim()); if (s) m = [null, s[1].split("").map(c=>c+c).join("")]; }
-  if (!m) return null;
-  const int = parseInt(m[1], 16);
-  const r=((int>>16)&255)/255, g=((int>>8)&255)/255, b=(int&255)/255;
-  const max=Math.max(r,g,b), min=Math.min(r,g,b), d=max-min;
-  let h=0, s=0; const l=(max+min)/2;
-  if (d) {
-    s = l>0.5 ? d/(2-max-min) : d/(max+min);
-    if (max===r)      h=(g-b)/d+(g<b?6:0);
-    else if (max===g) h=(b-r)/d+2;
-    else              h=(r-g)/d+4;
-    h*=60;
-  }
-  return { h:Math.round(h)%360, s:Math.round(s*100), l:Math.round(l*100) };
-}
-
-/** Text/icon stroke color that reads on a solid fill (theme-aware). */
-function contrastOn(hex) {
-  const c = hexToHsl(hex);
-  return c && c.l > 52 ? "#000" : "#fff";
-}
-
 /* ═══════════════════════════════════════════════════════════════
    WORKOUT DATA
 ═══════════════════════════════════════════════════════════════ */
@@ -2096,16 +2087,6 @@ const ALL_EXERCISES = Object.fromEntries(
   )
 );
 
-const HOME_SECTION_DEFAULTS = {
-  mission: true,
-  activeProgram: false,
-  workout: false,
-  favorites: true,
-  dashboard: false,
-  modules: true,
-  spotlight: false,
-};
-
 function buildCoachMessage(completed, xpData, earnedBadges, programProgress) {
   const todayKey = new Date().toLocaleDateString("en-CA");
   const streak = (() => {
@@ -2864,616 +2845,6 @@ const SHOT_COLORS = {
    lightness. One drag sets both hue and sat → onChange(hue, sat). The disc
    bitmap only redraws when lightness/size change; the selection ring is a DOM
    element so dragging never re-renders the canvas. */
-function ColorWheel({ hue, sat, light, onChange, size=168 }) {
-  const ref = useRef(null);
-  const drag = useRef(false);
-  const R = size/2 - 2;
-  // Keep the disc visible even for very dark colors (e.g. background) so hue is
-  // always pickable; the indicator dot still shows the true color.
-  const dispL = Math.max(light, 42);
-
-  useEffect(() => {
-    const c = ref.current; if (!c) return;
-    const ctx = c.getContext("2d");
-    const cx=size/2, cy=size/2;
-    ctx.clearRect(0,0,size,size);
-    // Full-saturation hue ring. Offset by -90° so hue 0 sits at the top and
-    // increases clockwise — must match pick()/indicator angle math below.
-    for (let a=0; a<360; a++) {
-      ctx.beginPath(); ctx.moveTo(cx,cy);
-      ctx.arc(cx,cy,R,(a-91.2)*Math.PI/180,(a-88.8)*Math.PI/180);
-      ctx.closePath();
-      ctx.fillStyle = hsl(a,100,dispL); ctx.fill();
-    }
-    // … desaturated toward the centre (neutral grey at this lightness).
-    const grey = hsl(0,0,dispL);
-    const g = ctx.createRadialGradient(cx,cy,0,cx,cy,R);
-    g.addColorStop(0, grey); g.addColorStop(1, grey+"00");
-    ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2); ctx.fillStyle=g; ctx.fill();
-  }, [dispL, size, R]);
-
-  const pick = useCallback(e => {
-    const c = ref.current; if (!c) return;
-    const r = c.getBoundingClientRect();
-    const px=(e.touches?e.touches[0].clientX:e.clientX)-r.left;
-    const py=(e.touches?e.touches[0].clientY:e.clientY)-r.top;
-    const dx=px-r.width/2, dy=py-r.height/2;
-    const rad=r.width/2-2;
-    const s=Math.max(0, Math.min(100, Math.round(Math.hypot(dx,dy)/rad*100)));
-    const h=(Math.atan2(dy,dx)*180/Math.PI + 90 + 360) % 360;
-    onChange(Math.round(h)%360, s);
-  }, [onChange]);
-
-  const onKey = e => {
-    let h=hue, s=sat;
-    if (e.key==="ArrowLeft")  h=(hue+359)%360;
-    else if (e.key==="ArrowRight") h=(hue+1)%360;
-    else if (e.key==="ArrowUp")    s=Math.min(100,sat+2);
-    else if (e.key==="ArrowDown")  s=Math.max(0,sat-2);
-    else return;
-    e.preventDefault(); onChange(h,s);
-  };
-
-  // Indicator position from current hue/sat (angle 0 = top, clockwise).
-  const ang=(hue*Math.PI/180)-Math.PI/2, rr=(sat/100)*R;
-  const ix=size/2+Math.cos(ang)*rr, iy=size/2+Math.sin(ang)*rr;
-
-  return (
-    <div tabIndex={0} role="slider" aria-label="Hue and saturation"
-      aria-valuetext={`Hue ${Math.round(hue)} degrees, saturation ${Math.round(sat)} percent`}
-      onKeyDown={onKey}
-      style={{ position:"relative",width:size,height:size,flexShrink:0,touchAction:"none",borderRadius:"50%",outline:"none" }}>
-      <canvas ref={ref} width={size} height={size}
-        style={{ width:size,height:size,borderRadius:"50%",cursor:"crosshair",display:"block",boxShadow:"inset 0 0 0 1px rgba(255,255,255,0.08)" }}
-        onMouseDown={e=>{ drag.current=true; pick(e); }}
-        onMouseMove={e=>{ if (drag.current) pick(e); }}
-        onMouseUp={()=>{ drag.current=false; }} onMouseLeave={()=>{ drag.current=false; }}
-        onTouchStart={e=>{ drag.current=true; pick(e); }}
-        onTouchMove={e=>{ e.preventDefault(); if (drag.current) pick(e); }}
-        onTouchEnd={()=>{ drag.current=false; }}/>
-      <div style={{ position:"absolute",left:ix,top:iy,width:16,height:16,marginLeft:-8,marginTop:-8,borderRadius:"50%",
-        background:hsl(hue,sat,light),border:"2.5px solid #fff",boxShadow:"0 0 0 1px rgba(0,0,0,0.45),0 1px 4px rgba(0,0,0,0.6)",pointerEvents:"none" }}/>
-    </div>
-  );
-}
-
-/* Slider with a real gradient track (shows the values you're scrubbing).
-   Pointer + keyboard driven; no native range pseudo-element styling needed. */
-function GradientSlider({ value, min, max, gradient, accent, onChange }) {
-  const ref = useRef(null);
-  const drag = useRef(false);
-  const pct = Math.max(0, Math.min(100, ((value-min)/(max-min))*100));
-  const set = e => {
-    const el = ref.current; if (!el) return;
-    const r = el.getBoundingClientRect();
-    const x = (e.touches?e.touches[0].clientX:e.clientX) - r.left;
-    onChange(Math.round(min + Math.max(0,Math.min(1,x/r.width))*(max-min)));
-  };
-  const onKey = e => {
-    if (e.key==="ArrowLeft"||e.key==="ArrowDown")  { e.preventDefault(); onChange(Math.max(min,value-1)); }
-    else if (e.key==="ArrowRight"||e.key==="ArrowUp") { e.preventDefault(); onChange(Math.min(max,value+1)); }
-  };
-  return (
-    <div ref={ref} tabIndex={0} role="slider" aria-valuemin={min} aria-valuemax={max} aria-valuenow={value}
-      onKeyDown={onKey}
-      onMouseDown={e=>{ drag.current=true; set(e); }} onMouseMove={e=>{ if (drag.current) set(e); }}
-      onMouseUp={()=>{ drag.current=false; }} onMouseLeave={()=>{ drag.current=false; }}
-      onTouchStart={e=>{ drag.current=true; set(e); }} onTouchMove={e=>{ e.preventDefault(); if (drag.current) set(e); }}
-      onTouchEnd={()=>{ drag.current=false; }}
-      style={{ position:"relative",height:16,borderRadius:99,background:gradient,cursor:"pointer",touchAction:"none",
-        boxShadow:"inset 0 0 0 1px rgba(255,255,255,0.12)",outline:"none" }}>
-      <div style={{ position:"absolute",top:"50%",left:`${pct}%`,width:16,height:16,marginLeft:-8,marginTop:-8,borderRadius:"50%",
-        background:accent,border:"2.5px solid #fff",boxShadow:"0 1px 4px rgba(0,0,0,0.55)",pointerEvents:"none" }}/>
-    </div>
-  );
-}
-
-function isPWAStandalone() {
-  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-}
-
-function isInstallIOS() {
-  const ua = navigator.userAgent;
-  return /iphone|ipad|ipod/i.test(ua) || (/macintosh/i.test(ua) && navigator.maxTouchPoints > 1);
-}
-
-/* ═══════════════════════ SETTINGS SHEET ═══════════════════════ */
-function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenAuth, isSignedIn, signedInUsername, onCloudSync, cloudSyncStatus, onLogout }) {
-  const [tab, setTab] = useState("accent");
-  const [showAdvancedColors, setShowAdvancedColors] = useState(false);
-  const [guardrailNote, setGuardrailNote] = useState(null);
-  const [installPrompt, setInstallPrompt] = useState(() => window._installPrompt || null);
-  const fileRef = useRef(null);
-  const importRef = useRef(null);
-  const P = pri(settings), S = sec(settings), B = bg(settings), BTN = btn(settings), A = str3(settings);
-  const SURF = surf(settings), TXT = textPri(settings);
-  const appInstalled = isPWAStandalone();
-  const installIOS = isInstallIOS();
-
-  useEffect(() => {
-    const handler = () => setInstallPrompt(window._installPrompt || null);
-    window.addEventListener('installpromptready', handler);
-    return () => window.removeEventListener('installpromptready', handler);
-  }, []);
-
-  const handleInstall = async () => {
-    if (!installPrompt) return;
-    installPrompt.prompt();
-    const { outcome } = await installPrompt.userChoice;
-    window._installPrompt = null;
-    setInstallPrompt(null);
-    if (outcome === 'accepted') localStorage.setItem('fkh-install-dismissed', '1');
-  };
-
-  // Escape key closes the sheet
-  useEffect(() => {
-    const handler = e => { if (e.key === "Escape") onClose(); };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [onClose]);
-
-  const exportData = () => {
-    const data = exportCanonicalSave();
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `fitkidhooper-backup-${new Date().toLocaleDateString("en-CA")}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const importData = file => {
-    const reader = new FileReader();
-    reader.onload = e => {
-      try {
-        importCanonicalSave(JSON.parse(e.target.result));
-        window.location.reload();
-      } catch { alert("Could not restore — invalid backup file"); }
-    };
-    reader.readAsText(file);
-  };
-
-  const cur = getTabHSL(settings, tab);
-
-  const applyHSL = (h, s, l) => {
-    const { patch, adjusted } = patchTabHSL(settings, tab, h, s, l);
-    setSettings(p => ({ ...p, ...patch }));
-    setGuardrailNote(adjusted ? "Adjusted slightly for readability" : null);
-  };
-  const setHS  = (h, s)   => applyHSL(h, s, cur.l);
-  const setL   = l        => applyHSL(cur.h, cur.s, l);
-  const setHSL = (h, s, l) => applyHSL(h, s, l);
-
-  const activeCol = hsl(cur.h, cur.s, cur.l);
-  const briMax = brightnessMaxForTab(tab);
-  const clampL = l => Math.max(2, Math.min(l, briMax));
-
-  const tabColor = id => {
-    if (id === "accent") return P;
-    if (id === "bg") return B;
-    if (id === "surface") return SURF;
-    if (id === "button") return BTN;
-    if (id === "text") return TXT;
-    if (id === "secondary") return S;
-    return A;
-  };
-
-  // Hex field: a local draft so partial/invalid input doesn't fight the store;
-  // commits live whenever the text parses to a valid color.
-  const [hexDraft, setHexDraft] = useState(activeCol);
-  useEffect(() => { setHexDraft(activeCol); }, [activeCol]);
-  const onHexInput = v => {
-    setHexDraft(v);
-    const parsed = hexToHsl(v);
-    if (parsed) setHSL(parsed.h, parsed.s, clampL(parsed.l));
-  };
-  const pickEye = async () => {
-    try { const { sRGBHex } = await new window.EyeDropper().open();
-      const p = hexToHsl(sRGBHex); if (p) setHSL(p.h, p.s, clampL(p.l)); } catch {}
-  };
-
-  return (
-    <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.82)",zIndex:300,display:"flex",alignItems:"flex-end",justifyContent:"center",backdropFilter:"blur(6px)" }}>
-      <div style={{ background:SURF,borderRadius:"22px 22px 0 0",width:"100%",maxWidth:680,maxHeight:"90vh",overflowY:"auto",paddingBottom:28 }}>
-        <div style={{ display:"flex",justifyContent:"center",paddingTop:10,marginBottom:4 }}>
-          <div style={{ width:40,height:4,borderRadius:99,background:"rgba(255,255,255,0.12)" }}/>
-        </div>
-        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 20px 14px",borderBottom:"1px solid rgba(255,255,255,0.07)",position:"sticky",top:0,background:SURF,zIndex:10 }}>
-          <span style={{ fontSize:16,fontWeight:700,color:"var(--fkh-text)" }}>Customize Your App</span>
-          <button onClick={onClose} aria-label="Close Settings"
-            style={{ background:"none",border:"none",color:"#64748b",fontSize:22,cursor:"pointer",padding:"6px 10px",borderRadius:8,lineHeight:1 }}>✕</button>
-        </div>
-
-        {/* Profile */}
-        <div style={{ padding:"16px 20px 0" }}>
-          <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:"#334155",marginBottom:12,textTransform:"uppercase" }}>Athlete Profile</div>
-          <div style={{ display:"flex",gap:16,alignItems:"center",marginBottom:16 }}>
-            <div onClick={()=>fileRef.current?.click()} style={{ width:72,height:72,borderRadius:"50%",background:`${P}18`,border:`3px solid ${P}`,overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0 }}>
-              {settings.avatar ? <img src={settings.avatar} alt="" style={{ width:"100%",height:"100%",objectFit:"cover" }}/> : <span style={{ fontSize:30 }}>👤</span>}
-            </div>
-            <div style={{ flex:1 }}>
-              <input ref={fileRef} type="file" accept="image/*" style={{ display:"none" }} onChange={e => {
-                const f = e.target.files?.[0]; if (!f) return;
-                const reader = new FileReader();
-                reader.onload = ev => setSettings(p => ({...p, avatar:ev.target.result}));
-                reader.readAsDataURL(f);
-              }}/>
-              <button onClick={()=>fileRef.current?.click()} style={{ display:"block",padding:"8px 14px",borderRadius:10,border:`1.5px solid ${P}`,background:"transparent",fontSize:12,fontWeight:600,cursor:"pointer",color:P,marginBottom:8 }}>
-                📷 Choose Photo
-              </button>
-              <input value={settings.athleteName} onChange={e=>setSettings(p=>({...p,athleteName:e.target.value}))}
-                placeholder="First name"
-                style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.05)",border:`1.5px solid ${P}44`,borderRadius:10,padding:"8px 12px",fontSize:14,fontWeight:700,color:P,outline:"none",marginBottom:8 }}/>
-              <input value={settings.lastName||""} onChange={e=>setSettings(p=>({...p,lastName:e.target.value}))}
-                placeholder="Last name (optional)"
-                style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.05)",border:`1.5px solid ${P}44`,borderRadius:10,padding:"8px 12px",fontSize:14,fontWeight:700,color:P,outline:"none",marginBottom:8 }}/>
-              <div style={{ fontSize:10,color:"#475569",marginBottom:8,marginTop:-2 }}>
-                Friends see your first name + last initial on Boards.
-              </div>
-              <div style={{ display:"flex",gap:8,marginBottom:8 }}>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:11,color:"#475569",marginBottom:4,fontWeight:600 }}>Jersey #</div>
-                  <input type="number" min={0} max={99} value={settings.jerseyNumber ?? ""} placeholder="—"
-                    onChange={e=>setSettings(p=>({...p,jerseyNumber:normalizeJerseyNumber(e.target.value)}))}
-                    style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.05)",border:`1.5px solid ${P}44`,borderRadius:10,padding:"8px 12px",fontSize:14,color:"var(--fkh-text)",outline:"none" }}/>
-                </div>
-                <div style={{ flex:2 }}>
-                  <div style={{ fontSize:11,color:"#475569",marginBottom:4,fontWeight:600 }}>Wants to play like 🎯</div>
-                  <input value={settings.favoritePlayLike||""} placeholder="e.g. Curry — picks your journey"
-                    onChange={e=>setSettings(p=>({...p,favoritePlayLike:e.target.value}))}
-                    style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.05)",border:`1.5px solid ${P}44`,borderRadius:10,padding:"8px 12px",fontSize:14,color:"var(--fkh-text)",outline:"none" }}/>
-                </div>
-              </div>
-              <div style={{ display:"flex",gap:10,marginBottom:14 }}>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:11,color:"#475569",marginBottom:4,fontWeight:600 }}>Favorite player (now)</div>
-                  <input value={settings.favoriteCurrent||""} placeholder="Current player"
-                    onChange={e=>setSettings(p=>({...p,favoriteCurrent:e.target.value}))}
-                    style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.05)",border:`1.5px solid ${P}44`,borderRadius:10,padding:"8px 12px",fontSize:14,color:"var(--fkh-text)",outline:"none" }}/>
-                </div>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:11,color:"#475569",marginBottom:4,fontWeight:600 }}>All-time favorite 🐐</div>
-                  <input value={settings.favoriteAllTime||""} placeholder="Legend / GOAT"
-                    onChange={e=>setSettings(p=>({...p,favoriteAllTime:e.target.value}))}
-                    style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.05)",border:`1.5px solid ${P}44`,borderRadius:10,padding:"8px 12px",fontSize:14,color:"var(--fkh-text)",outline:"none" }}/>
-                </div>
-              </div>
-              <div style={{ fontSize:11,color:"#475569",marginBottom:4,fontWeight:600 }}>Training Start Date</div>
-              <input type="date" value={settings.startDate||''} onChange={e=>setSettings(p=>({...p,startDate:e.target.value}))}
-                style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.05)",border:`1.5px solid ${P}44`,borderRadius:10,padding:"8px 12px",fontSize:14,color:"var(--fkh-text)",outline:"none" }}/>
-            </div>
-          </div>
-        </div>
-
-        {/* Training Profile */}
-        <div style={{ padding:"0 20px 16px" }}>
-          <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:"#334155",marginBottom:12,textTransform:"uppercase" }}>Training Profile</div>
-
-          {/* Date of Birth */}
-          {(()=>{
-            const today = new Date();
-            const maxDOB = new Date(today.getFullYear()-8, today.getMonth(), today.getDate()).toLocaleDateString("en-CA");
-            const minDOB = new Date(today.getFullYear()-18,today.getMonth(), today.getDate()).toLocaleDateString("en-CA");
-            const age    = settings.dateOfBirth ? calcAge(settings.dateOfBirth) : null;
-            const bday   = settings.dateOfBirth && isBirthday(settings.dateOfBirth);
-            return (
-              <div style={{ marginBottom:14 }}>
-                <div style={{ fontSize:11,color:"#475569",fontWeight:600,marginBottom:6 }}>Date of Birth</div>
-                <input type="date"
-                  value={settings.dateOfBirth||''}
-                  min={minDOB} max={maxDOB}
-                  onChange={e=>setSettings(p=>({...p,dateOfBirth:e.target.value||null}))}
-                  style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.05)",
-                    border:`1.5px solid ${P}44`,borderRadius:10,padding:"8px 12px",
-                    fontSize:14,color:"var(--fkh-text)",outline:"none",colorScheme:"dark" }}/>
-                <div style={{ marginTop:7,display:"flex",alignItems:"center",gap:8 }}>
-                  {age!==null
-                    ? <span style={{ fontSize:12,color:"var(--fkh-text-muted)" }}>
-                        {bday
-                          ? <span style={{ color:P,fontWeight:700 }}>🎂 Happy Birthday! Age {age}</span>
-                          : `Age ${age} years old — updates automatically on each birthday`}
-                      </span>
-                    : <span style={{ fontSize:11,color:"#475569" }}>
-                        Enter DOB — age adjusts automatically every birthday
-                      </span>
-                  }
-                </div>
-              </div>
-            );
-          })()}
-
-          {/* Experience */}
-          <div style={{ marginBottom:14 }}>
-            <div style={{ fontSize:11,color:"#475569",fontWeight:600,marginBottom:7 }}>Experience Level</div>
-            <div style={{ display:"flex",gap:6 }}>
-              {[["beginner","🌱 Beginner"],["intermediate","⚡ Intermediate"],["advanced","🔥 Advanced"]].map(([val,lbl])=>(
-                <button key={val} onClick={()=>setSettings(p=>({...p,experience:val}))}
-                  style={{ flex:1,padding:"8px 4px",borderRadius:10,fontSize:11,fontWeight:700,cursor:"pointer",
-                    ...chipStyle(settings, settings.experience===val, P) }}>
-                  {lbl}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Goals */}
-          <div style={{ marginBottom:14 }}>
-            <div style={{ fontSize:11,color:"#475569",fontWeight:600,marginBottom:7 }}>
-              My Goals <span style={{ fontSize:10,fontWeight:400 }}>(pick up to 3)</span>
-            </div>
-            <div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>
-              {[["explosion","💥 Jump Higher"],["speed","⚡ Quick Feet"],["conditioning","🔥 Conditioning"],
-                ["handles","🤲 Ball Handling"],["shooting","🎯 Shooting"],["strength","💪 Strength"],
-                ["defense","🛡 Defense"],["coordination","🎶 Coordination"]].map(([val,lbl])=>{
-                const sel=(settings.goals||[]).includes(val);
-                return (
-                  <button key={val} onClick={()=>setSettings(p=>{
-                    const g=p.goals||[];
-                    return {...p,goals:sel?g.filter(x=>x!==val):g.length<3?[...g,val]:g};
-                  })}
-                    style={{ padding:"6px 11px",borderRadius:20,fontSize:11,fontWeight:600,cursor:"pointer",
-                      background:sel?`${P}20`:"rgba(255,255,255,0.04)",
-                      border:`1.5px solid ${sel?P:"rgba(255,255,255,0.1)"}`,
-                      color:sel?P:"#64748b" }}>
-                    {lbl}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Position */}
-          <div>
-            <div style={{ fontSize:11,color:"#475569",fontWeight:600,marginBottom:7 }}>Position</div>
-            <div style={{ display:"flex",gap:6 }}>
-              {POSITIONS.map(pos=>(
-                <button key={pos.id} onClick={()=>setSettings(p=>({...p,playStyle:pos.id}))}
-                  style={{ flex:1,padding:"8px 4px",borderRadius:10,fontSize:11,fontWeight:700,cursor:"pointer",
-                    ...chipStyle(settings, settings.playStyle===pos.id, P) }}>
-                  {pos.emoji} {pos.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Workout Timers */}
-        <div style={{ padding:"0 20px 16px" }}>
-          <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:"#334155",marginBottom:12,textTransform:"uppercase" }}>Workout</div>
-          <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 14px",borderRadius:12,...actionBtnStyle(settings) }}>
-            <div>
-              <div style={{ fontSize:13,fontWeight:700,color:"var(--fkh-text)",marginBottom:3 }}>⏱ Workout Timers</div>
-              <div style={{ fontSize:11,color:"#64748b",lineHeight:1.45 }}>Countdown alerts, rest timers, and set cues during exercises</div>
-            </div>
-            <button onClick={()=>setSettings(p=>({...p,workoutTimers:!p.workoutTimers}))}
-              style={{ width:52,height:30,borderRadius:99,border:"none",cursor:"pointer",flexShrink:0,
-                background:settings.workoutTimers!==false?P:"rgba(255,255,255,0.12)",
-                position:"relative",transition:"background 0.2s" }}>
-              <span style={{ position:"absolute",top:3,left:settings.workoutTimers!==false?24:3,width:24,height:24,borderRadius:"50%",background:"#fff",transition:"left 0.2s",boxShadow:"0 1px 4px rgba(0,0,0,0.3)" }}/>
-            </button>
-          </div>
-        </div>
-
-        {/* Colors */}
-        <div style={{ padding:"0 20px" }}>
-          <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:"#334155",marginBottom:8,textTransform:"uppercase" }}>App Colors</div>
-          <div style={{ fontSize:11,color:"#64748b",marginBottom:12,lineHeight:1.45 }}>
-            Pick a team vibe, then fine-tune. Accent stays bold; text and surfaces auto-guard for readability.
-          </div>
-          <div style={{ display:"flex",flexWrap:"wrap",gap:6,marginBottom:14 }}>
-            {THEME_PRESETS.map(pr2 => (
-              <button key={pr2.id} onClick={()=>{
-                setSettings(p => ({ ...p, ...applyThemePreset(pr2) }));
-                setGuardrailNote(null);
-              }} style={{ display:"flex",alignItems:"center",gap:5,padding:"6px 11px",borderRadius:20,cursor:"pointer",...actionBtnStyle(settings) }}>
-                {[pr2.colors.accent, pr2.colors.bg, pr2.colors.surface, pr2.colors.button].map((c, i) => (
-                  <span key={i} style={{ width:10,height:10,borderRadius:"50%",background:hsl(c[0],c[1],c[2]),display:"inline-block",marginLeft:i?-3:0,border:`2px solid ${B}` }}/>
-                ))}
-                <span style={{ fontSize:11,color:textMuted(settings),marginLeft:2,fontWeight:600 }}>{pr2.label}</span>
-              </button>
-            ))}
-          </div>
-          <div style={{ display:"flex",flexWrap:"wrap",gap:6,marginBottom:10 }}>
-            {MAIN_THEME_TABS.map(([id, lbl]) => (
-              <button key={id} onClick={()=>{ setTab(id); setGuardrailNote(null); }}
-                style={{ flex:"1 1 30%",padding:"9px 6px",borderRadius:10,fontSize:11,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:5,
-                  background:tab===id?`${tabColor(id)}20`:`${BTN}24`,border:`1px solid ${tab===id?tabColor(id):`${BTN}66`}`,color:tab===id?tabColor(id):textMuted(settings) }}>
-                <span style={{ width:10,height:10,borderRadius:"50%",background:tabColor(id),display:"inline-block",flexShrink:0 }}/>
-                {lbl}
-              </button>
-            ))}
-          </div>
-          <button type="button" onClick={()=>setShowAdvancedColors(v=>!v)}
-            style={{ width:"100%",padding:"8px 10px",marginBottom:10,borderRadius:10,cursor:"pointer",fontSize:11,fontWeight:600,
-              background:"transparent",border:`1px solid ${BTN}44`,color:textMuted(settings),textAlign:"left" }}>
-            {showAdvancedColors ? "▾" : "▸"} Advanced colors
-            <span style={{ fontSize:10,color:"#475569",marginLeft:6 }}>Secondary accent · Strength category</span>
-          </button>
-          {showAdvancedColors && (
-            <div style={{ display:"flex",flexWrap:"wrap",gap:6,marginBottom:10 }}>
-              {ADVANCED_THEME_TABS.map(([id, lbl]) => (
-                <button key={id} onClick={()=>{ setTab(id); setGuardrailNote(null); }}
-                  style={{ flex:"1 1 45%",padding:"9px 6px",borderRadius:10,fontSize:11,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:5,
-                    background:tab===id?`${tabColor(id)}20`:`${BTN}24`,border:`1px solid ${tab===id?tabColor(id):`${BTN}66`}`,color:tab===id?tabColor(id):textMuted(settings) }}>
-                  <span style={{ width:10,height:10,borderRadius:"50%",background:tabColor(id),display:"inline-block",flexShrink:0 }}/>
-                  {lbl}
-                </button>
-              ))}
-            </div>
-          )}
-          {guardrailNote && (
-            <div style={{ fontSize:10,color:"#fbbf24",marginBottom:10,padding:"6px 10px",borderRadius:8,background:"rgba(251,191,36,0.08)",border:"1px solid rgba(251,191,36,0.2)" }}>
-              {guardrailNote}
-            </div>
-          )}
-          <div style={{ display:"flex",gap:16,alignItems:"flex-start",marginBottom:18 }}>
-            <ColorWheel hue={cur.h} sat={cur.s} light={cur.l} onChange={setHS} size={168}/>
-            <div style={{ flex:1,display:"flex",flexDirection:"column",gap:13 }}>
-              {/* Brightness — gradient track shows the actual dark→light range */}
-              <div>
-                <div style={{ fontFamily:"'DM Mono',monospace",fontSize:10,color:"#475569",marginBottom:6 }}>
-                  Brightness <span style={{ color:activeCol }}>{cur.l}%</span>
-                </div>
-                <GradientSlider value={cur.l} min={2} max={briMax} accent={activeCol} onChange={setL}
-                  gradient={`linear-gradient(90deg, ${hsl(cur.h,cur.s,2)}, ${hsl(cur.h,cur.s,Math.round(briMax/2))}, ${hsl(cur.h,cur.s,briMax)})`}/>
-              </div>
-              {/* Hex input + eyedropper */}
-              <div>
-                <div style={{ fontFamily:"'DM Mono',monospace",fontSize:10,color:"#475569",marginBottom:6 }}>Hex</div>
-                <div style={{ display:"flex",gap:6,alignItems:"center" }}>
-                  <input value={hexDraft} onChange={e=>onHexInput(e.target.value)} spellCheck={false} maxLength={7} aria-label="Hex color"
-                    style={{ flex:1,minWidth:0,fontFamily:"'DM Mono',monospace",fontSize:13,letterSpacing:"0.04em",textTransform:"uppercase",
-                      color:"var(--fkh-text)",background:`${BTN}24`,borderRadius:8,padding:"8px 10px",outline:"none",
-                      border:`1px solid ${hexToHsl(hexDraft)?`${BTN}66`:"#ef4444"}` }}/>
-                  {typeof window!=="undefined" && window.EyeDropper && (
-                    <button onClick={pickEye} aria-label="Pick color from screen" title="Eyedropper"
-                      style={{ width:36,height:36,flexShrink:0,borderRadius:8,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",...actionBtnStyle(settings) }}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="m2 22 1-1h3l9-9"/><path d="M3 21v-3l9-9"/>
-                        <path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3l.4.4Z"/>
-                      </svg>
-                    </button>
-                  )}
-                </div>
-              </div>
-              <div style={{ height:32,borderRadius:10,background:activeCol,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:contrastOn(activeCol) }}>
-                {tabPreviewLabel(tab)}
-              </div>
-              <div style={{ display:"flex",alignItems:"center",gap:4 }}>
-                {[P, SURF, BTN, TXT, B].map((col,i)=>(<div key={i} style={{ width:22,height:22,borderRadius:"50%",background:col,border:`2px solid ${B}`,marginLeft:i?-6:0 }}/>))}
-                <span style={{ fontSize:10,color:"#334155",marginLeft:8 }}>Live palette</span>
-              </div>
-              {tab === "accent" && !settings.customSecondary && (
-                <div style={{ fontSize:10,color:"#475569",lineHeight:1.4 }}>
-                  Secondary accent auto-pairs with Accent. Open Advanced to customize.
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Account & cloud */}
-        <div style={{ padding:"0 20px 16px", borderTop:"1px solid rgba(255,255,255,0.06)" }}>
-          <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:"#334155",marginBottom:12,textTransform:"uppercase" }}>Account</div>
-          <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
-            <button onClick={onOpenAuth} style={{ width:"100%",padding:"12px 14px",borderRadius:12,cursor:"pointer",...actionBtnStyle(settings) }}>
-              <div style={{ fontSize:13,fontWeight:700,color:P }}>
-                {isSignedIn ? `✓ Signed in as @${signedInUsername || "athlete"}` : "🔑 Sign in · Back up & sync"}
-              </div>
-              <div style={{ fontSize:10,color:"#64748b",marginTop:3 }}>
-                {isSignedIn ? "Cloud save & friends on Boards" : "Username + passcode · optional"}
-              </div>
-            </button>
-            {isSignedIn && (
-              <>
-              <button onClick={onCloudSync} style={{ width:"100%",padding:"10px 14px",borderRadius:12,cursor:"pointer",...chipStyle(settings, cloudSyncStatus==="ok", P) }}>
-                <div style={{ fontSize:12,fontWeight:700,color:P }}>
-                  {cloudSyncStatus==="syncing" ? "Syncing…" : cloudSyncStatus==="ok" ? "✓ Cloud synced" : "Sync to cloud now"}
-                </div>
-              </button>
-              <button onClick={onLogout} style={{ width:"100%",padding:"10px 14px",borderRadius:12,cursor:"pointer",...actionBtnStyle(settings) }}>
-                <div style={{ fontSize:12,fontWeight:700,color:"#94a3b8" }}>Log out</div>
-              </button>
-              </>
-            )}
-            <div style={{ fontSize:11,fontWeight:800,color:"#64748b",letterSpacing:"0.06em",textTransform:"uppercase",margin:"4px 2px 8px" }}>🔔 Reminders</div>
-            <NotificationSettings P={P} isSignedIn={isSignedIn} onNeedAuth={onOpenAuth} />
-          </div>
-        </div>
-
-        {/* Boards */}
-        <div style={{ padding:"0 20px 16px", borderTop:"1px solid rgba(255,255,255,0.06)" }}>
-          <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:"#334155",marginBottom:12,textTransform:"uppercase" }}>Boards</div>
-          <button
-            onClick={()=>setSettings(p=>({...p,leaderboardSharing:!p.leaderboardSharing}))}
-            style={{ width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 14px",borderRadius:12,cursor:"pointer",
-              ...(settings.leaderboardSharing ? chipStyle(settings, true, P) : actionBtnStyle(settings)) }}>
-            <div style={{ textAlign:"left" }}>
-              <div style={{ fontSize:13,fontWeight:700,color:settings.leaderboardSharing?P:"#94a3b8" }}>Share on Boards</div>
-              <div style={{ fontSize:10,color:"#64748b",marginTop:3 }}>
-                Push as <span style={{ color:"var(--fkh-text)" }}>{settings.athleteName}</span>
-                {settings.dateOfBirth ? ` · ${getAgeGroupLabel(getAgeGroup(settings.dateOfBirth))}` : " · set DOB for age group"}
-              </div>
-            </div>
-            <span style={{ fontSize:18 }}>{settings.leaderboardSharing?"✓":"○"}</span>
-          </button>
-          <p style={{ fontSize:10,color:"#334155",margin:"8px 0 0",lineHeight:1.5 }}>
-            {getLastPushTime()
-              ? `Last synced ${new Date(getLastPushTime()).toLocaleString()}`
-              : settings.leaderboardSharing
-                ? "Syncs automatically when you train"
-                : "Leaderboard sharing is off"}
-            {!isLeaderboardConfigured() && " · Supabase env vars needed for live rankings"}
-          </p>
-        </div>
-
-        <div style={{ padding:"0 20px 16px" }}>
-          <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:"#334155",marginBottom:12,textTransform:"uppercase" }}>App</div>
-          {appInstalled ? (
-            <div style={{ padding:"12px 14px",borderRadius:12,...chipStyle(settings, true, P) }}>
-              <div style={{ fontSize:13,fontWeight:700,color:P }}>✓ Installed on Home Screen</div>
-              <p style={{ fontSize:11,color:"#64748b",margin:"6px 0 0",lineHeight:1.5 }}>You're using the full app experience.</p>
-            </div>
-          ) : (
-            <div style={{ padding:"12px 14px",borderRadius:12,...actionBtnStyle(settings) }}>
-              <div style={{ fontSize:13,fontWeight:700,color:P,marginBottom:6 }}>📲 Install on Home Screen</div>
-              <p style={{ fontSize:11,color:"var(--fkh-text-muted)",lineHeight:1.5,margin:"0 0 10px" }}>
-                Opens full-screen, loads faster, and works offline.
-              </p>
-              {installIOS ? (
-                <p style={{ fontSize:11,color:"var(--fkh-text-muted)",lineHeight:1.5,margin:0 }}>
-                  Tap <span style={{ color:"var(--fkh-text)",fontWeight:700 }}>Share</span> → <span style={{ color:"var(--fkh-text)",fontWeight:700 }}>Add to Home Screen</span> in Safari.
-                </p>
-              ) : installPrompt ? (
-                <button onClick={handleInstall} style={{ padding:"8px 16px",borderRadius:20,background:P,border:"none",color:"#000",fontSize:12,fontWeight:800,cursor:"pointer" }}>
-                  Install App
-                </button>
-              ) : (
-                <p style={{ fontSize:11,color:"var(--fkh-text-muted)",lineHeight:1.5,margin:0 }}>
-                  Open your browser menu → <span style={{ color:"var(--fkh-text)",fontWeight:700 }}>Add to Home Screen</span>.
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div style={{ padding:"0 20px 20px" }}>
-          <div style={{ padding:"12px 14px",borderRadius:12,marginBottom:12,...actionBtnStyle(settings) }}>
-            <div style={{ fontSize:13,fontWeight:700,color:P,marginBottom:6 }}>💬 Feedback</div>
-            <p style={{ fontSize:11,color:"var(--fkh-text-muted)",lineHeight:1.5,margin:"0 0 10px" }}>
-              Tell us what you love, what is confusing, or what we should build next. Kids and parents welcome.
-            </p>
-            <button onClick={onOpenFeedback} style={{ padding:"8px 16px",borderRadius:20,background:P,border:"none",color:"#000",fontSize:12,fontWeight:800,cursor:"pointer" }}>
-              Open Feedback Center
-            </button>
-          </div>
-          <details style={{ borderTop:"1px solid rgba(255,255,255,0.06)",paddingTop:12 }}>
-            <summary style={{ fontSize:11,color:"#334155",cursor:"pointer",userSelect:"none",listStyle:"none",display:"flex",alignItems:"center",gap:6 }}>
-              <span style={{ fontSize:9 }}>▶</span> Advanced — Data &amp; Backup
-            </summary>
-            <div style={{ marginTop:10 }}>
-              <div style={{ display:"flex",gap:8,marginBottom:6 }}>
-                <button onClick={exportData} style={{ flex:1,padding:"9px 8px",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer",minHeight:36,...actionBtnStyle(settings) }}>
-                  💾 Backup
-                </button>
-                <button onClick={()=>importRef.current?.click()} style={{ flex:1,padding:"9px 8px",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer",minHeight:36,...actionBtnStyle(settings) }}>
-                  📂 Restore
-                </button>
-              </div>
-              <input ref={importRef} type="file" accept=".json" style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0];if(f)importData(f);e.target.value='';}}/>
-              <p style={{ fontSize:10,color:"#334155",margin:0 }}>Save a backup before clearing app data or reinstalling.</p>
-            </div>
-          </details>
-        </div>
-        <button onClick={onClose} style={{ margin:"0 20px",display:"block",width:"calc(100% - 40px)",padding:"14px",borderRadius:14,border:"none",background:pri(settings),fontSize:15,fontWeight:800,color:"#000",cursor:"pointer" }}>
-          Save & Apply ✓
-        </button>
-      </div>
-    </div>
-  );
-}
-
 /* ═══════════════════════ SHOT TRACKER HELPERS ═══════════════ */
 const todayKey = () => new Date().toLocaleDateString("en-CA");
 const fmtDate  = k => new Date(k+"T00:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric"});
@@ -4612,26 +3983,38 @@ function ExerciseSetTracker({
   timersEnabled,
   maxReps, onMaxRepsChange,
   onAllSetsComplete,
+  bilateralOn, bilateralUnit, onBilateralChange,
 }) {
-  const [timerPhase, setTimerPhase] = useState(null); // prep | work | rest
+  const [timerPhase, setTimerPhase] = useState(null); // prep | work | switch | rest
   const [timerSecs, setTimerSecs] = useState(0);
   const [activeSetIdx, setActiveSetIdx] = useState(null);
+  const [activeSideIdx, setActiveSideIdx] = useState(0);
   const [liveReps, setLiveReps] = useState(0);
   const liveRepsRef = useRef(0);
   const warnedRef = useRef({ fifteen:false });
   const phaseRef = useRef(null);
   const setIdxRef = useRef(null);
+  const sideIdxRef = useRef(0);
+  const isBilateral = !!prescription.bilateral;
+
+  const resetSide = useCallback(() => {
+    sideIdxRef.current = 0;
+    setActiveSideIdx(0);
+  }, []);
 
   const stopTimer = useCallback(() => {
     setTimerPhase(null);
     setActiveSetIdx(null);
     phaseRef.current = null;
     setIdxRef.current = null;
-  }, []);
+    resetSide();
+  }, [resetSide]);
+
+  useEffect(() => { stopTimer(); }, [isBilateral, stopTimer]);
 
   const completeSet = useCallback((idx, reps=null) => {
     const finalReps = reps ?? liveRepsRef.current;
-    const next = sets.map((s, i) => i===idx ? { ...s, done:true, reps:finalReps ?? s.reps } : s);
+    const next = sets.map((s, i) => i===idx ? { ...s, done:true, reps:finalReps ?? s.reps, sidesDone:isBilateral ? [true, true] : s.sidesDone } : s);
     onSetsChange(next);
     if (finalReps != null && finalReps > (maxReps||0)) onMaxRepsChange(finalReps);
     const allDone = next.every(s => s.done);
@@ -4647,12 +4030,45 @@ function ExerciseSetTracker({
       setTimerPhase("rest");
       setTimerSecs(restSecs);
       warnedRef.current = { fifteen:false };
+      resetSide();
       timerAlert("rest");
       announceCountdown(restSecs, restSecs <= TIMER_WARN_SECS ? 900 : 0);
     } else {
       stopTimer();
     }
-  }, [sets, onSetsChange, maxReps, onMaxRepsChange, timersEnabled, restSecs, prescription.count, onAllSetsComplete, stopTimer]);
+  }, [sets, onSetsChange, maxReps, onMaxRepsChange, timersEnabled, restSecs, prescription.count, onAllSetsComplete, stopTimer, isBilateral, resetSide]);
+
+  const armWorkInterval = useCallback((idx, sideIdx) => {
+    sideIdxRef.current = sideIdx;
+    setActiveSideIdx(sideIdx);
+    phaseRef.current = "work";
+    setIdxRef.current = idx;
+    setActiveSetIdx(idx);
+    setTimerPhase("work");
+    setLiveReps(0);
+    liveRepsRef.current = 0;
+    const workDur = prescription.value || 30;
+    announceCountdown(workDur, workDur <= TIMER_WARN_SECS ? 900 : 0);
+    return workDur;
+  }, [prescription.value]);
+
+  const armSwitchInterval = useCallback(() => {
+    sideIdxRef.current = 1;
+    setActiveSideIdx(1);
+    phaseRef.current = "switch";
+    setTimerPhase("switch");
+    timerAlert("switch", switchSpeechFor(prescription, 1));
+    return TIMER_SWITCH_SECS;
+  }, [prescription]);
+
+  const finishWorkInterval = useCallback((idx, reps=null) => {
+    if (isBilateral && sideIdxRef.current === 0) {
+      setTimerSecs(TIMER_SWITCH_SECS);
+      armSwitchInterval();
+      return;
+    }
+    completeSet(idx, reps);
+  }, [isBilateral, armSwitchInterval, completeSet]);
 
   useEffect(() => {
     if (!timerPhase) return;
@@ -4667,23 +4083,24 @@ function ExerciseSetTracker({
           if (next >= 1 && next <= TIMER_WARN_SECS) timerAlert("count", next);
           if (next <= 0) {
             timerAlert("begin");
-            if (prescription.type === "time") {
-              const workDur = prescription.value || 30;
-              phaseRef.current = "work";
-              setTimerPhase("work");
-              setLiveReps(0);
-              liveRepsRef.current = 0;
-              announceCountdown(workDur, workDur <= TIMER_WARN_SECS ? 900 : 0);
-              return workDur;
-            }
+            if (prescription.type === "time") return armWorkInterval(idx, 0);
             stopTimer();
             return 0;
+          }
+          return next;
+        }
+        if (phase === "switch") {
+          if (next >= 1 && next <= TIMER_WARN_SECS) timerAlert("count", next);
+          if (next <= 0) {
+            timerAlert("begin");
+            return armWorkInterval(idx, 1);
           }
           return next;
         }
         if (phase === "work") {
           if (next >= 1 && next <= TIMER_WARN_SECS) timerAlert("count", next);
           if (next <= 0) {
+            if (isBilateral && sideIdxRef.current === 0) return armSwitchInterval();
             completeSet(idx, liveRepsRef.current);
             return 0;
           }
@@ -4699,15 +4116,8 @@ function ExerciseSetTracker({
             const nextIdx = idx + 1;
             timerAlert("begin");
             if (timersEnabled && prescription.type === "time") {
-              const workDur = prescription.value || 30;
-              phaseRef.current = "work";
-              setIdxRef.current = nextIdx;
-              setActiveSetIdx(nextIdx);
-              setTimerPhase("work");
-              setLiveReps(0);
-              liveRepsRef.current = 0;
-              announceCountdown(workDur, workDur <= TIMER_WARN_SECS ? 900 : 0);
-              return workDur;
+              resetSide();
+              return armWorkInterval(nextIdx, 0);
             }
             stopTimer();
             return 0;
@@ -4718,7 +4128,7 @@ function ExerciseSetTracker({
       });
     }, 1000);
     return () => clearInterval(id);
-  }, [timerPhase, prescription, timersEnabled, completeSet, stopTimer]);
+  }, [timerPhase, prescription, timersEnabled, isBilateral, armWorkInterval, armSwitchInterval, completeSet, stopTimer, resetSide]);
 
   useEffect(() => { liveRepsRef.current = liveReps; }, [liveReps]);
 
@@ -4730,6 +4140,7 @@ function ExerciseSetTracker({
       toggleRepSet(idx);
       return;
     }
+    resetSide();
     setIdxRef.current = idx;
     setActiveSetIdx(idx);
     setLiveReps(sets[idx]?.reps || 0);
@@ -4744,8 +4155,31 @@ function ExerciseSetTracker({
     const s = sets[idx];
     if (!s) return;
     if (s.done) {
-      onSetsChange(sets.map((x, i) => i===idx ? { ...x, done:false } : x));
+      onSetsChange(sets.map((x, i) => i===idx ? { ...x, done:false, sidesDone:isBilateral ? [false, false] : x.sidesDone } : x));
       stopTimer();
+    } else if (isBilateral && !(s.sidesDone?.[0] && s.sidesDone?.[1])) {
+      const sidesDone = s.sidesDone || [false, false];
+      if (!sidesDone[0]) {
+        onSetsChange(sets.map((x, i) => i===idx ? { ...x, sidesDone:[true, false] } : x));
+        timerAlert("switch", switchSpeechFor(prescription, 1));
+      } else {
+        const reps = s.reps || 0;
+        const next = sets.map((x, i) => i===idx ? { ...x, done:true, sidesDone:[true, true], reps } : x);
+        onSetsChange(next);
+        if (reps > (maxReps||0)) onMaxRepsChange(reps);
+        if (next.every(x => x.done)) onAllSetsComplete?.();
+        else if (timersEnabled && idx < prescription.count - 1) {
+          setIdxRef.current = idx;
+          setActiveSetIdx(idx);
+          phaseRef.current = "rest";
+          setTimerPhase("rest");
+          setTimerSecs(restSecs);
+          warnedRef.current = { fifteen:false };
+          resetSide();
+          timerAlert("rest");
+          announceCountdown(restSecs, restSecs <= TIMER_WARN_SECS ? 900 : 0);
+        }
+      }
     } else {
       const next = sets.map((x, i) => i===idx ? { ...x, done:true } : x);
       onSetsChange(next);
@@ -4757,6 +4191,7 @@ function ExerciseSetTracker({
         setTimerPhase("rest");
         setTimerSecs(restSecs);
         warnedRef.current = { fifteen:false };
+        resetSide();
         timerAlert("rest");
         announceCountdown(restSecs, restSecs <= TIMER_WARN_SECS ? 900 : 0);
       }
@@ -4764,11 +4199,26 @@ function ExerciseSetTracker({
   };
 
   const isTimed = prescription.type === "time";
-  const targetLabel = isTimed
+  const baseTargetLabel = isTimed
     ? `${prescription.value}${prescription.maxValue ? `–${prescription.maxValue}` : ""}s`
     : prescription.value
       ? `${prescription.value}${prescription.maxValue ? `–${prescription.maxValue}` : ""} reps`
       : "complete";
+  const targetLabel = isBilateral
+    ? `${baseTargetLabel} each ${prescription.bilateral.unit}`
+    : baseTargetLabel;
+
+  const timerPhaseLabel = () => {
+    if (timerPhase === "rest") return "Rest";
+    if (timerPhase === "switch") return switchSpeechFor(prescription, activeSideIdx);
+    const setNum = (activeSetIdx ?? 0) + 1;
+    const side = exerciseSideLabel(prescription, activeSideIdx);
+    if (timerPhase === "prep") return side ? `Set ${setNum} — ${side} — Get Ready` : `Set ${setNum} — Get Ready`;
+    if (timerPhase === "work") return side ? `Set ${setNum} — ${side} — Go!` : `Set ${setNum} — Go!`;
+    return "";
+  };
+
+  const timerPhaseStyle = timerPhase === "work" ? color : timerPhase === "rest" ? "#3b82f6" : timerPhase === "switch" ? "#f59e0b" : "rgba(255,255,255,0.12)";
 
   return (
     <div style={{ marginBottom:18 }}>
@@ -4777,19 +4227,34 @@ function ExerciseSetTracker({
         <span style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:`${color}80`,textTransform:"uppercase" }}>
           Sets
         </span>
-        {maxReps > 0 && isTimed && (
-          <span style={{ marginLeft:"auto",fontSize:10,fontWeight:700,color:"#fbbf24" }}>
-            🏆 Best: {maxReps} reps
-          </span>
-        )}
+        <div style={{ marginLeft:"auto",display:"flex",alignItems:"center",gap:8 }}>
+          {onBilateralChange && (
+            <button type="button" onClick={()=>onBilateralChange(!bilateralOn)} aria-pressed={bilateralOn}
+              title={bilateralOn ? "Right then left before rest — tap to do one side per set" : "Tap for right then left before rest"}
+              style={{ padding:"4px 9px",borderRadius:999,flexShrink:0,
+                border:`1px solid ${bilateralOn ? `${color}66` : "rgba(255,255,255,0.14)"}`,
+                background:bilateralOn ? `${color}18` : "rgba(255,255,255,0.04)",
+                color:bilateralOn ? color : "#64748b",
+                fontSize:10,fontWeight:700,cursor:"pointer",
+                display:"flex",alignItems:"center",gap:4,lineHeight:1 }}>
+              <span style={{ fontSize:11,opacity:bilateralOn ? 1 : 0.55 }}>{bilateralOn ? "↔" : "•"}</span>
+              {bilateralModeLabel(bilateralUnit, bilateralOn)}
+            </button>
+          )}
+          {maxReps > 0 && isTimed && (
+            <span style={{ fontSize:10,fontWeight:700,color:"#fbbf24",whiteSpace:"nowrap" }}>
+              🏆 Best: {maxReps} reps
+            </span>
+          )}
+        </div>
       </div>
 
       {timerPhase && (
         <div style={{ marginBottom:12,padding:"14px",borderRadius:12,textAlign:"center",
-          background:timerPhase==="work" ? `${color}18` : timerPhase==="rest" ? "rgba(59,130,246,0.12)" : "rgba(255,255,255,0.06)",
-          border:`1.5px solid ${timerPhase==="work" ? color : timerPhase==="rest" ? "#3b82f6" : "rgba(255,255,255,0.12)"}` }}>
+          background:timerPhase==="work" ? `${color}18` : timerPhase==="rest" ? "rgba(59,130,246,0.12)" : timerPhase==="switch" ? "rgba(245,158,11,0.12)" : "rgba(255,255,255,0.06)",
+          border:`1.5px solid ${timerPhaseStyle}` }}>
           <div style={{ fontSize:10,fontWeight:700,color:"var(--fkh-text-muted)",textTransform:"uppercase",letterSpacing:"0.12em",marginBottom:4 }}>
-            {timerPhase==="prep" ? `Set ${(activeSetIdx??0)+1} — Get Ready` : timerPhase==="work" ? `Set ${(activeSetIdx??0)+1} — Go!` : "Rest"}
+            {timerPhaseLabel()}
           </div>
           <div style={{ fontFamily:"'DM Mono',monospace",fontSize:42,fontWeight:800,color:timerPhase==="work"?color:"var(--fkh-text)",lineHeight:1 }}>
             {fmtTimerSecs(timerSecs)}
@@ -4807,9 +4272,9 @@ function ExerciseSetTracker({
             </div>
           )}
           {timerPhase==="work" && (
-            <button onClick={()=>completeSet(activeSetIdx, liveReps)}
+            <button onClick={()=>finishWorkInterval(activeSetIdx, liveReps)}
               style={{ marginTop:10,padding:"8px 16px",borderRadius:8,border:`1px solid ${color}44`,background:"transparent",color,fontSize:11,fontWeight:700,cursor:"pointer" }}>
-              Finish Set Early
+              {isBilateral && activeSideIdx === 0 ? "Finish Side Early" : "Finish Set Early"}
             </button>
           )}
           <button onClick={stopTimer}
@@ -4823,13 +4288,21 @@ function ExerciseSetTracker({
         {Array.from({ length: prescription.count }, (_, idx) => {
           const s = sets[idx] || { done:false };
           const isActive = activeSetIdx === idx && timerPhase;
+          const sidesDone = s.sidesDone || [false, false];
           return (
             <div key={idx} style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:10,
               background:s.done ? "rgba(34,197,94,0.08)" : isActive ? `${color}10` : SF,
               border:`1px solid ${s.done ? "rgba(34,197,94,0.25)" : isActive ? `${color}44` : "rgba(255,255,255,0.07)"}`,
               opacity:s.done ? 0.85 : 1 }}>
               <span style={{ fontFamily:"'DM Mono',monospace",fontSize:11,fontWeight:800,color:"#475569",width:20 }}>{idx+1}</span>
-              <span style={{ flex:1,fontSize:12,fontWeight:600,color:s.done?"#22c55e":"var(--fkh-text)" }}>{targetLabel}</span>
+              <div style={{ flex:1 }}>
+                <span style={{ fontSize:12,fontWeight:600,color:s.done?"#22c55e":"var(--fkh-text)" }}>{targetLabel}</span>
+                {isBilateral && !s.done && (sidesDone[0] || sidesDone[1]) && (
+                  <div style={{ fontSize:9,color:"#64748b",marginTop:2 }}>
+                    {exerciseSideLabel(prescription, 0)} {sidesDone[0] ? "✓" : "○"} · {exerciseSideLabel(prescription, 1)} {sidesDone[1] ? "✓" : "○"}
+                  </div>
+                )}
+              </div>
               {s.reps != null && s.done && isTimed && (
                 <span style={{ fontSize:10,fontWeight:700,color:"#fbbf24" }}>{s.reps} reps</span>
               )}
@@ -4851,7 +4324,7 @@ function ExerciseSetTracker({
                       style={{ width:26,height:26,borderRadius:6,border:"none",background:color,color:"#000",fontSize:14,fontWeight:800,cursor:"pointer" }}>+</button>
                     <button onClick={()=>{
                       const r=s.reps||0;
-                      const next=sets.map((x,i)=>i===idx?{...x,done:true,reps:r}:x);
+                      const next=sets.map((x,i)=>i===idx?{...x,done:true,reps:r,sidesDone:isBilateral?[true,true]:x.sidesDone}:x);
                       onSetsChange(next);
                       if (r>(maxReps||0)) onMaxRepsChange(r);
                       if (next.every(x=>x.done)) onAllSetsComplete?.();
@@ -4861,8 +4334,9 @@ function ExerciseSetTracker({
                 )
               ) : (
                 <button onClick={()=>toggleRepSet(idx)}
-                  style={{ width:32,height:32,borderRadius:8,border:`1.5px solid ${s.done?"#22c55e":color+"60"}`,background:s.done?"#22c55e":"transparent",color:s.done?"#fff":color,fontSize:14,fontWeight:800,cursor:"pointer" }}>
-                  {s.done?"✓":"○"}
+                  title={isBilateral && sidesDone[0] && !sidesDone[1] ? `Mark ${exerciseSideLabel(prescription, 1)} done` : isBilateral ? `Mark ${exerciseSideLabel(prescription, 0)} done` : undefined}
+                  style={{ width:32,height:32,borderRadius:8,border:`1.5px solid ${s.done?"#22c55e":sidesDone[0]&&!s.done?`${color}aa`:color+"60"}`,background:s.done?"#22c55e":sidesDone[0]&&!s.done?`${color}33`:"transparent",color:s.done?"#fff":color,fontSize:14,fontWeight:800,cursor:"pointer" }}>
+                  {s.done?"✓":sidesDone[0]&&!s.done?"½":"○"}
                 </button>
               )}
             </div>
@@ -4875,7 +4349,7 @@ function ExerciseSetTracker({
 
 /* ═══════════════════════ EXERCISE DETAIL SHEET ════════════ */
 function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onToggle, onClose, onNext, completed, favored, onToggleFav, navLabel,
-  programContext, setLog, onSetLogChange, maxRepsMap, onMaxRepsChange, settings, today }) {
+  programContext, setLog, onSetLogChange, maxRepsMap, onMaxRepsChange, bilateralPrefs, onBilateralPrefChange, settings, today }) {
   useWakeLock(true);
 
   const meta      = exercise.meta || {};
@@ -4924,12 +4398,19 @@ function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onTogg
   const benefits = [...new Set(meta.basketballTransfer||[])].map(b=>BENEFIT_MAP[b]).filter(Boolean);
 
   /* Set tracking ─────────────────────────────────────────── */
-  const prescription = parseExerciseSets(exercise.sets);
+  const rawPrescription = parseExerciseSets(exercise.sets);
+  const bilateralOn = isBilateralEnabled(bilateralPrefs, exercise.id, rawPrescription);
+  const bilateralUnit = bilateralPrefs?.[exercise.id]?.unit || rawPrescription?.bilateral?.unit || "hand";
+  const prescription = resolvePrescription(rawPrescription, bilateralPrefs, exercise.id);
   const restSecs = parseRestSeconds(exercise.rest);
   const logKey = setLogKey(exercise.id, today, programContext);
   const currentSets = setLog?.[logKey]?.sets || [];
   const maxReps = maxRepsMap?.[exercise.id] || 0;
   const timersEnabled = settings?.workoutTimers !== false;
+
+  const handleBilateralToggle = on => {
+    onBilateralPrefChange?.(exercise.id, on, bilateralUnit);
+  };
 
   const handleSetsChange = newSets => {
     onSetLogChange?.(logKey, { sets: newSets });
@@ -5130,6 +4611,9 @@ function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onTogg
                 maxReps={maxReps}
                 onMaxRepsChange={v => onMaxRepsChange?.(exercise.id, v)}
                 onAllSetsComplete={handleAllSetsComplete}
+                bilateralOn={bilateralOn}
+                bilateralUnit={bilateralUnit}
+                onBilateralChange={handleBilateralToggle}
               />
             )}
 
@@ -5672,6 +5156,11 @@ export default function FitKidHooperApp() {
     try { return localStorage.getItem("fkh-workout-open") === "1"; } catch { return false; }
   });
   const [friendsFocusTick, setFriendsFocusTick] = useState(0);
+  const [playerHighlight, setPlayerHighlight] = useState(null);
+
+  const openPlayerHighlight = useCallback(({ videoId, title }) => {
+    setPlayerHighlight({ videoId, title });
+  }, []);
 
   useEffect(() => {
     if (view === "profile") {
@@ -5696,6 +5185,7 @@ export default function FitKidHooperApp() {
   const [programProgress, setProgramProgress] = useState(()=>{ try{return JSON.parse(localStorage.getItem("fkh-program-progress")||"{}")}catch{return{}} });
   const [setLog, setSetLog] = useState(()=>{ try{return JSON.parse(localStorage.getItem("fkh-set-log")||"{}")}catch{return{}} });
   const [maxRepsMap, setMaxRepsMap] = useState(()=>{ try{return JSON.parse(localStorage.getItem("fkh-max-reps")||"{}")}catch{return{}} });
+  const [bilateralPrefs, setBilateralPrefs] = useState(()=>{ try{return JSON.parse(localStorage.getItem("fkh-bilateral-prefs")||"{}")}catch{return{}} });
   const [detailContext, setDetailContext] = useState(null);
   const [enrolledPrograms, setEnrolledPrograms] = useState(()=>{ try{return JSON.parse(localStorage.getItem("fkh-programs")||"{}")}catch{return{}} });
   const [selectedProgram, setSelectedProgram] = useState(null); // programId string when drill-in open
@@ -5707,21 +5197,12 @@ export default function FitKidHooperApp() {
   const [reportPeriod, setReportPeriod] = useState("30d");
   const [strDay, setStrDay] = useState(()=>localStorage.getItem('s_strday')||'Day 1');
   const [onboardName, setOnboardName] = useState('');
+  const [onboardLast, setOnboardLast] = useState('');
+  const [onboardPlayLike, setOnboardPlayLike] = useState('');
+  const [onboardStep, setOnboardStep] = useState(0);
   const [showOnboarding, setShowOnboarding] = useState(()=>!localStorage.getItem('s_onboarded')&&settings.athleteName===DEFAULT.athleteName);
   const [pushBusy, setPushBusy] = useState(false);
   const [pushError, setPushError] = useState(null);
-  const [exerciseSearch, setExerciseSearch] = useState("");
-  const [homeSections, setHomeSections] = useState(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem("fkh-home-sections") || "{}");
-      return { ...HOME_SECTION_DEFAULTS, ...saved };
-    } catch { return { ...HOME_SECTION_DEFAULTS }; }
-  });
-
-  const toggleHomeSection = useCallback(key => {
-    setHomeSections(prev => ({ ...prev, [key]: !prev[key] }));
-  }, []);
-
   const openSchedule = useCallback((returnView = "home", tab = "calendar") => {
     setPrevView(returnView);
     setSchedTab(tab);
@@ -5763,7 +5244,7 @@ export default function FitKidHooperApp() {
     if (!canAutoSyncLeaderboard(settings)) return;
     const timer = setTimeout(() => syncLeaderboardRef.current(), 90_000);
     return () => clearTimeout(timer);
-  }, [completed, missionLog, settings.leaderboardSharing, settings.athleteName]);
+  }, [completed, missionLog, settings.athleteName]);
 
   const handlePushStats = useCallback(async ({ goToRanks = false } = {}) => {
     setPushBusy(true);
@@ -5827,10 +5308,10 @@ export default function FitKidHooperApp() {
   useEffect(()=>{ try{localStorage.setItem("fkh-program-progress",JSON.stringify(programProgress))}catch{} },[programProgress]);
   useEffect(()=>{ try{localStorage.setItem("fkh-set-log",JSON.stringify(setLog))}catch{} },[setLog]);
   useEffect(()=>{ try{localStorage.setItem("fkh-max-reps",JSON.stringify(maxRepsMap))}catch{} },[maxRepsMap]);
+  useEffect(()=>{ try{localStorage.setItem("fkh-bilateral-prefs",JSON.stringify(bilateralPrefs))}catch{} },[bilateralPrefs]);
   useEffect(()=>{ try{localStorage.setItem("fkh-programs",JSON.stringify(enrolledPrograms))}catch{} },[enrolledPrograms]);
   useEffect(()=>{ try{localStorage.setItem("fkh-missions",JSON.stringify(missionLog))}catch{} },[missionLog]);
   useEffect(()=>{ try{localStorage.setItem("fkh-favs",JSON.stringify(favorites))}catch{} },[favorites]);
-  useEffect(()=>{ try{localStorage.setItem("fkh-home-sections",JSON.stringify(homeSections))}catch{} },[homeSections]);
 
   const isFav      = (type, id) => !!(favorites[type]||{})[id];
   const toggleFav  = (type, id) => setFavorites(prev=>{
@@ -5900,6 +5381,10 @@ export default function FitKidHooperApp() {
   const handleMaxRepsChange = useCallback((exId, reps) => {
     setMaxRepsMap(prev => reps > (prev[exId] || 0) ? { ...prev, [exId]: reps } : prev);
   }, []);
+
+  const handleBilateralPrefChange = useCallback((exId, on, unit = "hand") => {
+    setBilateralPrefs(prev => ({ ...prev, [exId]: { on, unit } }));
+  }, []);
   const setStrDayPersist = day => { setStrDay(day); localStorage.setItem('s_strday',day); };
   const doneCnt = Object.keys(completed).filter(k=>k.startsWith(today)).length;
 
@@ -5918,6 +5403,7 @@ export default function FitKidHooperApp() {
     programContext: detailContext,
     setLog, onSetLogChange: handleSetLogChange,
     maxRepsMap, onMaxRepsChange: handleMaxRepsChange,
+    bilateralPrefs, onBilateralPrefChange: handleBilateralPrefChange,
     settings, today,
   };
 
@@ -6117,8 +5603,6 @@ export default function FitKidHooperApp() {
     () => buildCoachMessage(completed, xpData, earnedBadges, programProgress),
     [completed, xpData, earnedBadges, programProgress]
   );
-  const exerciseSearchResults = useMemo(() => searchExercises(exerciseSearch), [exerciseSearch]);
-
   // Detect newly unlocked badges → queue celebration + record dates
   useEffect(()=>{
     const newBadges = earnedBadges.filter(id=>!celebratedBadges.has(id));
@@ -6157,6 +5641,7 @@ export default function FitKidHooperApp() {
       makes,
       maxStreak,
       catCounts: computeCatCounts(completed, getExerciseCategory),
+      exCounts: computeExCounts(completed),
     };
   },[earnedBadges, completed, getExerciseCategory, ledger]);
 
@@ -6398,6 +5883,15 @@ export default function FitKidHooperApp() {
   const shellOverlays = (
     <>
       {settingsSheet}{feedbackSheet}{authSheet}
+      {playerHighlight && (
+        <HighlightVideoSheet
+          videoId={playerHighlight.videoId}
+          title={playerHighlight.title}
+          color={P}
+          BG={BG}
+          onClose={() => setPlayerHighlight(null)}
+        />
+      )}
       {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]} onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
       {renderMissionOverlays()}
     </>
@@ -6503,6 +5997,11 @@ export default function FitKidHooperApp() {
         onEquipCosmetic={handleEquipCosmetic}
         onUnequipSlot={handleUnequipSlot}
         onLogHeight={handleLogHeight}
+        onOpenPlayerHighlight={openPlayerHighlight}
+        onOpenExercise={exId => {
+          const ex = ALL_EXERCISES[exId];
+          if (ex) openDetail({ ...ex, meta: EXERCISE_META[exId] || {} }, []);
+        }}
         renderBottomNav={renderBottomNav}
       />
     );
@@ -6955,21 +6454,48 @@ export default function FitKidHooperApp() {
       {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]}
         onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
       {renderMissionOverlays()}
-      {showOnboarding&&(
+      {showOnboarding&&(()=>{
+        const onbInput = { width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.07)",border:"1.5px solid #f9731640",borderRadius:10,padding:"12px",fontSize:16,color:"#fff",outline:"none",marginBottom:12 };
+        const onbBtn = { width:"100%",background:"#f97316",border:"none",borderRadius:12,padding:"14px",fontSize:15,fontWeight:800,color:"#000",cursor:"pointer" };
+        const finishOnboarding = () => {
+          const name = onboardName.trim() || 'Hooper';
+          setSettings(p=>({ ...p, athleteName:name, lastName:onboardLast.trim(),
+            favoritePlayLike: onboardPlayLike.trim() || p.favoritePlayLike }));
+          localStorage.setItem('s_onboarded','1');
+          track(ANALYTICS_EVENTS.ONBOARDING_COMPLETE, {});
+          setShowOnboarding(false); setShowHelp(true);
+        };
+        return (
         <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.88)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:20 }}>
-          <div style={{ background:"#0d1627",borderRadius:20,padding:28,width:"100%",maxWidth:360,border:"1px solid #f9731640" }}>
-            <div style={{ fontSize:48,textAlign:"center",marginBottom:12 }}>🏀</div>
-            <h2 style={{ textAlign:"center",fontSize:22,fontWeight:800,color:"var(--fkh-text)",marginBottom:6,margin:"0 0 6px" }}>Welcome!</h2>
-            <p style={{ textAlign:"center",color:"#64748b",fontSize:13,marginBottom:20 }}>What's your name, hooper?</p>
-            <input type="text" value={onboardName} onChange={e=>setOnboardName(e.target.value)} placeholder="Your name" autoFocus
-              style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.07)",border:"1.5px solid #f9731640",borderRadius:10,padding:"12px",fontSize:16,color:"#fff",outline:"none",marginBottom:16 }}/>
-            <button onClick={()=>{ const name=onboardName.trim()||'Hooper'; setSettings(p=>({...p,athleteName:name})); localStorage.setItem('s_onboarded','1'); track(ANALYTICS_EVENTS.ONBOARDING_COMPLETE, {}); setShowOnboarding(false); setShowHelp(true); }}
-              style={{ width:"100%",background:"#f97316",border:"none",borderRadius:12,padding:"14px",fontSize:15,fontWeight:800,color:"#000",cursor:"pointer" }}>
-              Let's Go! 🏀
-            </button>
+          <div style={{ background:"#0d1627",borderRadius:20,padding:28,width:"100%",maxWidth:380,border:"1px solid #f9731640" }}>
+            {onboardStep===0 ? (
+              <>
+                <div style={{ fontSize:48,textAlign:"center",marginBottom:12 }}>🏀</div>
+                <h2 style={{ textAlign:"center",fontSize:22,fontWeight:800,color:"var(--fkh-text)",margin:"0 0 6px" }}>Welcome, hooper!</h2>
+                <p style={{ textAlign:"center",color:"#64748b",fontSize:13,marginBottom:18 }}>What's your name?</p>
+                <input type="text" value={onboardName} onChange={e=>setOnboardName(e.target.value)} placeholder="First name" autoFocus style={onbInput}/>
+                <input type="text" value={onboardLast} onChange={e=>setOnboardLast(e.target.value)} placeholder="Last name (optional)" style={onbInput}/>
+                <button onClick={()=>setOnboardStep(1)} style={onbBtn}>Next →</button>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize:42,textAlign:"center",marginBottom:10 }}>⭐</div>
+                <h2 style={{ textAlign:"center",fontSize:20,fontWeight:800,color:"var(--fkh-text)",margin:"0 0 6px" }}>Who do you play like?</h2>
+                <p style={{ textAlign:"center",color:"#64748b",fontSize:12,marginBottom:14 }}>We'll set up your training path. You can change it anytime.</p>
+                <input type="text" value={onboardPlayLike} onChange={e=>setOnboardPlayLike(e.target.value)} placeholder="e.g. Steph Curry" style={onbInput}/>
+                <div style={{ display:"flex",flexWrap:"wrap",gap:6,marginBottom:16 }}>
+                  {["Steph Curry","Allen Iverson","Kyrie Irving","Vince Carter","Klay Thompson"].map(n=>(
+                    <button key={n} onClick={()=>setOnboardPlayLike(n)} style={{ padding:"6px 11px",borderRadius:999,fontSize:11,fontWeight:700,cursor:"pointer",border:`1px solid ${onboardPlayLike===n?"#f97316":"#ffffff22"}`,background:onboardPlayLike===n?"#f9731622":"transparent",color:onboardPlayLike===n?"#f97316":"#94a3b8" }}>{n}</button>
+                  ))}
+                </div>
+                <button onClick={finishOnboarding} style={onbBtn}>Let's Go! 🏀</button>
+                <button onClick={finishOnboarding} style={{ width:"100%",background:"transparent",border:"none",color:"#64748b",fontSize:11,fontWeight:700,cursor:"pointer",marginTop:8 }}>Skip for now</button>
+              </>
+            )}
           </div>
         </div>
-      )}
+        );
+      })()}
       {showHelp&&<HelpSheet P={P} SF={SF} onClose={()=>setShowHelp(false)}/>}
 
       <div style={{ padding:"26px 20px 16px",borderBottom:`1px solid ${P}14` }}>
@@ -7073,6 +6599,7 @@ export default function FitKidHooperApp() {
         onPickCategory={(cat) => { setActiveCat(cat); setPrevView("home"); setView("cat"); }}
         onOpenPath={() => { setView("progress"); setProgressTab("journeys"); }}
         onSetFavorite={() => setShowSettings(true)}
+        onOpenPlayerHighlight={openPlayerHighlight}
         onFocusFriends={focusChallengesFriends}
         onOpenChallenges={() => setView("boards")}
         onOpenProgram={(id) => { setSelectedProgram(id); setView("programs"); }}

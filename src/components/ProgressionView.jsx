@@ -1,4 +1,6 @@
 import { useState } from "react";
+import PlayerHighlightLink from "./PlayerHighlightLink.jsx";
+import PathStageTraining from "./PathStageTraining.jsx";
 import {
   MASTERY_TRACKS,
   trackRankInfo,
@@ -88,7 +90,7 @@ function Collapsible({ title, count, P, children, defaultOpen = true }) {
   );
 }
 
-function Ladder({ track, info, P }) {
+function Ladder({ track, info, P, onOpenPlayerHighlight }) {
   return (
     <div style={{ display: "flex", gap: 6, marginTop: 12, overflowX: "auto", paddingBottom: 4 }}>
       {track.stages.map((stage, i) => {
@@ -105,7 +107,19 @@ function Ladder({ track, info, P }) {
           }}>
             <div style={{ fontSize: 22, filter: earned ? "none" : "grayscale(1)" }}>{stage.emoji}</div>
             <div style={{ fontSize: 11, fontWeight: 800, color: earned ? c : "var(--fkh-text)", marginTop: 3, lineHeight: 1.2 }}>
-              {rungLabel(stage)}
+              {stage.inspo && stage.highlightVideoId ? (
+                <PlayerHighlightLink
+                  stage={stage}
+                  P={P}
+                  onOpenHighlight={onOpenPlayerHighlight}
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 800,
+                    color: earned ? c : P,
+                    textDecoration: earned ? "none" : "underline",
+                  }}
+                />
+              ) : rungLabel(stage)}
             </div>
             {stage.inspo && stage.name !== rungLabel(stage) && (
               <div style={{ fontSize: 8.5, color: "#64748b", marginTop: 1 }}>“{stage.name}”</div>
@@ -126,6 +140,9 @@ export default function ProgressionView({
   settings, ledgerIds, ledger, ctx, P = "#f97316",
   benchmarkPBs = {}, onLogBenchmark,
   onEquipTitle, onEquipCosmetic, onUnequipSlot,
+  allExercises = {},
+  onOpenExercise,
+  onOpenPlayerHighlight,
 }) {
   const trophies = Object.entries(ledger || {})
     .filter(([, e]) => e.kind === "recognition")
@@ -280,7 +297,16 @@ export default function ProgressionView({
             </div>
             <div>
               <div style={{ fontSize: 9, color: "#64748b", fontWeight: 700 }}>NEXT GOAL</div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: P }}>{recInfo.nextGoal || "Path complete! 🏆"}</div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: P }}>
+                {recInfo.next ? (
+                  <PlayerHighlightLink
+                    stage={recInfo.next}
+                    P={P}
+                    onOpenHighlight={onOpenPlayerHighlight}
+                    style={{ fontSize: 15, fontWeight: 800, color: P }}
+                  />
+                ) : "Path complete! 🏆"}
+              </div>
             </div>
           </div>
           {(() => {
@@ -292,6 +318,16 @@ export default function ProgressionView({
                   <div style={{ width: `${sp.stagePct}%`, height: "100%", background: P }} />
                 </div>
                 <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 6 }}>{sp.progressLabel}</div>
+                {sp.next && (
+                  <PathStageTraining
+                    stage={sp.next}
+                    signatureProgress={sp.signatureProgress}
+                    allExercises={allExercises}
+                    P={P}
+                    onOpenExercise={onOpenExercise}
+                    onOpenPlayerHighlight={onOpenPlayerHighlight}
+                  />
+                )}
               </>
             );
           })()}
@@ -324,11 +360,16 @@ export default function ProgressionView({
                 </div>
               </div>
             )}
-            <Ladder track={track} info={info} P={P} />
-            {info.nextGoal && (
-              <div style={{ fontSize: 11, color: "#64748b", marginTop: 8 }}>
-                Next: <span style={{ color: P, fontWeight: 700 }}>{info.nextGoal}</span>
-              </div>
+            <Ladder track={track} info={info} P={P} onOpenPlayerHighlight={onOpenPlayerHighlight} />
+            {info.next && (
+              <PathStageTraining
+                stage={info.next}
+                signatureProgress={stageProg.signatureProgress}
+                allExercises={allExercises}
+                P={P}
+                onOpenExercise={onOpenExercise}
+                onOpenPlayerHighlight={onOpenPlayerHighlight}
+              />
             )}
             {info.next?.unlockNote && (
               <div style={{ fontSize: 10, color: "#f59e0b", marginTop: 3, fontWeight: 700 }}>
