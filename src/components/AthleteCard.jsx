@@ -1,4 +1,4 @@
-import { getPositionLabel, getPositionEmoji, primaryFavorite } from "../lib/identity.js";
+import { getPositionLabel, getPositionEmoji, primaryFavorite, fullName } from "../lib/identity.js";
 import { getAchievementMeta } from "../lib/achievements.js";
 
 export default function AthleteCard({
@@ -48,7 +48,7 @@ export default function AthleteCard({
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
           <span style={{ fontSize: isCompact ? 14 : 18, fontWeight: 800, color: "var(--fkh-text)" }}>
-            {settings.athleteName}
+            {fullName(settings)}
           </span>
           {jersey && (
             <span style={{
