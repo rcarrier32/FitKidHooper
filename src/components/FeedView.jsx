@@ -1,8 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   fetchFriendsFeed, fetchFeedReactions, toggleReaction, reactionKey, relativeTime, REACTIONS,
+  fetchFeedComments, postFeedComment,
 } from "../lib/feedApi.js";
 import { getAchievementMeta } from "../lib/achievements.js";
+
+/** Render comment text with @mentions highlighted. */
+function renderBody(text, P) {
+  return String(text || "").split(/(@[a-z0-9_]{3,20})/gi).map((part, i) =>
+    part.startsWith("@")
+      ? <span key={i} style={{ color: P, fontWeight: 700 }}>{part}</span>
+      : <span key={i}>{part}</span>
+  );
+}
 
 /** Verb + label for a ledger event, from the catalog or the row's own context. */
 function describe(item) {
@@ -19,17 +29,36 @@ function describe(item) {
 export default function FeedView({ P = "#f97316", SF, bd }) {
   const [rows, setRows] = useState(null); // null = loading
   const [reactions, setReactions] = useState({}); // key -> { counts, mine:Set }
+  const [comments, setComments] = useState({}); // key -> [comment]
+  const [openKey, setOpenKey] = useState(null);  // which item's comments are expanded
+  const [draft, setDraft] = useState("");
 
   const loadReactions = useCallback(() => {
     fetchFeedReactions().then(({ map }) => setReactions(map || {})).catch(() => {});
+  }, []);
+
+  const loadComments = useCallback(() => {
+    fetchFeedComments().then(({ map }) => setComments(map || {})).catch(() => {});
   }, []);
 
   useEffect(() => {
     let alive = true;
     fetchFriendsFeed().then(r => { if (alive) setRows(r); }).catch(() => { if (alive) setRows([]); });
     loadReactions();
+    loadComments();
     return () => { alive = false; };
-  }, [loadReactions]);
+  }, [loadReactions, loadComments]);
+
+  const submitComment = useCallback(async (item) => {
+    const text = draft.trim();
+    if (!text) return;
+    const key = reactionKey(item.athlete_id, item.achievement_id);
+    setDraft("");
+    const res = await postFeedComment(item.athlete_id, item.achievement_id, text);
+    if (res.ok) {
+      setComments(prev => ({ ...prev, [key]: [...(prev[key] || []), res.comment] }));
+    }
+  }, [draft]);
 
   // Optimistic toggle: update local counts immediately, then persist.
   const react = useCallback((item, rid) => {
@@ -97,6 +126,48 @@ export default function FeedView({ P = "#f97316", SF, bd }) {
                 );
               })}
             </div>
+            {(() => {
+              const cmts = comments[key] || [];
+              const isOpen = openKey === key;
+              return (
+                <div style={{ marginTop: 8 }}>
+                  <button onClick={() => { setOpenKey(isOpen ? null : key); setDraft(""); }} style={{
+                    background: "transparent", border: "none", cursor: "pointer",
+                    color: isOpen ? P : "#64748b", fontSize: 11, fontWeight: 700, padding: 0,
+                  }}>
+                    💬 {cmts.length > 0 ? `${cmts.length} comment${cmts.length > 1 ? "s" : ""}` : "Comment"}
+                  </button>
+                  {isOpen && (
+                    <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+                      {cmts.map(c => (
+                        <div key={c.id} style={{ fontSize: 12, lineHeight: 1.45 }}>
+                          <span style={{ fontWeight: 700, color: c.isMe ? P : "var(--fkh-text)" }}>
+                            {c.isMe ? "You" : c.authorName}
+                          </span>{" "}
+                          <span style={{ color: "var(--fkh-text-muted)" }}>{renderBody(c.body, P)}</span>
+                        </div>
+                      ))}
+                      <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+                        <input
+                          value={draft}
+                          onChange={e => setDraft(e.target.value.slice(0, 280))}
+                          onKeyDown={e => { if (e.key === "Enter") submitComment(item); }}
+                          placeholder="Add a comment… use @username"
+                          maxLength={280}
+                          style={{ flex: 1, padding: "7px 10px", borderRadius: 8, border: `1px solid ${bd}`,
+                            background: "rgba(255,255,255,0.05)", color: "var(--fkh-text)", fontSize: 12 }}
+                        />
+                        <button onClick={() => submitComment(item)} disabled={!draft.trim()} style={{
+                          padding: "7px 12px", borderRadius: 8, border: "none",
+                          background: draft.trim() ? P : `${P}55`, color: "#000",
+                          fontSize: 11, fontWeight: 800, cursor: draft.trim() ? "pointer" : "not-allowed",
+                        }}>Post</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         );
       })}

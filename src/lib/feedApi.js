@@ -91,6 +91,54 @@ export async function toggleReaction(targetId, achievementId, emoji, hasReacted)
   return { ok: !error };
 }
 
+/* ── Comments (text replies, @mentions push the owner + mentioned friends) ─── */
+
+/** All comments visible to the signed-in athlete, grouped by feed item key. */
+export async function fetchFeedComments() {
+  if (!isSupabaseConfigured()) return { map: {}, me: null };
+  const sb = getSupabaseClient();
+  const me = await getBoardAthleteId();
+  if (!sb || !me) return { map: {}, me: null };
+
+  const { data, error } = await sb
+    .from("feed_comments")
+    .select("id, author_id, target_id, achievement_id, body, created_at")
+    .order("created_at", { ascending: true });
+  if (error) return { map: {}, me };
+
+  const authorIds = [...new Set((data || []).map(c => c.author_id))];
+  let names = {};
+  if (authorIds.length) {
+    const { data: profs } = await sb.from("athlete_profiles").select("id, display_name").in("id", authorIds);
+    names = Object.fromEntries((profs || []).map(p => [p.id, p.display_name]));
+  }
+
+  const map = {};
+  for (const c of data || []) {
+    const k = reactionKey(c.target_id, c.achievement_id);
+    (map[k] ||= []).push({ ...c, authorName: names[c.author_id] || "Hooper", isMe: c.author_id === me });
+  }
+  return { map, me };
+}
+
+/** Post a comment (≤280 chars) on a feed item. */
+export async function postFeedComment(targetId, achievementId, body) {
+  if (!isSupabaseConfigured()) return { ok: false };
+  const sb = getSupabaseClient();
+  const me = await getBoardAthleteId();
+  if (!sb || !me) return { ok: false };
+  const text = String(body || "").trim().slice(0, 280);
+  if (!text) return { ok: false };
+
+  const { data, error } = await sb
+    .from("feed_comments")
+    .insert({ author_id: me, target_id: targetId, achievement_id: achievementId, body: text })
+    .select("id, author_id, target_id, achievement_id, body, created_at")
+    .single();
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, comment: { ...data, authorName: "You", isMe: true } };
+}
+
 export function relativeTime(iso) {
   if (!iso) return "";
   const diff = Date.now() - new Date(iso).getTime();
