@@ -11,6 +11,13 @@ function shortId(id) {
   return `${String(id).slice(0, 8)}…`;
 }
 
+/** Prefer a human label (username, then real name) over the raw device/user id. */
+function athleteLabel(r) {
+  if (r.username) return `@${r.username}`;
+  if (r.display_name) return r.display_name;
+  return `${shortId(r.athlete_id)} (guest)`;
+}
+
 function fmtTime(ts) {
   if (!ts) return "—";
   return new Date(ts).toLocaleString();
@@ -24,7 +31,7 @@ export async function loadDrilldown(sb, drill) {
   if (type === "athletes_active") {
     const { data, error } = await sb
       .from("athlete_rollup")
-      .select("athlete_id, age_group, first_session_at, last_session_at, app_version")
+      .select("athlete_id, username, display_name, age_group, first_session_at, last_session_at, app_version")
       .gte("last_session_at", daysAgo(7))
       .order("last_session_at", { ascending: false })
       .limit(100);
@@ -39,7 +46,7 @@ export async function loadDrilldown(sb, drill) {
       ],
       rows: (data || []).map(r => ({
         ...r,
-        athlete_id: shortId(r.athlete_id),
+        athlete_id: athleteLabel(r),
         _athlete_id: r.athlete_id,
         last_session_at: fmtTime(r.last_session_at),
         first_session_at: fmtTime(r.first_session_at),
@@ -51,7 +58,7 @@ export async function loadDrilldown(sb, drill) {
   if (type === "athletes_all") {
     const { data, error } = await sb
       .from("athlete_rollup")
-      .select("athlete_id, age_group, first_session_at, last_session_at")
+      .select("athlete_id, username, display_name, age_group, first_session_at, last_session_at")
       .order("last_session_at", { ascending: false })
       .limit(100);
     if (error) throw error;
@@ -65,7 +72,7 @@ export async function loadDrilldown(sb, drill) {
       ],
       rows: (data || []).map(r => ({
         ...r,
-        athlete_id: shortId(r.athlete_id),
+        athlete_id: athleteLabel(r),
         _athlete_id: r.athlete_id,
         last_session_at: fmtTime(r.last_session_at),
         first_session_at: fmtTime(r.first_session_at),
@@ -77,7 +84,7 @@ export async function loadDrilldown(sb, drill) {
   if (type === "athletes_new") {
     const { data, error } = await sb
       .from("athlete_rollup")
-      .select("athlete_id, age_group, first_session_at, last_session_at")
+      .select("athlete_id, username, display_name, age_group, first_session_at, last_session_at")
       .gte("first_session_at", daysAgo(7))
       .order("first_session_at", { ascending: false })
       .limit(100);
@@ -92,7 +99,7 @@ export async function loadDrilldown(sb, drill) {
       ],
       rows: (data || []).map(r => ({
         ...r,
-        athlete_id: shortId(r.athlete_id),
+        athlete_id: athleteLabel(r),
         _athlete_id: r.athlete_id,
         first_session_at: fmtTime(r.first_session_at),
         last_session_at: fmtTime(r.last_session_at),
@@ -293,8 +300,10 @@ export async function loadDrilldown(sb, drill) {
     if (eventsRes.error) throw eventsRes.error;
     const p = profileRes.data;
     return {
-      title: label || `Athlete ${shortId(athleteId)}`,
+      title: label || (p ? athleteLabel(p) : `Athlete ${shortId(athleteId)}`),
       meta: p ? {
+        username: p.username ? `@${p.username}` : "—",
+        name: p.display_name || "—",
         age_group: p.age_group,
         first_session: fmtTime(p.first_session_at),
         last_session: fmtTime(p.last_session_at),
@@ -329,7 +338,7 @@ export async function loadDrilldown(sb, drill) {
       ],
       rows: (data || []).map(r => ({
         created_at: fmtTime(r.created_at),
-        athlete_id: shortId(r.athlete_id),
+        athlete_id: athleteLabel(r),
         _athlete_id: r.athlete_id,
         event_name: r.event_name,
         detail: formatEventDetail(r),
