@@ -37,6 +37,8 @@ export default defineConfig({
         clientsClaim: true,
         skipWaiting: true,
         navigateFallback: 'index.html',
+        // Web push handlers (push + notificationclick) folded into the SW.
+        importScripts: ['push-sw.js'],
       },
     }),
   ],
