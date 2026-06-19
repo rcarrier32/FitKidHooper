@@ -23,7 +23,7 @@ export async function loadDrilldown(sb, drill) {
 
   if (type === "athletes_active") {
     const { data, error } = await sb
-      .from("athlete_analytics")
+      .from("athlete_rollup")
       .select("athlete_id, age_group, first_session_at, last_session_at, app_version")
       .gte("last_session_at", daysAgo(7))
       .order("last_session_at", { ascending: false })
@@ -50,7 +50,7 @@ export async function loadDrilldown(sb, drill) {
 
   if (type === "athletes_all") {
     const { data, error } = await sb
-      .from("athlete_analytics")
+      .from("athlete_rollup")
       .select("athlete_id, age_group, first_session_at, last_session_at")
       .order("last_session_at", { ascending: false })
       .limit(100);
@@ -76,7 +76,7 @@ export async function loadDrilldown(sb, drill) {
 
   if (type === "athletes_new") {
     const { data, error } = await sb
-      .from("athlete_analytics")
+      .from("athlete_rollup")
       .select("athlete_id, age_group, first_session_at, last_session_at")
       .gte("first_session_at", daysAgo(7))
       .order("first_session_at", { ascending: false })
@@ -285,7 +285,7 @@ export async function loadDrilldown(sb, drill) {
         .eq("athlete_id", athleteId)
         .order("created_at", { ascending: false })
         .limit(150),
-      sb.from("athlete_analytics")
+      sb.from("athlete_rollup")
         .select("*")
         .eq("athlete_id", athleteId)
         .maybeSingle(),
