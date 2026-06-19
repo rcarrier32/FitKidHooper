@@ -6071,16 +6071,9 @@ function ProfileView({ settings, totalXP, xpData, currentLevel, earnedBadges, co
             background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",color:"#64748b" }}>
           ⚙ Settings & Customization
         </button>
-        <button onClick={onViewHistory}
-          style={{ marginTop:10, padding:"12px 28px", borderRadius:12, fontSize:13, fontWeight:700,
-            cursor:"pointer", background:`${P}14`, border:`1px solid ${P}30`, color:P, display:"block", margin:"10px auto 0", width:"100%", maxWidth:280 }}>
-          📊 Training History
-        </button>
-        <button onClick={onViewSchedule}
-          style={{ marginTop:10, padding:"12px 28px", borderRadius:12, fontSize:13, fontWeight:700,
-            cursor:"pointer", background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", color:"var(--fkh-text-muted)", display:"block", margin:"10px auto 0", width:"100%", maxWidth:280 }}>
-          🗓 Training Calendar
-        </button>
+        <div style={{ marginTop:10, fontSize:11, color:"#475569" }}>
+          Training History & Calendar are in <b style={{ color:P }}>📈 Progress → Stats</b>
+        </div>
       </div>
     </div>
   );
@@ -8213,8 +8206,9 @@ export default function SummerTrainingApp() {
             <GrowthCard log={growthLog} onLog={handleLogHeight} P={P} SF={SF} bd={bd} />
             <ProgressStatsPanel totalXP={xpData?.total||0} xpData={xpData} currentLevel={currentLevel}
               P={P} ST={ST} SF={SF} bd={bd} lbl={lbl} />
-            <div style={{ display:"flex",gap:10 }}>
+            <div style={{ display:"flex",gap:10,flexWrap:"wrap" }}>
               {statBtn("📊 Training History", ()=>setView("history"))}
+              {statBtn("🗓 Training Calendar", ()=>openSchedule("progress","calendar"))}
               {statBtn("🧠 Coach Report", ()=>setView("report"))}
             </div>
           </div>
@@ -8230,7 +8224,7 @@ export default function SummerTrainingApp() {
     <HistoryView
       completed={completed} badgeDates={badgeDates} settings={settings}
       P={P} S={S} ST={ST} BG={BG} SF={SF} bd={bd} lbl={lbl}
-      onBack={()=>setView("profile")}/>
+      onBack={()=>setView("progress")}/>
   );
 
   /* BOARDS */
