@@ -18,6 +18,38 @@ let flushTimer = null;
 let flushing = false;
 let context = { ageGroup: "unknown", isStandalone: false };
 
+// When signed in, events are logged under the auth user id (set by the app on
+// auth state change) so a kid's activity is unified across devices. Falls back
+// to the per-device id for anonymous use.
+let athleteIdOverride = null;
+
+// Best-effort synchronous read of the signed-in user id from the Supabase
+// session in localStorage. This avoids a startup race: initAnalytics fires
+// session_start (the event DAU/WAU/retention count) before the async auth
+// listener sets the override, so without this the first event of a signed-in
+// session would log under the device id.
+function authIdFromStorage() {
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith("sb-") && k.endsWith("-auth-token")) {
+        const v = JSON.parse(localStorage.getItem(k) || "null");
+        return v?.user?.id || v?.currentSession?.user?.id || null;
+      }
+    }
+  } catch { /* localStorage unavailable */ }
+  return null;
+}
+
+function activeAthleteId() {
+  return athleteIdOverride || authIdFromStorage() || getAthleteId();
+}
+
+/** Point analytics at the auth user id (or null to revert to the device id). */
+export function setAnalyticsAthleteId(id) {
+  athleteIdOverride = id || null;
+}
+
 function getAppVersion() {
   return import.meta.env.VITE_APP_VERSION || "dev";
 }
@@ -56,7 +88,7 @@ function writeJsonSet(key, set) {
 
 function basePayload() {
   return {
-    athlete_id: getAthleteId(),
+    athlete_id: activeAthleteId(),
     app_version: getAppVersion(),
     age_group: context.ageGroup || "unknown",
   };
@@ -65,7 +97,7 @@ function basePayload() {
 /** Queue an event for batched upload. No-op when Supabase is not configured. */
 export function track(eventName, properties = {}) {
   if (!isSupabaseConfigured()) return;
-  if (!getAthleteId()) return;
+  if (!activeAthleteId()) return;
 
   const queue = readQueue();
   queue.push({
@@ -110,7 +142,7 @@ export async function flushEvents() {
 
 async function upsertAthleteAnalytics({ isFirstSession = false } = {}) {
   const sb = getSupabaseClient();
-  const athleteId = getAthleteId();
+  const athleteId = activeAthleteId();
   if (!sb || !athleteId) return;
 
   const now = new Date().toISOString();
@@ -250,7 +282,7 @@ export async function submitFeedback({ rating, sentiment, category, message }) {
   if (!sb) return { ok: false, error: "Could not connect" };
 
   const row = {
-    athlete_id: getAthleteId(),
+    athlete_id: activeAthleteId(),
     rating: rating ?? null,
     sentiment: sentiment ?? null,
     category: category || "general",
