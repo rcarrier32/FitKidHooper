@@ -1,4 +1,4 @@
-import SummerTrainingApp from './SummerTrainingApp'
+import FitKidHooperApp from './FitKidHooperApp.jsx'
 import UpdateBanner from './UpdateBanner'
 import InstallBanner from './InstallBanner'
 import AdminDashboard from './components/AdminDashboard.jsx'
@@ -13,7 +13,7 @@ export default function App() {
     <>
       <UpdateBanner />
       <InstallBanner />
-      <SummerTrainingApp />
+      <FitKidHooperApp />
     </>
   )
 }

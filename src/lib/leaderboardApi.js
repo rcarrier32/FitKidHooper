@@ -2,6 +2,10 @@ import { computeAllPeriodStats, getAgeGroup } from "./periodStats.js";
 import { getSupabaseClient, isSupabaseConfigured } from "./supabaseClient.js";
 import { profileForCloud, boardDisplayName } from "./identity.js";
 import { getDeviceAthleteId, getEffectiveAthleteId } from "./auth.js";
+import { buildPathSnapshot } from "./achievements.js";
+import { getStreak, getAllTrainingDayCount } from "./progressStats.js";
+import { readLocalPBs } from "./benchmarksApi.js";
+import { computeCatCounts } from "./achievements.js";
 
 const LAST_PUSH_KEY = "fkh-last-push";
 const PUSH_DISMISS_KEY = "fkh-push-prompt-dismissed-until";
@@ -66,12 +70,14 @@ export function dismissPushPrompt(hours = 24) {
 export function buildPushPayload({
   displayName, dateOfBirth, ageGroup, completed, shotLog, missionLog, getCategory,
   athleteId: athleteIdIn, profileExtras = {}, activeTitle = null, playLike = null,
+  pathSnapshot = null,
 }) {
   const athleteId = athleteIdIn || getAthleteId();
   if (!athleteId) throw new Error("Could not create athlete id on this device");
 
   const statsByPeriod = computeAllPeriodStats({ completed, shotLog, missionLog, getCategory });
   const pushedAt = new Date().toISOString();
+  const snap = pathSnapshot || null;
 
   return {
     athleteId,
@@ -81,6 +87,10 @@ export function buildPushPayload({
       age_group: ageGroup,
       date_of_birth: dateOfBirth || null,
       updated_at: pushedAt,
+      ...(snap ? {
+        primary_path_id: snap.primaryPathId,
+        path_snapshot: snap.paths,
+      } : {}),
       ...profileExtras,
     },
     stats: Object.entries(statsByPeriod).map(([period, stats]) => ({
@@ -94,6 +104,8 @@ export function buildPushPayload({
       streak: stats.streak,
       active_title: activeTitle || null,
       play_like: playLike || null,
+      primary_path_rank: snap?.primaryPathRank || null,
+      path_progress_pct: snap?.pathProgressPct ?? null,
       pushed_at: pushedAt,
     })),
   };
@@ -153,6 +165,8 @@ export async function maybeAutoSyncLeaderboard({
   completed,
   missionLog,
   getCategory,
+  earnedBadges = [],
+  ledger = {},
   force = false,
 } = {}) {
   if (!canAutoSyncLeaderboard(settings)) {
@@ -165,19 +179,18 @@ export async function maybeAutoSyncLeaderboard({
   }
 
   try {
-    await pushFromAppState({ settings, completed, missionLog, getCategory });
+    await pushFromAppState({ settings, completed, missionLog, getCategory, earnedBadges, ledger });
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e.message || "Sync failed" };
   }
 }
 
-export async function pushFromAppState({ settings, completed, missionLog, getCategory }) {
+export async function pushFromAppState({ settings, completed, missionLog, getCategory, earnedBadges = [], ledger = {} }) {
   const firstName = settings.athleteName?.trim();
   if (!firstName || firstName === "Champ") {
     throw new Error("Set your name in Settings before pushing stats");
   }
-  // Public board identity: first name + last initial.
   const displayName = boardDisplayName(settings);
 
   let shotLog = {};
@@ -187,8 +200,23 @@ export async function pushFromAppState({ settings, completed, missionLog, getCat
 
   const ageGroup = getAgeGroup(settings.dateOfBirth);
   const cloudProfile = profileForCloud(settings);
-  // Prefer the authenticated user id; fall back to the device id when signed out.
   const athleteId = (await getEffectiveAthleteId()) || getAthleteId();
+
+  let makes = 0;
+  try {
+    makes = Object.values(shotLog).flatMap(v => v).filter(s => s.made !== false).length;
+  } catch {}
+
+  const progressCtx = {
+    earnedBadgeIds: new Set(earnedBadges),
+    ledgerIds: new Set(Object.keys(ledger || {})),
+    makes,
+    maxStreak: getStreak(completed),
+    trainingDays: getAllTrainingDayCount(completed, shotLog),
+    catCounts: computeCatCounts(completed, getCategory),
+    benchmarkPBs: readLocalPBs(),
+  };
+  const pathSnapshot = buildPathSnapshot(progressCtx, settings);
 
   const payload = buildPushPayload({
     displayName,
@@ -201,6 +229,7 @@ export async function pushFromAppState({ settings, completed, missionLog, getCat
     athleteId,
     activeTitle: settings.activeTitle || null,
     playLike: cloudProfile.favorite_playlike || cloudProfile.favorite_current || cloudProfile.favorite_player || null,
+    pathSnapshot,
     profileExtras: {
       jersey_number: cloudProfile.jersey_number,
       favorite_player: cloudProfile.favorite_player,

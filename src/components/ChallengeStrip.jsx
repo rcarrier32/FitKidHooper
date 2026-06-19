@@ -6,7 +6,7 @@ import { fetchActiveChallenges, fetchChallengeStanding, METRIC_LABEL } from "../
  * Shows the active challenge and your standing among friends for its metric/period.
  * Quietly renders nothing until there's something to show (no friends / unconfigured).
  */
-export default function ChallengeStrip({ P = "#f97316", onAddFriends }) {
+export default function ChallengeStrip({ P = "#f97316", onAddFriends, onOpenChallenges, variant = "full" }) {
   const [challenge, setChallenge] = useState(null);
   const [standing, setStanding] = useState(null);
   const [state, setState] = useState("loading"); // loading | none | nofriends | ready
@@ -32,6 +32,36 @@ export default function ChallengeStrip({ P = "#f97316", onAddFriends }) {
 
   const metricLabel = challenge ? (METRIC_LABEL[challenge.metric] || challenge.metric) : "";
   const periodLabel = challenge?.period === "month" ? "this month" : "this week";
+
+  if (variant === "teaser") {
+    const open = () => onOpenChallenges?.();
+    if (state === "nofriends") {
+      return (
+        <button type="button" onClick={open} style={{
+          display: "block", width: "calc(100% - 40px)", margin: "0 20px 14px", textAlign: "left",
+          borderRadius: 12, border: `1px solid ${P}33`, background: `${P}0c`, padding: "10px 14px", cursor: "pointer",
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: P }}>🏆 Squad Challenge</div>
+          <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>Add a friend to compete · Tap to open</div>
+        </button>
+      );
+    }
+    if (!standing?.me) return null;
+    const myVal = standing.me[standing.field] || 0;
+    const goal = challenge?.goal_value;
+    const label = goal
+      ? `${myVal}/${goal} ${metricLabel} ${periodLabel}`
+      : `#${standing.myRank} among friends ${periodLabel}`;
+    return (
+      <button type="button" onClick={open} style={{
+        display: "block", width: "calc(100% - 40px)", margin: "0 20px 14px", textAlign: "left",
+        borderRadius: 12, border: `1px solid ${P}33`, background: `${P}0c`, padding: "10px 14px", cursor: "pointer",
+      }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color: P }}>🏆 {challenge?.title}</div>
+        <div style={{ fontSize: 12, color: "var(--fkh-text)", marginTop: 2 }}>{label} · Tap for Challenges ›</div>
+      </button>
+    );
+  }
 
   const wrap = {
     margin: "0 20px 14px", borderRadius: 16, overflow: "hidden",

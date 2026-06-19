@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   MASTERY_TRACKS,
   trackRankInfo,
+  trackStageProgress,
   recommendTrackForFavorite,
   getTrack,
   rungLabel,
@@ -161,7 +162,7 @@ export default function ProgressionView({
           ))}
         </div>
         <div style={{ fontSize: 11, color: "#64748b", marginTop: 10, lineHeight: 1.5 }}>
-          Hit the mark and you earn a certification Title — which unlocks the Conquest peak on the matching journey.
+          Hit the mark and you earn a certification Title — which unlocks the Conquest peak on the matching path.
         </div>
       </div>
     );
@@ -174,7 +175,7 @@ export default function ProgressionView({
         <Collapsible title="Titles" count={ownedTitles.length || null} P={P}>
           {ownedTitles.length === 0 ? (
             <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>
-              Climb a journey to earn your first Title — then wear it on your card and the leaderboard.
+              Climb a path to earn your first Title — then wear it on your card and the leaderboard.
             </div>
           ) : (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -251,19 +252,26 @@ export default function ProgressionView({
     );
   }
 
-  /* ── JOURNEYS tab (default) — legend mastery tracks ───────────────────── */
+  /* ── PATH tab (default) — passive mastery tracks ─────────────────────────── */
   return (
     <div style={{ padding: "4px 18px 16px" }}>
+      <div style={{ fontSize: 11, color: "#64748b", marginBottom: 14, lineHeight: 1.5 }}>
+        Every path tracks automatically from your drills and shots — no signup required.
+      </div>
       {/* Favorite-player personalization */}
       {recTrack && recInfo && (
         <div style={{
           background: `${P}12`, border: `1px solid ${P}35`, borderRadius: 16, padding: "14px 16px", marginBottom: 18,
         }}>
           <div style={{ fontSize: 10, color: "#94a3b8", fontWeight: 700 }}>
-            WANTS TO PLAY LIKE · <span style={{ color: "var(--fkh-text)" }}>{playLike}</span>
+            {playLike ? (
+              <>PLAY LIKE · <span style={{ color: "var(--fkh-text)" }}>{playLike}</span></>
+            ) : (
+              "YOUR PRIMARY PATH"
+            )}
           </div>
           <div style={{ fontSize: 16, fontWeight: 800, color: P, marginTop: 4 }}>
-            {recTrack.emoji} {recTrack.archetype} — your journey
+            {recTrack.emoji} {recTrack.archetype}
           </div>
           <div style={{ display: "flex", gap: 18, marginTop: 10 }}>
             <div>
@@ -272,14 +280,27 @@ export default function ProgressionView({
             </div>
             <div>
               <div style={{ fontSize: 9, color: "#64748b", fontWeight: 700 }}>NEXT GOAL</div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: P }}>{recInfo.nextGoal || "Journey complete! 🏆"}</div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: P }}>{recInfo.nextGoal || "Path complete! 🏆"}</div>
             </div>
           </div>
+          {(() => {
+            const sp = trackStageProgress(recTrack, ctx);
+            if (sp.complete) return null;
+            return (
+              <>
+                <div style={{ height: 6, borderRadius: 99, background: "rgba(255,255,255,0.08)", overflow: "hidden", marginTop: 12 }}>
+                  <div style={{ width: `${sp.stagePct}%`, height: "100%", background: P }} />
+                </div>
+                <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 6 }}>{sp.progressLabel}</div>
+              </>
+            );
+          })()}
         </div>
       )}
 
       {orderedTracks.map(track => {
         const info = trackRankInfo(track, ctx);
+        const stageProg = trackStageProgress(track, ctx);
         const isRec = recTrack && track.id === recTrack.id;
         return (
           <div key={track.id} style={{
@@ -291,10 +312,18 @@ export default function ProgressionView({
                 {track.emoji} {track.archetype}
               </div>
               <div style={{ fontSize: 11, fontWeight: 700, color: info.complete ? "#22c55e" : P }}>
-                {info.reached}/{info.total} · {info.pct}%
+                {info.reached}/{info.total}
               </div>
             </div>
             <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 3, lineHeight: 1.45 }}>{track.theme}</div>
+            {!info.complete && stageProg.progressLabel && (
+              <div style={{ fontSize: 11, color: "#64748b", marginTop: 8 }}>
+                {stageProg.progressLabel}
+                <div style={{ height: 4, borderRadius: 99, background: "rgba(255,255,255,0.06)", overflow: "hidden", marginTop: 6 }}>
+                  <div style={{ width: `${stageProg.stagePct}%`, height: "100%", background: isRec ? P : "#64748b" }} />
+                </div>
+              </div>
+            )}
             <Ladder track={track} info={info} P={P} />
             {info.nextGoal && (
               <div style={{ fontSize: 11, color: "#64748b", marginTop: 8 }}>

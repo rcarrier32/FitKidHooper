@@ -14,14 +14,40 @@
  *    so equipping and cross-user display look them up by id.
  */
 
-/* ── Category buckets (raw exercise categories → a journey's skill area) ───── */
+import {
+  matchRegistryEntry,
+  favoritePlayerQuery,
+  displayFavoritePlayer,
+  FAVORITE_PLAYER_REGISTRY,
+} from "./pathRegistry.js";
+import {
+  evaluateStageGate,
+  getPrimaryVolumeReq,
+  getPrevThreshold,
+  getMetricValue,
+  formatProgressLabel,
+  trackStageProgress as computeTrackStageProgress,
+} from "./pathGates.js";
+
+/* ── Category buckets (raw exercise categories → a path's skill area) ──────── */
 const BUCKETS = {
-  handles:   ["handles", "ballhandling", "game_handles"],
-  defense:   ["deceleration", "athletic"],
-  explosion: ["explosion"],
-  finishing: ["finishing", "finishing_school", "footwork", "footwork_lab"],
-  midrange:  ["shooting_lab", "shootingdrills", "footwork_lab"],
-  touch:     ["finishing", "finishing_school"],
+  handles:     ["handles", "ballhandling"],
+  playmaking:  ["game_handles", "footwork", "footwork_lab"],
+  defense:     ["deceleration", "athletic"],
+  explosion:   ["explosion"],
+  finishing:   ["finishing", "finishing_school", "footwork", "footwork_lab"],
+  midrange:    ["shooting_lab", "shootingdrills", "footwork_lab"],
+  touch:       ["finishing", "finishing_school"],
+};
+
+/** Shorthand for structured stage gates (evaluated by pathGates.js). */
+const G = {
+  makes: (n) => ({ type: "volume", metric: "makes", op: ">=", value: n }),
+  bucket: (key, n) => ({ type: "volume", metric: `buckets.${key}`, op: ">=", value: n }),
+  streak: (n) => ({ type: "consistency", metric: "streak", op: ">=", value: n }),
+  days: (n) => ({ type: "consistency", metric: "training_days", op: ">=", value: n }),
+  ledger: (id) => ({ type: "ledger", id }),
+  program: (badgeId) => ({ type: "program", badgeId }),
 };
 
 function bucketSum(catCounts, keys) {
@@ -44,37 +70,71 @@ export const MASTERY_TRACKS = [
   {
     id: "shooter", name: "Shooting", emoji: "🎯", archetype: "The Shooter",
     theme: "From open looks to limitless range — walk the line of the greatest shooters ever.",
+    relatedProgramIds: ["become-shooter", "complete-hooper"],
     favoritePlayerKeys: ["curry","steph","allen","ray","miller","reggie","thompson","klay","bird","durant","kd","lillard","dame","korver","maravich","pistol"],
     stages: [
-      { id: "shooter-1", name: "Spot-Up Kid", emoji: "🎯", flavor: "You knock down the open ones.",
+      { id: "shooter-1", name: "Shooter", emoji: "🎯", flavor: "You knock down the open ones.",
         color: "#60a5fa", rarity: "common",
-        gate: c => c.makes >= 100 },
+        requirements: [G.makes(100)] },
       { id: "shooter-2", name: "Knockdown", inspo: "Ray Allen", emoji: "🎯", flavor: "Catch, rise, splash — textbook form.",
         color: "#38bdf8", rarity: "rare",
         title: { id: "title-knockdown", label: "Knockdown" },
         cosmetic: { id: "cos-splash-silver", label: "Silver Splash Frame", slot: "frame", emoji: "💧" },
-        gate: c => c.makes >= 750 },
+        requirements: [G.makes(750)] },
       { id: "shooter-3", name: "Microwave", inspo: "Reggie Miller", emoji: "🔥", flavor: "You heat up in a hurry.",
         color: "#a78bfa", rarity: "epic",
         title: { id: "title-microwave", label: "Microwave" },
         cosmetic: { id: "cos-scope-gold", label: "Gold Scope Frame", slot: "frame", emoji: "🔭" },
-        gate: c => c.makes >= 2000 },
+        requirements: [G.makes(2000), G.streak(7)] },
       { id: "shooter-4", name: "Splash Brother", inspo: "Klay Thompson", emoji: "🌊", flavor: "Quick trigger, no conscience.",
         color: "#c084fc", rarity: "epic",
         title: { id: "title-splash-bro", label: "Splash Brother" },
         cosmetic: { id: "cos-splash-blue", label: "Blue Splash Frame", slot: "frame", emoji: "💦" },
-        gate: c => c.makes >= 4000 },
-      { id: "shooter-5", name: "Splash God", inspo: "Curry Conquest", emoji: "👑", flavor: "Range? Unlimited. The summit of shooting.",
+        requirements: [G.makes(4000), G.days(21)] },
+      { id: "shooter-5", name: "Splash God", inspo: "Steph Curry Conquest", emoji: "👑", flavor: "Range? Unlimited. The summit of shooting.",
         color: "#f59e0b", rarity: "legendary", conquest: true,
         title: { id: "title-splash-god", label: "Splash God" },
         cosmetic: { id: "cos-splash-anim", label: "Animated Splash Frame", slot: "frame", emoji: "🌊" },
         unlockNote: "Earn Range Certified (33% from 3) to unlock",
-        gate: c => c.makes >= 5000 && c.ledgerIds.has("title-range-certified") },
+        requirements: [G.makes(5000), G.ledger("title-range-certified")] },
+    ],
+  },
+  {
+    id: "ballhandling", name: "Ball Handling", emoji: "🤲", archetype: "The Ball Handler",
+    theme: "The ball on a string — cross, wrap, and break ankles like the greats.",
+    relatedProgramIds: ["guard-handles", "first-step"],
+    favoritePlayerKeys: ["williams","white","chocolate","hardaway","tim","iverson","ai","kyrie","irving","crossover","handles"],
+    stages: [
+      { id: "ballhandling-1", name: "Ball Handler", emoji: "🤲", flavor: "The ball listens to your hands.",
+        color: "#60a5fa", rarity: "common",
+        requirements: [G.bucket("handles", 15)] },
+      { id: "ballhandling-2", name: "Handles", inspo: "White Chocolate", emoji: "✨", flavor: "Flashy and in control.",
+        color: "#38bdf8", rarity: "rare",
+        title: { id: "title-handles", label: "Handles" },
+        cosmetic: { id: "cos-cross-frame", label: "Crossover Frame", slot: "frame", emoji: "✖️" },
+        requirements: [G.bucket("handles", 40)] },
+      { id: "ballhandling-3", name: "Crossover King", inspo: "Tim Hardaway", emoji: "⚡", flavor: "UTA — the killer crossover.",
+        color: "#a78bfa", rarity: "epic",
+        title: { id: "title-crossover-king", label: "Crossover King" },
+        cosmetic: { id: "cos-ufo-emote", label: "UFO Cross Emote", slot: "emote", emoji: "🛸" },
+        requirements: [G.bucket("handles", 80), G.streak(5)] },
+      { id: "ballhandling-4", name: "The Answer", inspo: "Allen Iverson", emoji: "💎", flavor: "Heart over height — nobody can stay in front.",
+        color: "#c084fc", rarity: "epic",
+        title: { id: "title-the-answer", label: "The Answer" },
+        cosmetic: { id: "cos-ai-frame", label: "Answer Frame", slot: "frame", emoji: "💎" },
+        requirements: [G.bucket("handles", 120), G.program("pgm-guard-handles")] },
+      { id: "ballhandling-5", name: "Handle God", inspo: "Kyrie Irving Conquest", emoji: "👑", flavor: "The ball is an extension of your hand.",
+        color: "#f59e0b", rarity: "legendary", conquest: true,
+        title: { id: "title-handle-god", label: "Handle God" },
+        cosmetic: { id: "cos-ankle-breaker", label: "Ankle Breaker Emote", slot: "emote", emoji: "🦴" },
+        unlockNote: "Complete Handle Like a Guard + 150 handle reps",
+        requirements: [G.bucket("handles", 150), G.program("pgm-guard-handles")] },
     ],
   },
   {
     id: "midrange", name: "Mid-Range", emoji: "🎯", archetype: "The Mid-Range Maestro",
     theme: "The lost art — come off the screen, rise from the elbow, bury it. Own the in-between game.",
+    relatedProgramIds: ["become-shooter", "complete-hooper"],
     favoritePlayerKeys: ["hamilton","rip","cade","cunningham","derozan","demar","dirk","nowitzki","midrange","mid-range","pullup","pull-up","elbow"],
     stages: [
       { id: "midrange-1", name: "Pull-Up Kid", emoji: "🎯", flavor: "One dribble into a clean look.",
@@ -101,31 +161,39 @@ export const MASTERY_TRACKS = [
   {
     id: "maestro", name: "Playmaking", emoji: "🧠", archetype: "The Maestro",
     theme: "Make the defense dance and your team better — in the lineage of the great floor generals.",
-    favoritePlayerKeys: ["stockton","magic","johnson","nash","kidd","paul","cp3","rondo","point","haliburton","assist"],
+    relatedProgramIds: ["guard-handles", "complete-hooper"],
+    favoritePlayerKeys: ["stockton","magic","johnson","nash","kidd","paul","cp3","rondo","point","haliburton","assist","brunson"],
     stages: [
-      { id: "maestro-1", name: "Floor Spacer", emoji: "🤲", flavor: "The ball's on a string.",
+      { id: "maestro-1", name: "Passer", emoji: "🤲", flavor: "You see the open man.",
         color: "#22d3ee", rarity: "common",
-        gate: c => c.buckets.handles >= 10 },
+        requirements: [G.bucket("playmaking", 10)] },
       { id: "maestro-2", name: "Pure Point", inspo: "John Stockton", emoji: "🎯", flavor: "Fundamentals on a string — always the right read.",
         color: "#06b6d4", rarity: "rare",
         title: { id: "title-pure-point", label: "Pure Point" },
         cosmetic: { id: "cos-dimes", label: "Dimes Sticker", slot: "avatar_gear", emoji: "💎" },
-        gate: c => c.buckets.handles >= 35 },
+        requirements: [G.bucket("playmaking", 35)] },
       { id: "maestro-3", name: "The Maestro", inspo: "Steve Nash", emoji: "🪄", flavor: "You orchestrate the whole floor.",
         color: "#818cf8", rarity: "epic",
         title: { id: "title-maestro", label: "The Maestro" },
         cosmetic: { id: "cos-wizard", label: "Wizard Hat", slot: "avatar_gear", emoji: "🪄" },
-        gate: c => c.buckets.handles >= 70 },
-      { id: "maestro-4", name: "Floor General", inspo: "Magic Conquest", emoji: "🎖️", flavor: "You see the play before it happens. The peak of playmaking.",
+        requirements: [G.bucket("playmaking", 70), G.days(14)] },
+      { id: "maestro-4", name: "Point God", inspo: "Chris Paul", emoji: "🎖️", flavor: "The game slows down for you.",
+        color: "#c084fc", rarity: "epic",
+        title: { id: "title-point-god", label: "Point God" },
+        cosmetic: { id: "cos-cp-frame", label: "Floor General Frame", slot: "frame", emoji: "🎖️" },
+        requirements: [G.bucket("playmaking", 110), G.program("pgm-guard-handles")] },
+      { id: "maestro-5", name: "Floor General", inspo: "Magic Johnson Conquest", emoji: "🪄", flavor: "You see the play before it happens. The peak of playmaking.",
         color: "#f59e0b", rarity: "legendary", conquest: true,
         title: { id: "title-floor-general", label: "Floor General" },
         cosmetic: { id: "cos-chevron", label: "General's Chevron Frame", slot: "frame", emoji: "🎖️" },
-        gate: c => c.buckets.handles >= 110 && c.earnedBadgeIds.has("pgm-guard-handles") },
+        unlockNote: "Complete the Complete Hooper program",
+        requirements: [G.bucket("playmaking", 130), G.program("pgm-complete-hooper")] },
     ],
   },
   {
     id: "lockdown", name: "Defense", emoji: "🛡️", archetype: "The Lockdown",
     theme: "Nobody scores on you twice. Follow the path of the greatest stoppers.",
+    relatedProgramIds: ["complete-hooper", "bodyweight-beast"],
     favoritePlayerKeys: ["payton","glove","pippen","jordan","mj","kawhi","leonard","garnett","kg","rodman","mutombo","wallace","defense","stopper"],
     stages: [
       { id: "lockdown-1", name: "Ball Hawk", emoji: "🐝", flavor: "You're a problem out there.",
@@ -151,6 +219,7 @@ export const MASTERY_TRACKS = [
   {
     id: "finisher", name: "Slashing", emoji: "⚡", archetype: "The Finisher",
     theme: "Live in the paint and finish through anything — channel the most electric scorers.",
+    relatedProgramIds: ["first-step", "complete-hooper"],
     favoritePlayerKeys: ["wade","flash","iverson","ai","erving","doctor","rose","harden","kyrie","irving","finisher","slash"],
     stages: [
       { id: "finisher-1", name: "Downhill", emoji: "🏃", flavor: "First step's got juice.",
@@ -177,6 +246,7 @@ export const MASTERY_TRACKS = [
   {
     id: "floater", name: "Floater", emoji: "🌧️", archetype: "The Floater",
     theme: "The runner in the lane — drop the teardrop over the big and walk away cool.",
+    relatedProgramIds: ["guard-handles", "first-step"],
     favoritePlayerKeys: ["parker","tony","teardrop","floater","trae","gervin","iceman","runner"],
     stages: [
       { id: "floater-1", name: "Teardrop Kid", emoji: "💧", flavor: "Soft touch over the first big.",
@@ -203,6 +273,7 @@ export const MASTERY_TRACKS = [
   {
     id: "skywalker", name: "Athleticism", emoji: "💥", archetype: "Above the Rim",
     theme: "Play above the rim — rise with the greatest leapers the game has seen.",
+    relatedProgramIds: ["jump-higher", "first-step", "bodyweight-beast"],
     favoritePlayerKeys: ["carter","vince","lavine","griffin","lebron","james","ja","morant","dunk","westbrook","zion","hops"],
     stages: [
       { id: "skywalker-1", name: "Springs", emoji: "🌀", flavor: "Off the floor in a hurry.",
@@ -222,7 +293,13 @@ export const MASTERY_TRACKS = [
   },
 ];
 
-/* ── Meta track — the multi-year north star, gated on the other journeys ───── */
+/** Alias used in Path Framework docs. */
+export const PATHS = MASTERY_TRACKS;
+
+/** Core identity paths surfaced on Today Progress Rail by default. */
+export const CORE_PATH_IDS = ["shooter", "ballhandling", "maestro"];
+
+/* ── Meta track — the multi-year north star, gated on the other paths ──────── */
 const CORE_TRACK_IDS = MASTERY_TRACKS.map(t => t.id);
 
 export const META_TRACK = {
@@ -372,8 +449,12 @@ export function buildEvalCtx(ctxIn) {
     makes: ctxIn.makes || 0,
     accuracy: ctxIn.accuracy ?? null,
     maxStreak: ctxIn.maxStreak || 0,
+    trainingDays: ctxIn.trainingDays || 0,
+    benchmarkPBs: ctxIn.benchmarkPBs || {},
+    catCounts: ctxIn.catCounts || {},
     buckets: {
       handles: bucketSum(ctxIn.catCounts, BUCKETS.handles),
+      playmaking: bucketSum(ctxIn.catCounts, BUCKETS.playmaking),
       defense: bucketSum(ctxIn.catCounts, BUCKETS.defense),
       explosion: bucketSum(ctxIn.catCounts, BUCKETS.explosion),
       finishing: bucketSum(ctxIn.catCounts, BUCKETS.finishing),
@@ -392,7 +473,7 @@ export function evaluateEarned(ctxIn) {
   for (const track of MASTERY_TRACKS) {
     let stageNum = 0;
     for (const stage of track.stages) {
-      if (!stage.gate(ctx)) break;      // journeys are sequential — stop at first unmet gate
+      if (!evaluateStageGate(stage, ctx)) break;
       earned.add(stage.id);
       if (stage.title) earned.add(stage.title.id);
       if (stage.cosmetic) earned.add(stage.cosmetic.id);
@@ -509,7 +590,7 @@ export function trackRankInfo(track, ctxIn) {
   const ctx = buildEvalCtx(ctxIn);
   let reached = 0;
   for (const stage of track.stages) {
-    if (stage.gate(ctx)) reached += 1;
+    if (evaluateStageGate(stage, ctx)) reached += 1;
     else break;
   }
   const current = reached > 0 ? track.stages[reached - 1] : null;
@@ -526,17 +607,84 @@ export function trackRankInfo(track, ctxIn) {
   };
 }
 
+/** Within-stage progress for Progress Rail (metric-interpolated, not stage-count jumps). */
+export function trackStageProgress(track, ctxIn) {
+  return computeTrackStageProgress(track, ctxIn, { buildEvalCtx, trackRankInfo, rungLabel });
+}
+
+/** Paths with any activity or progress — for "Also tracking" on the rail. */
+export function getSecondaryPaths(ctxIn, primaryTrackId) {
+  return MASTERY_TRACKS
+    .filter(t => t.id !== primaryTrackId)
+    .map(t => ({ track: t, progress: trackStageProgress(t, ctxIn) }))
+    .filter(({ progress }) => progress.reached > 0 || progress.stagePct > 0)
+    .slice(0, 3);
+}
+
+/** Best non-primary path by stage progress when no favorite is set. */
+export function getMostActivePathId(ctxIn) {
+  let best = MASTERY_TRACKS[0]?.id || null;
+  let bestScore = -1;
+  for (const track of MASTERY_TRACKS) {
+    const p = trackStageProgress(track, ctxIn);
+    const score = p.reached * 1000 + p.stagePct;
+    if (score > bestScore) {
+      bestScore = score;
+      best = track.id;
+    }
+  }
+  return best;
+}
+
+/** Snapshot for optional cloud cache / squad card display. */
+export function buildPathSnapshot(ctxIn, settings) {
+  const primaryId = recommendTrackForFavorite(settings) || getMostActivePathId(ctxIn);
+  const primary = getTrack(primaryId);
+  const progress = primary ? trackStageProgress(primary, ctxIn) : null;
+  const snapshot = {};
+  for (const track of MASTERY_TRACKS) {
+    const info = trackRankInfo(track, ctxIn);
+    snapshot[track.id] = {
+      reached: info.reached,
+      rank: info.currentRank,
+      pct: trackStageProgress(track, ctxIn).stagePct,
+      complete: info.complete,
+    };
+  }
+  return {
+    primaryPathId: primaryId,
+    primaryPathRank: progress?.currentRank || null,
+    pathProgressPct: progress?.stagePct ?? 0,
+    paths: snapshot,
+  };
+}
+
+export function recommendProgramsForFavorite(settings) {
+  const entry = matchRegistryEntry(favoritePlayerQuery(settings));
+  if (entry?.programs?.length) return entry.programs;
+  const trackId = recommendTrackForFavorite(settings);
+  const track = trackId ? getTrack(trackId) : null;
+  return track?.relatedProgramIds || [];
+}
+
+export function pathTagForProgram(programId) {
+  const track = MASTERY_TRACKS.find(t =>
+    (t.relatedProgramIds || []).includes(programId)
+  );
+  return track ? track.archetype : null;
+}
+
+export { FAVORITE_PLAYER_REGISTRY, displayFavoritePlayer, matchRegistryEntry };
+
 /**
  * Map a favorite player to the track that best fits their game. Accepts a plain
  * string or a settings object — for an object, "who they want to play like" is the
  * strongest signal, then their current favorite, then all-time, then legacy field.
  */
 export function recommendTrackForFavorite(favorite) {
-  const raw = typeof favorite === "string"
-    ? favorite
-    : (favorite?.favoritePlayLike || favorite?.favoriteCurrent
-       || favorite?.favoriteAllTime || favorite?.favoritePlayer || "");
-  const q = raw.toLowerCase().trim();
+  const entry = matchRegistryEntry(favoritePlayerQuery(favorite));
+  if (entry?.primaryPath) return entry.primaryPath;
+  const q = favoritePlayerQuery(favorite);
   if (!q) return null;
   for (const track of MASTERY_TRACKS) {
     if ((track.favoritePlayerKeys || []).some(k => q.includes(k))) return track.id;

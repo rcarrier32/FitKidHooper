@@ -1,0 +1,245 @@
+export function programSessionSlot(week, sessionIdx) {
+  return `${week}-${sessionIdx}`;
+}
+
+export function programEnrollmentAnchor(progProgress, programId) {
+  return progProgress?.[programId]?._meta?.enrollmentStartedAt ?? null;
+}
+
+/** Normalize stored mark — legacy string or { d, t } object. */
+export function readProgramExerciseMark(raw) {
+  if (!raw) return null;
+  if (typeof raw === "string") return { d: raw, t: 0 };
+  if (typeof raw === "object" && raw.d) return { d: raw.d, t: raw.t ?? 0 };
+  return null;
+}
+
+export function isProgramExerciseDone(progProgress, programId, week, sessionIdx, exId) {
+  const anchor = programEnrollmentAnchor(progProgress, programId);
+  if (!anchor) return false;
+  const raw = progProgress?.[programId]?.[programSessionSlot(week, sessionIdx)]?.[exId];
+  const mark = readProgramExerciseMark(raw);
+  if (!mark) return false;
+  if (typeof raw === "string") return false;
+  return mark.t >= anchor;
+}
+
+export function isProgramSessionComplete(prog, progProgress, week, sessionIdx) {
+  const session = prog.weeks.find(w => w.week === week)?.sessions[sessionIdx];
+  if (!session) return false;
+  return session.exercises.every(exId =>
+    isProgramExerciseDone(progProgress, prog.id, week, sessionIdx, exId)
+  );
+}
+
+export function countProgramSessionsDone(prog, progProgress) {
+  let done = 0;
+  for (const week of prog.weeks) {
+    week.sessions.forEach((_, si) => {
+      if (isProgramSessionComplete(prog, progProgress, week.week, si)) done++;
+    });
+  }
+  return done;
+}
+
+/** Returns 0–1 completion ratio for a program based on per-session exercise completions. */
+export function computeProgramProgress(program, programProgress) {
+  let total = 0, done = 0;
+  for (const week of program.weeks) {
+    for (let si = 0; si < week.sessions.length; si++) {
+      total++;
+      if (isProgramSessionComplete(program, programProgress, week.week, si)) done++;
+    }
+  }
+  return total === 0 ? 0 : done / total;
+}
+
+/** Returns the current week number (1-indexed, capped at duration) for an enrolled program. */
+export function programCurrentWeek(startDate, duration) {
+  if (!startDate) return 1;
+  const days = Math.floor((Date.now() - new Date(startDate + "T00:00:00").getTime()) / 86400000);
+  return Math.min(duration, Math.max(1, Math.floor(days / 7) + 1));
+}
+
+/** Day index 0–6 within the current program week (0 = week start day). */
+export function programWeekDayIndex(startDate, todayStr) {
+  if (!startDate) return 0;
+  const daysSinceStart = Math.floor(
+    (new Date(todayStr + "T12:00:00").getTime() - new Date(startDate + "T00:00:00").getTime()) / 86400000
+  );
+  return ((daysSinceStart % 7) + 7) % 7;
+}
+
+/** Session slot days within a program week — every other day for built-in rest (0, 2, 4…). */
+export function programSessionScheduleDays(sessionCount) {
+  return Array.from({ length: sessionCount }, (_, i) => i * 2);
+}
+
+export function getProgramSessionCompletionDate(programProgress, program, programId, week, sessionIdx) {
+  const session = program.weeks.find(w => w.week === week)?.sessions[sessionIdx];
+  if (!session || !isProgramSessionComplete(program, programProgress, week, sessionIdx)) return null;
+  const slotData = programProgress?.[programId]?.[programSessionSlot(week, sessionIdx)] || {};
+  let maxDate = null;
+  for (const exId of session.exercises) {
+    const mark = readProgramExerciseMark(slotData[exId]);
+    if (!mark) return null;
+    if (!maxDate || mark.d > maxDate) maxDate = mark.d;
+  }
+  return maxDate;
+}
+
+export function wasProgramSessionCompletedOnDate(programProgress, program, programId, week, todayStr) {
+  const weekData = program.weeks.find(w => w.week === week);
+  if (!weekData) return false;
+  return weekData.sessions.some((_, si) =>
+    getProgramSessionCompletionDate(programProgress, program, programId, week, si) === todayStr
+  );
+}
+
+function formatProgramDayOffset(todayStr, daysUntil) {
+  if (daysUntil <= 0) return "today";
+  if (daysUntil === 1) return "tomorrow";
+  const d = new Date(todayStr + "T12:00:00");
+  d.setDate(d.getDate() + daysUntil);
+  return d.toLocaleDateString("en-US", { weekday:"short" });
+}
+
+/**
+ * Returns the program session due today (if any), respecting rest spacing and one session per day.
+ * null = rest day, week complete, or not yet time for the next session.
+ */
+export function findDueProgramSession(program, enrollment, programProgress, todayStr) {
+  const curWeek = programCurrentWeek(enrollment.startDate, program.duration);
+  const weekData = program.weeks.find(w => w.week === curWeek);
+  if (!weekData) return null;
+
+  if (wasProgramSessionCompletedOnDate(programProgress, program, program.id, curWeek, todayStr)) {
+    return null;
+  }
+
+  const weekDay = programWeekDayIndex(enrollment.startDate, todayStr);
+  const scheduleDays = programSessionScheduleDays(weekData.sessions.length);
+
+  for (let si = 0; si < weekData.sessions.length; si++) {
+    if (isProgramSessionComplete(program, programProgress, curWeek, si)) continue;
+
+    const priorsDone = weekData.sessions.slice(0, si).every((_, i) =>
+      isProgramSessionComplete(program, programProgress, curWeek, i));
+    if (!priorsDone) break;
+
+    const scheduledDay = scheduleDays[si] ?? si * 2;
+    if (weekDay < scheduledDay) return null;
+
+    return { session: weekData.sessions[si], sessionIdx: si, week: curWeek };
+  }
+  return null;
+}
+
+/** Status for Active Program widget and schedule messaging. */
+export function getActiveProgramScheduleStatus(program, enrollment, programProgress, todayStr) {
+  const curWeek = programCurrentWeek(enrollment.startDate, program.duration);
+  const weekData = program.weeks.find(w => w.week === curWeek);
+  if (!weekData) return { kind:"none" };
+
+  const due = findDueProgramSession(program, enrollment, programProgress, todayStr);
+  if (due) return { kind:"due", ...due };
+
+  const weekComplete = weekData.sessions.every((_, si) =>
+    isProgramSessionComplete(program, programProgress, curWeek, si));
+  if (weekComplete) return { kind:"weekComplete", week: curWeek };
+
+  const weekDay = programWeekDayIndex(enrollment.startDate, todayStr);
+  const scheduleDays = programSessionScheduleDays(weekData.sessions.length);
+
+  if (wasProgramSessionCompletedOnDate(programProgress, program, program.id, curWeek, todayStr)) {
+    for (let si = 0; si < weekData.sessions.length; si++) {
+      if (isProgramSessionComplete(program, programProgress, curWeek, si)) continue;
+      const scheduledDay = scheduleDays[si] ?? si * 2;
+      const daysUntil = Math.max(0, scheduledDay - weekDay);
+      return {
+        kind:"restAfterSession",
+        session: weekData.sessions[si],
+        sessionIdx: si,
+        week: curWeek,
+        opensLabel: formatProgramDayOffset(todayStr, daysUntil),
+      };
+    }
+  }
+
+  for (let si = 0; si < weekData.sessions.length; si++) {
+    if (isProgramSessionComplete(program, programProgress, curWeek, si)) continue;
+    const priorsDone = weekData.sessions.slice(0, si).every((_, i) =>
+      isProgramSessionComplete(program, programProgress, curWeek, i));
+    if (!priorsDone) {
+      return { kind:"due", session: weekData.sessions[si], sessionIdx: si, week: curWeek };
+    }
+    const scheduledDay = scheduleDays[si] ?? si * 2;
+    if (weekDay < scheduledDay) {
+      return {
+        kind:"rest",
+        session: weekData.sessions[si],
+        sessionIdx: si,
+        week: curWeek,
+        opensLabel: formatProgramDayOffset(todayStr, scheduledDay - weekDay),
+      };
+    }
+  }
+
+  return { kind:"weekComplete", week: curWeek };
+}
+
+/** Seven-day program week plan with REST labels on off days. */
+export function buildProgramWeekPlan(program, enrollment, programProgress, todayStr) {
+  if (!enrollment?.startDate) return null;
+  const curWeek = programCurrentWeek(enrollment.startDate, program.duration);
+  const weekData = program.weeks.find(w => w.week === curWeek);
+  if (!weekData) return null;
+
+  const weekDayToday = programWeekDayIndex(enrollment.startDate, todayStr);
+  const scheduleDays = programSessionScheduleDays(weekData.sessions.length);
+  const dayToSession = Object.fromEntries(scheduleDays.map((d, si) => [d, si]));
+
+  const enrollStart = new Date(enrollment.startDate + "T00:00:00");
+  const daysSinceStart = Math.floor(
+    (new Date(todayStr + "T12:00:00").getTime() - enrollStart.getTime()) / 86400000
+  );
+  const weekStartDayOffset = Math.floor(daysSinceStart / 7) * 7;
+
+  const weekComplete = weekData.sessions.every((_, si) =>
+    isProgramSessionComplete(program, programProgress, curWeek, si));
+
+  const days = [];
+  for (let d = 0; d < 7; d++) {
+    const calDate = new Date(enrollStart);
+    calDate.setDate(calDate.getDate() + weekStartDayOffset + d);
+    const weekdayLabel = calDate.toLocaleDateString("en-US", { weekday:"short" }).slice(0, 3);
+    const isToday = d === weekDayToday;
+
+    if (dayToSession[d] !== undefined) {
+      const si = dayToSession[d];
+      const session = weekData.sessions[si];
+      const done = isProgramSessionComplete(program, programProgress, curWeek, si);
+      days.push({
+        dayIndex: d,
+        weekdayLabel,
+        isToday,
+        kind: done ? "done" : "session",
+        sessionIdx: si,
+        label: done ? "✓" : `S${si + 1}`,
+        title: session.focus,
+        done,
+      });
+    } else {
+      days.push({
+        dayIndex: d,
+        weekdayLabel,
+        isToday,
+        kind: "rest",
+        label: "REST",
+        title: "Rest day",
+      });
+    }
+  }
+
+  return { curWeek, weekComplete, days };
+}

@@ -1,0 +1,42 @@
+/** Workout category labels and calendar/chart dot colors. */
+
+export const CATS = {
+  speed:          { label:"Speed & Agility",         emoji:"⚡" },
+  balance:        { label:"Balance & Foundation",    emoji:"🎯" },
+  strength:       { label:"Strength Program",        emoji:"💪" },
+  explosion:      { label:"Explosion & Jumps",       emoji:"💥" },
+  conditioning:   { label:"Conditioning",            emoji:"🔥" },
+  coordination:   { label:"Coordination",            emoji:"🎶" },
+  deceleration:   { label:"Deceleration & Landing",  emoji:"🛑" },
+  athletic:       { label:"Athletic Movement",       emoji:"🏃" },
+  handles:        { label:"Ball Handling Foundations", emoji:"🤲" },
+  shooting:       { label:"Shooting Challenges",      emoji:"🎯" },
+  ballhandling:   { label:"Ball Handling Moves",     emoji:"🏀" },
+  footwork:       { label:"Footwork",                emoji:"👟" },
+  finishing:      { label:"Finishing",               emoji:"🏁" },
+  shootingdrills: { label:"Shooting Drills",         emoji:"🎯" },
+  postmoves:      { label:"Post Moves",              emoji:"🏋️" },
+  finishing_school: { label:"Finishing School",      emoji:"🎯" },
+  footwork_lab:     { label:"Footwork Lab",          emoji:"👟" },
+  game_handles:     { label:"Game Handles",          emoji:"🤲" },
+  shooting_lab:     { label:"Shooting Lab",          emoji:"🏀" },
+  basketball_iq:    { label:"Basketball IQ",         emoji:"🧠" },
+  passing:          { label:"Passing",               emoji:"↗️" },
+  rebounding:       { label:"Rebounding",            emoji:"🙌" },
+  partner_games:    { label:"Partner & Games",       emoji:"👥", partner:true },
+};
+
+/** Fixed per-category dot colors (theme-independent). */
+export const CAT_DOT_COLORS = {
+  explosion:    "#fb923c",
+  deceleration: "#60a5fa",
+  strength:     "#22c55e",
+  speed:        "#f59e0b",
+  balance:      "#34d399",
+  coordination: "#a78bfa",
+  conditioning: "#ef4444",
+  athletic:     "#e879f9",
+  handles:      "#7c3aed",
+  basketball_iq:"#3b82f6",
+  shooting:     "#f97316",
+};

@@ -160,7 +160,7 @@ export default function AuthSheet({ P, SF, onClose, onSignedIn }) {
           <button type="button" onClick={onClose} style={{ background: "none", border: "none", color: "#64748b", fontSize: 22, cursor: "pointer" }}>✕</button>
         </div>
         <p style={{ fontSize: 12, color: "var(--fkh-text-muted)", lineHeight: 1.55, marginBottom: 16 }}>
-          {mode === "signin" && "Back up progress, sync across devices, and add friends on Boards."}
+          {mode === "signin" && "Back up progress, sync across devices, and add friends on Challenges."}
           {mode === "signup" && "Pick a username and 6-digit passcode. Add a recovery email in case you forget."}
           {mode === "forgot" && "Enter your username or recovery email. We'll send a 6-digit code."}
           {mode === "verify" && "Check your recovery email for a 6-digit code."}

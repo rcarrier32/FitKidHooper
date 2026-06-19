@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AGE_GROUPS,
   LEADERBOARD_PERIODS,
@@ -23,6 +23,7 @@ import {
 } from "../lib/boardsApi.js";
 import AthleteCard from "./AthleteCard.jsx";
 import FeedView from "./FeedView.jsx";
+import ChallengesActivePanel from "./ChallengesActivePanel.jsx";
 import { getAchievementMeta } from "../lib/achievements.js";
 
 function fmtRelativePush(ts) {
@@ -45,6 +46,9 @@ export default function BoardView({
   completed,
   missionLog,
   getCategory,
+  earnedBadges = [],
+  ledger = {},
+  personalChallenges = [],
   currentLevel,
   xpData,
   P,
@@ -52,12 +56,15 @@ export default function BoardView({
   bd,
   lbl,
   onPushSuccess,
+  onAddFriends,
+  focusFriendsTick = 0,
   initialInviteCode,
   isSignedIn,
   onOpenAuth,
 }) {
   const myAgeGroup = getAgeGroup(settings.dateOfBirth);
-  const [mode, setMode] = useState("rankings"); // rankings | feed
+  const friendsPanelRef = useRef(null);
+  const [mode, setMode] = useState("active"); // active | rankings | feed
   const [boardType, setBoardType] = useState("age_group");
   const [ageGroup, setAgeGroup] = useState(myAgeGroup);
   const [period, setPeriod] = useState("week");
@@ -85,6 +92,16 @@ export default function BoardView({
 
   useEffect(() => { loadRequests(); }, [loadRequests]);
 
+  useEffect(() => {
+    if (!focusFriendsTick) return;
+    setMode("rankings");
+    setBoardType("friends");
+    const timer = setTimeout(() => {
+      friendsPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
+    return () => clearTimeout(timer);
+  }, [focusFriendsTick]);
+
   const load = useCallback(async () => {
     if (!configured) return;
     setLoading(true);
@@ -105,10 +122,12 @@ export default function BoardView({
 
   const syncAndLoad = useCallback(async (force = false) => {
     if (configured && settings.leaderboardSharing) {
-      await maybeAutoSyncLeaderboard({ settings, completed, missionLog, getCategory, force });
+      await maybeAutoSyncLeaderboard({
+        settings, completed, missionLog, getCategory, earnedBadges, ledger, force,
+      });
     }
     await load();
-  }, [configured, settings, completed, missionLog, getCategory, load]);
+  }, [configured, settings, completed, missionLog, getCategory, earnedBadges, ledger, load]);
 
   useEffect(() => { syncAndLoad(); }, [syncAndLoad]);
 
@@ -129,10 +148,10 @@ export default function BoardView({
     setPushMsg(null);
     try {
       const result = await maybeAutoSyncLeaderboard({
-        settings, completed, missionLog, getCategory, force: true,
+        settings, completed, missionLog, getCategory, earnedBadges, ledger, force: true,
       });
       if (!result.ok) throw new Error(result.error || "Sync failed");
-      setPushMsg("Boards updated.");
+      setPushMsg("Challenges synced.");
       onPushSuccess?.();
       await load();
     } catch (e) {
@@ -210,7 +229,7 @@ export default function BoardView({
       />
 
       <div style={{ display: "flex", gap: 6, margin: "14px 0 0" }}>
-        {[["rankings", "🏆 Rankings"], ["feed", "📣 Feed"]].map(([m, label]) => (
+        {[["active", "🎯 Active"], ["rankings", "🏆 Rankings"], ["feed", "📣 Feed"]].map(([m, label]) => (
           <button key={m} onClick={() => setMode(m)} style={{
             flex: 1, padding: "9px 4px", borderRadius: 10, fontSize: 11, fontWeight: 800, cursor: "pointer",
             border: `1px solid ${mode === m ? P : bd}`,
@@ -220,7 +239,17 @@ export default function BoardView({
         ))}
       </div>
 
-      {mode === "feed" ? (
+      {mode === "active" ? (
+        <div style={{ marginTop: 12 }}>
+          <ChallengesActivePanel
+            personalChallenges={personalChallenges}
+            P={P}
+            SF={SF}
+            bd={bd}
+            onAddFriends={onAddFriends}
+          />
+        </div>
+      ) : mode === "feed" ? (
         <div style={{ marginTop: 16 }}><FeedView P={P} SF={SF} bd={bd} /></div>
       ) : (<>
 
@@ -229,7 +258,7 @@ export default function BoardView({
           background: `${P}12`, border: `1px solid ${P}30`, borderRadius: 14,
           padding: "14px 16px", margin: "16px 0", fontSize: 12, color: "var(--fkh-text-muted)", lineHeight: 1.55,
         }}>
-          Boards backend is not connected. Run <code style={{ color: P }}>supabase/schema.sql</code> and{" "}
+          Challenges backend is not connected. Run <code style={{ color: P }}>supabase/schema.sql</code> and{" "}
           <code style={{ color: P }}>supabase/boards.sql</code> in your Supabase project.
         </div>
       )}
@@ -255,7 +284,7 @@ export default function BoardView({
       </div>
 
       {boardType === "friends" && (
-        <div style={{ background: SF, border: `1px solid ${bd}`, borderRadius: 14, padding: 14, marginBottom: 16 }}>
+        <div ref={friendsPanelRef} style={{ background: SF, border: `1px solid ${bd}`, borderRadius: 14, padding: 14, marginBottom: 16 }}>
           {!isSignedIn && (
             <div style={{
               marginBottom: 12, padding: "10px 12px", borderRadius: 10,

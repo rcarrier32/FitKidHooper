@@ -44,6 +44,20 @@ export function getTrainingDays(completed, { start = null, end = null } = {}) {
   return days.size;
 }
 
+/** Distinct calendar days with any drill check-off or logged shots (all-time). */
+export function getAllTrainingDayCount(completed, shotLog) {
+  const days = new Set();
+  for (const key of Object.keys(completed || {})) {
+    if (!completed[key]) continue;
+    const p = parseCompletedKey(key);
+    if (p) days.add(p.date);
+  }
+  for (const [date, shots] of Object.entries(shotLog || {})) {
+    if ((shots || []).length > 0) days.add(date);
+  }
+  return days.size;
+}
+
 export function getCategoryBreakdown(completed, getCategory, { start = null, end = null } = {}) {
   const counts = {};
   for (const key of Object.keys(completed || {})) {

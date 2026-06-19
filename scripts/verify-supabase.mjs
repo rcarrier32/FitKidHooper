@@ -76,6 +76,32 @@ for (const view of VIEWS) {
   }
 }
 
+// Test path framework cache columns (paths.sql)
+for (const col of ["primary_path_id", "path_snapshot"]) {
+  const { error } = await sb.from("athlete_profiles").select(col).limit(1);
+  if (error) {
+    console.error(`❌ athlete_profiles.${col} — ${error.message}`);
+    if (error.message.includes("does not exist") || error.code === "42703") {
+      console.error("   → Run supabase/paths.sql in SQL Editor");
+    }
+    errors++;
+  } else {
+    ok(`Column athlete_profiles.${col} exists`);
+  }
+}
+for (const col of ["primary_path_rank", "path_progress_pct"]) {
+  const { error } = await sb.from("leaderboard_stats").select(col).limit(1);
+  if (error) {
+    console.error(`❌ leaderboard_stats.${col} — ${error.message}`);
+    if (error.message.includes("does not exist") || error.code === "42703") {
+      console.error("   → Run supabase/paths.sql in SQL Editor");
+    }
+    errors++;
+  } else {
+    ok(`Column leaderboard_stats.${col} exists`);
+  }
+}
+
 // Test insert + delete on events (proves RLS insert works)
 const testId = crypto.randomUUID();
 const { error: insertErr } = await sb.from("events").insert({

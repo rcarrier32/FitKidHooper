@@ -1,6 +1,6 @@
 /**
  * Daily action resolver — unifies mission, workout template hint, and challenge nudge.
- * Mission generation stays in SummerTrainingApp; this layer composes outputs.
+ * Mission generation stays in FitKidHooperApp; this layer composes outputs.
  */
 
 const CHALLENGE_TEMPLATE_MAP = {
