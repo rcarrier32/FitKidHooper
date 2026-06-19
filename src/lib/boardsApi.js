@@ -120,6 +120,35 @@ export async function acceptFriendInvite(code, accepterId) {
   return data;
 }
 
+/** Send a friend request to an exact username. They must accept it. */
+export async function sendFriendRequest(username) {
+  const sb = getSupabaseClient();
+  if (!sb) throw new Error("Boards backend not configured");
+  const { data, error } = await sb.rpc("send_friend_request", { p_username: String(username || "").trim() });
+  if (error) throw error;
+  if (!data?.ok) throw new Error(data?.error || "Could not send request");
+  return data; // { ok, status: 'pending' | 'accepted' }
+}
+
+/** Incoming pending friend requests for the signed-in user. */
+export async function listFriendRequests() {
+  const sb = getSupabaseClient();
+  if (!sb) return [];
+  const { data, error } = await sb.rpc("list_friend_requests");
+  if (error) return [];
+  return data || [];
+}
+
+/** Accept (true) or decline (false) an incoming friend request. */
+export async function respondFriendRequest(requestId, accept) {
+  const sb = getSupabaseClient();
+  if (!sb) throw new Error("Boards backend not configured");
+  const { data, error } = await sb.rpc("respond_friend_request", { p_request_id: requestId, p_accept: accept });
+  if (error) throw error;
+  if (!data?.ok) throw new Error(data?.error || "Could not respond");
+  return data;
+}
+
 export async function pushBoardStats(args) {
   return pushFromAppState(args);
 }

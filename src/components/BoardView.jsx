@@ -15,6 +15,9 @@ import {
   maybeAutoSyncLeaderboard,
   createFriendInvite,
   acceptFriendInvite,
+  sendFriendRequest,
+  listFriendRequests,
+  respondFriendRequest,
   listFriendAthleteIds,
   getInviteUrl,
 } from "../lib/boardsApi.js";
@@ -67,11 +70,20 @@ export default function BoardView({
   const [inviteCode, setInviteCode] = useState(null);
   const [inviteInput, setInviteInput] = useState(initialInviteCode || "");
   const [friendMsg, setFriendMsg] = useState(null);
+  const [friendUsername, setFriendUsername] = useState("");
+  const [requests, setRequests] = useState([]);
   const configured = isLeaderboardConfigured();
 
   useEffect(() => {
     getBoardAthleteId().then(setAthleteId);
   }, []);
+
+  const loadRequests = useCallback(async () => {
+    if (!isSignedIn) { setRequests([]); return; }
+    setRequests(await listFriendRequests());
+  }, [isSignedIn]);
+
+  useEffect(() => { loadRequests(); }, [loadRequests]);
 
   const load = useCallback(async () => {
     if (!configured) return;
@@ -155,6 +167,35 @@ export default function BoardView({
     }
   };
 
+  const handleSendRequest = async () => {
+    const u = friendUsername.trim();
+    if (!u) return;
+    setFriendMsg(null);
+    try {
+      const res = await sendFriendRequest(u);
+      if (res.status === "accepted") {
+        setFriendMsg(`You're now friends with @${u}!`);
+        await load();
+      } else {
+        setFriendMsg(`Request sent to @${u} — they'll need to accept.`);
+      }
+      setFriendUsername("");
+    } catch (e) {
+      setFriendMsg(e.message || "Could not send request");
+    }
+  };
+
+  const handleRespond = async (id, accept) => {
+    setFriendMsg(null);
+    try {
+      await respondFriendRequest(id, accept);
+      await loadRequests();
+      if (accept) { setFriendMsg("Friend added!"); await load(); }
+    } catch (e) {
+      setFriendMsg(e.message || "Could not respond");
+    }
+  };
+
   const myRank = rows.findIndex(r => r.athlete_id === athleteId) + 1;
   const myRow = rows.find(r => r.athlete_id === athleteId);
 
@@ -228,6 +269,49 @@ export default function BoardView({
             </div>
           )}
           <div style={{ fontSize: 12, fontWeight: 700, color: P, marginBottom: 8 }}>Add a friend</div>
+
+          {/* Incoming friend requests — accept or decline */}
+          {requests.length > 0 && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+                Friend requests ({requests.length})
+              </div>
+              {requests.map(r => (
+                <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 10, background: `${P}10`, border: `1px solid ${P}22`, marginBottom: 6 }}>
+                  <div style={{ flex: 1, minWidth: 0, fontSize: 12, color: "var(--fkh-text)", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    @{r.username || "athlete"}{r.display_name ? <span style={{ color: "#64748b", fontWeight: 400 }}> · {r.display_name}</span> : null}
+                  </div>
+                  <button onClick={() => handleRespond(r.id, true)} style={{ padding: "6px 12px", borderRadius: 8, border: "none", background: P, color: "#000", fontSize: 11, fontWeight: 800, cursor: "pointer" }}>Accept</button>
+                  <button onClick={() => handleRespond(r.id, false)} style={{ padding: "6px 10px", borderRadius: 8, border: `1px solid ${bd}`, background: "transparent", color: "#94a3b8", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Decline</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Add by username — the other person confirms */}
+          <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
+            <input
+              value={friendUsername}
+              onChange={e => setFriendUsername(e.target.value.replace(/[^a-z0-9_]/gi, "").toLowerCase())}
+              placeholder="Friend's username"
+              disabled={!isSignedIn}
+              maxLength={20}
+              style={{
+                flex: 1, padding: "8px 10px", borderRadius: 8, border: `1px solid ${bd}`,
+                background: "rgba(255,255,255,0.05)", color: "var(--fkh-text)", fontSize: 13,
+              }}
+            />
+            <button onClick={handleSendRequest} disabled={!isSignedIn || !friendUsername.trim()} style={{
+              padding: "8px 16px", borderRadius: 8, border: "none",
+              background: isSignedIn && friendUsername.trim() ? P : `${P}55`,
+              color: "#000", fontSize: 11, fontWeight: 800,
+              cursor: isSignedIn && friendUsername.trim() ? "pointer" : "not-allowed",
+            }}>Add</button>
+          </div>
+          <div style={{ fontSize: 10, color: "#64748b", marginBottom: 10 }}>
+            They'll get a request to accept. Or share a one-time code:
+          </div>
+
           <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
             <button onClick={handleCreateInvite} disabled={!isSignedIn} style={{
               flex: 1, padding: "8px 10px", borderRadius: 8, border: `1px solid ${P}44`,
@@ -259,7 +343,7 @@ export default function BoardView({
             <button onClick={handleAcceptInvite} style={{
               padding: "8px 14px", borderRadius: 8, border: "none", background: P,
               color: "#000", fontSize: 11, fontWeight: 800, cursor: "pointer",
-            }}>Join</button>
+            }}>Redeem</button>
           </div>
           {friendMsg && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 8 }}>{friendMsg}</div>}
         </div>
