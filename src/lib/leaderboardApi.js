@@ -1,6 +1,6 @@
 import { computeAllPeriodStats, getAgeGroup } from "./periodStats.js";
 import { getSupabaseClient, isSupabaseConfigured } from "./supabaseClient.js";
-import { profileForCloud } from "./identity.js";
+import { profileForCloud, boardDisplayName } from "./identity.js";
 import { getDeviceAthleteId, getEffectiveAthleteId } from "./auth.js";
 
 const LAST_PUSH_KEY = "fkh-last-push";
@@ -173,10 +173,12 @@ export async function maybeAutoSyncLeaderboard({
 }
 
 export async function pushFromAppState({ settings, completed, missionLog, getCategory }) {
-  const displayName = settings.athleteName?.trim();
-  if (!displayName || displayName === "Champ") {
+  const firstName = settings.athleteName?.trim();
+  if (!firstName || firstName === "Champ") {
     throw new Error("Set your name in Settings before pushing stats");
   }
+  // Public board identity: first name + last initial.
+  const displayName = boardDisplayName(settings);
 
   let shotLog = {};
   try {

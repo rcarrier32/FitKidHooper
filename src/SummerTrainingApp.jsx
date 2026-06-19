@@ -86,7 +86,7 @@ const DEFAULT = {
   textHue:210, textSat:25, textLight:94,
   accentHue:158, accentSat:85, accentLight:50,
   customSecondary:false,
-  athleteName:"Champ", avatar:null,
+  athleteName:"Champ", lastName:"", avatar:null,
   jerseyNumber:null, favoritePlayer:"", favoriteCurrent:"", favoriteAllTime:"", favoritePlayLike:"",
   dateOfBirth:null, experience:"beginner", goals:[], playStyle:"any",
   workoutTimers:true,
@@ -3925,8 +3925,14 @@ function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenA
                 📷 Choose Photo
               </button>
               <input value={settings.athleteName} onChange={e=>setSettings(p=>({...p,athleteName:e.target.value}))}
-                placeholder="Athlete Name"
+                placeholder="First name"
                 style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.05)",border:`1.5px solid ${P}44`,borderRadius:10,padding:"8px 12px",fontSize:14,fontWeight:700,color:P,outline:"none",marginBottom:8 }}/>
+              <input value={settings.lastName||""} onChange={e=>setSettings(p=>({...p,lastName:e.target.value}))}
+                placeholder="Last name (optional)"
+                style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.05)",border:`1.5px solid ${P}44`,borderRadius:10,padding:"8px 12px",fontSize:14,fontWeight:700,color:P,outline:"none",marginBottom:8 }}/>
+              <div style={{ fontSize:10,color:"#475569",marginBottom:8,marginTop:-2 }}>
+                Friends see your first name + last initial on Boards.
+              </div>
               <div style={{ display:"flex",gap:8,marginBottom:8 }}>
                 <div style={{ flex:1 }}>
                   <div style={{ fontSize:11,color:"#475569",marginBottom:4,fontWeight:600 }}>Jersey #</div>

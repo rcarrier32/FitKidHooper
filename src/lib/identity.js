@@ -33,7 +33,21 @@ export function migrateIdentitySettings(raw) {
   if (s.favoriteAllTime === undefined) s.favoriteAllTime = s.favoritePlayer || "";
   if (s.favoriteCurrent === undefined) s.favoriteCurrent = "";
   if (s.favoritePlayLike === undefined) s.favoritePlayLike = "";
+  if (s.lastName === undefined) s.lastName = "";
   return s;
+}
+
+/** Public board name: first name + last initial (privacy-friendly for kids). */
+export function boardDisplayName(settings) {
+  const first = (settings.athleteName || "").trim() || "Hooper";
+  const last = (settings.lastName || "").trim();
+  return last ? `${first} ${last[0].toUpperCase()}.` : first;
+}
+
+/** Full name for the athlete's own profile views. */
+export function fullName(settings) {
+  return [(settings.athleteName || "").trim(), (settings.lastName || "").trim()]
+    .filter(Boolean).join(" ") || "Hooper";
 }
 
 /** Best single favorite for display/cloud: all-time, then play-like, then current. */
@@ -44,7 +58,7 @@ export function primaryFavorite(settings) {
 
 export function profileForCloud(settings) {
   return {
-    display_name: settings.athleteName?.trim() || "Hooper",
+    display_name: boardDisplayName(settings),
     date_of_birth: settings.dateOfBirth || null,
     jersey_number: normalizeJerseyNumber(settings.jerseyNumber),
     favorite_player: primaryFavorite(settings) || null,
