@@ -8,15 +8,28 @@ export function parseCompletedKey(key) {
   return { date: parts.slice(0, 3).join("-"), exId: parts.slice(3).join("-") };
 }
 
-export function getStreak(completed) {
+/**
+ * Training streak with rest-grace: a single rest day between sessions doesn't
+ * break the streak (rest is good — and the growth-spurt window is when injuries
+ * cluster). Two missed days in a row ends it. Only active days count toward the
+ * number, so today not being done *yet* won't drop you to 0.
+ */
+export function getStreak(completed, { graceDays = 1 } = {}) {
+  const keys = Object.keys(completed || {});
+  const active = (k) => keys.some(c => c.startsWith(k) && completed[c]);
   let streak = 0;
+  let missesInARow = 0;
   const d = new Date();
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < 90; i++) {
     const k = d.toLocaleDateString("en-CA");
-    if (Object.keys(completed || {}).some(c => c.startsWith(k) && completed[c])) {
+    if (active(k)) {
       streak++;
-      d.setDate(d.getDate() - 1);
-    } else break;
+      missesInARow = 0;
+    } else {
+      missesInARow++;
+      if (missesInARow > graceDays) break; // 2 missed days in a row ends the streak
+    }
+    d.setDate(d.getDate() - 1);
   }
   return streak;
 }

@@ -389,6 +389,17 @@ function buildCatalog() {
           fromMilestone: s.id,
         };
       }
+      // Conquering a track's legendary peak grants an equippable Legend avatar
+      // (original archetype emblem, no licensed assets).
+      if (s.conquest) {
+        const avId = `avatar-${track.id}`;
+        cat[avId] = {
+          id: avId, kind: "cosmetic", family: track.id, slot: "avatar",
+          name: `${track.archetype || track.name} — Legend`,
+          emoji: track.emoji || s.emoji, color: s.color, rarity: "legendary",
+          fromMilestone: s.id, legendAvatar: true,
+        };
+      }
     });
   };
   MASTERY_TRACKS.forEach(t => addStageRows(t));
@@ -477,6 +488,7 @@ export function evaluateEarned(ctxIn) {
       earned.add(stage.id);
       if (stage.title) earned.add(stage.title.id);
       if (stage.cosmetic) earned.add(stage.cosmetic.id);
+      if (stage.conquest) earned.add(`avatar-${track.id}`);
       stageNum += 1;
     }
     reached[track.id] = stageNum;
@@ -488,6 +500,7 @@ export function evaluateEarned(ctxIn) {
     earned.add(stage.id);
     if (stage.title) earned.add(stage.title.id);
     if (stage.cosmetic) earned.add(stage.cosmetic.id);
+    if (stage.conquest) earned.add(`avatar-${META_TRACK.id}`);
   }
 
   return earned;
