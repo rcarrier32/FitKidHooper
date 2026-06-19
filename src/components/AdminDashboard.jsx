@@ -192,7 +192,16 @@ export default function AdminDashboard() {
     const sb = getSupabaseClient();
     if (!sb) return;
 
-    (async () => {
+    let cancelled = false;
+
+    // The analytics views are admin-gated by RLS and return EMPTY (not an error)
+    // for non-admins. Supabase restores the auth session from storage
+    // asynchronously, so we must wait for the session before querying —
+    // otherwise the requests race out as `anon` and the dashboard silently
+    // paints zeros. We also re-fetch whenever auth state changes (sign-in).
+    const fetchAll = async () => {
+      if (cancelled) return;
+      setLoading(true);
       try {
         const [
           summary, dau, wau, mau, retention, sessions, trainingDays,
@@ -216,10 +225,12 @@ export default function AdminDashboard() {
           sb.from("feedback_feature_requests").select("*").limit(10),
         ]);
 
+        if (cancelled) return;
         const err = [summary, dau, wau, retention, screens, exercises, programs, feedbackSummary, featureRequests]
           .map(r => r.error).find(Boolean);
         if (err) throw err;
 
+        setError(null);
         setData({
           summary: summary.data,
           dau: dau.data,
@@ -238,11 +249,30 @@ export default function AdminDashboard() {
           featureRequests: featureRequests.data,
         });
       } catch (e) {
-        setError(e.message || "Failed to load dashboard");
+        if (!cancelled) setError(e.message || "Failed to load dashboard");
       } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    // Wait for the restored session before the first fetch.
+    (async () => {
+      const { data: { session } } = await sb.auth.getSession();
+      if (cancelled) return;
+      if (session?.user) {
+        fetchAll();
+      } else {
         setLoading(false);
+        setError("Sign in as an admin to view analytics.");
       }
     })();
+
+    // Re-fetch when the user signs in (covers late session restore too).
+    const { data: { subscription } } = sb.auth.onAuthStateChange((_event, session) => {
+      if (session?.user && !cancelled) fetchAll();
+    });
+
+    return () => { cancelled = true; subscription.unsubscribe(); };
   }, [configured]);
 
   if (loading) {
