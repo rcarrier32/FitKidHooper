@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import BoardView from "./components/BoardView.jsx";
 import AthleteCard from "./components/AthleteCard.jsx";
 import AuthSheet from "./components/AuthSheet.jsx";
+import NotificationSettings from "./components/NotificationSettings.jsx";
 import FeedbackCenter from "./components/FeedbackCenter.jsx";
 import { useAuth } from "./hooks/useAuth.js";
 import { getAgeGroup, getAgeGroupLabel } from "./lib/periodStats.js";
@@ -30,10 +31,7 @@ import { resolveDailyAction, pickChallengeNudge } from "./lib/dailyAction.js";
 import {
   consumeInviteDeepLink,
   consumeMissionDeepLink,
-  getNotificationPref,
-  requestNotificationPermission,
   scheduleMissionReminder,
-  setNotificationPref,
 } from "./lib/notifications.js";
 import {
   readDailyWorkoutStore,
@@ -4199,12 +4197,8 @@ function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenA
               </button>
               </>
             )}
-            <button onClick={async()=>{ const r=await requestNotificationPermission(); setNotificationPref(r==="granted"); }}
-              style={{ width:"100%",padding:"10px 14px",borderRadius:12,cursor:"pointer",...actionBtnStyle(settings) }}>
-              <div style={{ fontSize:12,fontWeight:700,color:getNotificationPref()?P:"#94a3b8" }}>
-                {getNotificationPref() ? "✓ Mission reminders on" : "Enable mission reminders"}
-              </div>
-            </button>
+            <div style={{ fontSize:11,fontWeight:800,color:"#64748b",letterSpacing:"0.06em",textTransform:"uppercase",margin:"4px 2px 8px" }}>🔔 Reminders</div>
+            <NotificationSettings P={P} isSignedIn={isSignedIn} onNeedAuth={onOpenAuth} />
           </div>
         </div>
 

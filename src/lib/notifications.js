@@ -1,7 +1,106 @@
-/** Mission-focused notification helpers (web push when supported). */
+/** Notification helpers — local nudges + server-sent web push. */
+import { getSupabaseClient } from "./supabaseClient.js";
 
 const NOTIFY_PREF_KEY = "fkh-notify-mission";
 const NOTIFY_PROMPT_KEY = "fkh-notify-prompted";
+const PREFS_KEY = "fkh-notify-prefs";
+
+// Public VAPID key (safe to ship). Private key is a Supabase secret used by the
+// send-push edge function.
+const VAPID_PUBLIC_KEY = "BKTyb_hHdQoeCzVSQ6DuBqolJMNKBdMh3hjY73gevAl-qwwyVTWy6bVnHuQP2tx6LaYiefRmz02vtHxSiu0As8w";
+
+// Notification categories — all default ON; the athlete can uncheck any.
+export const NOTIFICATION_CATEGORIES = [
+  { key: "dailyMission",   label: "Daily mission",    desc: "When today's mission is still undone" },
+  { key: "streakRisk",     label: "Streak at risk",   desc: "Before your training streak resets" },
+  { key: "friendRequest",  label: "Friend requests",  desc: "When someone wants to add you" },
+  { key: "friendActivity", label: "Friend activity",  desc: "When a friend logs a workout" },
+  { key: "challenges",     label: "Challenges",       desc: "New challenges and results" },
+  { key: "weeklyRecap",    label: "Weekly recap",     desc: "Your weekly training summary" },
+];
+
+export function getNotifyPrefs() {
+  let stored = {};
+  try { stored = JSON.parse(localStorage.getItem(PREFS_KEY) || "{}"); } catch {}
+  const prefs = {};
+  for (const c of NOTIFICATION_CATEGORIES) prefs[c.key] = stored[c.key] !== false; // default true
+  return prefs;
+}
+
+export function setNotifyPref(key, on) {
+  const prefs = getNotifyPrefs();
+  prefs[key] = !!on;
+  try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch {}
+  // Reflect onto any existing push subscriptions so the send job filters correctly.
+  const sb = getSupabaseClient();
+  if (sb) sb.rpc("update_push_prefs", { p_prefs: prefs }).then(() => {}, () => {});
+  return prefs;
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(base64);
+  const arr = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  return arr;
+}
+
+export function isPushSupported() {
+  return typeof window !== "undefined" && "serviceWorker" in navigator
+    && "PushManager" in window && "Notification" in window;
+}
+
+export async function getPushSubscription() {
+  if (!isPushSupported()) return null;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    return await reg.pushManager.getSubscription();
+  } catch { return null; }
+}
+
+/** Subscribe this device to push and persist it (requires sign-in). */
+export async function subscribeToPush() {
+  if (!isPushSupported()) return { ok: false, reason: "unsupported" };
+  const sb = getSupabaseClient();
+  if (!sb) return { ok: false, reason: "not_configured" };
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session?.user) return { ok: false, reason: "not_signed_in" };
+
+  const perm = await requestNotificationPermission();
+  if (perm !== "granted") return { ok: false, reason: perm };
+
+  const reg = await navigator.serviceWorker.ready;
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) {
+    sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+    });
+  }
+  const json = sub.toJSON();
+  const { error } = await sb.rpc("save_push_subscription", {
+    p_endpoint: sub.endpoint,
+    p_p256dh: json.keys.p256dh,
+    p_auth: json.keys.auth,
+    p_prefs: getNotifyPrefs(),
+    p_ua: navigator.userAgent.slice(0, 200),
+  });
+  if (error) return { ok: false, reason: error.message };
+  setNotificationPref(true);
+  return { ok: true };
+}
+
+export async function unsubscribeFromPush() {
+  const sb = getSupabaseClient();
+  const sub = await getPushSubscription();
+  if (sub) {
+    if (sb) await sb.rpc("delete_push_subscription", { p_endpoint: sub.endpoint }).then(() => {}, () => {});
+    try { await sub.unsubscribe(); } catch {}
+  }
+  setNotificationPref(false);
+  return { ok: true };
+}
 
 export function getNotificationPref() {
   try {
