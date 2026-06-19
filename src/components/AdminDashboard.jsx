@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { getSupabaseClient, isSupabaseConfigured } from "../lib/supabaseClient.js";
 import { loadDrilldown } from "../lib/adminDrilldown.js";
+import AuthSheet from "./AuthSheet.jsx";
 
 const panelStyle = {
   background: "rgba(15,23,42,0.98)",
@@ -154,6 +155,8 @@ export default function AdminDashboard() {
   const [drillData, setDrillData] = useState(null);
   const [drillLoading, setDrillLoading] = useState(false);
   const [drillStack, setDrillStack] = useState([]);
+  const [needsAuth, setNeedsAuth] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   const openDrill = useCallback(async (nextDrill, pushStack = false) => {
     const sb = getSupabaseClient();
@@ -201,6 +204,7 @@ export default function AdminDashboard() {
     // paints zeros. We also re-fetch whenever auth state changes (sign-in).
     const fetchAll = async () => {
       if (cancelled) return;
+      setNeedsAuth(false);
       setLoading(true);
       try {
         const [
@@ -263,7 +267,7 @@ export default function AdminDashboard() {
         fetchAll();
       } else {
         setLoading(false);
-        setError("Sign in as an admin to view analytics.");
+        setNeedsAuth(true);
       }
     })();
 
@@ -273,7 +277,22 @@ export default function AdminDashboard() {
     });
 
     return () => { cancelled = true; subscription.unsubscribe(); };
-  }, [configured]);
+  }, [configured, reloadKey]);
+
+  if (needsAuth) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#060b14", color: "#e2e8f0", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center" }}>
+        <h1 style={{ fontSize: 24, fontWeight: 800, margin: "0 0 6px" }}>FKH Admin Dashboard</h1>
+        <p style={{ fontSize: 14, color: "#94a3b8", margin: "0 0 20px" }}>Sign in with your admin account to view analytics.</p>
+        <AuthSheet
+          P="#f97316"
+          SF="#0d1526"
+          onClose={() => {}}
+          onSignedIn={() => { setLoading(true); setNeedsAuth(false); setReloadKey(k => k + 1); }}
+        />
+      </div>
+    );
+  }
 
   if (loading) {
     return <div style={{ minHeight: "100vh", background: "#060b14", color: "#94a3b8", display: "flex", alignItems: "center", justifyContent: "center" }}>Loading analytics…</div>;
