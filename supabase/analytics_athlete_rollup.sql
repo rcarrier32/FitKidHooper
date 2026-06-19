@@ -1,19 +1,38 @@
 -- Per-athlete analytics derived from `events` — the single source of truth.
 --
--- Previously the headline tiles (Total / Active / New athletes) and the athlete
--- drill-downs read from the `athlete_analytics` table, which the client upserts
--- on session_start. That table silently drifts: clients on older cached PWA
--- bundles never ran the upsert, and the on-conflict update was unreliable, so it
--- held only a fraction of real athletes (e.g. 3 rows while `events` had 9 active
--- athletes — producing the impossible "Total 3 < WAU 9").
+-- Previously the headline tiles (Total / Active / New athletes), retention, and
+-- the athlete drill-downs read from the `athlete_analytics` table, which the
+-- client upserts on session_start. That table silently drifts: clients on older
+-- cached PWA bundles never ran the upsert, so it held only a fraction of real
+-- athletes (e.g. 3 rows while `events` had 9 active athletes — producing the
+-- impossible "Total 3 < WAU 9").
 --
 -- These views recompute everything from `events` so the athlete metrics are
--- always accurate and self-consistent with DAU/WAU/MAU (which already derive
--- from session_start events). `athlete_analytics` + its client upsert are left
--- in place but are no longer read by the dashboard.
+-- always accurate and self-consistent with DAU/WAU/MAU. They also surface a
+-- human identity (username, display name) so the admin dashboard shows who's who.
 --
 -- security_invoker = on → the underlying `events` RLS (is_fkh_admin()) applies,
 -- keeping these admin-only.
+
+-- Let admins read all athlete profiles (additive; everyone else keeps the
+-- existing friend/co-member visibility).
+drop policy if exists athlete_profiles_admin_select on public.athlete_profiles;
+create policy athlete_profiles_admin_select
+  on public.athlete_profiles for select
+  using (public.is_fkh_admin());
+
+-- Reading athlete_profiles via a join inside the rollup trips a pre-existing
+-- recursion in the board_members RLS policy; this SECURITY DEFINER helper reads
+-- the display name with RLS bypassed instead.
+create or replace function public.athlete_display_name(p_id uuid)
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select display_name from public.athlete_profiles where id = p_id;
+$$;
 
 create or replace view public.athlete_rollup
 with (security_invoker = on) as
@@ -47,11 +66,14 @@ select
   s.last_session_at,
   s.session_count,
   s.event_count,
-  l.app_version
+  l.app_version,
+  un.username,
+  public.athlete_display_name(s.athlete_id) as display_name
 from sessions s
-left join best_age b on b.athlete_id = s.athlete_id
-left join latest   l on l.athlete_id = s.athlete_id
--- an "athlete" = a device that has logged at least one session_start
+left join best_age          b  on b.athlete_id = s.athlete_id
+left join latest            l  on l.athlete_id = s.athlete_id
+left join public.auth_usernames un on un.user_id = s.athlete_id
+-- an "athlete" = a device/user that has logged at least one session_start
 where s.first_session_at is not null;
 
 create or replace view public.analytics_athlete_summary
