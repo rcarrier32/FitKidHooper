@@ -8,6 +8,7 @@ import {
   getSignedInUsername,
 } from "../lib/auth.js";
 import { syncCloudSave } from "../lib/cloudSave.js";
+import { setAnalyticsAthleteId } from "../lib/analytics.js";
 
 export function useAuth(settings) {
   const [user, setUser] = useState(null);
@@ -17,10 +18,11 @@ export function useAuth(settings) {
   useEffect(() => {
     let mounted = true;
     getAuthSession().then(({ user: u }) => {
-      if (mounted) { setUser(u); setLoading(false); }
+      if (mounted) { setUser(u); setLoading(false); setAnalyticsAthleteId(u?.id ?? null); }
     });
     const unsub = onAuthStateChange(session => {
       setUser(session?.user ?? null);
+      setAnalyticsAthleteId(session?.user?.id ?? null);
     });
     return () => { mounted = false; unsub(); };
   }, []);
