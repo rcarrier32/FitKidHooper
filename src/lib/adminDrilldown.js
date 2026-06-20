@@ -31,7 +31,7 @@ export async function loadDrilldown(sb, drill) {
   if (type === "athletes_active") {
     const { data, error } = await sb
       .from("athlete_rollup")
-      .select("athlete_id, username, display_name, age_group, first_session_at, last_session_at, app_version")
+      .select("athlete_id, username, display_name, email, age_group, first_session_at, last_session_at, app_version")
       .gte("last_session_at", daysAgo(7))
       .order("last_session_at", { ascending: false })
       .limit(100);
@@ -40,6 +40,7 @@ export async function loadDrilldown(sb, drill) {
       title: label || "Active athletes (7d)",
       columns: [
         { key: "athlete_id", label: "Athlete" },
+        { key: "email", label: "Email" },
         { key: "age_group", label: "Age" },
         { key: "last_session_at", label: "Last session" },
         { key: "first_session_at", label: "First seen" },
@@ -58,7 +59,7 @@ export async function loadDrilldown(sb, drill) {
   if (type === "athletes_all") {
     const { data, error } = await sb
       .from("athlete_rollup")
-      .select("athlete_id, username, display_name, age_group, first_session_at, last_session_at")
+      .select("athlete_id, username, display_name, email, age_group, first_session_at, last_session_at")
       .order("last_session_at", { ascending: false })
       .limit(100);
     if (error) throw error;
@@ -66,6 +67,7 @@ export async function loadDrilldown(sb, drill) {
       title: label || "All athletes",
       columns: [
         { key: "athlete_id", label: "Athlete" },
+        { key: "email", label: "Email" },
         { key: "age_group", label: "Age" },
         { key: "last_session_at", label: "Last session" },
         { key: "first_session_at", label: "First seen" },
@@ -84,7 +86,7 @@ export async function loadDrilldown(sb, drill) {
   if (type === "athletes_new") {
     const { data, error } = await sb
       .from("athlete_rollup")
-      .select("athlete_id, username, display_name, age_group, first_session_at, last_session_at")
+      .select("athlete_id, username, display_name, email, age_group, first_session_at, last_session_at")
       .gte("first_session_at", daysAgo(7))
       .order("first_session_at", { ascending: false })
       .limit(100);
@@ -93,6 +95,7 @@ export async function loadDrilldown(sb, drill) {
       title: label || "New athletes (7d)",
       columns: [
         { key: "athlete_id", label: "Athlete" },
+        { key: "email", label: "Email" },
         { key: "age_group", label: "Age" },
         { key: "first_session_at", label: "First seen" },
         { key: "last_session_at", label: "Last session" },
