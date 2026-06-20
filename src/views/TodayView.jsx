@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import WarmUpCard from "../components/WarmUpCard.jsx";
 import ProgressRail from "../components/ProgressRail.jsx";
 import ChallengeStrip from "../components/ChallengeStrip.jsx";
@@ -7,8 +7,10 @@ import CountBadge from "../components/CountBadge.jsx";
 import FindDrillsSheet from "../components/FindDrillsSheet.jsx";
 import HomeCollapsibleSection from "../components/HomeCollapsibleSection.jsx";
 import TourPromptBanner from "../components/TourPromptBanner.jsx";
+import DayPlanPanel from "../components/DayPlanPanel.jsx";
 import { isHighImpactDay } from "../lib/warmup.js";
 import { computeGrowth } from "../lib/growth.js";
+import { buildTrainingDayPlan } from "../lib/trainingDayPlan.js";
 
 const hsl = (h, s, l) => `hsl(${h},${s}%,${l}%)`;
 const pri = s => hsl(s.primaryHue ?? 38, s.primarySat ?? 92, s.primaryLight ?? 55);
@@ -28,7 +30,7 @@ function actionBtnStyle(settings) {
   return { background:`${b}2e`, border:`1px solid ${b}66`, color:textMuted(settings) };
 }
 
-const DEFAULT_HOME_OPEN = { mission: true, programs: true, legends: true, squad: true };
+const DEFAULT_HOME_OPEN = { mission: true, training: true, programs: true, legends: true, squad: true };
 
 function loadHomeOpen() {
   try {
@@ -106,6 +108,7 @@ export default function TodayView({
   showTourPrompt,
   onStartTour,
   onDismissTourPrompt,
+  onOpenSchedule,
 }) {
   const homeLbl = { fontFamily:"'DM Mono',monospace", fontSize:12, letterSpacing:"0.13em", color:P, fontWeight:800, marginBottom:10, textTransform:"uppercase" };
   const [homeOpen, setHomeOpen] = useState(loadHomeOpen);
@@ -123,6 +126,19 @@ export default function TodayView({
   const mission = todayMission;
   const claimed = missionClaimed;
   const unread = Number(unreadMessages) || 0;
+
+  const todayPlan = useMemo(
+    () => buildTrainingDayPlan(today, schedule, programs, enrolledPrograms, programProgress, workouts),
+    [today, schedule, programs, enrolledPrograms, programProgress, workouts],
+  );
+  const hasTodayPlan = todayPlan.programSessions.length > 0
+    || todayPlan.scheduleDay.cats.length > 0
+    || (todayPlan.customSessions?.length || 0) > 0;
+
+  const startExerciseList = (exercises) => {
+    const list = (exercises || []).map(e => ({ ...e, meta: e.meta || exerciseMeta[e.id] || {} }));
+    if (list[0]) openDetail(list[0], list);
+  };
 
   return (
     <>
@@ -328,6 +344,35 @@ export default function TodayView({
         </div>
       </HomeCollapsibleSection>
 
+      {hasTodayPlan && (
+        <HomeCollapsibleSection
+          title="Today's Training"
+          hint={todayPlan.programSessions.length ? `${todayPlan.programSessions.length} program${todayPlan.programSessions.length === 1 ? "" : "s"}` : "scheduled"}
+          open={homeOpen.training}
+          onToggle={() => toggleHome("training")}
+          labelStyle={homeLbl}
+          accentColor={P}
+        >
+          <div style={{ margin: "0 20px 14px" }}>
+            <DayPlanPanel
+              plan={todayPlan}
+              cats={cats}
+              allExercises={allExercises}
+              P={P}
+              SF={SF}
+              bd={bd}
+              compact
+              showDateHeader={false}
+              onOpenCategory={onPickCategory}
+              onOpenExercise={ex => startExerciseList([{ ...ex, meta: exerciseMeta[ex.id] || {} }])}
+              onStartProgramSession={startExerciseList}
+              onStartCustomWorkout={startExerciseList}
+              onOpenCalendar={onOpenSchedule}
+            />
+          </div>
+        </HomeCollapsibleSection>
+      )}
+
       {enrolledList.length > 0 && (
         <HomeCollapsibleSection
           title="My Programs"
@@ -347,6 +392,9 @@ export default function TodayView({
               else if (sched.kind === "due") statusLine = `📋 ${sched.session.focus}`;
               else if (sched.kind === "rest") statusLine = sched.opensLabel || "Rest day";
               else if (sched.kind === "weekComplete") statusLine = `Week ${sched.week} complete ✓`;
+              const dueExercises = sched.kind === "due" && sched.session?.exercises
+                ? sched.session.exercises.map(id => allExercises[id]).filter(Boolean)
+                : [];
               return (
                 <div key={prog.id} onClick={() => onOpenProgram(prog.id)}
                   style={{ padding:"10px 12px", borderRadius:12, cursor:"pointer",
@@ -362,6 +410,19 @@ export default function TodayView({
                   </div>
                   {statusLine && (
                     <div style={{ fontSize:11, color:"#94a3b8", marginTop:4, marginLeft:24 }}>{statusLine}</div>
+                  )}
+                  {dueExercises.length > 0 && (
+                    <div style={{ marginTop:8, marginLeft:24, display:"flex", flexDirection:"column", gap:4 }}
+                      onClick={e => e.stopPropagation()}>
+                      {dueExercises.slice(0, 4).map(ex => (
+                        <button key={ex.id} type="button"
+                          onClick={() => startExerciseList(dueExercises.map(e => ({ ...e, meta: exerciseMeta[e.id] || {} })))}
+                          style={{ textAlign:"left", padding:"6px 8px", borderRadius:8, border:`1px solid ${prog.color}33`,
+                            background:"rgba(255,255,255,0.04)", color:"var(--fkh-text)", fontSize:11, fontWeight:600, cursor:"pointer" }}>
+                          {isDone(ex.id) ? "✓ " : ""}{ex.name}
+                        </button>
+                      ))}
+                    </div>
                   )}
                 </div>
               );

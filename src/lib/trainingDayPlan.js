@@ -3,6 +3,22 @@ import {
   isProgramSessionComplete,
   programWeekForDate,
 } from "./programProgress.js";
+import { readCustomWorkouts, exerciseIdsForCustomWorkout, WEEK_DAY_KEYS } from "./customWorkouts.js";
+
+function weekDayKeyFromDate(dateStr) {
+  return WEEK_DAY_KEYS[weekdayIndexFromDate(dateStr)];
+}
+
+function customWorkoutsOnDate(dateStr) {
+  const dayKey = weekDayKeyFromDate(dateStr);
+  return readCustomWorkouts()
+    .map(cw => {
+      const ids = exerciseIdsForCustomWorkout(cw, dayKey);
+      if (!ids.length) return null;
+      return { id: cw.id, name: cw.name, emoji: cw.emoji, exerciseIds: ids };
+    })
+    .filter(Boolean);
+}
 
 /** Weekday index Mon=0 … Sun=6 from YYYY-MM-DD. */
 export function weekdayIndexFromDate(dateStr) {
@@ -51,7 +67,7 @@ export function programSessionOnDate(program, enrollment, programProgress, dateS
 }
 
 /** General weekly plan + enrolled program sessions for one calendar day. */
-export function buildTrainingDayPlan(dateStr, schedule, programs, enrolledPrograms, programProgress) {
+export function buildTrainingDayPlan(dateStr, schedule, programs, enrolledPrograms, programProgress, workouts = null) {
   const scheduleDay = schedule[weekdayIndexFromDate(dateStr)] || { day: "?", cats: [], label: "Rest" };
 
   const programSessions = [];
@@ -62,11 +78,18 @@ export function buildTrainingDayPlan(dateStr, schedule, programs, enrolledProgra
     if (onDate) programSessions.push({ program: prog, ...onDate });
   }
 
+  const customSessions = customWorkoutsOnDate(dateStr);
+  const scheduleExerciseIds = workouts
+    ? scheduleCategoryExerciseIds(scheduleDay, workouts, 2, 8)
+    : [];
+
   return {
     dateStr,
     scheduleDay,
     programSessions,
-    isRestDay: scheduleDay.cats.length === 0 && programSessions.length === 0,
+    customSessions,
+    scheduleExerciseIds,
+    isRestDay: scheduleDay.cats.length === 0 && programSessions.length === 0 && customSessions.length === 0,
   };
 }
 

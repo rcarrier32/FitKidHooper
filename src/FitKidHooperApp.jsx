@@ -3708,7 +3708,7 @@ const DOW_HEADERS = ["M","T","W","T","F","S","S"];
 function CalendarView({
   completed, P, S, BG, SF, bd, lbl,
   schedule, programs, enrolledPrograms, programProgress,
-  cats, allExercises,
+  cats, allExercises, workouts,
   onOpenCategory, onOpenExercise,
 }) {
   const now = new Date();
@@ -3742,10 +3742,23 @@ function CalendarView({
   const selInMonth   = selDate.startsWith(monthKey);
   const isNowMonth   = year===now.getFullYear() && mon===now.getMonth();
   const dayPlan      = useMemo(
-    () => buildTrainingDayPlan(selDate, schedule, programs, enrolledPrograms, programProgress),
-    [selDate, schedule, programs, enrolledPrograms, programProgress]
+    () => buildTrainingDayPlan(selDate, schedule, programs, enrolledPrograms, programProgress, workouts),
+    [selDate, schedule, programs, enrolledPrograms, programProgress, workouts]
   );
   const isFutureDay  = new Date(`${selDate}T12:00:00`) > now;
+
+  const monthPlanMap = useMemo(() => {
+    const map = {};
+    for (let d = 1; d <= daysInMon; d++) {
+      const dateStr = `${year}-${String(mon + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      map[dateStr] = buildTrainingDayPlan(dateStr, schedule, programs, enrolledPrograms, programProgress, workouts);
+    }
+    return map;
+  }, [year, mon, daysInMon, schedule, programs, enrolledPrograms, programProgress, workouts]);
+
+  const startSession = (exercises) => {
+    if (exercises?.[0]) onOpenExercise?.(exercises[0]);
+  };
 
   // intensity → opacity suffix (same pattern used app-wide)
   const intensityBg = (count) => {
@@ -3783,6 +3796,9 @@ function CalendarView({
           </div>
         ))}
       </div>
+      <div style={{ fontSize:9, color:"#475569", marginBottom:8, textAlign:"center" }}>
+        <span style={{ color:P }}>●</span> planned · colored dots = logged
+      </div>
 
       {/* ── Calendar grid ─────────────────────────────────────── */}
       <div style={{ display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3,marginBottom:14 }}>
@@ -3794,17 +3810,19 @@ function CalendarView({
           const isFuture= new Date(dateStr+"T12:00:00")>now;
           const isSel   = dateStr===selDate && selInMonth;
           const cnt     = data?.totalDrills||0;
+          const dayPlanCell = monthPlanMap[dateStr];
+          const hasPlan = dayPlanCell && !dayPlanCell.isRestDay;
 
           return (
-            <div key={i} onClick={()=>{ if(!isFuture) setSelDate(dateStr); }}
+            <div key={i} onClick={()=> setSelDate(dateStr)}
               style={{
                 borderRadius:8,padding:"5px 3px 4px",
-                minHeight:50,display:"flex",flexDirection:"column",
+                minHeight:54,display:"flex",flexDirection:"column",
                 alignItems:"center",justifyContent:"space-between",
                 background: isSel ? `${P}28` : intensityBg(cnt),
-                border:`1.5px solid ${isSel?P:isToday?`${P}60`:"transparent"}`,
-                cursor:isFuture?"default":"pointer",
-                opacity:isFuture?0.2:1,
+                border:`1.5px solid ${isSel?P:isToday?`${P}60`:hasPlan?`${P}30`:"transparent"}`,
+                cursor:"pointer",
+                opacity:isFuture && !hasPlan ? 0.45 : 1,
                 transition:"background 0.15s, border 0.15s",
               }}>
 
@@ -3814,15 +3832,16 @@ function CalendarView({
                 {day}
               </div>
 
-              {/* Category dots */}
-              {data?.cats.length>0&&(
-                <div style={{ display:"flex",gap:2,flexWrap:"wrap",justifyContent:"center" }}>
-                  {data.cats.slice(0,4).map((cat,ci)=>(
-                    <div key={ci} style={{ width:5,height:5,borderRadius:"50%",
-                      background:CAT_DOT_COLORS[cat]||"#64748b",flexShrink:0 }}/>
-                  ))}
-                </div>
-              )}
+              {/* Plan + log indicators */}
+              <div style={{ display:"flex", gap:2, flexWrap:"wrap", justifyContent:"center", minHeight:10 }}>
+                {hasPlan && (
+                  <div title="Training planned" style={{ width:5, height:5, borderRadius:"50%", background:P, flexShrink:0 }} />
+                )}
+                {data?.cats.length>0 && data.cats.slice(0,3).map((cat,ci)=>(
+                  <div key={ci} style={{ width:5,height:5,borderRadius:"50%",
+                    background:CAT_DOT_COLORS[cat]||"#64748b",flexShrink:0 }}/>
+                ))}
+              </div>
 
               {/* XP micro-label */}
               {data?.xp>0&&(
@@ -3860,14 +3879,16 @@ function CalendarView({
       {selInMonth && (
         <DayPlanPanel
           plan={dayPlan}
-          history={selData || null}
+          history={isFutureDay ? null : (selData || null)}
           cats={cats}
           allExercises={allExercises}
           P={P}
           SF={SF}
           bd={bd}
-          onOpenCategory={isFutureDay ? undefined : onOpenCategory}
-          onOpenExercise={isFutureDay ? undefined : onOpenExercise}
+          onOpenCategory={onOpenCategory}
+          onOpenExercise={onOpenExercise}
+          onStartProgramSession={startSession}
+          onStartCustomWorkout={startSession}
         />
       )}
 
@@ -6756,7 +6777,7 @@ export default function FitKidHooperApp() {
                   ← Back to week
                 </button>
                 <DayPlanPanel
-                  plan={buildTrainingDayPlan(scheduleDetailDate, SCHEDULE, PROGRAMS, enrolledPrograms, programProgress)}
+                  plan={buildTrainingDayPlan(scheduleDetailDate, SCHEDULE, PROGRAMS, enrolledPrograms, programProgress, WORKOUTS)}
                   history={buildCalendarData(completed)[scheduleDetailDate] || null}
                   cats={CATS}
                   allExercises={ALL_EXERCISES}
@@ -6765,6 +6786,8 @@ export default function FitKidHooperApp() {
                   bd={bd}
                   onOpenCategory={cat => { setActiveCat(cat); setPrevView("schedule"); setView("cat"); }}
                   onOpenExercise={ex => openDetail(ex, [ex])}
+                  onStartProgramSession={exs => { if (exs?.[0]) openDetail(exs[0], exs); }}
+                  onStartCustomWorkout={exs => { if (exs?.[0]) openDetail(exs[0], exs); }}
                 />
               </div>
             )}
@@ -6778,9 +6801,9 @@ export default function FitKidHooperApp() {
                   return SCHEDULE.map((d, i) => {
                     const dateStr = weekDates[i];
                     const isToday = dateStr === today;
-                    const dayPlan = buildTrainingDayPlan(dateStr, SCHEDULE, PROGRAMS, enrolledPrograms, programProgress);
+                    const dayPlan = buildTrainingDayPlan(dateStr, SCHEDULE, PROGRAMS, enrolledPrograms, programProgress, WORKOUTS);
                     const dayData = calData[dateStr];
-                    const hasWork = d.cats.length > 0 || dayPlan.programSessions.length > 0;
+                    const hasWork = d.cats.length > 0 || dayPlan.programSessions.length > 0 || (dayPlan.customSessions?.length || 0) > 0;
                     return (
                       <div key={i}
                         onClick={hasWork ? () => setScheduleDetailDate(dateStr) : undefined}
@@ -6796,8 +6819,27 @@ export default function FitKidHooperApp() {
                         <div style={{ flex:1, minWidth:0 }}>
                           <div style={{ fontSize:13, color:isToday ? P : `${P}dd`, fontWeight:600 }}>{d.label}</div>
                           {dayPlan.programSessions.map(({ program, session, done }) => (
-                            <div key={program.id} style={{ fontSize:10, color:program.color, marginTop:4, fontWeight:700 }}>
-                              {program.emoji} {program.name} · {session.focus}{done ? " ✓" : ""}
+                            <div key={program.id} style={{ marginTop:6 }}>
+                              <div style={{ fontSize:10, color:program.color, fontWeight:700 }}>
+                                {program.emoji} {program.name} · {session.focus}{done ? " ✓" : ""}
+                              </div>
+                              <div style={{ display:"flex", flexDirection:"column", gap:2, marginTop:4, paddingLeft:4 }}>
+                                {session.exercises.slice(0, 4).map(exId => {
+                                  const ex = ALL_EXERCISES[exId];
+                                  if (!ex) return null;
+                                  return (
+                                    <div key={exId} style={{ fontSize:10, color:"#94a3b8" }}>{ex.name}</div>
+                                  );
+                                })}
+                                {session.exercises.length > 4 && (
+                                  <div style={{ fontSize:9, color:"#64748b" }}>+{session.exercises.length - 4} more</div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                          {(dayPlan.customSessions || []).map(cw => (
+                            <div key={cw.id} style={{ fontSize:10, color:P, marginTop:4, fontWeight:700 }}>
+                              {cw.emoji} {cw.name} · {cw.exerciseIds.length} drills
                             </div>
                           ))}
                         </div>
@@ -6846,6 +6888,7 @@ export default function FitKidHooperApp() {
             programProgress={programProgress}
             cats={CATS}
             allExercises={ALL_EXERCISES}
+            workouts={WORKOUTS}
             onOpenCategory={cat => { setActiveCat(cat); setPrevView("schedule"); setView("cat"); }}
             onOpenExercise={ex => openDetail(ex, [ex])}
           />
@@ -7069,6 +7112,7 @@ export default function FitKidHooperApp() {
         showTourPrompt={showTourPrompt && !tourActive && !showOnboarding}
         onStartTour={startTour}
         onDismissTourPrompt={dismissTourPromptBanner}
+        onOpenSchedule={() => openSchedule("home", "week")}
       />
 
 
