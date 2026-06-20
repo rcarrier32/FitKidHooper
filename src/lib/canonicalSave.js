@@ -164,8 +164,8 @@ export function readCanonicalPayload({ forCloudUpload = false } = {}) {
 
 export function writeCanonicalPayload(payload, { force = false } = {}) {
   if (!payload) return;
-  snapshotAthleteBackup(existing);
   const existing = readCanonicalPayload();
+  snapshotAthleteBackup(existing);
   if (!force && wouldRegressPayload(payload, existing)) {
     console.warn("[fkh] Blocked canonical write — would lose athlete data");
     return;

@@ -5,6 +5,7 @@ import ChallengeStrip from "../components/ChallengeStrip.jsx";
 import FriendsTeaser from "../components/FriendsTeaser.jsx";
 import FindDrillsSheet from "../components/FindDrillsSheet.jsx";
 import HomeCollapsibleSection from "../components/HomeCollapsibleSection.jsx";
+import TourPromptBanner from "../components/TourPromptBanner.jsx";
 import { isHighImpactDay } from "../lib/warmup.js";
 import { computeGrowth } from "../lib/growth.js";
 
@@ -97,6 +98,9 @@ export default function TodayView({
   getActiveProgramScheduleStatus,
   onOpenWorkout,
   requiredTasksDone,
+  showTourPrompt,
+  onStartTour,
+  onDismissTourPrompt,
 }) {
   const homeLbl = { fontFamily:"'DM Mono',monospace", fontSize:12, letterSpacing:"0.13em", color:P, fontWeight:800, marginBottom:10, textTransform:"uppercase" };
   const [homeOpen, setHomeOpen] = useState(loadHomeOpen);
@@ -125,6 +129,10 @@ export default function TodayView({
           <span style={{ fontSize:12, color:"var(--fkh-text)", lineHeight:1.5 }}>{coachMsg}</span>
         </div>
       </div>
+
+      {showTourPrompt && (
+        <TourPromptBanner P={P} onStartTour={onStartTour} onDismiss={onDismissTourPrompt} />
+      )}
 
       <HomeCollapsibleSection
         title="Today's Mission"

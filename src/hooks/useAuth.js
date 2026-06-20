@@ -14,6 +14,7 @@ export function useAuth(settings) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [syncStatus, setSyncStatus] = useState(null);
+  const [syncDetail, setSyncDetail] = useState(null);
 
   useEffect(() => {
     let mounted = true;
@@ -35,8 +36,12 @@ export function useAuth(settings) {
   const syncNow = useCallback(async () => {
     if (!user?.id) return { ok: false, error: "Not signed in" };
     setSyncStatus("syncing");
+    setSyncDetail(null);
     const result = await syncCloudSave(user.id);
-    setSyncStatus(result.ok ? "ok" : "error");
+    if (result.ok && result.restored) setSyncStatus("restored");
+    else if (result.ok && result.skipped) setSyncStatus("skipped");
+    else setSyncStatus(result.ok ? "ok" : "error");
+    setSyncDetail(result);
     return result;
   }, [user?.id]);
 
@@ -50,6 +55,7 @@ export function useAuth(settings) {
     loading,
     isConfigured: isAuthConfigured(),
     syncStatus,
+    syncDetail,
     syncNow,
     logout,
     isSignedIn: Boolean(user?.id),

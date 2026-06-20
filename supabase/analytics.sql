@@ -270,6 +270,34 @@ where event_name = 'badge_earn'
 group by 1
 order by earns desc;
 
+-- ── Onboarding funnel ─────────────────────────────────────────
+
+create or replace view public.analytics_onboarding_daily as
+select
+  (created_at at time zone 'utc')::date as day,
+  count(*) filter (where event_name = 'onboarding_complete') as profile_setups,
+  count(distinct athlete_id) filter (where event_name = 'onboarding_complete') as profile_setup_athletes,
+  count(*) filter (where event_name = 'onboarding_tour_complete') as tour_completes,
+  count(distinct athlete_id) filter (where event_name = 'onboarding_tour_complete') as tour_complete_athletes
+from public.events
+where event_name in ('onboarding_complete', 'onboarding_tour_complete')
+group by 1
+order by 1 desc;
+
+create or replace view public.analytics_onboarding_funnel as
+with profile_setup as (
+  select distinct athlete_id from public.events where event_name = 'onboarding_complete'
+),
+tour_done as (
+  select distinct athlete_id from public.events where event_name = 'onboarding_tour_complete'
+)
+select
+  (select count(*) from profile_setup) as athletes_profile_setup,
+  (select count(*) from tour_done) as athletes_tour_complete,
+  (select count(*) from profile_setup ps inner join tour_done td on td.athlete_id = ps.athlete_id) as athletes_both,
+  round(100.0 * (select count(*) from profile_setup ps inner join tour_done td on td.athlete_id = ps.athlete_id)
+    / nullif((select count(*) from profile_setup), 0), 1) as tour_completion_rate_pct;
+
 -- ── Athlete summary (dashboard) ───────────────────────────────
 
 create or replace view public.analytics_athlete_summary as
@@ -326,6 +354,8 @@ alter view public.analytics_top_programs           set (security_invoker = on);
 alter view public.analytics_mission_completion     set (security_invoker = on);
 alter view public.analytics_challenge_completion   set (security_invoker = on);
 alter view public.analytics_badge_distribution     set (security_invoker = on);
+alter view public.analytics_onboarding_daily       set (security_invoker = on);
+alter view public.analytics_onboarding_funnel      set (security_invoker = on);
 alter view public.analytics_athlete_summary        set (security_invoker = on);
 alter view public.feedback_general                 set (security_invoker = on);
 alter view public.feedback_bugs                    set (security_invoker = on);

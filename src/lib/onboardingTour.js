@@ -1,10 +1,27 @@
 export const TOUR_STORAGE_KEY = "fkh-tour-v1-complete";
+export const TOUR_PROMPT_DISMISS_KEY = "fkh-tour-prompt-dismissed";
 
 /** Legacy intro keys — marked complete when tour finishes so popups never double-fire. */
 export const LEGACY_INTRO_KEYS = ["fkh-programs-intro-v1", "fkh-legends-intro-v1"];
 
 export function isTourComplete() {
   try { return !!localStorage.getItem(TOUR_STORAGE_KEY); } catch { return false; }
+}
+
+/** Profile setup done (`s_onboarded`) but guided tour not finished or dismissed. */
+export function shouldShowTourPrompt() {
+  try {
+    if (localStorage.getItem(TOUR_STORAGE_KEY)) return false;
+    if (localStorage.getItem(TOUR_PROMPT_DISMISS_KEY)) return false;
+    if (!localStorage.getItem("s_onboarded")) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function dismissTourPrompt() {
+  try { localStorage.setItem(TOUR_PROMPT_DISMISS_KEY, "1"); } catch { /* ignore */ }
 }
 
 export function markTourComplete() {
@@ -15,8 +32,8 @@ export function markTourComplete() {
 }
 
 /**
- * Guided app tour — navigates real tabs and explains each area.
- * @typedef {{ id: string, view: string, highlightNav: string, emoji: string, title: string, body: string, bullets?: string[], programsHubSection?: string, progressTab?: string, clearProgramDetail?: boolean }} TourStep
+ * Guided app tour — one step per bottom-nav tab, left to right.
+ * @typedef {{ id: string, view: string, highlightNav: string, emoji: string, title: string, body: string, programsHubSection?: string, progressTab?: string, clearProgramDetail?: boolean }} TourStep
  */
 
 /** @type {TourStep[]} */
@@ -26,14 +43,16 @@ export const TOUR_STEPS = [
     view: "home",
     highlightNav: "home",
     emoji: "☀️",
-    title: "Today — your command center",
-    body: "Everything for today's training lives here. Section headers expand and collapse so you can focus on what matters.",
-    bullets: [
-      "Daily Mission — bonus XP when you finish required tasks",
-      "My Programs — every enrolled plan in one place",
-      "Train Like Legends — your path progress at a glance",
-      "Quick Workout — shuffle a template and start drilling",
-    ],
+    title: "Today",
+    body: "Your daily mission, enrolled programs, legend progress, friends, and a quick workout — all on one screen. Tap any section header to expand or collapse it.",
+  },
+  {
+    id: "shots",
+    view: "shots",
+    highlightNav: "shots",
+    emoji: "🏀",
+    title: "Shots",
+    body: "Log makes on the court map or with Quick Tap. Pick today, yesterday, or another date if you forgot to log. Set a weekly make goal and track your progress.",
   },
   {
     id: "programs",
@@ -42,40 +61,16 @@ export const TOUR_STEPS = [
     clearProgramDetail: true,
     programsHubSection: "plans",
     emoji: "📋",
-    title: "Programs — your training hub",
-    body: "Search any program or drill at the top. Use the tabs below to switch modes:",
-    bullets: [
-      "Plans — multi-week programs; enroll and track sessions week by week",
-      "Drills — browse every module (handles, shooting, strength…)",
-      "Quick — ready-made workout templates to start fast",
-      "Build — custom day or weekly workouts; save and rerun anytime",
-    ],
-  },
-  {
-    id: "shots",
-    view: "shots",
-    highlightNav: "shots",
-    emoji: "🏀",
-    title: "Shots — log your makes",
-    body: "Tap zones on the court map (left/right detected automatically) or use Quick Tap for shot types.",
-    bullets: [
-      "Defaults to today — pick Yesterday or another date if you forgot to log",
-      "Set a weekly make goal and watch the bar fill up",
-      "Shot data feeds your stats and legend paths",
-    ],
+    title: "Programs",
+    body: "Search any drill or program at the top. Switch between Plans, Drills, Quick workouts, and Build — where you can save a custom day or full week.",
   },
   {
     id: "challenges",
     view: "boards",
     highlightNav: "boards",
     emoji: "🏆",
-    title: "Challenges — compete & climb",
-    body: "Personal goals, squad competitions, leaderboards, and Train Like Legends all live here.",
-    bullets: [
-      "Legend names are tap-to-watch links — real player highlights",
-      "Train like them, hit signature-move drills, build your own game",
-      "Sign in to sync stats and add friends on the leaderboard",
-    ],
+    title: "Challenges",
+    body: "Personal goals, squad competitions, and leaderboards. Scroll to Train Like Legends — legend names link to real highlight videos so you can study their game.",
   },
   {
     id: "me",
@@ -83,26 +78,8 @@ export const TOUR_STEPS = [
     highlightNav: "progress",
     progressTab: "overview",
     emoji: "⭐",
-    title: "Me — profile, friends & progress",
-    body: "Your athlete card, XP level, badges, and training stats. Use the tabs to switch areas:",
-    bullets: [
-      "Friends — add by username, message privately, see unread badges",
-      "Badges — titles and gear you unlock from paths and programs",
-      "Stats — streaks, drill log, and training calendar",
-    ],
-  },
-  {
-    id: "finish",
-    view: "home",
-    highlightNav: "home",
-    emoji: "🚀",
-    title: "You're ready — go get buckets!",
-    body: "Tap ❓ Help on Me anytime for the full guide, or replay this tour from Settings.",
-    bullets: [
-      "⚙ Settings — profile, colors, notifications, sign-in & cloud sync",
-      "⭐ Favorite drills and programs with the star icon",
-      "🔔 Notifications are on by default — opt out per category in Settings",
-    ],
+    title: "Me",
+    body: "Your profile, XP, friends, messages, badges, and stats. Replay this tour anytime from Settings or ❓ Help. Now go get buckets!",
   },
 ];
 

@@ -54,6 +54,7 @@ Events are queued in `localStorage` (`fkh-analytics-queue`) and flushed every 30
 | `session_end` | Tab hidden / page unload |
 | `screen_view` | Tab or major view change |
 | `onboarding_complete` | First-run name flow finished |
+| `onboarding_tour_complete` | Guided app tour finished or skipped through last step |
 | `first_exercise_complete` | First drill ever checked off |
 | `exercise_complete` | Any drill marked done |
 | `mission_claim` | Daily mission auto-claimed |
@@ -83,6 +84,8 @@ Events are queued in `localStorage` (`fkh-analytics-queue`) and flushed every 30
 | `analytics_mission_completion` | Mission claim rate |
 | `analytics_challenge_completion` | Per-challenge completions |
 | `analytics_badge_distribution` | Badge earn counts |
+| `analytics_onboarding_daily` | Profile setup vs tour completion by day |
+| `analytics_onboarding_funnel` | Tour completion rate among onboarded athletes |
 | `analytics_athlete_summary` | Active / new / total athletes |
 | `feedback_summary` | Ratings and sentiment |
 | `feedback_feature_requests` | Feature ideas |
@@ -103,6 +106,12 @@ limit 14;
 
 -- Top exercises this month
 select * from analytics_top_exercises limit 20;
+
+-- Onboarding funnel (profile setup → guided tour)
+select * from analytics_onboarding_funnel;
+
+-- Daily onboarding events
+select * from analytics_onboarding_daily limit 14;
 ```
 
 ## In-app surfaces
@@ -123,4 +132,5 @@ select * from analytics_top_exercises limit 20;
 | Badge celebration effect | `badge_earn` |
 | Quick workout complete effect | `workout_complete` |
 | Onboarding button | `onboarding_complete` |
+| Tour finish / skip | `onboarding_tour_complete` |
 | `ShotTracker.logBatch` | `shot_session` |

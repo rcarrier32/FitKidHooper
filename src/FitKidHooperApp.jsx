@@ -86,7 +86,7 @@ import {
 } from "./lib/themeColors.js";
 import HelpSheet from "./components/HelpSheet.jsx";
 import OnboardingTour from "./components/OnboardingTour.jsx";
-import { TOUR_STEPS, applyTourStep, markTourComplete } from "./lib/onboardingTour.js";
+import { TOUR_STEPS, applyTourStep, markTourComplete, shouldShowTourPrompt, dismissTourPrompt } from "./lib/onboardingTour.js";
 import AppMapSheet from "./components/AppMapSheet.jsx";
 import BoardView from "./components/BoardView.jsx";
 import ProgressionView from "./components/ProgressionView.jsx";
@@ -5339,6 +5339,16 @@ export default function FitKidHooperApp() {
     setBenchmarkPBs(readLocalPBs());
     setGrowthLog(readGrowthLog());
   }, []);
+
+  const applyCloudSync = useCallback(async () => {
+    const result = await auth.syncNow();
+    if (result?.ok) {
+      persistProgramProgressRecovery();
+      reloadAthleteStateFromStorage();
+      refreshUnreadMessages();
+    }
+    return result;
+  }, [auth.syncNow, reloadAthleteStateFromStorage, refreshUnreadMessages]);
   const [reportPeriod, setReportPeriod] = useState("30d");
   const [strDay, setStrDay] = useState(()=>localStorage.getItem('s_strday')||'Day 1');
   const [onboardName, setOnboardName] = useState('');
@@ -5348,6 +5358,9 @@ export default function FitKidHooperApp() {
   const [showOnboarding, setShowOnboarding] = useState(()=>!localStorage.getItem('s_onboarded')&&settings.athleteName===DEFAULT.athleteName);
   const [tourActive, setTourActive] = useState(false);
   const [tourStep, setTourStep] = useState(0);
+  const tourStepRef = useRef(0);
+  tourStepRef.current = tourStep;
+  const [showTourPrompt, setShowTourPrompt] = useState(() => shouldShowTourPrompt());
   const [pushBusy, setPushBusy] = useState(false);
   const [pushError, setPushError] = useState(null);
   const openSchedule = useCallback((returnView = "home", tab = "calendar") => {
@@ -5359,36 +5372,55 @@ export default function FitKidHooperApp() {
   const finishTour = useCallback(() => {
     markTourComplete();
     setTourActive(false);
+    setTourStep(0);
+    setShowTourPrompt(false);
+    document.body.style.overflow = "";
     track(ANALYTICS_EVENTS.ONBOARDING_TOUR_COMPLETE, {});
   }, []);
 
+  const tourHandlersRef = useRef({ setView, setProgressTab, setProgramsHubSection, setSelectedProgram });
+  tourHandlersRef.current = { setView, setProgressTab, setProgramsHubSection, setSelectedProgram };
+
+  const goToTourStep = useCallback((index) => {
+    const step = TOUR_STEPS[index];
+    if (!step) return;
+    applyTourStep(step, tourHandlersRef.current);
+    setTourStep(index);
+  }, []);
+
   const advanceTour = useCallback(() => {
-    setTourStep(prev => {
-      if (prev >= TOUR_STEPS.length - 1) {
-        finishTour();
-        return prev;
-      }
-      return prev + 1;
-    });
-  }, [finishTour]);
+    const prev = tourStepRef.current;
+    if (prev >= TOUR_STEPS.length - 1) {
+      finishTour();
+      return;
+    }
+    goToTourStep(prev + 1);
+  }, [finishTour, goToTourStep]);
+
+  const backTour = useCallback(() => {
+    const prev = tourStepRef.current;
+    if (prev <= 0) return;
+    goToTourStep(prev - 1);
+  }, [goToTourStep]);
 
   const startTour = useCallback(() => {
     setShowHelp(false);
     setShowSettings(false);
     setShowAppMap(false);
-    setTourStep(0);
+    setShowTourPrompt(false);
     setTourActive(true);
+    goToTourStep(0);
+  }, [goToTourStep]);
+
+  const dismissTourPromptBanner = useCallback(() => {
+    dismissTourPrompt();
+    setShowTourPrompt(false);
   }, []);
 
   useEffect(() => {
-    if (!tourActive) return;
-    applyTourStep(TOUR_STEPS[tourStep], {
-      setView,
-      setProgressTab,
-      setProgramsHubSection,
-      setSelectedProgram,
-    });
-  }, [tourActive, tourStep]);
+    if (tourActive || showOnboarding) return;
+    setShowTourPrompt(shouldShowTourPrompt());
+  }, [tourActive, showOnboarding]);
 
   const getExerciseCategory = useCallback(exId => (ALL_EXERCISES[exId] || {})._cat, []);
 
@@ -5726,13 +5758,14 @@ export default function FitKidHooperApp() {
       onReplayTour={() => { setShowSettings(false); startTour(); }}
       isSignedIn={auth.isSignedIn}
       signedInUsername={auth.username}
-      onCloudSync={auth.syncNow}
+      onCloudSync={applyCloudSync}
       cloudSyncStatus={auth.syncStatus}
+      cloudSyncDetail={auth.syncDetail}
       onLogout={async () => { await auth.logout(); }} />
   ) : null;
 
   const authSheet = showAuth ? (
-    <AuthSheet P={pri(settings)} SF={surf(settings)} onClose={() => setShowAuth(false)} onSignedIn={async() => { await auth.syncNow(); setShowAuth(false); }} />
+    <AuthSheet P={pri(settings)} SF={surf(settings)} onClose={() => setShowAuth(false)} onSignedIn={async() => { await applyCloudSync(); setShowAuth(false); }} />
   ) : null;
 
   const feedbackSheet = showFeedback ? (
@@ -5990,14 +6023,11 @@ export default function FitKidHooperApp() {
     if (!auth.isSignedIn) return;
     let cancelled = false;
     (async () => {
-      const result = await auth.syncNow();
+      const result = await applyCloudSync();
       if (cancelled || !result?.ok) return;
-      persistProgramProgressRecovery();
-      reloadAthleteStateFromStorage();
-      refreshUnreadMessages();
     })();
     return () => { cancelled = true; };
-  }, [auth.isSignedIn, auth.syncNow, reloadAthleteStateFromStorage, refreshUnreadMessages]);
+  }, [auth.isSignedIn, applyCloudSync]);
 
   // Auto-sync the leaderboard on app open / sign-in (not just when Boards is
   // opened). Self-throttled to ~30 min, so it's cheap to fire here.
@@ -6074,6 +6104,20 @@ export default function FitKidHooperApp() {
     {id:"progress", emoji:"⭐",label:"Me"},
   ];
 
+  const tourOverlay = tourActive ? (
+    <OnboardingTour
+      step={TOUR_STEPS[tourStep]}
+      stepIndex={tourStep}
+      stepCount={TOUR_STEPS.length}
+      navTabs={NAV}
+      P={P}
+      SF={SF}
+      onNext={advanceTour}
+      onBack={backTour}
+      onSkip={finishTour}
+    />
+  ) : null;
+
   const programDetailSheet = activeExercise ? (
     <ExerciseDetailSheet exercise={activeExercise} color={P}
       bg2={SF} brd={bd} BG={BG} SF={SF}
@@ -6092,7 +6136,7 @@ export default function FitKidHooperApp() {
   ) : null;
 
   const renderBottomNav = () => (
-    <div style={{ position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:680,background:NV,borderTop:`1px solid ${bd}`,display:"flex",zIndex:50,paddingBottom:"env(safe-area-inset-bottom, 0px)" }}>
+    <div style={{ position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:680,background:NV,borderTop:`1px solid ${bd}`,display:"flex",zIndex:50,paddingBottom:"env(safe-area-inset-bottom, 0px)", pointerEvents:tourActive?"none":"auto", opacity:tourActive?0.92:1 }}>
       {NAV.map(n=>(
         <button key={n.id} onClick={()=>setView(n.id)} style={{ flex:1,padding:"10px 0 12px",border:"none",background:"transparent",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2 }}>
           <span style={{ position:"relative", display:"inline-flex", alignItems:"center", justifyContent:"center" }}>
@@ -6133,18 +6177,7 @@ export default function FitKidHooperApp() {
       )}
       {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]} onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
       {renderMissionOverlays()}
-      {tourActive && (
-        <OnboardingTour
-          step={TOUR_STEPS[tourStep]}
-          stepIndex={tourStep}
-          stepCount={TOUR_STEPS.length}
-          navTabs={NAV}
-          P={P}
-          SF={SF}
-          onNext={advanceTour}
-          onSkip={finishTour}
-        />
-      )}
+      {tourOverlay}
     </>
   );
 
@@ -6644,6 +6677,7 @@ export default function FitKidHooperApp() {
         {settingsSheet}{feedbackSheet}{authSheet}
         {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]} onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
         {renderMissionOverlays()}
+        {tourOverlay}
         <div style={{ padding:"16px 20px 12px",borderBottom:`1px solid ${P}14`,position:"sticky",top:0,background:BG,backdropFilter:"blur(10px)",zIndex:10 }}>
           <button onClick={()=>setView(scheduleBack)}
             style={{ marginBottom:10,padding:"5px 12px",borderRadius:8,border:`1px solid ${P}30`,background:`${P}14`,color:P,fontSize:11,fontWeight:700,cursor:"pointer" }}>
@@ -6670,20 +6704,29 @@ export default function FitKidHooperApp() {
         {schedTab==="week"&&(
           <div style={{ padding:"4px 20px 20px" }}>
             {(() => {
-              const activeProg = PROGRAMS.find(p => enrolledPrograms[p.id]);
-              if (!activeProg) return null;
-              const enrollment = enrolledPrograms[activeProg.id];
-              const weekPlan = buildProgramWeekPlan(activeProg, enrollment, programProgress, today);
-              if (!weekPlan) return null;
+              const enrolledList = PROGRAMS.filter(p => enrolledPrograms[p.id]);
+              if (!enrolledList.length) return null;
               return (
-                <div style={{ marginBottom:16,padding:"12px 14px",borderRadius:14,background:`${activeProg.color}0c`,border:`1px solid ${activeProg.color}33` }}>
-                  <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:2 }}>
-                    <span style={{ fontSize:16 }}>{activeProg.emoji}</span>
-                    <span style={{ fontSize:12,fontWeight:700,color:"var(--fkh-text)" }}>{activeProg.name}</span>
-                    <span style={{ fontSize:10,color:activeProg.color,fontWeight:700,marginLeft:"auto" }}>Week {weekPlan.curWeek}</span>
-                  </div>
-                  <ProgramWeekStrip plan={weekPlan} color={activeProg.color} />
-                </div>
+                <>
+                  {enrolledList.length > 1 && (
+                    <div style={{ ...lbl, marginTop: 4 }}>My Programs</div>
+                  )}
+                  {enrolledList.map(prog => {
+                    const enrollment = enrolledPrograms[prog.id];
+                    const weekPlan = buildProgramWeekPlan(prog, enrollment, programProgress, today);
+                    if (!weekPlan) return null;
+                    return (
+                      <div key={prog.id} style={{ marginBottom:16,padding:"12px 14px",borderRadius:14,background:`${prog.color}0c`,border:`1px solid ${prog.color}33` }}>
+                        <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:2 }}>
+                          <span style={{ fontSize:16 }}>{prog.emoji}</span>
+                          <span style={{ fontSize:12,fontWeight:700,color:"var(--fkh-text)" }}>{prog.name}</span>
+                          <span style={{ fontSize:10,color:prog.color,fontWeight:700,marginLeft:"auto" }}>Week {weekPlan.curWeek}</span>
+                        </div>
+                        <ProgramWeekStrip plan={weekPlan} color={prog.color} />
+                      </div>
+                    );
+                  })}
+                </>
               );
             })()}
             <div style={lbl}>General Training Plan</div>
@@ -6760,6 +6803,7 @@ export default function FitKidHooperApp() {
       {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]}
         onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
       {renderMissionOverlays()}
+      {tourOverlay}
       {showOnboarding&&(()=>{
         const onbInput = { width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.07)",border:"1.5px solid #f9731640",borderRadius:10,padding:"12px",fontSize:16,color:"#fff",outline:"none",marginBottom:12 };
         const onbBtn = { width:"100%",background:"#f97316",border:"none",borderRadius:12,padding:"14px",fontSize:15,fontWeight:800,color:"#000",cursor:"pointer" };
@@ -6948,6 +6992,9 @@ export default function FitKidHooperApp() {
         isProgramExerciseDone={isProgramExerciseDone}
         getActiveProgramScheduleStatus={getActiveProgramScheduleStatus}
         onOpenWorkout={() => setWorkoutOpen(true)}
+        showTourPrompt={showTourPrompt && !tourActive && !showOnboarding}
+        onStartTour={startTour}
+        onDismissTourPrompt={dismissTourPromptBanner}
       />
 
 

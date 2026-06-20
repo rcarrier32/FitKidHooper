@@ -143,7 +143,7 @@ function isInstallIOS() {
 }
 
 /* ═══════════════════════ SETTINGS SHEET ═══════════════════════ */
-function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenAuth, onReplayTour, isSignedIn, signedInUsername, onCloudSync, cloudSyncStatus, onLogout }) {
+function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenAuth, onReplayTour, isSignedIn, signedInUsername, onCloudSync, cloudSyncStatus, cloudSyncDetail, onLogout }) {
   const [tab, setTab] = useState("accent");
   const [showAdvancedColors, setShowAdvancedColors] = useState(false);
   const [guardrailNote, setGuardrailNote] = useState(null);
@@ -532,10 +532,21 @@ function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenA
             </button>
             {isSignedIn && (
               <>
-              <button onClick={onCloudSync} style={{ width:"100%",padding:"10px 14px",borderRadius:12,cursor:"pointer",...chipStyle(settings, cloudSyncStatus==="ok", P) }}>
+              <button onClick={onCloudSync} style={{ width:"100%",padding:"10px 14px",borderRadius:12,cursor:"pointer",...chipStyle(settings, cloudSyncStatus==="ok"||cloudSyncStatus==="restored", P) }}>
                 <div style={{ fontSize:12,fontWeight:700,color:P }}>
-                  {cloudSyncStatus==="syncing" ? "Syncing…" : cloudSyncStatus==="ok" ? "✓ Cloud synced" : "Sync to cloud now"}
+                  {cloudSyncStatus==="syncing" ? "Syncing…"
+                    : cloudSyncStatus==="restored" ? "✓ Restored from cloud"
+                    : cloudSyncStatus==="ok" ? "✓ Cloud synced"
+                    : cloudSyncStatus==="skipped" ? "Sync skipped (data safe)"
+                    : cloudSyncStatus==="error" ? "Sync failed — tap to retry"
+                    : "Sync to cloud now"}
                 </div>
+                {cloudSyncDetail?.error && (
+                  <div style={{ fontSize:10,color:"#ef4444",marginTop:3 }}>{cloudSyncDetail.error}</div>
+                )}
+                {cloudSyncDetail?.reason && cloudSyncStatus==="skipped" && (
+                  <div style={{ fontSize:10,color:"#64748b",marginTop:3 }}>{cloudSyncDetail.reason}</div>
+                )}
               </button>
               <button onClick={onLogout} style={{ width:"100%",padding:"10px 14px",borderRadius:12,cursor:"pointer",...actionBtnStyle(settings) }}>
                 <div style={{ fontSize:12,fontWeight:700,color:"#94a3b8" }}>Log out</div>

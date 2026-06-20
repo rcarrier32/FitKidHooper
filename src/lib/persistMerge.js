@@ -19,6 +19,7 @@ export function mergeSaveValue(local, remote) {
     for (const k of Object.keys(local)) out[k] = mergeSaveValue(local[k], remote[k]);
     return out;
   }
+  if (typeof local === "boolean" && typeof remote === "boolean") return local || remote;
   if (typeof local === "number" && typeof remote === "number") return Math.max(local, remote);
   return local;
 }
