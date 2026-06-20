@@ -114,6 +114,8 @@ import TodayView from "./views/TodayView.jsx";
 import ProgramsView from "./views/ProgramsView.jsx";
 import MeView from "./views/MeView.jsx";
 import ChallengesView from "./views/ChallengesView.jsx";
+import DayPlanPanel from "./components/DayPlanPanel.jsx";
+import { buildTrainingDayPlan, currentWeekDates, scheduleCategoryExerciseIds, weekdayIndexFromDate } from "./lib/trainingDayPlan.js";
 
 
 /* ═══════════════════════════════════════════════════════════════
@@ -2607,7 +2609,7 @@ function generateDailyMission(todayStr, settings, completed, enrolledPrograms, p
     task1Cat = ALL_EXERCISES[session.exercises[0]]?._cat || null;
     tasks.push({
       id:"task-prog", type:"program",
-      label:`Finish "${session.focus}" session`,
+      label:`${activeProg.name}: ${session.focus}`,
       exercises: session.exercises,
       target: session.exercises.length,
       required: true,
@@ -2616,6 +2618,22 @@ function generateDailyMission(todayStr, settings, completed, enrolledPrograms, p
       sessionIdx,
     });
     bonusXP = 75;
+    const dayIdx = weekdayIndexFromDate(todayStr);
+    const dayPlan = SCHEDULE[dayIdx];
+    if (dayPlan?.cats?.length) {
+      const scheduleExs = scheduleCategoryExerciseIds(dayPlan, WORKOUTS, 2, 6);
+      if (scheduleExs.length > 0) {
+        tasks.push({
+          id: "task-schedule",
+          type: "category",
+          label: `Also today: ${dayPlan.label}`,
+          exercises: scheduleExs,
+          target: Math.min(3, scheduleExs.length),
+          required: false,
+          optional: true,
+        });
+      }
+    }
   }
   if (tasks.length===0) {
     const bbCats = ["ballhandling","footwork","finishing","game_handles","shooting_lab","footwork_lab","shootingdrills","passing","rebounding"];
@@ -3684,7 +3702,12 @@ function MissionTaskToast({ label, onDone }) {
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const DOW_HEADERS = ["M","T","W","T","F","S","S"];
 
-function CalendarView({ completed, P, S, BG, SF, bd, lbl }) {
+function CalendarView({
+  completed, P, S, BG, SF, bd, lbl,
+  schedule, programs, enrolledPrograms, programProgress,
+  cats, allExercises,
+  onOpenCategory, onOpenExercise,
+}) {
   const now = new Date();
   const [viewDate, setViewDate] = useState(()=>new Date(now.getFullYear(),now.getMonth(),1));
   const [selDate,  setSelDate]  = useState(now.toLocaleDateString("en-CA"));
@@ -3715,6 +3738,11 @@ function CalendarView({ completed, P, S, BG, SF, bd, lbl }) {
   const selData      = calData[selDate];
   const selInMonth   = selDate.startsWith(monthKey);
   const isNowMonth   = year===now.getFullYear() && mon===now.getMonth();
+  const dayPlan      = useMemo(
+    () => buildTrainingDayPlan(selDate, schedule, programs, enrolledPrograms, programProgress),
+    [selDate, schedule, programs, enrolledPrograms, programProgress]
+  );
+  const isFutureDay  = new Date(`${selDate}T12:00:00`) > now;
 
   // intensity → opacity suffix (same pattern used app-wide)
   const intensityBg = (count) => {
@@ -3825,87 +3853,20 @@ function CalendarView({ completed, P, S, BG, SF, bd, lbl }) {
         </div>
       )}
 
-      {/* ── Selected day detail ───────────────────────────────── */}
-      {selInMonth&&selData ? (
-        <div style={{ background:`${P}0d`,border:`1px solid ${P}22`,borderRadius:14,
-          padding:"14px 16px",animation:"fkh-fade-up 0.22s ease both" }}>
-
-          {/* Day header */}
-          <div style={{ display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:10 }}>
-            <div>
-              <div style={{ fontSize:14,fontWeight:800,color:"var(--fkh-text)",lineHeight:1.2 }}>
-                {new Date(selDate+"T12:00:00").toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"})}
-              </div>
-              <div style={{ fontSize:11,color:"#64748b",marginTop:4,display:"flex",gap:8,flexWrap:"wrap" }}>
-                {selData.totalDrills>0&&<span>{selData.totalDrills} drill{selData.totalDrills!==1?"s":""}</span>}
-                {selData.shots>0&&<span>🏀 {selData.shots} shots</span>}
-                {selData.streakDay>1&&<span style={{ color:"#f97316" }}>Day {selData.streakDay} streak 🔥</span>}
-              </div>
-            </div>
-            <div style={{ textAlign:"right",flexShrink:0 }}>
-              <div style={{ fontFamily:"'DM Mono',monospace",fontSize:22,fontWeight:800,color:P,lineHeight:1 }}>
-                {selData.xp}
-              </div>
-              <div style={{ fontSize:9,color:"#475569",letterSpacing:"0.08em" }}>XP</div>
-            </div>
-          </div>
-
-          {/* Category chips */}
-          {selData.cats.length>0&&(
-            <div style={{ display:"flex",gap:6,flexWrap:"wrap",marginBottom:10 }}>
-              {selData.cats.map(cat=>{
-                const c=CAT_DOT_COLORS[cat]||"#64748b";
-                return (
-                  <span key={cat} style={{ display:"flex",alignItems:"center",gap:4,
-                    padding:"3px 9px",borderRadius:20,fontSize:11,fontWeight:600,
-                    background:`${c}18`,color:c,border:`1px solid ${c}30` }}>
-                    {CATS[cat]?.emoji||"•"} {CATS[cat]?.label.split(" ")[0]||cat}
-                  </span>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Exercise list */}
-          <div style={{ display:"flex",flexDirection:"column",gap:4 }}>
-            {selData.exs.map((ex,i)=>{
-              const c=CAT_DOT_COLORS[ex._cat]||"#64748b";
-              return (
-                <div key={i} style={{ display:"flex",alignItems:"center",gap:8,
-                  padding:"7px 9px",borderRadius:8,
-                  background:"rgba(255,255,255,0.03)",
-                  border:"1px solid rgba(255,255,255,0.06)" }}>
-                  <div style={{ width:6,height:6,borderRadius:"50%",background:c,flexShrink:0 }}/>
-                  <span style={{ fontSize:12,color:"var(--fkh-text)",flex:1,fontWeight:500,
-                    whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{ex.name}</span>
-                  <span style={{ fontSize:9,color:"#334155",fontFamily:"'DM Mono',monospace",flexShrink:0 }}>+5 XP</span>
-                  <span style={{ color:"#22c55e",fontSize:13,flexShrink:0 }}>✓</span>
-                </div>
-              );
-            })}
-            {selData.shots>0&&(
-              <div style={{ display:"flex",alignItems:"center",gap:8,
-                padding:"7px 9px",borderRadius:8,
-                background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)" }}>
-                <div style={{ width:6,height:6,borderRadius:"50%",background:"#f97316",flexShrink:0 }}/>
-                <span style={{ fontSize:12,color:"var(--fkh-text)",flex:1,fontWeight:500 }}>🏀 {selData.shots} shots made</span>
-                <span style={{ fontSize:9,color:"#334155",fontFamily:"'DM Mono',monospace",flexShrink:0 }}>
-                  +{Math.floor(selData.shots/10)*5} XP
-                </span>
-                <span style={{ color:"#22c55e",fontSize:13,flexShrink:0 }}>✓</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-      ) : selInMonth ? (
-        <div style={{ textAlign:"center",padding:"18px 0",color:"#334155" }}>
-          <div style={{ fontSize:13,marginBottom:4 }}>
-            {new Date(selDate+"T12:00:00").toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"})}
-          </div>
-          <div style={{ fontSize:11,color:"#1e293b" }}>No training logged this day</div>
-        </div>
-      ) : null}
+      {/* ── Selected day: plan + history ──────────────────────── */}
+      {selInMonth && (
+        <DayPlanPanel
+          plan={dayPlan}
+          history={selData || null}
+          cats={cats}
+          allExercises={allExercises}
+          P={P}
+          SF={SF}
+          bd={bd}
+          onOpenCategory={isFutureDay ? undefined : onOpenCategory}
+          onOpenExercise={isFutureDay ? undefined : onOpenExercise}
+        />
+      )}
 
       {/* ── Empty month state ─────────────────────────────────── */}
       {monthDays===0&&(
@@ -5249,6 +5210,7 @@ export default function FitKidHooperApp() {
   const [activeExercise, setActiveExercise] = useState(null);
   const [detailList, setDetailList] = useState([]);
   const [schedTab, setSchedTab] = useState("week");
+  const [scheduleDetailDate, setScheduleDetailDate] = useState(null);
   const [celebratedBadges, setCelebratedBadges] = useState(()=>{
     try{return new Set(JSON.parse(localStorage.getItem("fkh-celebrated-badges")||"[]"));}catch{return new Set();}
   });
@@ -5373,6 +5335,7 @@ export default function FitKidHooperApp() {
   const openSchedule = useCallback((returnView = "home", tab = "calendar") => {
     setPrevView(returnView);
     setSchedTab(tab);
+    setScheduleDetailDate(null);
     setView("schedule");
   }, []);
 
@@ -5980,10 +5943,14 @@ export default function FitKidHooperApp() {
     [completed, challengeProgress]
   );
 
-  const activeProgForMission = useMemo(
-    () => PROGRAMS.find(p => enrolledPrograms[p.id]),
-    [enrolledPrograms]
-  );
+  const activeProgForMission = useMemo(() => {
+    for (const prog of PROGRAMS) {
+      if (!enrolledPrograms[prog.id]) continue;
+      const due = findDueProgramSession(prog, enrolledPrograms[prog.id], programProgress, today);
+      if (due) return prog;
+    }
+    return PROGRAMS.find(p => enrolledPrograms[p.id]) || null;
+  }, [enrolledPrograms, programProgress, today]);
 
   const dueSessionForMission = useMemo(() => {
     if (!activeProgForMission) return null;
@@ -6747,55 +6714,108 @@ export default function FitKidHooperApp() {
                 </>
               );
             })()}
-            <div style={lbl}>General Training Plan</div>
-            {SCHEDULE.map((d,i)=>{
-              const isToday = i===todayIdx;
-              const hasWork = d.cats.length > 0;
-              const dayData = Object.entries(buildCalendarData(completed))
-                .filter(([k])=>{
-                  const date=new Date(k+"T12:00:00");
-                  return date.getDay()===(i+1)%7 && (new Date()-date)<7*86400000;
-                })[0]?.[1];
-              return (
-                <div key={i}
-                  onClick={hasWork?()=>{ setActiveCat(d.cats[0]); setPrevView("schedule"); setView("cat"); }:undefined}
-                  style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:10,
-                    marginBottom:4,
-                    background:isToday?`${P}0e`:"transparent",
-                    border:`1px solid ${isToday?`${P}30`:"transparent"}`,
-                    cursor:hasWork?"pointer":undefined }}>
-                  <div style={{ fontFamily:"'DM Mono',monospace",fontSize:11,
-                    color:isToday?P:`${P}99`,width:32,flexShrink:0,fontWeight:isToday?800:400 }}>
-                    {d.day}
-                  </div>
-                  <div style={{ fontSize:13,color:isToday?P:`${P}dd`,flex:1,fontWeight:600 }}>{d.label}</div>
-                  {dayData?.xp>0&&(
-                    <span style={{ fontSize:9,fontFamily:"'DM Mono',monospace",color:"#22c55e",
-                      background:"rgba(34,197,94,0.1)",border:"1px solid rgba(34,197,94,0.2)",
-                      borderRadius:20,padding:"2px 7px",flexShrink:0 }}>
-                      +{dayData.xp} XP
-                    </span>
-                  )}
-                  {isToday&&!dayData&&<span style={{ fontSize:9,fontWeight:800,color:P,letterSpacing:"0.06em" }}>TODAY</span>}
-                  <div style={{ display:"flex",gap:5 }}>
-                    {d.cats.map(c=>(
-                      <button key={c}
-                        onClick={e=>{ e.stopPropagation(); setActiveCat(c); setPrevView("schedule"); setView("cat"); }}
-                        style={{ fontSize:11,padding:"3px 9px",borderRadius:20,background:catBg(c),
-                          color:catColor(c),border:`1px solid ${catBrd(c)}`,fontWeight:600,cursor:"pointer" }}>
-                        {CATS[c].emoji} {CATS[c].label.split(" ")[0]}
-                      </button>
-                    ))}
-                  </div>
-                  {hasWork&&<span style={{ fontSize:16,color:`${P}80`,flexShrink:0,lineHeight:1 }}>›</span>}
-                </div>
-              );
-            })}
+
+            {scheduleDetailDate && (
+              <div style={{ marginBottom: 14 }}>
+                <button type="button" onClick={() => setScheduleDetailDate(null)}
+                  style={{ marginBottom: 8, padding:"5px 10px", borderRadius:8, border:`1px solid ${bd}`,
+                    background:"transparent", color:"#64748b", fontSize:11, fontWeight:700, cursor:"pointer" }}>
+                  ← Back to week
+                </button>
+                <DayPlanPanel
+                  plan={buildTrainingDayPlan(scheduleDetailDate, SCHEDULE, PROGRAMS, enrolledPrograms, programProgress)}
+                  history={buildCalendarData(completed)[scheduleDetailDate] || null}
+                  cats={CATS}
+                  allExercises={ALL_EXERCISES}
+                  P={P}
+                  SF={SF}
+                  bd={bd}
+                  onOpenCategory={cat => { setActiveCat(cat); setPrevView("schedule"); setView("cat"); }}
+                  onOpenExercise={ex => openDetail(ex, [ex])}
+                />
+              </div>
+            )}
+
+            {!scheduleDetailDate && (
+              <>
+                <div style={lbl}>This Week&apos;s Plan</div>
+                {(() => {
+                  const weekDates = currentWeekDates(today);
+                  const calData = buildCalendarData(completed);
+                  return SCHEDULE.map((d, i) => {
+                    const dateStr = weekDates[i];
+                    const isToday = dateStr === today;
+                    const dayPlan = buildTrainingDayPlan(dateStr, SCHEDULE, PROGRAMS, enrolledPrograms, programProgress);
+                    const dayData = calData[dateStr];
+                    const hasWork = d.cats.length > 0 || dayPlan.programSessions.length > 0;
+                    return (
+                      <div key={i}
+                        onClick={hasWork ? () => setScheduleDetailDate(dateStr) : undefined}
+                        style={{ display:"flex", alignItems:"flex-start", gap:10, padding:"10px 12px", borderRadius:10,
+                          marginBottom:4,
+                          background:isToday ? `${P}0e` : "transparent",
+                          border:`1px solid ${isToday ? `${P}30` : "transparent"}`,
+                          cursor:hasWork ? "pointer" : undefined }}>
+                        <div style={{ fontFamily:"'DM Mono',monospace", fontSize:11,
+                          color:isToday ? P : `${P}99`, width:32, flexShrink:0, fontWeight:isToday ? 800 : 400 }}>
+                          {d.day}
+                        </div>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontSize:13, color:isToday ? P : `${P}dd`, fontWeight:600 }}>{d.label}</div>
+                          {dayPlan.programSessions.map(({ program, session, done }) => (
+                            <div key={program.id} style={{ fontSize:10, color:program.color, marginTop:4, fontWeight:700 }}>
+                              {program.emoji} {program.name} · {session.focus}{done ? " ✓" : ""}
+                            </div>
+                          ))}
+                        </div>
+                        {dayData?.xp > 0 && (
+                          <span style={{ fontSize:9, fontFamily:"'DM Mono',monospace", color:"#22c55e",
+                            background:"rgba(34,197,94,0.1)", border:"1px solid rgba(34,197,94,0.2)",
+                            borderRadius:20, padding:"2px 7px", flexShrink:0 }}>
+                            +{dayData.xp} XP
+                          </span>
+                        )}
+                        {isToday && !dayData && (
+                          <span style={{ fontSize:9, fontWeight:800, color:P, letterSpacing:"0.06em", flexShrink:0 }}>TODAY</span>
+                        )}
+                        <div style={{ display:"flex", gap:5, flexWrap:"wrap", justifyContent:"flex-end", maxWidth:120 }}>
+                          {d.cats.map(c => (
+                            <button key={c} type="button"
+                              onClick={e => { e.stopPropagation(); setActiveCat(c); setPrevView("schedule"); setView("cat"); }}
+                              style={{ fontSize:10, padding:"3px 8px", borderRadius:20, background:catBg(c),
+                                color:catColor(c), border:`1px solid ${catBrd(c)}`, fontWeight:600, cursor:"pointer" }}>
+                              {CATS[c].emoji}
+                            </button>
+                          ))}
+                        </div>
+                        {hasWork && <span style={{ fontSize:16, color:`${P}80`, flexShrink:0, lineHeight:1 }}>›</span>}
+                      </div>
+                    );
+                  });
+                })()}
+              </>
+            )}
           </div>
         )}
 
         {schedTab==="calendar"&&(
-          <CalendarView completed={completed} P={P} S={S} BG={BG} SF={SF} bd={bd} lbl={lbl}/>
+          <CalendarView
+            completed={completed}
+            P={P}
+            S={S}
+            BG={BG}
+            SF={SF}
+            bd={bd}
+            lbl={lbl}
+            schedule={SCHEDULE}
+            programs={PROGRAMS}
+            enrolledPrograms={enrolledPrograms}
+            programProgress={programProgress}
+            cats={CATS}
+            allExercises={ALL_EXERCISES}
+            onOpenCategory={cat => { setActiveCat(cat); setPrevView("schedule"); setView("cat"); }}
+            onOpenExercise={ex => openDetail(ex, [ex])}
+          />
         )}
 
         {renderBottomNav()}

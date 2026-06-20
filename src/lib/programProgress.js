@@ -57,8 +57,17 @@ export function computeProgramProgress(program, programProgress) {
 /** Returns the current week number (1-indexed, capped at duration) for an enrolled program. */
 export function programCurrentWeek(startDate, duration) {
   if (!startDate) return 1;
-  const days = Math.floor((Date.now() - new Date(startDate + "T00:00:00").getTime()) / 86400000);
-  return Math.min(duration, Math.max(1, Math.floor(days / 7) + 1));
+  return programWeekForDate(startDate, duration, new Date().toLocaleDateString("en-CA")) ?? 1;
+}
+
+/** Week number (1-indexed) for an arbitrary calendar date within a program. */
+export function programWeekForDate(startDate, duration, dateStr) {
+  if (!startDate || !dateStr) return null;
+  const days = Math.floor(
+    (new Date(`${dateStr}T12:00:00`).getTime() - new Date(`${startDate}T00:00:00`).getTime()) / 86400000
+  );
+  if (days < 0) return null;
+  return Math.min(duration, Math.floor(days / 7) + 1);
 }
 
 /** Day index 0–6 within the current program week (0 = week start day). */
