@@ -1,6 +1,10 @@
 import { getSupabaseClient } from "./supabaseClient.js";
 import { isRealName } from "./settingsMerge.js";
 import { safePersistKey } from "./dataSafety.js";
+import { getLastUsername } from "./auth.js";
+import { normalizeProfileFields as normalizeFields } from "./profileFields.js";
+
+export { normalizeProfileFields } from "./profileFields.js";
 
 const GENERIC_PROFILE_NAMES = new Set(["champ", "hooper", "a friend"]);
 
@@ -9,45 +13,16 @@ const PROFILE_COLS = [
   "favorite_player", "favorite_current", "favorite_playlike", "position",
 ].join(", ");
 
+const IDENTITY_KEYS = [
+  "athleteName", "lastName", "dateOfBirth", "jerseyNumber",
+  "favoritePlayer", "favoriteAllTime", "favoriteCurrent", "favoritePlayLike",
+  "playStyle", "startDate",
+];
+
 export function titleCaseWord(word) {
   const w = String(word || "").trim();
   if (!w) return "";
   return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
-}
-
-/** Backfill split favorite fields from legacy favoritePlayer (Settings reads the split fields). */
-export function normalizeProfileFields(settings) {
-  const s = { ...(settings || {}) };
-  const legacy = String(s.favoritePlayer || "").trim();
-  const playLike = String(s.favoritePlayLike || "").trim();
-  const current = String(s.favoriteCurrent || "").trim();
-  const allTime = String(s.favoriteAllTime || "").trim();
-
-  if (legacy && !playLike && !current && !allTime) {
-    s.favoritePlayLike = legacy;
-    s.favoriteAllTime = legacy;
-  } else {
-    if (legacy && !allTime) s.favoriteAllTime = allTime || legacy;
-    if (legacy && !playLike) s.favoritePlayLike = playLike || legacy;
-  }
-
-  if (s.favoritePlayer === undefined) s.favoritePlayer = legacy;
-  if (s.favoriteAllTime === undefined) s.favoriteAllTime = s.favoritePlayer || "";
-  if (s.favoriteCurrent === undefined) s.favoriteCurrent = "";
-  if (s.favoritePlayLike === undefined) s.favoritePlayLike = "";
-  if (s.lastName === undefined) s.lastName = "";
-
-  return s;
-}
-
-/** Profile still missing a real name and/or split fields stored only in legacy keys. */
-export function needsProfileHydrate(settings) {
-  const s = normalizeProfileFields(settings || {});
-  if (!isRealName(s.athleteName)) return true;
-  const legacy = String(s.favoritePlayer || "").trim();
-  const splitFilled = [s.favoritePlayLike, s.favoriteAllTime, s.favoriteCurrent]
-    .some(v => String(v || "").trim());
-  return Boolean(legacy && !splitFilled);
 }
 
 export function settingsPatchFromDisplayName(displayName) {
@@ -62,6 +37,35 @@ export function settingsPatchFromDisplayName(displayName) {
   return patch;
 }
 
+function patchFromCloudSettings(cloudSettings) {
+  if (!cloudSettings || typeof cloudSettings !== "object") return {};
+  const normalized = normalizeFields(cloudSettings);
+  const patch = {};
+  for (const key of IDENTITY_KEYS) {
+    const val = normalized[key];
+    if (val == null || val === "") continue;
+    if (key === "athleteName" && !isRealName(val)) continue;
+    patch[key] = val;
+  }
+  return patch;
+}
+
+function mergePatches(...patches) {
+  const out = {};
+  for (const patch of patches) {
+    if (!patch) continue;
+    for (const [key, val] of Object.entries(patch)) {
+      if (val == null || val === "") continue;
+      if (key === "athleteName") {
+        if (!isRealName(out.athleteName) && isRealName(val)) out.athleteName = val;
+      } else if (!out[key] || (typeof out[key] === "string" && !String(out[key]).trim())) {
+        out[key] = val;
+      }
+    }
+  }
+  return out;
+}
+
 export function settingsPatchFromAthleteProfileRow(row, username) {
   const patch = row ? settingsPatchFromDisplayName(row.display_name) : {};
   if (row?.date_of_birth) patch.dateOfBirth = row.date_of_birth;
@@ -73,15 +77,17 @@ export function settingsPatchFromAthleteProfileRow(row, username) {
     if (!patch.favoriteAllTime) patch.favoriteAllTime = row.favorite_player;
   }
   if (row?.position && row.position !== "any") patch.playStyle = row.position;
-  if (!patch.athleteName && username && !GENERIC_PROFILE_NAMES.has(String(username).toLowerCase())) {
-    patch.athleteName = titleCaseWord(username);
+
+  const nameHint = username || getLastUsername();
+  if (!patch.athleteName && nameHint && !GENERIC_PROFILE_NAMES.has(String(nameHint).toLowerCase())) {
+    patch.athleteName = titleCaseWord(nameHint);
   }
   return patch;
 }
 
 /** Fill only empty profile fields — never clobber local edits. */
 export function mergeProfilePatch(settings, patch) {
-  const base = normalizeProfileFields(settings || {});
+  const base = normalizeFields(settings || {});
   if (!patch || !Object.keys(patch).length) return base;
 
   const out = { ...base };
@@ -98,32 +104,81 @@ export function mergeProfilePatch(settings, patch) {
       out[key] = val;
     }
   }
-  return normalizeProfileFields(out);
+  return normalizeFields(out);
+}
+
+async function fetchAthleteProfileRow(userId) {
+  const sb = getSupabaseClient();
+  if (!sb || !userId) return null;
+
+  let { data: row, error } = await sb
+    .from("athlete_profiles")
+    .select(PROFILE_COLS)
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (!row && !error) {
+    ({ data: row, error } = await sb
+      .from("athlete_profiles")
+      .select(PROFILE_COLS)
+      .eq("user_id", userId)
+      .maybeSingle());
+  }
+
+  if (error) console.warn("[fkh] athlete_profiles fetch failed", error.message);
+  return row;
+}
+
+async function fetchCloudSaveSettingsPatch(userId) {
+  const sb = getSupabaseClient();
+  if (!sb || !userId) return {};
+
+  const { data, error } = await sb
+    .from("athlete_save")
+    .select("payload")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("[fkh] athlete_save identity fetch failed", error.message);
+    return {};
+  }
+  return patchFromCloudSettings(data?.payload?.s_settings);
 }
 
 export async function fetchAthleteProfilePatch(userId) {
   const sb = getSupabaseClient();
   if (!sb || !userId) return {};
 
-  const { data: row } = await sb
-    .from("athlete_profiles")
-    .select(PROFILE_COLS)
-    .eq("id", userId)
-    .maybeSingle();
+  const [row, savePatch] = await Promise.all([
+    fetchAthleteProfileRow(userId),
+    fetchCloudSaveSettingsPatch(userId),
+  ]);
 
   let username = null;
   if (!row || !settingsPatchFromDisplayName(row?.display_name).athleteName) {
     const { data: authData } = await sb.auth.getUser();
-    username = authData?.user?.user_metadata?.username || null;
+    username = authData?.user?.user_metadata?.username || getLastUsername() || null;
   }
 
-  return settingsPatchFromAthleteProfileRow(row, username);
+  const profilePatch = settingsPatchFromAthleteProfileRow(row, username);
+  return mergePatches(savePatch, profilePatch);
 }
 
-/** Pull cloud athlete_profiles into settings object (no page refresh). */
+/** Profile still missing a real name and/or split fields stored only in legacy keys. */
+export function needsProfileHydrate(settings) {
+  const s = normalizeFields(settings || {});
+  if (!isRealName(s.athleteName)) return true;
+  const legacy = String(s.favoritePlayer || "").trim();
+  const splitFilled = [s.favoritePlayLike, s.favoriteAllTime, s.favoriteCurrent]
+    .some(v => String(v || "").trim());
+  return Boolean(legacy && !splitFilled);
+}
+
+/** Pull cloud athlete_profiles + athlete_save into settings object (no page refresh). */
 export async function hydrateSettingsFromCloudProfile(userId, settings) {
-  if (!userId) return normalizeProfileFields(settings);
-  const normalized = normalizeProfileFields(settings);
+  if (!userId) return normalizeFields(settings);
+  const normalized = normalizeFields(settings);
   const needsCloud = !isRealName(normalized.athleteName) || needsProfileHydrate(normalized);
   if (!needsCloud) return normalized;
   const patch = await fetchAthleteProfilePatch(userId);
@@ -133,6 +188,7 @@ export async function hydrateSettingsFromCloudProfile(userId, settings) {
 /** Persist hydrated settings when identity fields were filled in. */
 export function persistHydratedSettings(next, prev) {
   if (!next || JSON.stringify(next) === JSON.stringify(prev)) return false;
-  safePersistKey("s_settings", next);
+  const force = isRealName(next.athleteName) && !isRealName(prev?.athleteName);
+  safePersistKey("s_settings", next, { force });
   return true;
 }

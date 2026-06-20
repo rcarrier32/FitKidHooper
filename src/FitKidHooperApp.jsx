@@ -5317,21 +5317,19 @@ export default function FitKidHooperApp() {
 
   const hydrateProfileIntoState = useCallback(async (userId) => {
     if (!userId) return;
-    const current = loadSettingsFromStorage(DEFAULT);
-    const hydrated = await hydrateSettingsFromCloudProfile(userId, current);
-    if (JSON.stringify(hydrated) === JSON.stringify(current)) return;
-    persistHydratedSettings(hydrated, current);
-    setSettings(withStoredAvatar(migrateThemeSettings(hydrated)));
+    const stored = loadSettingsFromStorage(DEFAULT);
+    const hydrated = await hydrateSettingsFromCloudProfile(userId, stored);
+    const next = withStoredAvatar(migrateThemeSettings(hydrated));
+    persistHydratedSettings(next, stored);
+    setSettings(prev => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
   }, []);
 
   const applyCloudSync = useCallback(async () => {
     const result = await auth.syncNow();
-    if (result?.ok) {
-      persistProgramProgressRecovery();
-      reloadAthleteStateFromStorage();
-      await hydrateProfileIntoState(auth.user?.id);
-      refreshSquadNotifications();
-    }
+    persistProgramProgressRecovery();
+    reloadAthleteStateFromStorage();
+    if (auth.user?.id) await hydrateProfileIntoState(auth.user.id);
+    if (result?.ok) refreshSquadNotifications();
     return result;
   }, [auth.syncNow, auth.user?.id, reloadAthleteStateFromStorage, hydrateProfileIntoState, refreshSquadNotifications]);
   const [reportPeriod, setReportPeriod] = useState("30d");
@@ -6024,19 +6022,21 @@ export default function FitKidHooperApp() {
     if (!auth.isSignedIn) return;
     let cancelled = false;
     (async () => {
-      const result = await applyCloudSync();
-      if (cancelled || !result?.ok) return;
+      await applyCloudSync();
+      if (cancelled) return;
     })();
     return () => { cancelled = true; };
   }, [auth.isSignedIn, applyCloudSync]);
 
-  // Fill blank Settings fields from cloud profile without any page refresh.
+  // Normalize legacy profile fields when Settings opens.
   useEffect(() => {
-    if (auth.loading || !auth.isSignedIn || !auth.user?.id) return;
-    let cancelled = false;
-    hydrateProfileIntoState(auth.user.id).catch(() => {});
-    return () => { cancelled = true; };
-  }, [auth.loading, auth.isSignedIn, auth.user?.id, hydrateProfileIntoState]);
+    if (!showSettings) return;
+    setSettings(prev => {
+      const next = withStoredAvatar(migrateThemeSettings(normalizeProfileFields(prev)));
+      return JSON.stringify(next) === JSON.stringify(prev) ? prev : next;
+    });
+    if (auth.isSignedIn && auth.user?.id) hydrateProfileIntoState(auth.user.id).catch(() => {});
+  }, [showSettings, auth.isSignedIn, auth.user?.id, hydrateProfileIntoState]);
 
   // Auto-sync the leaderboard on app open / sign-in (not just when Boards is
   // opened). Self-throttled to ~30 min, so it's cheap to fire here.

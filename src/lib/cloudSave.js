@@ -9,7 +9,7 @@ import { isAuthConfigured } from "./auth.js";
 import { scorePayload, isSubstantialPayload } from "./payloadScore.js";
 import { snapshotLocalBackup } from "./syncBackup.js";
 import { wouldRegressPayload } from "./dataSafety.js";
-import { isDefaultAthleteProfile } from "./settingsMerge.js";
+import { isDefaultAthleteProfile, needsCloudIdentityRestore } from "./settingsMerge.js";
 import {
   fetchAthleteProfilePatch,
   mergeProfilePatch,
@@ -109,8 +109,8 @@ export async function pullCloudSave(userId) {
 
   if (localMeta.version > data.version && !cloudIsMuchRicher(cloudScore, localScore)) {
     const cloudHasIdentity = !isDefaultAthleteProfile(data.payload?.s_settings);
-    const localProfileDefault = isDefaultAthleteProfile(local.s_settings);
-    if (!(localProfileDefault && cloudHasIdentity)) {
+    const localNeedsIdentity = needsCloudIdentityRestore(local.s_settings, data.payload?.s_settings);
+    if (!(localNeedsIdentity && cloudHasIdentity)) {
       return { ok: true, skipped: true, reason: "local_newer", remote: data };
     }
   }
@@ -182,10 +182,10 @@ export async function syncCloudSave(userId) {
       return { ...pushResult, direction: "push_only" };
     }
 
-    const localProfileDefault = isDefaultAthleteProfile(local.s_settings);
+    const localNeedsIdentity = needsCloudIdentityRestore(local.s_settings, cloudPayload?.s_settings);
     const cloudHasIdentity = cloudPayload && !isDefaultAthleteProfile(cloudPayload.s_settings);
 
-    if (localScore === 0 || cloudIsMuchRicher(cloudScore, localScore) || (localProfileDefault && cloudHasIdentity)) {
+    if (localScore === 0 || cloudIsMuchRicher(cloudScore, localScore) || (localNeedsIdentity && cloudHasIdentity)) {
       const restored = mergeCanonicalPayloads(local, cloudPayload);
       await writeMergedPayload(sb, userId, restored);
       setLocalCloudMeta(data.version, data.updated_at);

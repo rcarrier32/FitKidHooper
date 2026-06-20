@@ -11,6 +11,26 @@ export function isRealName(name) {
   return n.length > 0 && n !== DEFAULT_ATHLETE_NAME;
 }
 
+function hasFavoriteIdentity(s) {
+  return [
+    s?.favoritePlayLike,
+    s?.favoriteAllTime,
+    s?.favoriteCurrent,
+    s?.favoritePlayer,
+  ].some(v => String(v ?? "").trim());
+}
+
+/** Cloud should win identity fields when local still has the factory name or blank profile. */
+export function needsCloudIdentityRestore(local, cloud) {
+  const l = local || {};
+  const c = cloud || {};
+  if (!c || typeof c !== "object") return false;
+  if (isDefaultAthleteProfile(l) && !isDefaultAthleteProfile(c)) return true;
+  if (!isRealName(l.athleteName) && isRealName(c.athleteName)) return true;
+  if (!hasFavoriteIdentity(l) && hasFavoriteIdentity(c)) return true;
+  return false;
+}
+
 /** True when profile is still the factory shell (Champ + no identity filled in). */
 export function isDefaultAthleteProfile(settings) {
   const s = settings || {};
@@ -66,7 +86,7 @@ export function mergeUserSettings(local, cloud) {
   const l = local || {};
   const c = cloud || {};
 
-  if (isDefaultAthleteProfile(l) && !isDefaultAthleteProfile(c)) {
+  if (needsCloudIdentityRestore(l, c)) {
     const merged = { ...l, ...c };
     merged.athleteName = pickAthleteName(l, c);
     merged.lastName = pickFilled(c.lastName, l.lastName);
