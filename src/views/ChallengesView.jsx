@@ -22,6 +22,7 @@ export default function ChallengesView({
   onAddFriends,
   focusFriendsTick,
   onPushSuccess,
+  questsPanel,
   shellOverlays,
   renderBottomNav,
 }) {
@@ -36,7 +37,10 @@ export default function ChallengesView({
         </div>
       </div>
 
+      {questsPanel}
+
       <BoardView
+        modes={["challenges", "rankings"]}
         settings={settings}
         completed={completed}
         missionLog={missionLog}

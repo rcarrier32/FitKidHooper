@@ -78,6 +78,8 @@ import {
 } from "./lib/themeColors.js";
 import HelpSheet from "./components/HelpSheet.jsx";
 import AppMapSheet from "./components/AppMapSheet.jsx";
+import BoardView from "./components/BoardView.jsx";
+import ProgressionView from "./components/ProgressionView.jsx";
 import ProgramWeekStrip from "./components/ProgramWeekStrip.jsx";
 import { CHALLENGES_DEF, getChallengeProgress, buildPersonalChallenges } from "./lib/personalChallenges.js";
 import {
@@ -6004,6 +6006,27 @@ export default function FitKidHooperApp() {
           const ex = ALL_EXERCISES[exId];
           if (ex) openDetail({ ...ex, meta: EXERCISE_META[exId] || {} }, []);
         }}
+        friendsPanel={
+          <BoardView
+            modes={["friends"]}
+            settings={settings}
+            completed={completed}
+            missionLog={missionLog}
+            getCategory={getExerciseCategory}
+            earnedBadges={earnedBadges}
+            ledger={ledger}
+            personalChallenges={personalChallenges}
+            currentLevel={currentLevel}
+            xpData={xpData}
+            P={P} BG={BG} SF={SF} bd={bd} lbl={lbl}
+            initialInviteCode={inviteCode}
+            isSignedIn={auth.isSignedIn}
+            onOpenAuth={() => setShowAuth(true)}
+            onAddFriends={focusChallengesFriends}
+            focusFriendsTick={friendsFocusTick}
+            onPushSuccess={() => setPushError(null)}
+          />
+        }
         renderBottomNav={renderBottomNav}
       />
     );
@@ -6044,6 +6067,27 @@ export default function FitKidHooperApp() {
         onPushSuccess={() => setPushError(null)}
         shellOverlays={shellOverlays}
         renderBottomNav={renderBottomNav}
+        questsPanel={
+          <div style={{ padding:"14px 18px 0" }}>
+            <div style={{ fontSize:13, fontWeight:800, color:P, marginBottom:8 }}>⭐ Legend Quests</div>
+            <ProgressionView
+              tab="journeys"
+              settings={settings}
+              ledgerIds={ledgerSet}
+              ledger={ledger}
+              ctx={progressCtx}
+              P={P}
+              benchmarkPBs={benchmarkPBs}
+              onLogBenchmark={handleLogBenchmark}
+              onEquipTitle={handleEquipTitle}
+              onEquipCosmetic={handleEquipCosmetic}
+              onUnequipSlot={handleUnequipSlot}
+              allExercises={ALL_EXERCISES}
+              onOpenExercise={exId => { const ex = ALL_EXERCISES[exId]; if (ex) openDetail({ ...ex, meta: EXERCISE_META[exId] || {} }, []); }}
+              onOpenPlayerHighlight={openPlayerHighlight}
+            />
+          </div>
+        }
       />
     );
   }
@@ -6506,7 +6550,7 @@ export default function FitKidHooperApp() {
           case "shots": setView("shots"); break;
           case "programs": setView("programs"); break;
           case "boards": setView("boards"); break;
-          case "paths": setView("progress"); setProgressTab("journeys"); break;
+          case "paths": setView("boards"); break;
           case "progress": setView("progress"); setProgressTab("overview"); break;
           case "badges": setView("progress"); setProgressTab("locker"); break;
           case "stats": setView("progress"); setProgressTab("stats"); break;
@@ -6617,7 +6661,7 @@ export default function FitKidHooperApp() {
         workoutTemplates={WORKOUT_TEMPLATES}
         searchExercises={searchExercises}
         onPickCategory={(cat) => { setActiveCat(cat); setPrevView("home"); setView("cat"); }}
-        onOpenPath={() => { setView("progress"); setProgressTab("journeys"); }}
+        onOpenPath={() => setView("boards")}
         onSetFavorite={() => setShowSettings(true)}
         onOpenPlayerHighlight={openPlayerHighlight}
         onFocusFriends={focusChallengesFriends}

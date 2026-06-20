@@ -56,11 +56,12 @@ export default function MeView({
   onLogHeight,
   onOpenPlayerHighlight,
   onOpenExercise,
+  friendsPanel,
   renderBottomNav,
 }) {
   const subTabs = [
     { id:"overview", label:"Overview" },
-    { id:"journeys", label:"Path" },
+    { id:"friends",  label:"👋 Friends" },
     { id:"skills",   label:"Skills" },
     { id:"locker",   label:"🏅 Badges" },
     { id:"stats",    label:"Stats" },
@@ -149,7 +150,9 @@ export default function MeView({
         </div>
       )}
 
-      {progressTab !== "stats" && progressTab !== "overview" && (
+      {progressTab === "friends" && friendsPanel}
+
+      {progressTab !== "stats" && progressTab !== "overview" && progressTab !== "friends" && (
         <ProgressionView
           tab={progressTab}
           settings={settings}

@@ -15,7 +15,8 @@ export default function HelpSheet({ P, SF, onClose, onOpenMap }) {
     { e:"📋", t:"Follow a program",   d:"Programs are multi-week plans like Jump Higher. Open one, tap Start Program, and follow it session by session — your progress saves on its own, and finishing earns a badge." },
     { e:"🏅", t:"Earn XP & badges",   d:"Training and making shots earns XP and levels you up from Rookie to Elite Hooper. Collect badges on Me → 📈 Progress → Badges — locked ones show exactly what to do to earn them." },
     { e:"⭐", t:"Climb your path",     d:"Pick who you play like and you'll follow a legend path on Today. Each rank needs both reps AND signature moves — your Path shows the exact drills (like crossovers) to do next. Tap a move to open it." },
-    { e:"👥", t:"Add friends",         d:"On Boards, type a friend's username and tap Add — they confirm the request. Or share a friend code. See your friends' wins in the Feed and cheer them on with reactions and comments (use @name to ping them)." },
+    { e:"👥", t:"Add friends",         d:"Type a friend's username and tap Add — they confirm the request. Or share a friend code. Then see their wins in the Feed and cheer them on with reactions and comments." },
+    { e:"💬", t:"Message a friend",    d:"Open a friend's profile and tap 💬 Message to start a private chat. You can also @mention a friend in a feed comment (type @ and their username) — they get a notification." },
     { e:"🔔", t:"Turn on reminders",   d:"In Settings → Reminders, switch on nudges for your daily mission, streak, and friend activity. Every kind is on by default — uncheck any you don't want." },
     { e:"☁️", t:"Sign in to sync",     d:"Make an account (username + 6-digit passcode) in Settings to back up your progress, keep it across devices, and add friends." },
   ];

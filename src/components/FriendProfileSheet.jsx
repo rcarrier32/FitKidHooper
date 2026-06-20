@@ -17,6 +17,7 @@ export default function FriendProfileSheet({
   BG = "#0b1220",
   bd = "rgba(255,255,255,0.08)",
   onClose,
+  onMessage,
 }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -80,7 +81,14 @@ export default function FriendProfileSheet({
           <span style={{ flex: 1, textAlign: "center", fontSize: 12, fontWeight: 700, color: `${P}cc` }}>
             Friend Profile
           </span>
-          <div style={{ width: 72 }} />
+          {onMessage ? (
+            <button type="button" onClick={() => onMessage({ id: athleteId, name: profile?.displayName })} style={{
+              padding: "6px 12px", borderRadius: 8, border: "none",
+              background: P, color: "#000", fontSize: 12, fontWeight: 800, cursor: "pointer",
+            }}>
+              💬 Message
+            </button>
+          ) : <div style={{ width: 72 }} />}
         </div>
 
         <div style={{ flex: 1, overflowY: "auto", WebkitOverflowScrolling: "touch", padding: "16px 18px 28px" }}>

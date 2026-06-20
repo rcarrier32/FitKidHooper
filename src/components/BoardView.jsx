@@ -25,6 +25,7 @@ import AthleteCard from "./AthleteCard.jsx";
 import FeedView from "./FeedView.jsx";
 import FriendAvatar from "./FriendAvatar.jsx";
 import FriendProfileSheet from "./FriendProfileSheet.jsx";
+import MessagesSheet from "./MessagesSheet.jsx";
 import ChallengesActivePanel from "./ChallengesActivePanel.jsx";
 import { fetchProfileSnippets, profileSnippet } from "../lib/friendProfileApi.js";
 import { getAchievementMeta } from "../lib/achievements.js";
@@ -65,10 +66,12 @@ export default function BoardView({
   initialInviteCode,
   isSignedIn,
   onOpenAuth,
+  modes = ["challenges", "friends", "rankings"],
 }) {
   const myAgeGroup = getAgeGroup(settings.dateOfBirth);
   const friendsPanelRef = useRef(null);
-  const [mode, setMode] = useState("challenges"); // challenges | friends | rankings
+  const [mode, setMode] = useState(modes[0]); // which of: challenges | friends | rankings
+  const [messageFriend, setMessageFriend] = useState(null); // { id, name } → open chat
   const [boardType, setBoardType] = useState("age_group");
   const [ageGroup, setAgeGroup] = useState(myAgeGroup);
   const [period, setPeriod] = useState("week");
@@ -128,7 +131,7 @@ export default function BoardView({
   }, [mode, athleteId, configured, requests.length]);
 
   useEffect(() => {
-    if (!focusFriendsTick) return;
+    if (!focusFriendsTick || !modes.includes("friends")) return;
     setMode("friends");
     const timer = setTimeout(() => {
       friendsPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -174,7 +177,7 @@ export default function BoardView({
   useEffect(() => { syncAndLoad(); }, [syncAndLoad]);
 
   useEffect(() => {
-    if (initialInviteCode && athleteId) {
+    if (initialInviteCode && athleteId && modes.includes("friends")) {
       setInviteInput(initialInviteCode);
       setMode("friends");
     }
@@ -266,16 +269,20 @@ export default function BoardView({
         P={P}
       />
 
-      <div style={{ display: "flex", gap: 6, margin: "14px 0 0" }}>
-        {[["challenges", "🎯 Challenges"], ["friends", "👋 Friends"], ["rankings", "🏆 Rankings"]].map(([m, label]) => (
-          <button key={m} onClick={() => setMode(m)} style={{
-            flex: 1, padding: "9px 4px", borderRadius: 10, fontSize: 11, fontWeight: 800, cursor: "pointer",
-            border: `1px solid ${mode === m ? P : bd}`,
-            background: mode === m ? `${P}18` : "transparent",
-            color: mode === m ? P : "#64748b",
-          }}>{label}</button>
-        ))}
-      </div>
+      {modes.length > 1 && (
+        <div style={{ display: "flex", gap: 6, margin: "14px 0 0" }}>
+          {[["challenges", "🎯 Challenges"], ["friends", "👋 Friends"], ["rankings", "🏆 Rankings"]]
+            .filter(([m]) => modes.includes(m))
+            .map(([m, label]) => (
+            <button key={m} onClick={() => setMode(m)} style={{
+              flex: 1, padding: "9px 4px", borderRadius: 10, fontSize: 11, fontWeight: 800, cursor: "pointer",
+              border: `1px solid ${mode === m ? P : bd}`,
+              background: mode === m ? `${P}18` : "transparent",
+              color: mode === m ? P : "#64748b",
+            }}>{label}</button>
+          ))}
+        </div>
+      )}
 
       {mode === "challenges" ? (
         <div style={{ marginTop: 12 }}>
@@ -661,6 +668,16 @@ export default function BoardView({
           BG={BG || "#0b1220"}
           bd={bd}
           onClose={() => setFriendProfileId(null)}
+          onMessage={f => { setFriendProfileId(null); setMessageFriend(f); }}
+        />
+      )}
+      {messageFriend && (
+        <MessagesSheet
+          P={P}
+          SF={SF}
+          bd={bd}
+          initialFriend={messageFriend}
+          onClose={() => setMessageFriend(null)}
         />
       )}
     </div>
