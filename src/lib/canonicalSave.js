@@ -3,9 +3,10 @@
  *
  * FOUNDATION RULE: any new system that persists athlete state (Challenges,
  * Community Feed, Athlete Store, Mastery, …) MUST register its localStorage
- * key here. Do not build a parallel save/sync path — if a key is not listed,
- * it silently won't back up or sync to the cloud, and the data will be lost on
- * a new device. Add the key, and it is covered everywhere automatically.
+ * key here. Do not build a parallel save/sync path.
+ *
+ * DATA SAFETY RULE: nothing in this module may delete or shrink athlete data.
+ * All writes merge forward; regressions are blocked (see dataSafety.js).
  */
 export const CANONICAL_SAVE_KEYS = [
   "s_settings",
@@ -42,6 +43,11 @@ import {
   writeStoredAvatar,
   stripAvatarForCloud,
 } from "./avatarStorage.js";
+import { mergeUserSettings } from "./settingsMerge.js";
+import { mergeSaveValue } from "./persistMerge.js";
+import { safePersistKey, wouldRegressPayload, snapshotAthleteBackup } from "./dataSafety.js";
+
+export { mergeSaveValue };
 
 export function stripAvatarFromSettings(settings) {
   return stripAvatarForCloud(settings);
@@ -61,55 +67,33 @@ export function exportCanonicalSave() {
 
 export function importCanonicalSave(data, { mergeSettings = true } = {}) {
   if (!data || typeof data !== "object") throw new Error("Invalid backup");
+  const existing = readCanonicalPayload();
+  snapshotAthleteBackup(existing);
   for (const k of CANONICAL_SAVE_KEYS) {
     if (data[k] == null) continue;
-    try {
-      localStorage.setItem(k, JSON.stringify(data[k]));
-    } catch {}
+    const val = k === "s_settings" && mergeSettings
+      ? mergeUserSettings(data[k], existing[k] || {})
+      : mergeSaveValue(existing[k], data[k]);
+    safePersistKey(k, val, { force: true });
   }
   if (mergeSettings && data.s_settings) {
     try {
       const avatar = data["fkh-avatar"] || data.s_settings.avatar || readStoredAvatar();
       if (avatar) {
-        data.s_settings = { ...data.s_settings, avatar };
         writeStoredAvatar(avatar);
+        const s = JSON.parse(localStorage.getItem("s_settings") || "{}");
+        safePersistKey("s_settings", { ...s, avatar }, { force: true });
       }
       delete data.s_settings._avatarLocal;
     } catch {}
   }
 }
 
-function isPlainObject(v) {
-  return v != null && typeof v === "object" && !Array.isArray(v);
-}
-
-/**
- * Conservative, additive merge of two values. This app's athlete state only ever
- * grows (completions, shot logs, badges, counters), so we never delete — we keep
- * the superset. Never corrupts shape: objects union their keys, primitive arrays
- * set-union, object arrays keep the longer, numbers take the max, and anything
- * else prefers the local device's value.
- */
 function mergeValue(local, cloud) {
-  if (local === undefined || local === null) return cloud;
-  if (cloud === undefined || cloud === null) return local;
-  if (Array.isArray(local) && Array.isArray(cloud)) {
-    const allPrimitive = [...local, ...cloud].every(x => x === null || typeof x !== "object");
-    if (allPrimitive) return Array.from(new Set([...local, ...cloud]));
-    return local.length >= cloud.length ? local : cloud;
-  }
-  if (isPlainObject(local) && isPlainObject(cloud)) {
-    const out = { ...cloud };
-    for (const k of Object.keys(local)) out[k] = mergeValue(local[k], cloud[k]);
-    return out;
-  }
-  if (typeof local === "number" && typeof cloud === "number") return Math.max(local, cloud);
-  return local;
+  return mergeSaveValue(local, cloud);
 }
 
-// Settings are preferences, not accumulative progress. Keep the device that has a
-// real (non-default) name; fall back to whichever exists. Avoids a fresh device's
-// defaults clobbering the real profile, and vice-versa.
+// Settings use field-level merge in settingsMerge.js.
 function readRawSaveValue(k) {
   const raw = localStorage.getItem(k);
   if (raw == null) return undefined;
@@ -121,15 +105,13 @@ function readRawSaveValue(k) {
   }
 }
 
-function writeRawSaveValue(k, value) {
-  if (value == null) return;
+function writeRawSaveValue(k, value, { force = false } = {}) {
+  if (value == null && k !== "fkh-avatar") return;
   if (k === "fkh-avatar") {
     writeStoredAvatar(typeof value === "string" ? value : null);
     return;
   }
-  try {
-    localStorage.setItem(k, JSON.stringify(value));
-  } catch {}
+  safePersistKey(k, value, { force });
 }
 
 function readLocalSettingsForMerge() {
@@ -141,15 +123,7 @@ function readLocalSettingsForMerge() {
 }
 
 function mergeSettings(local, cloud) {
-  const avatar = local?.avatar || cloud?.avatar || readStoredAvatar() || null;
-  const named = s => s && s.athleteName && s.athleteName !== "Champ";
-  let merged;
-  if (named(local)) merged = { ...(cloud || {}), ...local };
-  else if (named(cloud)) merged = { ...(local || {}), ...cloud };
-  else merged = local || cloud || null;
-  if (merged && avatar) merged.avatar = avatar;
-  if (merged?._avatarLocal) delete merged._avatarLocal;
-  return merged;
+  return mergeUserSettings(local, cloud);
 }
 
 /** Merge a local canonical payload with a cloud one — superset, no data loss. */
@@ -188,20 +162,29 @@ export function readCanonicalPayload({ forCloudUpload = false } = {}) {
   return payload;
 }
 
-export function writeCanonicalPayload(payload) {
+export function writeCanonicalPayload(payload, { force = false } = {}) {
   if (!payload) return;
+  snapshotAthleteBackup(existing);
+  const existing = readCanonicalPayload();
+  if (!force && wouldRegressPayload(payload, existing)) {
+    console.warn("[fkh] Blocked canonical write — would lose athlete data");
+    return;
+  }
   const avatar = payload["fkh-avatar"]
     || payload.s_settings?.avatar
     || readStoredAvatar();
   for (const k of CANONICAL_SAVE_KEYS) {
     if (payload[k] == null) continue;
-    writeRawSaveValue(k, payload[k]);
+    const merged = k === "s_settings"
+      ? mergeSettings(readLocalSettingsForMerge(), payload[k])
+      : mergeSaveValue(readRawSaveValue(k), payload[k]);
+    writeRawSaveValue(k, merged, { force: true });
   }
   if (avatar) {
     writeStoredAvatar(avatar);
     try {
       const s = JSON.parse(localStorage.getItem("s_settings") || "{}");
-      localStorage.setItem("s_settings", JSON.stringify({ ...s, avatar }));
+      safePersistKey("s_settings", { ...s, avatar }, { force: true });
     } catch {}
   }
 }

@@ -181,6 +181,19 @@ export function consumeInviteDeepLink() {
   return null;
 }
 
+/** Open Me → Friends → Messages inbox (from push notification tap). */
+export function consumeMessagesDeepLink() {
+  if (typeof window === "undefined") return false;
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("messages") !== "1" && params.get("view") !== "messages" && params.get("view") !== "me") return false;
+  params.delete("messages");
+  params.delete("view");
+  const qs = params.toString();
+  const path = window.location.pathname + (qs ? `?${qs}` : "");
+  window.history.replaceState({}, "", path);
+  return true;
+}
+
 /** Schedule a one-shot evening reminder if mission incomplete (call once per session). */
 export function scheduleMissionReminder({ missionComplete, missionTitle, athleteName, hour = 18 } = {}) {
   if (missionComplete || !getNotificationPref()) return;

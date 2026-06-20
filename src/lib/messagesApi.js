@@ -23,8 +23,16 @@ export async function fetchThread(otherId, limit = 100) {
   const sb = getSupabaseClient();
   if (!sb || !otherId) return [];
   const { data, error } = await sb.rpc("fetch_thread", { p_other: otherId, p_limit: limit });
-  if (error) return [];
-  return data || [];
+  if (error) {
+    console.warn("[messages] fetch_thread:", error.message);
+    return [];
+  }
+  return rpcRows(data);
+}
+
+function rpcRows(data) {
+  if (Array.isArray(data)) return data;
+  return [];
 }
 
 /** Inbox: one row per friend with the latest message + unread count. */
@@ -33,8 +41,11 @@ export async function listMessageThreads() {
   const sb = getSupabaseClient();
   if (!sb) return [];
   const { data, error } = await sb.rpc("list_message_threads");
-  if (error) return [];
-  return data || [];
+  if (error) {
+    console.warn("[messages] list_message_threads:", error.message);
+    return [];
+  }
+  return rpcRows(data);
 }
 
 /** Total unread messages — for a nav/tab badge. */
@@ -43,6 +54,9 @@ export async function unreadMessageCount() {
   const sb = getSupabaseClient();
   if (!sb) return 0;
   const { data, error } = await sb.rpc("unread_message_count");
-  if (error) return 0;
-  return data || 0;
+  if (error) {
+    console.warn("[messages] unread_message_count:", error.message);
+    return 0;
+  }
+  return typeof data === "number" ? data : 0;
 }

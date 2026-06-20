@@ -4,6 +4,7 @@ import HomeCollapsibleSection from "../components/HomeCollapsibleSection.jsx";
 import ShootingCard from "../components/ShootingCard.jsx";
 import GrowthCard from "../components/GrowthCard.jsx";
 import HelpSheet from "../components/HelpSheet.jsx";
+import CountBadge from "../components/CountBadge.jsx";
 import { getStreak, getTrainingDays } from "../lib/progressStats.js";
 
 export default function MeView({
@@ -42,6 +43,7 @@ export default function MeView({
   ProgressStatsPanel,
   onOpenSettings,
   onShowHelp,
+  onReplayTour,
   onViewHistory,
   onOpenSchedule,
   onViewReport,
@@ -58,6 +60,7 @@ export default function MeView({
   onOpenExercise,
   friendsPanel,
   renderBottomNav,
+  unreadMessages = 0,
 }) {
   const subTabs = [
     { id:"overview", label:"Overview" },
@@ -79,10 +82,13 @@ export default function MeView({
   return (
     <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"var(--fkh-text)",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
       {shellOverlays}
-      {showHelp && <HelpSheet P={P} SF={SF} onClose={onCloseHelp} />}
+      {showHelp && <HelpSheet P={P} SF={SF} onClose={onCloseHelp} onReplayTour={onReplayTour} />}
 
       <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 20px",borderBottom:`1px solid ${P}14`,position:"sticky",top:0,background:BG,backdropFilter:"blur(10px)",zIndex:10 }}>
-        <h1 style={{ fontSize:16,fontWeight:800,margin:0,color:P }}>⭐ Me</h1>
+        <h1 style={{ fontSize:16,fontWeight:800,margin:0,color:P,display:"flex",alignItems:"center",gap:8 }}>
+          ⭐ Me
+          {unreadMessages > 0 && <CountBadge count={unreadMessages} P={P} />}
+        </h1>
         <div style={{ display:"flex",gap:8 }}>
           <button onClick={onShowHelp}
             style={{ background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:8,color:"var(--fkh-text-muted)",fontSize:12,fontWeight:700,cursor:"pointer",padding:"5px 10px" }}>
@@ -102,7 +108,11 @@ export default function MeView({
             border:`1px solid ${progressTab===t.id?P:bd}`,
             background:progressTab===t.id?`${P}20`:"transparent",
             color:progressTab===t.id?P:"#64748b",
-          }}>{t.label}</button>
+            display:"inline-flex",alignItems:"center",gap:6,
+          }}>
+            <span>{t.label}</span>
+            {t.id === "friends" && unreadMessages > 0 && <CountBadge count={unreadMessages} P={P} />}
+          </button>
         ))}
       </div>
 

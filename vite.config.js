@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       includeAssets: ['favicon.svg'],
       manifest: {
         name: 'Fit Kid Hooper',
@@ -35,7 +35,7 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,json}'],
         clientsClaim: true,
-        skipWaiting: true,
+        skipWaiting: false,
         navigateFallback: 'index.html',
         // Web push handlers (push + notificationclick) folded into the SW.
         importScripts: ['push-sw.js'],

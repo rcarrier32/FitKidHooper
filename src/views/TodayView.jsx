@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import WarmUpCard from "../components/WarmUpCard.jsx";
 import ProgressRail from "../components/ProgressRail.jsx";
 import ChallengeStrip from "../components/ChallengeStrip.jsx";
@@ -23,6 +24,16 @@ function chipStyle(settings, selected, accent) {
 function actionBtnStyle(settings) {
   const b = btn(settings);
   return { background:`${b}2e`, border:`1px solid ${b}66`, color:textMuted(settings) };
+}
+
+const DEFAULT_HOME_OPEN = { mission: true, programs: true, legends: true, squad: true };
+
+function loadHomeOpen() {
+  try {
+    const raw = localStorage.getItem("fkh-home-sections");
+    if (raw) return { ...DEFAULT_HOME_OPEN, ...JSON.parse(raw) };
+  } catch { /* ignore */ }
+  return { ...DEFAULT_HOME_OPEN };
 }
 
 export default function TodayView({
@@ -88,6 +99,20 @@ export default function TodayView({
   requiredTasksDone,
 }) {
   const homeLbl = { fontFamily:"'DM Mono',monospace", fontSize:12, letterSpacing:"0.13em", color:P, fontWeight:800, marginBottom:10, textTransform:"uppercase" };
+  const [homeOpen, setHomeOpen] = useState(loadHomeOpen);
+
+  useEffect(() => {
+    try { localStorage.setItem("fkh-home-sections", JSON.stringify(homeOpen)); } catch { /* ignore */ }
+  }, [homeOpen]);
+
+  const toggleHome = key => setHomeOpen(prev => ({ ...prev, [key]: !prev[key] }));
+
+  const enrolledList = programs.filter(p => enrolledPrograms[p.id]);
+  const missionProgramIds = new Set(
+    todayMission.tasks.filter(t => t.type === "program").map(t => t.programId),
+  );
+  const mission = todayMission;
+  const claimed = missionClaimed;
 
   return (
     <>
@@ -101,208 +126,238 @@ export default function TodayView({
         </div>
       </div>
 
-      <div style={{ ...homeLbl, padding:"0 20px", marginTop:4 }}>Today's Mission</div>
+      <HomeCollapsibleSection
+        title="Today's Mission"
+        hint={claimed ? "complete" : undefined}
+        open={homeOpen.mission}
+        onToggle={() => toggleHome("mission")}
+        labelStyle={homeLbl}
+        accentColor={P}
+      >
+        {(() => {
+          const dow = new Date(today + "T12:00:00").toLocaleDateString("en-US", { weekday:"short" });
+          const dayCats = (schedule.find(s => s.day === dow)?.cats) || [];
+          return <WarmUpCard emphasize={isHighImpactDay(dayCats)} growthStatus={computeGrowth(growthLog).status} P={P} />;
+        })()}
 
-      {(() => {
-        const dow = new Date(today + "T12:00:00").toLocaleDateString("en-US", { weekday:"short" });
-        const dayCats = (schedule.find(s => s.day === dow)?.cats) || [];
-        return <WarmUpCard emphasize={isHighImpactDay(dayCats)} growthStatus={computeGrowth(growthLog).status} P={P} />;
-      })()}
+        <div style={{ margin:"0 20px 14px", borderRadius:16,
+          border:`1px solid ${claimed ? "rgba(34,197,94,0.35)" : P + "33"}`,
+          background:claimed ? "rgba(34,197,94,0.07)" : `${P}0c`, overflow:"hidden" }}>
 
-      {(() => {
-        const mission = todayMission;
-        const claimed = missionClaimed;
-        return (
-          <div style={{ margin:"0 20px 14px", borderRadius:16,
-            border:`1px solid ${claimed ? "rgba(34,197,94,0.35)" : P + "33"}`,
-            background:claimed ? "rgba(34,197,94,0.07)" : `${P}0c`, overflow:"hidden" }}>
-
-            <div style={{ padding:"12px 14px 10px", display:"flex", alignItems:"center", gap:10 }}>
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:4, flexWrap:"wrap" }}>
-                  <span style={{ fontFamily:"'DM Mono',monospace", fontSize:10, letterSpacing:"0.14em",
-                    color:claimed ? "#22c55e" : P, textTransform:"uppercase", fontWeight:800 }}>Daily Mission</span>
-                  {claimed
-                    ? <span style={{ fontSize:9, padding:"2px 8px", borderRadius:99,
-                        background:"rgba(34,197,94,0.18)", color:"#22c55e", fontWeight:800 }}>✓ COMPLETE</span>
-                    : <span style={{ fontSize:9, padding:"2px 8px", borderRadius:99,
-                        background:`${P}18`, color:P, fontWeight:700 }}>TODAY</span>
-                  }
-                </div>
-                <div style={{ fontSize:13, fontWeight:700, color:"var(--fkh-text)",
-                  overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                  {mission.title}
-                </div>
+          <div style={{ padding:"12px 14px 10px", display:"flex", alignItems:"center", gap:10 }}>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:4, flexWrap:"wrap" }}>
+                <span style={{ fontFamily:"'DM Mono',monospace", fontSize:10, letterSpacing:"0.14em",
+                  color:claimed ? "#22c55e" : P, textTransform:"uppercase", fontWeight:800 }}>Daily Mission</span>
+                {claimed
+                  ? <span style={{ fontSize:9, padding:"2px 8px", borderRadius:99,
+                      background:"rgba(34,197,94,0.18)", color:"#22c55e", fontWeight:800 }}>✓ COMPLETE</span>
+                  : <span style={{ fontSize:9, padding:"2px 8px", borderRadius:99,
+                      background:`${P}18`, color:P, fontWeight:700 }}>TODAY</span>
+                }
               </div>
-              <div style={{ flexShrink:0, borderRadius:10, padding:"7px 11px", textAlign:"center",
-                background:claimed ? "rgba(34,197,94,0.12)" : `${P}16`,
-                border:`1px solid ${claimed ? "rgba(34,197,94,0.3)" : P + "28"}` }}>
-                <div style={{ fontSize:13, fontWeight:800,
-                  color:claimed ? "#22c55e" : P, lineHeight:1 }}>+{mission.bonusXP}</div>
-                <div style={{ fontSize:8, color:"#475569", fontWeight:600, marginTop:1 }}>BONUS XP</div>
+              <div style={{ fontSize:13, fontWeight:700, color:"var(--fkh-text)",
+                overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                {mission.title}
               </div>
             </div>
-
-            <div style={{ padding:"0 12px 12px", display:"flex", flexDirection:"column", gap:7 }}>
-              {mission.tasks.map(task => {
-                const { cur, target } = getMissionTaskProgress(task, completed, today, programProgress);
-                const taskDone = cur >= target;
-                const pctRaw = target > 0 ? Math.min(1, cur / target) : 0;
-                return (
-                  <div key={task.id} style={{
-                    padding:"9px 11px", borderRadius:10,
-                    background:taskDone
-                      ? "rgba(34,197,94,0.07)"
-                      : task.optional ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.04)",
-                    border:`1px solid ${taskDone
-                      ? "rgba(34,197,94,0.18)"
-                      : task.optional ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.07)"}`,
-                  }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:task.optional ? 0 : 6 }}>
-                      <div style={{ width:17, height:17, borderRadius:5, flexShrink:0,
-                        border:`1.5px solid ${taskDone ? "#22c55e" : task.optional ? "#2d3748" : P + "55"}`,
-                        background:taskDone ? "#22c55e" : "transparent",
-                        display:"flex", alignItems:"center", justifyContent:"center" }}>
-                        {taskDone && <span style={{ color:"#fff", fontSize:9, fontWeight:900 }}>✓</span>}
-                      </div>
-                      <span style={{ flex:1, fontSize:12, fontWeight:600, lineHeight:1.35,
-                        color:taskDone ? "#22c55e" : task.optional ? "#475569" : "var(--fkh-text)" }}>
-                        {task.label}
-                      </span>
-                      {task.optional && <span style={{ fontSize:8, color:"#334155",
-                        fontWeight:700, letterSpacing:"0.08em", flexShrink:0 }}>OPTIONAL</span>}
-                      <span style={{ fontSize:11, fontWeight:700, flexShrink:0,
-                        color:taskDone ? "#22c55e" : "#64748b" }}>
-                        {Math.min(cur, target)}/{target}
-                      </span>
-                    </div>
-                    {!task.optional && (
-                      <div style={{ height:3, borderRadius:99, background:"rgba(255,255,255,0.06)", marginLeft:25 }}>
-                        <div style={{ height:"100%", width:`${pctRaw * 100}%`, borderRadius:99,
-                          background:taskDone ? "#22c55e" : P, transition:"width 0.35s" }}/>
-                      </div>
-                    )}
-                    {(task.type === "program" || task.type === "category") && task.exercises?.length > 0 && (
-                      <div style={{ display:"flex", gap:5, marginTop:7, marginLeft:25, flexWrap:"wrap" }}>
-                        {task.exercises.map(exId => {
-                          const ex = allExercises[exId];
-                          if (!ex) return null;
-                          const done = task.type === "program" && task.programId != null
-                            ? isProgramExerciseDone(programProgress, task.programId, task.week, task.sessionIdx, exId)
-                            : !!completed[`${today}-${exId}`];
-                          return (
-                            <button key={exId}
-                              onClick={() => {
-                                const enriched = { ...ex, _cat:ex._cat, meta:ex.meta || exerciseMeta[exId] || {} };
-                                openDetail(enriched, task.exercises.map(id => allExercises[id]).filter(Boolean).map(e => ({ ...e, meta:e.meta || exerciseMeta[e.id] || {} })));
-                              }}
-                              style={{ fontSize:9, padding:"3px 8px", borderRadius:99, cursor:"pointer",
-                                background:done ? "rgba(34,197,94,0.12)" : "rgba(255,255,255,0.05)",
-                                border:`1px solid ${done ? "rgba(34,197,94,0.25)" : "rgba(255,255,255,0.08)"}`,
-                                color:done ? "#22c55e" : "#94a3b8", fontWeight:600 }}>
-                              {done ? "✓ " : ""}{ex.name}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+            <div style={{ flexShrink:0, borderRadius:10, padding:"7px 11px", textAlign:"center",
+              background:claimed ? "rgba(34,197,94,0.12)" : `${P}16`,
+              border:`1px solid ${claimed ? "rgba(34,197,94,0.3)" : P + "28"}` }}>
+              <div style={{ fontSize:13, fontWeight:800,
+                color:claimed ? "#22c55e" : P, lineHeight:1 }}>+{mission.bonusXP}</div>
+              <div style={{ fontSize:8, color:"#475569", fontWeight:600, marginTop:1 }}>BONUS XP</div>
             </div>
+          </div>
 
-            {challengeNudge && !claimed && (
-              <div style={{ margin:"0 12px 12px", padding:"10px 12px", borderRadius:10,
-                background:`${S}12`, border:`1px solid ${S}28` }}>
-                <div style={{ fontSize:10, fontWeight:800, color:S, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:4 }}>
-                  Challenge push
-                </div>
-                <div style={{ fontSize:12, color:"var(--fkh-text)", lineHeight:1.45 }}>
-                  {challengeNudge.emoji} {challengeNudge.target - challengeNudge.cur} more to finish {challengeNudge.name}
-                </div>
-                {dailyAction.workoutTemplate && workoutTemplates[dailyAction.workoutTemplate] && (
-                  <button
-                    onClick={() => {
-                      selectTemplate(dailyAction.workoutTemplate);
-                      onOpenWorkout();
-                    }}
-                    style={{ marginTop:8, padding:"7px 12px", borderRadius:8, border:`1px solid ${S}44`,
-                      background:"transparent", color:S, fontSize:11, fontWeight:700, cursor:"pointer" }}>
-                    Try {workoutTemplates[dailyAction.workoutTemplate].name} workout →
-                  </button>
-                )}
-              </div>
-            )}
-
-            {(() => {
-              const reqTasks = mission.tasks.filter(t => t.required);
-              const totalReq = reqTasks.reduce((s, t) => { const { target } = getMissionTaskProgress(t, completed, today, programProgress); return s + target; }, 0);
-              const doneReq = reqTasks.reduce((s, t) => { const { cur, target } = getMissionTaskProgress(t, completed, today, programProgress); return s + Math.min(cur, target); }, 0);
-              const overallPct = totalReq > 0 ? doneReq / totalReq : 0;
+          <div style={{ padding:"0 12px 12px", display:"flex", flexDirection:"column", gap:7 }}>
+            {mission.tasks.map(task => {
+              const { cur, target } = getMissionTaskProgress(task, completed, today, programProgress);
+              const taskDone = cur >= target;
+              const pctRaw = target > 0 ? Math.min(1, cur / target) : 0;
               return (
-                <div style={{ padding:"0 12px 12px" }}>
-                  <div style={{ height:4, borderRadius:99, background:"rgba(255,255,255,0.05)" }}>
-                    <div style={{ height:"100%", width:`${overallPct * 100}%`, borderRadius:99,
-                      background:claimed ? "#22c55e" : `linear-gradient(90deg,${P},${S})`,
-                      transition:"width 0.35s" }}/>
+                <div key={task.id} style={{
+                  padding:"9px 11px", borderRadius:10,
+                  background:taskDone
+                    ? "rgba(34,197,94,0.07)"
+                    : task.optional ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.04)",
+                  border:`1px solid ${taskDone
+                    ? "rgba(34,197,94,0.18)"
+                    : task.optional ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.07)"}`,
+                }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:task.optional ? 0 : 6 }}>
+                    <div style={{ width:17, height:17, borderRadius:5, flexShrink:0,
+                      border:`1.5px solid ${taskDone ? "#22c55e" : task.optional ? "#2d3748" : P + "55"}`,
+                      background:taskDone ? "#22c55e" : "transparent",
+                      display:"flex", alignItems:"center", justifyContent:"center" }}>
+                      {taskDone && <span style={{ color:"#fff", fontSize:9, fontWeight:900 }}>✓</span>}
+                    </div>
+                    <span style={{ flex:1, fontSize:12, fontWeight:600, lineHeight:1.35,
+                      color:taskDone ? "#22c55e" : task.optional ? "#475569" : "var(--fkh-text)" }}>
+                      {task.label}
+                    </span>
+                    {task.optional && <span style={{ fontSize:8, color:"#334155",
+                      fontWeight:700, letterSpacing:"0.08em", flexShrink:0 }}>OPTIONAL</span>}
+                    <span style={{ fontSize:11, fontWeight:700, flexShrink:0,
+                      color:taskDone ? "#22c55e" : "#64748b" }}>
+                      {Math.min(cur, target)}/{target}
+                    </span>
                   </div>
-                  {claimed && (
-                    <div style={{ textAlign:"center", marginTop:8, fontSize:11, color:"#22c55e", fontWeight:700 }}>
-                      🎉 +{mission.bonusXP} XP earned — come back tomorrow for a new mission!
+                  {!task.optional && (
+                    <div style={{ height:3, borderRadius:99, background:"rgba(255,255,255,0.06)", marginLeft:25 }}>
+                      <div style={{ height:"100%", width:`${pctRaw * 100}%`, borderRadius:99,
+                        background:taskDone ? "#22c55e" : P, transition:"width 0.35s" }}/>
+                    </div>
+                  )}
+                  {(task.type === "program" || task.type === "category") && task.exercises?.length > 0 && (
+                    <div style={{ display:"flex", gap:5, marginTop:7, marginLeft:25, flexWrap:"wrap" }}>
+                      {task.exercises.map(exId => {
+                        const ex = allExercises[exId];
+                        if (!ex) return null;
+                        const done = task.type === "program" && task.programId != null
+                          ? isProgramExerciseDone(programProgress, task.programId, task.week, task.sessionIdx, exId)
+                          : !!completed[`${today}-${exId}`];
+                        return (
+                          <button key={exId}
+                            onClick={() => {
+                              const enriched = { ...ex, _cat:ex._cat, meta:ex.meta || exerciseMeta[exId] || {} };
+                              openDetail(enriched, task.exercises.map(id => allExercises[id]).filter(Boolean).map(e => ({ ...e, meta:e.meta || exerciseMeta[e.id] || {} })));
+                            }}
+                            style={{ fontSize:9, padding:"3px 8px", borderRadius:99, cursor:"pointer",
+                              background:done ? "rgba(34,197,94,0.12)" : "rgba(255,255,255,0.05)",
+                              border:`1px solid ${done ? "rgba(34,197,94,0.25)" : "rgba(255,255,255,0.08)"}`,
+                              color:done ? "#22c55e" : "#94a3b8", fontWeight:600 }}>
+                            {done ? "✓ " : ""}{ex.name}
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
               );
-            })()}
+            })}
           </div>
-        );
-      })()}
 
-      {!missionHasProgramTask && (() => {
-        const activeProg = programs.find(p => enrolledPrograms[p.id]);
-        if (!activeProg) return null;
-        const enrollment = enrolledPrograms[activeProg.id];
-        const sched = getActiveProgramScheduleStatus(activeProg, enrollment, programProgress, today);
-        if (sched.kind === "rest" || sched.kind === "weekComplete") {
-          return (
-            <div onClick={() => onOpenProgram(activeProg.id)}
-              style={{ margin:"0 20px 10px", padding:"10px 12px", borderRadius:12, cursor:"pointer",
-                border:`1px solid ${activeProg.color}33`, background:`${activeProg.color}0a` }}>
-              <div style={{ fontSize:11, fontWeight:700, color:activeProg.color }}>{activeProg.emoji} {activeProg.name}</div>
-              <div style={{ fontSize:11, color:"#94a3b8", marginTop:2 }}>
-                {sched.kind === "rest" ? (sched.opensLabel || "REST today") : `Week ${sched.week} complete ✓`}
+          {challengeNudge && !claimed && (
+            <div style={{ margin:"0 12px 12px", padding:"10px 12px", borderRadius:10,
+              background:`${S}12`, border:`1px solid ${S}28` }}>
+              <div style={{ fontSize:10, fontWeight:800, color:S, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:4 }}>
+                Challenge push
               </div>
+              <div style={{ fontSize:12, color:"var(--fkh-text)", lineHeight:1.45 }}>
+                {challengeNudge.emoji} {challengeNudge.target - challengeNudge.cur} more to finish {challengeNudge.name}
+              </div>
+              {dailyAction.workoutTemplate && workoutTemplates[dailyAction.workoutTemplate] && (
+                <button
+                  onClick={() => {
+                    selectTemplate(dailyAction.workoutTemplate);
+                    onOpenWorkout();
+                  }}
+                  style={{ marginTop:8, padding:"7px 12px", borderRadius:8, border:`1px solid ${S}44`,
+                    background:"transparent", color:S, fontSize:11, fontWeight:700, cursor:"pointer" }}>
+                  Try {workoutTemplates[dailyAction.workoutTemplate].name} workout →
+                </button>
+              )}
             </div>
-          );
-        }
-        if (sched.kind !== "due") return null;
-        return (
-          <div onClick={() => onOpenProgram(activeProg.id)}
-            style={{ margin:"0 20px 10px", padding:"10px 12px", borderRadius:12, cursor:"pointer",
-              border:`1px solid ${activeProg.color}44`, background:`${activeProg.color}10` }}>
-            <div style={{ fontSize:11, fontWeight:800, color:activeProg.color }}>📋 Program today · {sched.session.focus}</div>
-            <div style={{ fontSize:11, color:"#94a3b8", marginTop:2 }}>Tap to open your plan →</div>
+          )}
+
+          {(() => {
+            const reqTasks = mission.tasks.filter(t => t.required);
+            const totalReq = reqTasks.reduce((s, t) => { const { target } = getMissionTaskProgress(t, completed, today, programProgress); return s + target; }, 0);
+            const doneReq = reqTasks.reduce((s, t) => { const { cur, target } = getMissionTaskProgress(t, completed, today, programProgress); return s + Math.min(cur, target); }, 0);
+            const overallPct = totalReq > 0 ? doneReq / totalReq : 0;
+            return (
+              <div style={{ padding:"0 12px 12px" }}>
+                <div style={{ height:4, borderRadius:99, background:"rgba(255,255,255,0.05)" }}>
+                  <div style={{ height:"100%", width:`${overallPct * 100}%`, borderRadius:99,
+                    background:claimed ? "#22c55e" : `linear-gradient(90deg,${P},${S})`,
+                    transition:"width 0.35s" }}/>
+                </div>
+                {claimed && (
+                  <div style={{ textAlign:"center", marginTop:8, fontSize:11, color:"#22c55e", fontWeight:700 }}>
+                    🎉 +{mission.bonusXP} XP earned — come back tomorrow for a new mission!
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </div>
+      </HomeCollapsibleSection>
+
+      {enrolledList.length > 0 && (
+        <HomeCollapsibleSection
+          title="My Programs"
+          hint={`${enrolledList.length} active`}
+          open={homeOpen.programs}
+          onToggle={() => toggleHome("programs")}
+          labelStyle={homeLbl}
+          accentColor={P}
+        >
+          <div style={{ margin:"0 20px 14px", display:"flex", flexDirection:"column", gap:8 }}>
+            {enrolledList.map(prog => {
+              const enrollment = enrolledPrograms[prog.id];
+              const sched = getActiveProgramScheduleStatus(prog, enrollment, programProgress, today);
+              const inMission = missionProgramIds.has(prog.id);
+              let statusLine = "";
+              if (inMission) statusLine = "In today's mission";
+              else if (sched.kind === "due") statusLine = `📋 ${sched.session.focus}`;
+              else if (sched.kind === "rest") statusLine = sched.opensLabel || "Rest day";
+              else if (sched.kind === "weekComplete") statusLine = `Week ${sched.week} complete ✓`;
+              return (
+                <div key={prog.id} onClick={() => onOpenProgram(prog.id)}
+                  style={{ padding:"10px 12px", borderRadius:12, cursor:"pointer",
+                    border:`1px solid ${inMission || sched.kind === "due" ? `${prog.color}44` : `${prog.color}28`}`,
+                    background:`${prog.color}${inMission || sched.kind === "due" ? "12" : "08"}` }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                    <span style={{ fontSize:16 }}>{prog.emoji}</span>
+                    <span style={{ fontSize:12, fontWeight:800, color:prog.color, flex:1 }}>{prog.name}</span>
+                    {inMission && (
+                      <span style={{ fontSize:9, padding:"2px 7px", borderRadius:99,
+                        background:`${P}18`, color:P, fontWeight:800 }}>MISSION</span>
+                    )}
+                  </div>
+                  {statusLine && (
+                    <div style={{ fontSize:11, color:"#94a3b8", marginTop:4, marginLeft:24 }}>{statusLine}</div>
+                  )}
+                </div>
+              );
+            })}
           </div>
-        );
-      })()}
+        </HomeCollapsibleSection>
+      )}
 
-      <ProgressRail
-        settings={settings}
-        ctx={progressCtx}
-        P={P}
-        onOpenPath={onOpenPath}
-        onSetFavorite={onSetFavorite}
-        onOpenPlayerHighlight={onOpenPlayerHighlight}
-      />
+      <HomeCollapsibleSection
+        title="Train Like Legends"
+        open={homeOpen.legends}
+        onToggle={() => toggleHome("legends")}
+        labelStyle={homeLbl}
+        accentColor={P}
+      >
+        <ProgressRail
+          settings={settings}
+          ctx={progressCtx}
+          P={P}
+          onOpenPath={onOpenPath}
+          onSetFavorite={onSetFavorite}
+          onOpenPlayerHighlight={onOpenPlayerHighlight}
+        />
+      </HomeCollapsibleSection>
 
-      <FriendsTeaser P={P} onOpenFriends={onFocusFriends} />
-
-      <ChallengeStrip
-        P={P}
-        variant="teaser"
-        onAddFriends={onFocusFriends}
-        onOpenChallenges={onOpenChallenges}
-      />
+      <HomeCollapsibleSection
+        title="Squad & Challenges"
+        open={homeOpen.squad}
+        onToggle={() => toggleHome("squad")}
+        labelStyle={homeLbl}
+        accentColor={P}
+      >
+        <FriendsTeaser P={P} onOpenFriends={onFocusFriends} />
+        <ChallengeStrip
+          P={P}
+          variant="teaser"
+          onAddFriends={onFocusFriends}
+          onOpenChallenges={onOpenChallenges}
+        />
+      </HomeCollapsibleSection>
 
       {missionClaimed && (
         <div style={{ margin:"0 20px 14px", padding:"12px 14px", borderRadius:14, border:`1px solid ${bd}`, background:SF }}>
@@ -474,16 +529,6 @@ export default function TodayView({
           </div>
         )}
       </HomeCollapsibleSection>
-
-      {!missionClaimed && (
-        <div style={{ margin:"0 20px 14px", textAlign:"center" }}>
-          <button type="button" onClick={() => onOpenProgramsSection?.("drills")}
-            style={{ padding:"10px 16px", borderRadius:12, border:`1px solid ${bd}`, background:SF,
-              color:"var(--fkh-text)", fontWeight:800, fontSize:12, cursor:"pointer" }}>
-            Browse Programs →
-          </button>
-        </div>
-      )}
     </>
   );
 }

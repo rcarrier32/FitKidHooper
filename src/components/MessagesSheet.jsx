@@ -17,16 +17,31 @@ function timeShort(iso) {
   return `${Math.floor(h / 24)}d`;
 }
 
-export default function MessagesSheet({ P = "#f97316", SF, bd, onClose, initialFriend = null }) {
+export default function MessagesSheet({ P = "#f97316", SF, bd, onClose, initialFriend = null, onUnreadChange }) {
   const [threads, setThreads] = useState(null); // inbox; null = loading
   const [active, setActive] = useState(initialFriend); // { id, name }
   const [msgs, setMsgs] = useState([]);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [loadError, setLoadError] = useState(null);
   const endRef = useRef(null);
 
-  const loadInbox = useCallback(() => { listMessageThreads().then(setThreads).catch(() => setThreads([])); }, []);
-  const loadThread = useCallback((id) => { fetchThread(id).then(setMsgs).catch(() => setMsgs([])); }, []);
+  const loadInbox = useCallback(() => {
+    setLoadError(null);
+    listMessageThreads()
+      .then(rows => setThreads(rows))
+      .catch(() => { setThreads([]); setLoadError("Couldn't load messages — try again."); });
+  }, []);
+
+  const loadThread = useCallback((id) => {
+    setLoadError(null);
+    fetchThread(id)
+      .then(rows => {
+        setMsgs(rows);
+        onUnreadChange?.();
+      })
+      .catch(() => { setMsgs([]); setLoadError("Couldn't load this chat."); });
+  }, [onUnreadChange]);
 
   useEffect(() => {
     if (active?.id) loadThread(active.id);
@@ -34,6 +49,11 @@ export default function MessagesSheet({ P = "#f97316", SF, bd, onClose, initialF
   }, [active, loadInbox, loadThread]);
 
   useEffect(() => { endRef.current?.scrollIntoView({ block: "end" }); }, [msgs]);
+
+  const handleClose = () => {
+    onUnreadChange?.();
+    onClose?.();
+  };
 
   const send = async () => {
     const text = draft.trim();
@@ -47,17 +67,17 @@ export default function MessagesSheet({ P = "#f97316", SF, bd, onClose, initialF
   };
 
   const header = active
-    ? <><button onClick={() => setActive(null)} style={{ background:"none",border:"none",color:P,fontSize:18,cursor:"pointer",padding:"0 8px 0 0" }}>‹</button>{active.name || "Friend"}</>
+    ? <><button onClick={() => { setActive(null); loadInbox(); }} style={{ background:"none",border:"none",color:P,fontSize:18,cursor:"pointer",padding:"0 8px 0 0" }}>‹</button>{active.name || "Friend"}</>
     : "💬 Messages";
 
   return (
-    <div onClick={onClose}
+    <div onClick={handleClose}
       style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.82)",zIndex:320,display:"flex",alignItems:"flex-end",justifyContent:"center",backdropFilter:"blur(6px)" }}>
       <div onClick={e=>e.stopPropagation()}
         style={{ background:SF,borderRadius:"22px 22px 0 0",width:"100%",maxWidth:680,height:"82vh",display:"flex",flexDirection:"column" }}>
         <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"14px 18px",borderBottom:`1px solid ${bd}` }}>
           <span style={{ fontSize:15,fontWeight:800,color:"var(--fkh-text)",display:"flex",alignItems:"center" }}>{header}</span>
-          <button onClick={onClose} aria-label="Close" style={{ background:"none",border:"none",color:"#64748b",fontSize:22,cursor:"pointer" }}>✕</button>
+          <button onClick={handleClose} aria-label="Close" style={{ background:"none",border:"none",color:"#64748b",fontSize:22,cursor:"pointer" }}>✕</button>
         </div>
 
         {!active ? (
@@ -66,7 +86,7 @@ export default function MessagesSheet({ P = "#f97316", SF, bd, onClose, initialF
               <div style={{ textAlign:"center",padding:28,color:"#64748b",fontSize:13 }}>Loading…</div>
             ) : threads.length === 0 ? (
               <div style={{ textAlign:"center",padding:28,color:"#64748b",fontSize:13,lineHeight:1.5 }}>
-                No messages yet. Open a friend's profile and tap Message to start a chat.
+                {loadError || "No messages yet. Open a friend's profile and tap Message to start a chat."}
               </div>
             ) : threads.map(t => (
               <button key={t.other_id} onClick={() => setActive({ id:t.other_id, name:t.name || (t.username ? `@${t.username}` : "Friend") })}
@@ -86,6 +106,9 @@ export default function MessagesSheet({ P = "#f97316", SF, bd, onClose, initialF
         ) : (
           <>
             <div style={{ flex:1,overflowY:"auto",padding:"14px 16px",display:"flex",flexDirection:"column",gap:8 }}>
+              {loadError && (
+                <div style={{ fontSize:11,color:"#f59e0b",textAlign:"center",padding:"4px 0" }}>{loadError}</div>
+              )}
               {msgs.map(m => (
                 <div key={m.id} style={{ alignSelf:m.from_me?"flex-end":"flex-start",maxWidth:"78%",
                   background:m.from_me?P:"rgba(255,255,255,0.06)",color:m.from_me?"#000":"var(--fkh-text)",

@@ -4,6 +4,7 @@ export const ANALYTICS_EVENTS = {
   SESSION_END: "session_end",
   SCREEN_VIEW: "screen_view",
   ONBOARDING_COMPLETE: "onboarding_complete",
+  ONBOARDING_TOUR_COMPLETE: "onboarding_tour_complete",
   FIRST_EXERCISE_COMPLETE: "first_exercise_complete",
   EXERCISE_COMPLETE: "exercise_complete",
   MISSION_CLAIM: "mission_claim",

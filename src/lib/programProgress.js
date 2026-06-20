@@ -243,3 +243,61 @@ export function buildProgramWeekPlan(program, enrollment, programProgress, today
 
   return { curWeek, weekComplete, days };
 }
+
+/**
+ * Rebuild missing program-session marks from global s_done completions.
+ * Never removes existing marks — only fills gaps (recovery after bad migrations/sync).
+ */
+export function rehydrateProgramProgressFromCompleted({
+  programs,
+  enrolledPrograms,
+  programProgress,
+  completed,
+}) {
+  if (!programs?.length || !enrolledPrograms || !completed) return programProgress;
+
+  const out = { ...programProgress };
+  let changed = false;
+
+  for (const prog of programs) {
+    const enr = enrolledPrograms[prog.id];
+    if (!enr?.startDate) continue;
+
+    const anchor = out[prog.id]?._meta?.enrollmentStartedAt
+      ?? enr.startedAt
+      ?? new Date(`${enr.startDate}T12:00:00`).getTime();
+
+    if (!out[prog.id]) {
+      out[prog.id] = { _meta: { enrollmentStartedAt: anchor } };
+      changed = true;
+    } else if (!out[prog.id]._meta?.enrollmentStartedAt) {
+      out[prog.id] = { ...out[prog.id], _meta: { enrollmentStartedAt: anchor } };
+      changed = true;
+    }
+
+    for (const week of prog.weeks) {
+      for (let si = 0; si < week.sessions.length; si++) {
+        const slot = programSessionSlot(week.week, si);
+        for (const exId of week.sessions[si].exercises) {
+          if (isProgramExerciseDone(out, prog.id, week.week, si, exId)) continue;
+
+          let best = null;
+          for (const [key, done] of Object.entries(completed)) {
+            if (!done || !key.endsWith(`-${exId}`)) continue;
+            const d = key.split("-").slice(0, 3).join("-");
+            if (d < enr.startDate) continue;
+            const t = new Date(`${d}T12:00:00`).getTime();
+            if (!best || t > best.t) best = { d, t: Math.max(t, anchor) };
+          }
+          if (!best) continue;
+
+          if (!out[prog.id][slot]) out[prog.id][slot] = {};
+          out[prog.id][slot][exId] = { d: best.d, t: best.t };
+          changed = true;
+        }
+      }
+    }
+  }
+
+  return changed ? out : programProgress;
+}

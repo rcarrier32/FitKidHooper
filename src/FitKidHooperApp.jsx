@@ -5,9 +5,14 @@ import AuthSheet from "./components/AuthSheet.jsx";
 import NotificationSettings from "./components/NotificationSettings.jsx";
 import FeedbackCenter from "./components/FeedbackCenter.jsx";
 import { useAuth } from "./hooks/useAuth.js";
+import { useUnreadMessages } from "./hooks/useUnreadMessages.js";
+import CountBadge from "./components/CountBadge.jsx";
 import { getAgeGroup, getAgeGroupLabel } from "./lib/periodStats.js";
 import { exportCanonicalSave, importCanonicalSave } from "./lib/canonicalSave.js";
+import { recoverFromSyncBackupIfNeeded } from "./lib/syncBackup.js";
 import { withStoredAvatar, writeStoredAvatar } from "./lib/avatarStorage.js";
+import { safePersistKey } from "./lib/dataSafety.js";
+import { mergeUserSettings } from "./lib/settingsMerge.js";
 import { syncAvatarToCloud, clearAvatarFromCloud } from "./lib/avatarCloud.js";
 import { getEffectiveAthleteId } from "./lib/auth.js";
 import { CATS, CAT_DOT_COLORS } from "./lib/categories.js";
@@ -32,6 +37,7 @@ import { resolveDailyAction, pickChallengeNudge } from "./lib/dailyAction.js";
 import {
   consumeInviteDeepLink,
   consumeMissionDeepLink,
+  consumeMessagesDeepLink,
   scheduleMissionReminder,
 } from "./lib/notifications.js";
 import {
@@ -79,6 +85,8 @@ import {
   chipStyle, actionBtnStyle, hexToHsl, contrastOn,
 } from "./lib/themeColors.js";
 import HelpSheet from "./components/HelpSheet.jsx";
+import OnboardingTour from "./components/OnboardingTour.jsx";
+import { TOUR_STEPS, applyTourStep, markTourComplete } from "./lib/onboardingTour.js";
 import AppMapSheet from "./components/AppMapSheet.jsx";
 import BoardView from "./components/BoardView.jsx";
 import ProgressionView from "./components/ProgressionView.jsx";
@@ -100,6 +108,7 @@ import {
   findDueProgramSession,
   getActiveProgramScheduleStatus,
   buildProgramWeekPlan,
+  rehydrateProgramProgressFromCompleted,
 } from "./lib/programProgress.js";
 import TodayView from "./views/TodayView.jsx";
 import ProgramsView from "./views/ProgramsView.jsx";
@@ -2578,28 +2587,35 @@ function generateDailyMission(todayStr, settings, completed, enrolledPrograms, p
   let title = "Daily Training";
   let bonusXP = 50;
 
-  /* ── Task 1: Active program session or workout category ── */
-  const activeProg = PROGRAMS.find(p=>enrolledPrograms[p.id]);
-  let task1Cat = null;
-  if (activeProg) {
-    const enrollment = enrolledPrograms[activeProg.id];
-    const dueSession = findDueProgramSession(activeProg, enrollment, programProgress, todayStr);
-    if (dueSession) {
-      const { session, sessionIdx, week } = dueSession;
-      title = `${activeProg.emoji} ${activeProg.name} — Week ${week}`;
-      task1Cat = ALL_EXERCISES[session.exercises[0]]?._cat || null;
-      tasks.push({
-        id:"task-prog", type:"program",
-        label:`Finish "${session.focus}" session`,
-        exercises: session.exercises,
-        target: session.exercises.length,
-        required: true,
-        programId: activeProg.id,
-        week,
-        sessionIdx,
-      });
-      bonusXP = 75;
+  /* ── Task 1: Due program session (any enrolled plan) or category day ── */
+  const enrolledList = PROGRAMS.filter(p => enrolledPrograms[p.id]);
+  let activeProg = null;
+  let dueSession = null;
+  for (const prog of enrolledList) {
+    const enrollment = enrolledPrograms[prog.id];
+    const due = findDueProgramSession(prog, enrollment, programProgress, todayStr);
+    if (due) {
+      activeProg = prog;
+      dueSession = due;
+      break;
     }
+  }
+  let task1Cat = null;
+  if (activeProg && dueSession) {
+    const { session, sessionIdx, week } = dueSession;
+    title = `${activeProg.emoji} ${activeProg.name} — Week ${week}`;
+    task1Cat = ALL_EXERCISES[session.exercises[0]]?._cat || null;
+    tasks.push({
+      id:"task-prog", type:"program",
+      label:`Finish "${session.focus}" session`,
+      exercises: session.exercises,
+      target: session.exercises.length,
+      required: true,
+      programId: activeProg.id,
+      week,
+      sessionIdx,
+    });
+    bonusXP = 75;
   }
   if (tasks.length===0) {
     const bbCats = ["ballhandling","footwork","finishing","game_handles","shooting_lab","footwork_lab","shootingdrills","passing","rebounding"];
@@ -2852,6 +2868,11 @@ const SHOT_COLORS = {
    element so dragging never re-renders the canvas. */
 /* ═══════════════════════ SHOT TRACKER HELPERS ═══════════════ */
 const todayKey = () => new Date().toLocaleDateString("en-CA");
+const offsetDateKey = (days) => {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toLocaleDateString("en-CA");
+};
 const fmtDate  = k => new Date(k+"T00:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric"});
 const dayLabel = k => ["Su","Mo","Tu","We","Th","Fr","Sa"][new Date(k+"T00:00:00").getDay()];
 
@@ -2985,6 +3006,7 @@ function ShotTracker({ P, S, BG, athleteName, settings }) {
   const [activeLoc, setActiveLoc] = useState(null);
   const [lastShot, setLastShot] = useState(null);
   const [selDate, setSelDate] = useState(todayKey());
+  const [logDate, setLogDate] = useState(todayKey);
   const [range, setRange] = useState(14);
   const [useCustom, setUseCustom] = useState(false);
   const [custStart, setCustStart] = useState("");
@@ -3004,8 +3026,9 @@ function ShotTracker({ P, S, BG, athleteName, settings }) {
 
   const logBatch = (tid, loc, made, missed) => {
     if (made + missed === 0) return;
-    const k = todayKey();
-    const ts = Date.now();
+    const k = logDate;
+    const isToday = k === todayKey();
+    const ts = isToday ? Date.now() : new Date(`${k}T12:00:00`).getTime();
     const entries = [
       ...Array(made).fill(null).map((_,i)  => ({type:tid, location:loc||null, ts:ts+i,   made:true})),
       ...Array(missed).fill(null).map((_,i) => ({type:tid, location:loc||null, ts:ts+made+i, made:false})),
@@ -3015,6 +3038,15 @@ function ShotTracker({ P, S, BG, athleteName, settings }) {
     trackShotSession({ makes, misses, shotType: tid, usedCourtMap: Boolean(loc && loc !== "__noloc__") });
     setLastShot(last);
     setActiveType(null); setActiveLoc(null); setShotCount({made:0, missed:0});
+  };
+
+  const pickLogDate = (key) => {
+    if (!key || key > todayKey()) return;
+    setLogDate(key);
+    setActiveType(null);
+    setActiveLoc(null);
+    setShotCount({ made:0, missed:0 });
+    setLastShot(null);
   };
 
   const addShot = (tid, loc, made) => logBatch(tid, loc, made?1:0, made?0:1);
@@ -3033,11 +3065,18 @@ function ShotTracker({ P, S, BG, athleteName, settings }) {
   };
 
   const selectType = tid => selectZone(tid);
-  const undo = () => { const k=todayKey(); if(!(log[k]?.length)) return; save({...log,[k]:log[k].slice(0,-1)}); setLastShot(null); };
+  const undo = () => {
+    const k = logDate;
+    if (!(log[k]?.length)) return;
+    save({ ...log, [k]: log[k].slice(0, -1) });
+    setLastShot(null);
+  };
 
   const todayShots = log[todayKey()]||[];
-  const todayTotal = todayShots.length;
-  const todayByType = useMemo(()=>{ const c={}; todayShots.forEach(s=>{c[s.type]=(c[s.type]||0)+1}); return c; },[todayShots]);
+  const logDayShots = log[logDate]||[];
+  const logDayLabel = logDate === todayKey() ? "Today" : fmtDate(logDate);
+  const logDayTotal = logDayShots.length;
+  const logDayByType = useMemo(() => { const c={}; logDayShots.forEach(s=>{c[s.type]=(c[s.type]||0)+1}); return c; }, [logDayShots]);
   const allFlat = useMemo(()=>Object.values(log).flat(),[log]);
   const allByType = useMemo(()=>{ const c={}; allFlat.forEach(s=>{c[s.type]=(c[s.type]||0)+1}); return c; },[allFlat]);
   const allTotal = allFlat.length;
@@ -3245,6 +3284,38 @@ function ShotTracker({ P, S, BG, athleteName, settings }) {
 
       {view==="log" && (
         <div style={{ padding:"14px 16px 0" }}>
+          <div style={{
+            display:"flex", alignItems:"center", gap:8, flexWrap:"wrap",
+            marginBottom:14, padding:"10px 12px", borderRadius:12,
+            background: logDate !== todayKey() ? `${P}10` : sf,
+            border:`1px solid ${logDate !== todayKey() ? `${P}30` : bd}`,
+          }}>
+            <span style={{ fontSize:11, fontWeight:700, color:"#64748b" }}>📅 Log for</span>
+            {[["Today", todayKey()], ["Yesterday", offsetDateKey(-1)]].map(([label, key]) => (
+              <button key={label} type="button" onClick={() => pickLogDate(key)} style={{
+                padding:"6px 12px", borderRadius:99, fontSize:11, fontWeight:700, cursor:"pointer",
+                border:`1px solid ${logDate === key ? P : bd}`,
+                background: logDate === key ? `${P}20` : "transparent",
+                color: logDate === key ? P : "#64748b",
+              }}>{label}</button>
+            ))}
+            <input
+              type="date"
+              value={logDate}
+              max={todayKey()}
+              onChange={e => pickLogDate(e.target.value)}
+              style={{
+                flex:"1 1 130px", minWidth:130, background:"rgba(255,255,255,0.05)",
+                border:`1px solid ${bd}`, borderRadius:8, padding:"6px 10px",
+                color:"var(--fkh-text)", fontSize:12, outline:"none",
+              }}
+            />
+            {logDate !== todayKey() && (
+              <span style={{ fontSize:10, color:P, fontWeight:600, width:"100%" }}>
+                Saving to {logDayLabel} — use this if you forgot to log yesterday
+              </span>
+            )}
+          </div>
           <div style={lbl}>Tap Court Zone to Log</div>
           <CourtMap priColor={P} onZoneSelect={selectZone} lastShot={lastShot}/>
           {activeType && !activeLoc && (
@@ -3323,7 +3394,7 @@ function ShotTracker({ P, S, BG, athleteName, settings }) {
           })()}
           <div style={{ ...lbl,marginTop:14 }}>Quick Tap</div>
           <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14 }}>
-            {SHOT_TYPES.map(s=>{ const cnt=todayByType[s.id]||0,c=SHOT_COLORS[s.id]; return (
+            {SHOT_TYPES.map(s=>{ const cnt=logDayByType[s.id]||0,c=SHOT_COLORS[s.id]; return (
               <button key={s.id} onClick={()=>selectType(s.id)} style={{ padding:"10px 12px",borderRadius:12,border:`1px solid ${c}28`,background:`${c}0e`,display:"flex",alignItems:"center",gap:10,cursor:"pointer",textAlign:"left" }}>
                 <span style={{ fontSize:18 }}>{s.emoji}</span>
                 <div style={{ flex:1 }}>
@@ -3335,13 +3406,13 @@ function ShotTracker({ P, S, BG, athleteName, settings }) {
             );})}
           </div>
           <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10 }}>
-            <div style={lbl}>Today's Log ({todayTotal})</div>
-            {todayTotal>0&&<button onClick={undo} style={{ padding:"5px 12px",borderRadius:8,border:"1px solid rgba(239,68,68,0.25)",background:"rgba(239,68,68,0.08)",color:"#f87171",fontSize:11,fontWeight:600,cursor:"pointer" }}>↩ Undo</button>}
+            <div style={lbl}>{logDayLabel}'s Log ({logDayTotal})</div>
+            {logDayTotal>0&&<button onClick={undo} style={{ padding:"5px 12px",borderRadius:8,border:"1px solid rgba(239,68,68,0.25)",background:"rgba(239,68,68,0.08)",color:"#f87171",fontSize:11,fontWeight:600,cursor:"pointer" }}>↩ Undo</button>}
           </div>
-          {todayShots.length===0
-            ? <div style={{ textAlign:"center",padding:"20px 0",color:"#334155",fontSize:13 }}>No shots logged yet today 🏀</div>
+          {logDayShots.length===0
+            ? <div style={{ textAlign:"center",padding:"20px 0",color:"#334155",fontSize:13 }}>No shots logged for {logDayLabel.toLowerCase()} yet 🏀</div>
             : <div style={{ display:"flex",flexDirection:"column",gap:4,maxHeight:220,overflowY:"auto" }}>
-                {[...todayShots].reverse().map((s,i)=>{ const def=SHOT_TYPES.find(t=>t.id===s.type),c=SHOT_COLORS[s.type]; return (
+                {[...logDayShots].reverse().map((s,i)=>{ const def=SHOT_TYPES.find(t=>t.id===s.type),c=SHOT_COLORS[s.type]; return (
                   <div key={i} style={{ display:"flex",alignItems:"center",gap:10,padding:"7px 10px",background:sf,borderRadius:8,border:`1px solid ${c}1a` }}>
                     <span style={{ fontSize:14 }}>{def?.emoji}</span>
                     <span style={{ flex:1,fontSize:12,color:c,fontWeight:600 }}>{def?.label}</span>
@@ -5026,9 +5097,38 @@ const MIGRATIONS = [
       if (enrollChanged) localStorage.setItem("fkh-programs", JSON.stringify(enrolled));
     } catch {}
   },
+  // ── v3 → v4: recover program progress wiped by v3 migration or sync ──
+  // Rebuilds session marks from s_done — never deletes existing marks.
+  () => {
+    try {
+      persistProgramProgressRecovery();
+    } catch (e) {
+      console.error("[fkh] program progress recovery failed", e);
+    }
+  },
 ];
 
 const DATA_VERSION = MIGRATIONS.length; // keep in lock-step automatically
+
+/** Rebuild fkh-program-progress from s_done when session marks were lost. */
+function persistProgramProgressRecovery() {
+  try {
+    const enrolled = JSON.parse(localStorage.getItem("fkh-programs") || "{}");
+    const progress = JSON.parse(localStorage.getItem("fkh-program-progress") || "{}");
+    const completed = JSON.parse(localStorage.getItem("s_done") || "{}");
+    const next = rehydrateProgramProgressFromCompleted({
+      programs: PROGRAMS,
+      enrolledPrograms: enrolled,
+      programProgress: progress,
+      completed,
+    });
+    if (next === progress) return false;
+    safePersistKey("fkh-program-progress", next);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 // Keys that indicate a real, pre-existing install (vs. a fresh device).
 const KNOWN_DATA_KEYS = ["s_settings", "s_done", "fkh-programs", "shot_log_v2"];
@@ -5109,30 +5209,37 @@ function checkIdStability() {
 
 // Run once at module load — before the component mounts and before any
 // useState initializer reads localStorage.
+recoverFromSyncBackupIfNeeded();
 runDataMigrations();
+persistProgramProgressRecovery();
 checkIdStability();
+
+function loadSettingsFromStorage(defaults) {
+  try {
+    const raw = JSON.parse(localStorage.getItem("s_settings") || "{}");
+    if (raw.athleteAge && !raw.dateOfBirth) {
+      const year = new Date().getFullYear() - Number(raw.athleteAge);
+      raw.dateOfBirth = `${year}-06-15`;
+    }
+    delete raw.athleteAge;
+    const merged = mergeUserSettings(raw, defaults);
+    return withStoredAvatar(migrateIdentitySettings(migrateThemeSettings(merged)));
+  } catch {
+    return { ...defaults };
+  }
+}
 
 /* ═══════════════════════ MAIN APP ═══════════════════════ */
 export default function FitKidHooperApp() {
-  const [settings, setSettings] = useState(()=>{
-    try {
-      const raw = JSON.parse(localStorage.getItem("s_settings")||"{}");
-      // ── Migration: athleteAge (legacy) → dateOfBirth ──────────────
-      if (raw.athleteAge && !raw.dateOfBirth) {
-        // Estimate DOB as June 15 of (currentYear - athleteAge).
-        // Approximate but far better than losing the data entirely.
-        const year = new Date().getFullYear() - Number(raw.athleteAge);
-        raw.dateOfBirth = `${year}-06-15`;
-      }
-      delete raw.athleteAge; // remove stale key regardless
-      return withStoredAvatar(migrateIdentitySettings(migrateThemeSettings({ ...DEFAULT, ...raw })));
-    } catch { return DEFAULT; }
-  });
+  const [settings, setSettings] = useState(() => loadSettingsFromStorage(DEFAULT));
   const [showSettings, setShowSettings] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const [inviteCode, setInviteCode] = useState(() => consumeInviteDeepLink());
   const [missionDeepLink, setMissionDeepLink] = useState(() => consumeMissionDeepLink());
+  const [messagesDeepLink, setMessagesDeepLink] = useState(() => consumeMessagesDeepLink());
+  const [openMessagesInbox, setOpenMessagesInbox] = useState(false);
   const auth = useAuth(settings);
+  const { unreadMessages, refreshUnreadMessages } = useUnreadMessages(auth.isSignedIn);
   const [showFeedback, setShowFeedback] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showAppMap, setShowAppMap] = useState(false);
@@ -5185,6 +5292,16 @@ export default function FitKidHooperApp() {
     setView("boards");
   }, []);
 
+  const focusMeFriends = useCallback(() => {
+    setProgressTab("friends");
+    setView("progress");
+    setFriendsFocusTick(t => t + 1);
+  }, []);
+
+  const openLegendsJourney = useCallback(() => {
+    setView("boards");
+  }, []);
+
   const openProgramsSection = useCallback((section = "plans") => {
     setProgramsHubSection(section);
     setView("programs");
@@ -5206,6 +5323,22 @@ export default function FitKidHooperApp() {
   const [missionTaskToast, setMissionTaskToast] = useState(null);
   const celebratedMissionTasksRef = useRef(new Set());
   const [favorites, setFavorites] = useState(()=>{ try{return JSON.parse(localStorage.getItem("fkh-favs")||'{"exercises":{},"workouts":{},"programs":{}}')}catch{return{exercises:{},workouts:{},programs:{}}} });
+  const reloadAthleteStateFromStorage = useCallback(() => {
+    persistProgramProgressRecovery();
+    setSettings(loadSettingsFromStorage(DEFAULT));
+    try { setCompleted(JSON.parse(localStorage.getItem("s_done") || "{}")); } catch {}
+    try { setProgramProgress(JSON.parse(localStorage.getItem("fkh-program-progress") || "{}")); } catch {}
+    try { setEnrolledPrograms(JSON.parse(localStorage.getItem("fkh-programs") || "{}")); } catch {}
+    try { setMissionLog(JSON.parse(localStorage.getItem("fkh-missions") || "{}")); } catch {}
+    try { setFavorites(JSON.parse(localStorage.getItem("fkh-favs") || '{"exercises":{},"workouts":{},"programs":{}}')); } catch {}
+    try { setSetLog(JSON.parse(localStorage.getItem("fkh-set-log") || "{}")); } catch {}
+    try { setMaxRepsMap(JSON.parse(localStorage.getItem("fkh-max-reps") || "{}")); } catch {}
+    try { setBadgeDates(JSON.parse(localStorage.getItem("fkh-badge-dates") || "{}")); } catch {}
+    setStrDay(localStorage.getItem("s_strday") || "Day 1");
+    setLedger(readLocalLedger());
+    setBenchmarkPBs(readLocalPBs());
+    setGrowthLog(readGrowthLog());
+  }, []);
   const [reportPeriod, setReportPeriod] = useState("30d");
   const [strDay, setStrDay] = useState(()=>localStorage.getItem('s_strday')||'Day 1');
   const [onboardName, setOnboardName] = useState('');
@@ -5213,6 +5346,8 @@ export default function FitKidHooperApp() {
   const [onboardPlayLike, setOnboardPlayLike] = useState('');
   const [onboardStep, setOnboardStep] = useState(0);
   const [showOnboarding, setShowOnboarding] = useState(()=>!localStorage.getItem('s_onboarded')&&settings.athleteName===DEFAULT.athleteName);
+  const [tourActive, setTourActive] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
   const [pushBusy, setPushBusy] = useState(false);
   const [pushError, setPushError] = useState(null);
   const openSchedule = useCallback((returnView = "home", tab = "calendar") => {
@@ -5220,6 +5355,40 @@ export default function FitKidHooperApp() {
     setSchedTab(tab);
     setView("schedule");
   }, []);
+
+  const finishTour = useCallback(() => {
+    markTourComplete();
+    setTourActive(false);
+    track(ANALYTICS_EVENTS.ONBOARDING_TOUR_COMPLETE, {});
+  }, []);
+
+  const advanceTour = useCallback(() => {
+    setTourStep(prev => {
+      if (prev >= TOUR_STEPS.length - 1) {
+        finishTour();
+        return prev;
+      }
+      return prev + 1;
+    });
+  }, [finishTour]);
+
+  const startTour = useCallback(() => {
+    setShowHelp(false);
+    setShowSettings(false);
+    setShowAppMap(false);
+    setTourStep(0);
+    setTourActive(true);
+  }, []);
+
+  useEffect(() => {
+    if (!tourActive) return;
+    applyTourStep(TOUR_STEPS[tourStep], {
+      setView,
+      setProgressTab,
+      setProgramsHubSection,
+      setSelectedProgram,
+    });
+  }, [tourActive, tourStep]);
 
   const getExerciseCategory = useCallback(exId => (ALL_EXERCISES[exId] || {})._cat, []);
 
@@ -5309,7 +5478,7 @@ export default function FitKidHooperApp() {
 
   useEffect(()=>{
     writeStoredAvatar(settings.avatar || null);
-    try{localStorage.setItem("s_settings",JSON.stringify(settings))}catch{}
+    safePersistKey("s_settings", settings);
   },[settings]);
 
   const avatarSyncRef = useRef(null);
@@ -5336,14 +5505,14 @@ export default function FitKidHooperApp() {
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute("content", bgColor);
   }, [settings.bgHue, settings.bgSat, settings.bgLight, settings.textHue, settings.textSat, settings.textLight]);
-  useEffect(()=>{ try{localStorage.setItem("s_done",JSON.stringify(completed))}catch{} },[completed]);
-  useEffect(()=>{ try{localStorage.setItem("fkh-program-progress",JSON.stringify(programProgress))}catch{} },[programProgress]);
-  useEffect(()=>{ try{localStorage.setItem("fkh-set-log",JSON.stringify(setLog))}catch{} },[setLog]);
-  useEffect(()=>{ try{localStorage.setItem("fkh-max-reps",JSON.stringify(maxRepsMap))}catch{} },[maxRepsMap]);
-  useEffect(()=>{ try{localStorage.setItem("fkh-bilateral-prefs",JSON.stringify(bilateralPrefs))}catch{} },[bilateralPrefs]);
-  useEffect(()=>{ try{localStorage.setItem("fkh-programs",JSON.stringify(enrolledPrograms))}catch{} },[enrolledPrograms]);
-  useEffect(()=>{ try{localStorage.setItem("fkh-missions",JSON.stringify(missionLog))}catch{} },[missionLog]);
-  useEffect(()=>{ try{localStorage.setItem("fkh-favs",JSON.stringify(favorites))}catch{} },[favorites]);
+  useEffect(()=>{ safePersistKey("s_done", completed); },[completed]);
+  useEffect(()=>{ safePersistKey("fkh-program-progress", programProgress); },[programProgress]);
+  useEffect(()=>{ safePersistKey("fkh-set-log", setLog); },[setLog]);
+  useEffect(()=>{ safePersistKey("fkh-max-reps", maxRepsMap); },[maxRepsMap]);
+  useEffect(()=>{ safePersistKey("fkh-bilateral-prefs", bilateralPrefs); },[bilateralPrefs]);
+  useEffect(()=>{ safePersistKey("fkh-programs", enrolledPrograms); },[enrolledPrograms]);
+  useEffect(()=>{ safePersistKey("fkh-missions", missionLog); },[missionLog]);
+  useEffect(()=>{ safePersistKey("fkh-favs", favorites); },[favorites]);
 
   const isFav      = (type, id) => !!(favorites[type]||{})[id];
   const toggleFav  = (type, id) => setFavorites(prev=>{
@@ -5554,6 +5723,7 @@ export default function FitKidHooperApp() {
   const settingsSheet = showSettings ? (
     <SettingsSheet settings={settings} setSettings={setSettings} onClose={() => setShowSettings(false)} onOpenFeedback={openFeedback}
       onOpenAuth={() => { setShowSettings(false); setShowAuth(true); }}
+      onReplayTour={() => { setShowSettings(false); startTour(); }}
       isSignedIn={auth.isSignedIn}
       signedInUsername={auth.username}
       onCloudSync={auth.syncNow}
@@ -5809,8 +5979,25 @@ export default function FitKidHooperApp() {
   }, [inviteCode]);
 
   useEffect(() => {
-    if (auth.isSignedIn) auth.syncNow();
-  }, [auth.isSignedIn]);
+    if (!messagesDeepLink) return;
+    setView("progress");
+    setProgressTab("friends");
+    setOpenMessagesInbox(true);
+    setMessagesDeepLink(false);
+  }, [messagesDeepLink]);
+
+  useEffect(() => {
+    if (!auth.isSignedIn) return;
+    let cancelled = false;
+    (async () => {
+      const result = await auth.syncNow();
+      if (cancelled || !result?.ok) return;
+      persistProgramProgressRecovery();
+      reloadAthleteStateFromStorage();
+      refreshUnreadMessages();
+    })();
+    return () => { cancelled = true; };
+  }, [auth.isSignedIn, auth.syncNow, reloadAthleteStateFromStorage, refreshUnreadMessages]);
 
   // Auto-sync the leaderboard on app open / sign-in (not just when Boards is
   // opened). Self-throttled to ~30 min, so it's cheap to fire here.
@@ -5908,7 +6095,12 @@ export default function FitKidHooperApp() {
     <div style={{ position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:680,background:NV,borderTop:`1px solid ${bd}`,display:"flex",zIndex:50,paddingBottom:"env(safe-area-inset-bottom, 0px)" }}>
       {NAV.map(n=>(
         <button key={n.id} onClick={()=>setView(n.id)} style={{ flex:1,padding:"10px 0 12px",border:"none",background:"transparent",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2 }}>
-          <span style={{ fontSize:18 }}>{n.emoji}</span>
+          <span style={{ position:"relative", display:"inline-flex", alignItems:"center", justifyContent:"center" }}>
+            <span style={{ fontSize:18 }}>{n.emoji}</span>
+            {n.id === "progress" && unreadMessages > 0 && (
+              <CountBadge count={unreadMessages} P={P} style={{ position:"absolute", top:-6, right:-10, minWidth:16, height:16, fontSize:9, padding:"0 4px" }} />
+            )}
+          </span>
           <span style={{ fontSize:9,color:view===n.id?P:"#475569",fontWeight:view===n.id?700:400,letterSpacing:"0.04em" }}>{n.label}</span>
           {view===n.id&&<div style={{ width:16,height:2,borderRadius:99,background:P,marginTop:1 }}/>}
         </button>
@@ -5941,6 +6133,18 @@ export default function FitKidHooperApp() {
       )}
       {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]} onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
       {renderMissionOverlays()}
+      {tourActive && (
+        <OnboardingTour
+          step={TOUR_STEPS[tourStep]}
+          stepIndex={tourStep}
+          stepCount={TOUR_STEPS.length}
+          navTabs={NAV}
+          P={P}
+          SF={SF}
+          onNext={advanceTour}
+          onSkip={finishTour}
+        />
+      )}
     </>
   );
 
@@ -5994,10 +6198,7 @@ export default function FitKidHooperApp() {
   /* SHOTS */
   if (view==="shots") return (
     <div style={{ background:BG,minHeight:"100vh",maxWidth:680,margin:"0 auto" }}>
-      {settingsSheet}{feedbackSheet}{authSheet}
-      {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]}
-        onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
-      {renderMissionOverlays()}
+      {shellOverlays}
       <ShotTracker P={P} S={S} BG={BG} athleteName={settings.athleteName} settings={settings}/>
       {renderBottomNav()}
     </div>
@@ -6042,6 +6243,7 @@ export default function FitKidHooperApp() {
         ProgressStatsPanel={ProgressStatsPanel}
         onOpenSettings={() => setShowSettings(true)}
         onShowHelp={() => setShowHelp(true)}
+        onReplayTour={startTour}
         onViewHistory={() => setView("history")}
         onOpenSchedule={() => openSchedule("progress", "calendar")}
         onViewReport={() => setView("report")}
@@ -6078,9 +6280,14 @@ export default function FitKidHooperApp() {
             onAddFriends={focusChallengesFriends}
             focusFriendsTick={friendsFocusTick}
             onPushSuccess={() => setPushError(null)}
+            unreadMessages={unreadMessages}
+            onUnreadRefresh={refreshUnreadMessages}
+            openMessagesInbox={openMessagesInbox}
+            onMessagesInboxOpened={() => setOpenMessagesInbox(false)}
           />
         }
         renderBottomNav={renderBottomNav}
+        unreadMessages={unreadMessages}
       />
     );
   }
@@ -6562,7 +6769,8 @@ export default function FitKidHooperApp() {
             favoritePlayLike: onboardPlayLike.trim() || p.favoritePlayLike }));
           localStorage.setItem('s_onboarded','1');
           track(ANALYTICS_EVENTS.ONBOARDING_COMPLETE, {});
-          setShowOnboarding(false); setShowHelp(true);
+          setShowOnboarding(false);
+          startTour();
         };
         return (
         <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.88)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:20 }}>
@@ -6595,7 +6803,7 @@ export default function FitKidHooperApp() {
         </div>
         );
       })()}
-      {showHelp&&<HelpSheet P={P} SF={SF} onClose={()=>setShowHelp(false)} onOpenMap={()=>{ setShowHelp(false); setShowAppMap(true); }}/>}
+      {showHelp&&<HelpSheet P={P} SF={SF} onClose={()=>setShowHelp(false)} onReplayTour={startTour} onOpenMap={()=>{ setShowHelp(false); setShowAppMap(true); }}/>}
       {showAppMap&&<AppMapSheet P={P} SF={SF} onClose={()=>setShowAppMap(false)} onNavigate={dest=>{
         setShowAppMap(false);
         switch(dest){
@@ -6715,10 +6923,10 @@ export default function FitKidHooperApp() {
         workoutTemplates={WORKOUT_TEMPLATES}
         searchExercises={searchExercises}
         onPickCategory={(cat) => { setActiveCat(cat); setPrevView("home"); setView("cat"); }}
-        onOpenPath={() => setView("boards")}
+        onOpenPath={openLegendsJourney}
         onSetFavorite={() => setShowSettings(true)}
         onOpenPlayerHighlight={openPlayerHighlight}
-        onFocusFriends={focusChallengesFriends}
+        onFocusFriends={focusMeFriends}
         onOpenChallenges={() => setView("boards")}
         onOpenProgram={(id) => { setSelectedProgram(id); setView("programs"); }}
         workoutOpen={workoutOpen}

@@ -143,7 +143,7 @@ function isInstallIOS() {
 }
 
 /* ═══════════════════════ SETTINGS SHEET ═══════════════════════ */
-function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenAuth, isSignedIn, signedInUsername, onCloudSync, cloudSyncStatus, onLogout }) {
+function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenAuth, onReplayTour, isSignedIn, signedInUsername, onCloudSync, cloudSyncStatus, onLogout }) {
   const [tab, setTab] = useState("accent");
   const [showAdvancedColors, setShowAdvancedColors] = useState(false);
   const [guardrailNote, setGuardrailNote] = useState(null);
@@ -203,7 +203,7 @@ function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenA
 
   const applyHSL = (h, s, l) => {
     const { patch, adjusted } = patchTabHSL(settings, tab, h, s, l);
-    setSettings(p => ({ ...p, ...patch }));
+    setSettings(p => ({ ...p, ...patch, themePresetId: "custom" }));
     setGuardrailNote(adjusted ? "Adjusted slightly for readability" : null);
   };
   const setHS  = (h, s)   => applyHSL(h, s, cur.l);
@@ -542,7 +542,7 @@ function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenA
               </button>
               </>
             )}
-            <div style={{ fontSize:11,fontWeight:800,color:"#64748b",letterSpacing:"0.06em",textTransform:"uppercase",margin:"4px 2px 8px" }}>🔔 Reminders</div>
+            <div style={{ fontSize:11,fontWeight:800,color:"#64748b",letterSpacing:"0.06em",textTransform:"uppercase",margin:"4px 2px 8px" }}>🔔 Notifications</div>
             <NotificationSettings P={P} isSignedIn={isSignedIn} onNeedAuth={onOpenAuth} />
           </div>
         </div>
@@ -569,6 +569,12 @@ function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenA
 
         <div style={{ padding:"0 20px 16px" }}>
           <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:"#334155",marginBottom:12,textTransform:"uppercase" }}>App</div>
+          {onReplayTour && (
+            <button onClick={onReplayTour} style={{ width:"100%",padding:"12px 14px",borderRadius:12,cursor:"pointer",marginBottom:10,...actionBtnStyle(settings),textAlign:"left" }}>
+              <div style={{ fontSize:13,fontWeight:700,color:P }}>🎓 Replay app tour</div>
+              <div style={{ fontSize:10,color:"#64748b",marginTop:3 }}>Walk through Today, Programs, Shots, Challenges & Me</div>
+            </button>
+          )}
           {appInstalled ? (
             <div style={{ padding:"12px 14px",borderRadius:12,...chipStyle(settings, true, P) }}>
               <div style={{ fontSize:13,fontWeight:700,color:P }}>✓ Installed on Home Screen</div>

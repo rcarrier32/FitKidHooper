@@ -47,10 +47,10 @@ const MAP = [
       { label:"Challenges — personal goals & squads" },
       { label:"Tip: needs an account", to:"account" },
     ] },
-  { key:"reminders", emoji:"🔔", title:"Reminders", blurb:"Get nudged to train.", to:"settings",
+  { key:"notifications", emoji:"🔔", title:"Notifications", blurb:"Stay in the loop.", to:"settings",
     items:[
-      { label:"Daily mission, streak & friend nudges" },
-      { label:"Turn each kind on or off in Settings" },
+      { label:"Messages, daily mission, streak & friend activity" },
+      { label:"All types on by default — turn off any you don't want in Settings" },
     ] },
   { key:"account", emoji:"☁️", title:"Account & sync", blurb:"Back up across devices.", to:"account",
     items:[

@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-export default function HelpSheet({ P, SF, onClose, onOpenMap }) {
+export default function HelpSheet({ P, SF, onClose, onOpenMap, onReplayTour }) {
   useEffect(() => {
     const h = e => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", h);
@@ -8,28 +8,27 @@ export default function HelpSheet({ P, SF, onClose, onOpenMap }) {
   }, [onClose]);
 
   const TABS = [
-    { e:"🏀", t:"Log your shots",     d:"On the Shots tab, tap a zone on the court — left and right are detected automatically. Enter makes and misses, then log. Quick Tap is for shot types when you are not using the court map." },
-    { e:"🎯", t:"Set a weekly goal",  d:"On the Shots tab, tap Set Goal to pick how many makes you want this week. The bar fills as you score — try to beat it before the week runs out!" },
-    { e:"📈", t:"Check your stats",   d:"Training History and the Training Calendar (Me → Stats) show your streaks, monthly drill log, and weekly plan." },
-    { e:"☀️", t:"Do today's workout", d:"Today shows your workout and a daily mission. Tap any drill for a short video and coaching cues, then check it off when you finish to earn XP." },
-    { e:"📋", t:"Follow a program",   d:"Programs are multi-week plans like Jump Higher. Open one, tap Start Program, and follow it session by session — your progress saves on its own, and finishing earns a badge." },
-    { e:"🏅", t:"Earn XP & badges",   d:"Training and making shots earns XP and levels you up from Rookie to Elite Hooper. Collect badges on Me → 📈 Progress → Badges — locked ones show exactly what to do to earn them." },
-    { e:"⭐", t:"Climb your path",     d:"Pick who you play like and you'll follow a legend path on Today. Each rank needs both reps AND signature moves — your Path shows the exact drills (like crossovers) to do next. Tap a move to open it." },
-    { e:"👥", t:"Add friends",         d:"Type a friend's username and tap Add — they confirm the request. Or share a friend code. Then see their wins in the Feed and cheer them on with reactions and comments." },
-    { e:"💬", t:"Message a friend",    d:"Open a friend's profile and tap 💬 Message to start a private chat. You can also @mention a friend in a feed comment (type @ and their username) — they get a notification." },
-    { e:"🔔", t:"Turn on reminders",   d:"In Settings → Reminders, switch on nudges for your daily mission, streak, and friend activity. Every kind is on by default — uncheck any you don't want." },
-    { e:"☁️", t:"Sign in to sync",     d:"Make an account (username + 6-digit passcode) in Settings to back up your progress, keep it across devices, and add friends." },
+    { e:"☀️", t:"Today & daily mission", d:"Your home base: Daily Mission (bonus XP), My Programs, Train Like Legends, Squad & Friends, and Quick Workout. Tap section headers to expand or collapse. Tap any drill for video + coaching cues, then check it off to earn XP." },
+    { e:"📋", t:"Programs hub", d:"Search any program or drill at the top. Plans — enroll in multi-week programs and track sessions. Drills — browse every training module. Quick — start a shuffled template workout. Build — save a custom day or weekly plan." },
+    { e:"🏀", t:"Log your shots", d:"On Shots, tap a zone on the court — left and right are detected automatically. Enter makes and misses, then log. Defaults to today; tap Yesterday or pick a date if you forgot to log earlier. Quick Tap is for shot types without the court map." },
+    { e:"🎯", t:"Set a weekly goal", d:"On Shots, tap Set Goal to pick how many makes you want this week. The bar fills as you score — try to beat it before the week runs out!" },
+    { e:"⭐", t:"Train Like Legends", d:"On Challenges, scroll to Train Like Legends. Legend names are tap-to-watch links to real highlights. Climb ranks with reps and signature-move drills — then build your own game on the court." },
+    { e:"🏆", t:"Challenges & leaderboards", d:"Personal goals, squad competitions, and age-group / friends leaderboards (This Week, Month, YTD, All Time). Sign in to sync stats and compete with friends." },
+    { e:"👥", t:"Friends & messages", d:"Me → Friends — add by username or friend code. Message privately from a friend's profile. Unread counts show on Me, Friends, and Messages. @mention friends in feed comments for a notification." },
+    { e:"🏅", t:"Earn XP & badges", d:"Training and making shots earns XP and levels you up from Rookie to Elite Hooper. Me → Badges tab — locked badges show exactly what to do to earn them." },
+    { e:"📈", t:"Stats & calendar", d:"Me → Stats — streaks, monthly drill log, and links to Training History & Calendar for your weekly plan." },
+    { e:"🔔", t:"Notifications", d:"Settings → Notifications — push alerts are on by default. Uncheck any category you don't want (messages, daily mission, friend activity, and more)." },
+    { e:"☁️", t:"Sign in to sync", d:"Settings → Sign in (username + 6-digit passcode) to back up progress, keep it across devices, and add friends." },
   ];
   const TIPS = [
-    { e:"🧭", d:"Get around with the tabs at the bottom: Today, Shots, Programs, Challenges, and Me. Tap ⚙ Settings from Today or Me for profile and customization." },
-    { e:"🏆", d:"Challenges combine personal goals and squad competitions. Your stats sync to age-group and friends leaderboards when sharing is on (This Week, Month, YTD, All Time)." },
-    { e:"🔥", d:"Streaks are forgiving — one rest day won't break your streak. Rest is part of training, especially while you're growing. Two missed days in a row resets it." },
-    { e:"⭐", d:"Tap the star on any drill or program to save it as a favorite." },
-    { e:"🔍", d:"Use Find a Drill on Today to search any exercise by name — crossover, Mikan, plank, and more." },
-    { e:"🗓", d:"Open Training History & Calendar from Me → 📈 Progress → Stats to see your streaks, drill log, and weekly plan." },
-    { e:"⚙️", d:"In Settings you can set your first and last name, birthday, goals, who you play like, reminders, and the app colors. On Boards, friends see your first name and last initial." },
-    { e:"📲", d:"Add the app to your home screen anytime — open ⚙ Settings → Install on Home Screen. On iPhone use Share → Add to Home Screen in Safari (needed for reminders on iPhone)." },
-    { e:"💾", d:"Your progress is saved on this device and, when you sign in, backed up to the cloud and merged across your devices." },
+    { e:"🧭", d:"Five tabs at the bottom: Today, Shots, Programs, Challenges, and Me. Replay the guided tour from Settings → App tour." },
+    { e:"🔥", d:"Streaks are forgiving — one rest day won't break your streak. Two missed days in a row resets it." },
+    { e:"⭐", d:"Tap the star on any drill, program, or workout template to save it as a favorite." },
+    { e:"🔍", d:"Search exercises and programs from the Programs tab search bar — crossover, Mikan, plank, and more." },
+    { e:"🛠", d:"Programs → Build — pick drills for one day or map out a full week and save your custom plan." },
+    { e:"⚙️", d:"Settings — name, birthday, goals, who you play like, colors, notifications, and install to home screen." },
+    { e:"📲", d:"Add to home screen via Settings → Install. On iPhone: Safari Share → Add to Home Screen (needed for notifications)." },
+    { e:"💾", d:"Progress saves on this device; sign in for cloud backup merged across devices." },
   ];
   const card = { background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:12,padding:"12px 14px" };
   const kicker = { fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:"#334155",marginBottom:10,textTransform:"uppercase" };
@@ -51,19 +50,32 @@ export default function HelpSheet({ P, SF, onClose, onOpenMap }) {
         <div style={{ padding:"18px 20px 2px" }}>
           <div style={{ fontSize:15,fontWeight:800,color:"var(--fkh-text)",marginBottom:5 }}>Welcome, Hooper! 🏀</div>
           <p style={{ fontSize:13,lineHeight:1.55,color:"var(--fkh-text-muted)",margin:0 }}>
-            This is your basketball training buddy. Here's everything you can do — and how to do it:
+            Quick reference for everything in the app. New here? Take the guided tour first.
           </p>
-          {onOpenMap && (
-            <button onClick={onOpenMap}
-              style={{ marginTop:12,width:"100%",display:"flex",alignItems:"center",gap:10,padding:"11px 14px",borderRadius:12,border:`1px solid ${P}44`,background:`${P}12`,cursor:"pointer",textAlign:"left" }}>
-              <span style={{ fontSize:18 }}>🗺</span>
-              <div style={{ flex:1 }}>
-                <div style={{ fontSize:13,fontWeight:800,color:P }}>Open the app map</div>
-                <div style={{ fontSize:11,color:"var(--fkh-text-muted)" }}>Browse every feature and jump straight to it</div>
-              </div>
-              <span style={{ color:P,fontSize:13 }}>→</span>
-            </button>
-          )}
+          <div style={{ display:"flex",flexDirection:"column",gap:8,marginTop:12 }}>
+            {onReplayTour && (
+              <button onClick={() => { onClose(); onReplayTour(); }}
+                style={{ width:"100%",display:"flex",alignItems:"center",gap:10,padding:"11px 14px",borderRadius:12,border:`1px solid ${P}44`,background:`${P}12`,cursor:"pointer",textAlign:"left" }}>
+                <span style={{ fontSize:18 }}>🎓</span>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:13,fontWeight:800,color:P }}>Replay app tour</div>
+                  <div style={{ fontSize:11,color:"var(--fkh-text-muted)" }}>Walk through every tab step by step</div>
+                </div>
+                <span style={{ color:P,fontSize:13 }}>→</span>
+              </button>
+            )}
+            {onOpenMap && (
+              <button onClick={onOpenMap}
+                style={{ width:"100%",display:"flex",alignItems:"center",gap:10,padding:"11px 14px",borderRadius:12,border:"1px solid rgba(255,255,255,0.1)",background:"rgba(255,255,255,0.04)",cursor:"pointer",textAlign:"left" }}>
+                <span style={{ fontSize:18 }}>🗺</span>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:13,fontWeight:800,color:"var(--fkh-text)" }}>Open the app map</div>
+                  <div style={{ fontSize:11,color:"var(--fkh-text-muted)" }}>Browse every feature and jump straight to it</div>
+                </div>
+                <span style={{ color:"#64748b",fontSize:13 }}>→</span>
+              </button>
+            )}
+          </div>
         </div>
 
         <div style={{ padding:"16px 20px 2px" }}>

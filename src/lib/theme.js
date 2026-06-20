@@ -248,7 +248,40 @@ export function applyThemePreset(preset) {
     secondaryHue: secondary[0], secondarySat: secondary[1], secondaryLight: secondary[2],
     accentHue: strength[0], accentSat: strength[1], accentLight: strength[2],
     customSecondary: true,
+    themePresetId: preset.id,
   });
+}
+
+/** Default FKH theme — used to detect custom colors during cloud merge. */
+export const DEFAULT_THEME = {
+  primaryHue: 38, primarySat: 92, primaryLight: 55,
+  secondaryHue: 245, secondarySat: 80, secondaryLight: 60,
+  bgHue: 222, bgSat: 47, bgLight: 10,
+  surfaceHue: 222, surfaceSat: 37, surfaceLight: 15,
+  buttonHue: 222, buttonSat: 38, buttonLight: 20,
+  textHue: 210, textSat: 25, textLight: 94,
+  accentHue: 158, accentSat: 85, accentLight: 50,
+  customSecondary: false,
+};
+
+export const THEME_SETTING_KEYS = [
+  ...Object.keys(DEFAULT_THEME),
+  "themePresetId",
+];
+
+export function extractThemeFields(settings) {
+  if (!settings) return {};
+  const out = {};
+  for (const k of THEME_SETTING_KEYS) {
+    if (settings[k] !== undefined) out[k] = settings[k];
+  }
+  return out;
+}
+
+export function isDefaultTheme(settings) {
+  if (!settings) return true;
+  if (settings.themePresetId) return false;
+  return Object.entries(DEFAULT_THEME).every(([k, v]) => (settings[k] ?? v) === v);
 }
 
 export const MAIN_THEME_TABS = [

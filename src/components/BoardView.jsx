@@ -26,6 +26,7 @@ import FeedView from "./FeedView.jsx";
 import FriendAvatar from "./FriendAvatar.jsx";
 import FriendProfileSheet from "./FriendProfileSheet.jsx";
 import MessagesSheet from "./MessagesSheet.jsx";
+import CountBadge from "./CountBadge.jsx";
 import ChallengesActivePanel from "./ChallengesActivePanel.jsx";
 import { fetchProfileSnippets, profileSnippet } from "../lib/friendProfileApi.js";
 import { getAchievementMeta } from "../lib/achievements.js";
@@ -67,6 +68,10 @@ export default function BoardView({
   isSignedIn,
   onOpenAuth,
   modes = ["challenges", "friends", "rankings"],
+  unreadMessages = 0,
+  onUnreadRefresh,
+  openMessagesInbox = false,
+  onMessagesInboxOpened,
 }) {
   const myAgeGroup = getAgeGroup(settings.dateOfBirth);
   const friendsPanelRef = useRef(null);
@@ -138,6 +143,13 @@ export default function BoardView({
     }, 80);
     return () => clearTimeout(timer);
   }, [focusFriendsTick]);
+
+  useEffect(() => {
+    if (!openMessagesInbox) return;
+    if (modes.includes("friends")) setMode("friends");
+    setMessageFriend("inbox");
+    onMessagesInboxOpened?.();
+  }, [openMessagesInbox, modes, onMessagesInboxOpened]);
 
   const load = useCallback(async () => {
     if (!configured) return;
@@ -279,7 +291,11 @@ export default function BoardView({
               border: `1px solid ${mode === m ? P : bd}`,
               background: mode === m ? `${P}18` : "transparent",
               color: mode === m ? P : "#64748b",
-            }}>{label}</button>
+              display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5,
+            }}>
+              <span>{label}</span>
+              {m === "friends" && unreadMessages > 0 && <CountBadge count={unreadMessages} P={P} />}
+            </button>
           ))}
         </div>
       )}
@@ -414,15 +430,28 @@ export default function BoardView({
             {friendMsg && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 8 }}>{friendMsg}</div>}
           </div>
 
+          {isSignedIn && (
+            <div style={{ marginBottom: 16 }}>
+              <button type="button" onClick={() => setMessageFriend("inbox")} style={{
+                width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
+                padding: "12px 14px", borderRadius: 12, border: `1px solid ${unreadMessages > 0 ? P : `${P}44`}`,
+                background: unreadMessages > 0 ? `${P}18` : `${P}10`, color: P, fontSize: 13, fontWeight: 800,
+                cursor: "pointer", textAlign: "left",
+              }}>
+                <span>💬 Messages</span>
+                <CountBadge count={unreadMessages} P={P} />
+              </button>
+              {unreadMessages > 0 && (
+                <div style={{ fontSize: 10, color: "#64748b", marginTop: 6, lineHeight: 1.45, paddingLeft: 2 }}>
+                  You have {unreadMessages} unread message{unreadMessages === 1 ? "" : "s"} — tap to read.
+                </div>
+              )}
+            </div>
+          )}
+
           {friendRoster.length > 0 && (
             <div style={{ marginBottom: 16 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                <div style={lbl}>Your squad</div>
-                <button onClick={() => setMessageFriend("inbox")} style={{
-                  display: "inline-flex", alignItems: "center", gap: 4, padding: "5px 11px", borderRadius: 99,
-                  border: `1px solid ${P}44`, background: `${P}12`, color: P, fontSize: 11, fontWeight: 800, cursor: "pointer",
-                }}>💬 Messages</button>
-              </div>
+              <div style={{ ...lbl, marginBottom: 8 }}>Your squad</div>
               <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 4 }}>
                 {friendRoster.map(prof => (
                   <div key={prof.id} style={{ flex: "0 0 auto", textAlign: "center", width: 64 }}>
@@ -685,6 +714,7 @@ export default function BoardView({
           bd={bd}
           initialFriend={messageFriend === "inbox" ? null : messageFriend}
           onClose={() => setMessageFriend(null)}
+          onUnreadChange={onUnreadRefresh}
         />
       )}
     </div>

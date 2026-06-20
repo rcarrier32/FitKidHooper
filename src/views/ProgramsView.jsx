@@ -8,7 +8,18 @@ import {
   isProgramSessionComplete,
   countProgramSessionsDone,
 } from "../lib/programProgress.js";
-import { readCustomWorkouts, saveCustomWorkout, deleteCustomWorkout } from "../lib/customWorkouts.js";
+import {
+  readCustomWorkouts,
+  saveCustomWorkout,
+  deleteCustomWorkout,
+  emptyWeekDays,
+  exerciseIdsForCustomWorkout,
+  countCustomWorkoutExercises,
+  activeDaysInWeekPlan,
+  getTodayWeekDayKey,
+  WEEK_DAY_KEYS,
+  WEEK_DAY_LABELS,
+} from "../lib/customWorkouts.js";
 import { generateWorkoutFromMission } from "../lib/missionWorkout.js";
 
 const todayKey = () => new Date().toLocaleDateString("en-CA");
@@ -65,6 +76,9 @@ export default function ProgramsView({
   const [customWorkouts, setCustomWorkouts] = useState(() => readCustomWorkouts());
   const [buildName, setBuildName] = useState("");
   const [buildPicks, setBuildPicks] = useState([]);
+  const [buildMode, setBuildMode] = useState("day");
+  const [buildWeekDays, setBuildWeekDays] = useState(emptyWeekDays);
+  const [activeBuildDay, setActiveBuildDay] = useState(getTodayWeekDayKey);
 
   const enrollProg = (prog) => {
     const startDate = new Date().toLocaleDateString("en-CA");
@@ -105,24 +119,55 @@ export default function ProgramsView({
     openDetail(enriched, list.map(e => ({ ...e, meta: e.meta || exerciseMeta[e.id] || {} })));
   };
 
-  const startCustomList = (exerciseIds, name, emoji = "🏋️") => {
+  const startCustomList = (entryOrIds, name, emoji = "🏋️") => {
+    const entry = Array.isArray(entryOrIds)
+      ? { exerciseIds: entryOrIds, type: "day" }
+      : entryOrIds;
+    const exerciseIds = exerciseIdsForCustomWorkout(entry);
     const exs = exerciseIds.map(id => allExercises[id]).filter(Boolean);
     if (!exs.length) return;
     openExercise(exs[0], exs);
   };
 
   const saveBuiltWorkout = () => {
+    if (buildMode === "week") {
+      const days = buildWeekDays;
+      const total = WEEK_DAY_KEYS.reduce((n, k) => n + (days[k]?.length || 0), 0);
+      const daysWithDrills = WEEK_DAY_KEYS.filter(k => (days[k]?.length || 0) >= 2).length;
+      if (total < 2 || daysWithDrills < 1) return;
+      const entry = saveCustomWorkout({ name: buildName || "My Week", type: "week", days });
+      setCustomWorkouts(readCustomWorkouts());
+      setBuildName("");
+      setBuildWeekDays(emptyWeekDays());
+      startCustomList(entry);
+      return;
+    }
     if (buildPicks.length < 2) return;
     const entry = saveCustomWorkout({ name: buildName || "My Workout", exerciseIds: buildPicks });
     setCustomWorkouts(readCustomWorkouts());
     setBuildName("");
     setBuildPicks([]);
-    startCustomList(entry.exerciseIds, entry.name, entry.emoji);
+    startCustomList(entry);
   };
 
   const toggleBuildPick = (exId) => {
+    if (buildMode === "week") {
+      setBuildWeekDays(prev => {
+        const dayList = prev[activeBuildDay] || [];
+        const next = dayList.includes(exId)
+          ? dayList.filter(id => id !== exId)
+          : [...dayList, exId];
+        return { ...prev, [activeBuildDay]: next };
+      });
+      return;
+    }
     setBuildPicks(prev => prev.includes(exId) ? prev.filter(id => id !== exId) : [...prev, exId]);
   };
+
+  const activeBuildPicks = buildMode === "week" ? (buildWeekDays[activeBuildDay] || []) : buildPicks;
+  const weekPlanTotal = WEEK_DAY_KEYS.reduce((n, k) => n + (buildWeekDays[k]?.length || 0), 0);
+  const canSaveWeek = WEEK_DAY_KEYS.some(k => (buildWeekDays[k]?.length || 0) >= 2);
+  const canSaveDay = buildPicks.length >= 2;
 
   const generateFromMission = () => {
     const w = generateWorkoutFromMission(todayMission, allExercises);
@@ -562,9 +607,13 @@ export default function ProgramsView({
                       <span style={{ fontSize:22 }}>{cw.emoji}</span>
                       <div style={{ flex:1 }}>
                         <div style={{ fontSize:13,fontWeight:700,color:"var(--fkh-text)" }}>{cw.name}</div>
-                        <div style={{ fontSize:10,color:"#64748b" }}>{cw.exerciseIds.length} exercises</div>
+                        <div style={{ fontSize:10,color:"#64748b" }}>
+                          {cw.type === "week"
+                            ? `${activeDaysInWeekPlan(cw)}-day plan · ${countCustomWorkoutExercises(cw)} drills`
+                            : `${countCustomWorkoutExercises(cw)} exercises`}
+                        </div>
                       </div>
-                      <button type="button" onClick={() => startCustomList(cw.exerciseIds, cw.name)} style={{ padding:"7px 10px",borderRadius:8,border:`1px solid ${P}44`,background:`${P}12`,color:P,fontSize:11,fontWeight:700,cursor:"pointer" }}>Start</button>
+                      <button type="button" onClick={() => startCustomList(cw)} style={{ padding:"7px 10px",borderRadius:8,border:`1px solid ${P}44`,background:`${P}12`,color:P,fontSize:11,fontWeight:700,cursor:"pointer" }}>Start</button>
                       <button type="button" onClick={() => { deleteCustomWorkout(cw.id); setCustomWorkouts(readCustomWorkouts()); }} style={{ background:"none",border:"none",color:"#64748b",fontSize:16,cursor:"pointer" }}>×</button>
                     </div>
                   ))}
@@ -572,16 +621,58 @@ export default function ProgramsView({
               )}
 
               <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.14em",color:`${P}70`,textTransform:"uppercase",marginBottom:8 }}>Build Custom Workout</div>
+              <div style={{ display:"flex",gap:6,marginBottom:12 }}>
+                {[
+                  { id:"day", label:"Single Day" },
+                  { id:"week", label:"Weekly Plan" },
+                ].map(opt => (
+                  <button key={opt.id} type="button" onClick={() => setBuildMode(opt.id)} style={{
+                    flex:1,padding:"9px 10px",borderRadius:10,fontSize:12,fontWeight:800,cursor:"pointer",
+                    border:`1px solid ${buildMode===opt.id?P:bd}`,
+                    background:buildMode===opt.id?`${P}18`:"transparent",
+                    color:buildMode===opt.id?P:"#64748b",
+                  }}>{opt.label}</button>
+                ))}
+              </div>
               <input
                 value={buildName}
                 onChange={e => setBuildName(e.target.value)}
-                placeholder="Workout name (optional)"
+                placeholder={buildMode === "week" ? "Week plan name (optional)" : "Workout name (optional)"}
                 style={{ width:"100%",padding:"10px 12px",borderRadius:10,border:`1px solid ${bd}`,background:SF,color:"var(--fkh-text)",fontSize:13,marginBottom:10,boxSizing:"border-box" }}
               />
-              <div style={{ fontSize:11,color:"#64748b",marginBottom:8 }}>Tap exercises to add ({buildPicks.length} selected, min 2)</div>
+              {buildMode === "week" && (
+                <>
+                  <div style={{ fontSize:11,color:"#64748b",marginBottom:8,lineHeight:1.45 }}>
+                    Pick a day, add drills, then repeat for each training day. At least one day needs 2+ drills.
+                  </div>
+                  <div style={{ display:"flex",gap:5,marginBottom:10,overflowX:"auto",paddingBottom:2 }}>
+                    {WEEK_DAY_KEYS.map(key => {
+                      const count = buildWeekDays[key]?.length || 0;
+                      const isActive = activeBuildDay === key;
+                      const isToday = getTodayWeekDayKey() === key;
+                      return (
+                        <button key={key} type="button" onClick={() => setActiveBuildDay(key)} style={{
+                          flexShrink:0,minWidth:44,padding:"8px 6px",borderRadius:10,cursor:"pointer",
+                          border:`1px solid ${isActive?P:bd}`,
+                          background:isActive?`${P}18`:"transparent",
+                          color:isActive?P:"#64748b",
+                        }}>
+                          <div style={{ fontSize:11,fontWeight:800 }}>{WEEK_DAY_LABELS[key]}</div>
+                          <div style={{ fontSize:9,marginTop:2,opacity:0.85 }}>{count}{isToday ? " · today" : ""}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+              <div style={{ fontSize:11,color:"#64748b",marginBottom:8 }}>
+                {buildMode === "week"
+                  ? `${WEEK_DAY_LABELS[activeBuildDay]}: ${activeBuildPicks.length} selected · ${weekPlanTotal} total`
+                  : `Tap exercises to add (${buildPicks.length} selected, min 2)`}
+              </div>
               <div style={{ maxHeight:280,overflowY:"auto",marginBottom:12 }}>
                 {(favExercises.length ? favExercises : Object.values(allExercises).slice(0, 40)).map(ex => {
-                  const picked = buildPicks.includes(ex.id);
+                  const picked = activeBuildPicks.includes(ex.id);
                   const catInfo = cats[ex._cat] || { label:ex._cat };
                   return (
                     <button key={ex.id} type="button" onClick={() => toggleBuildPick(ex.id)} style={{
@@ -601,11 +692,12 @@ export default function ProgramsView({
                   );
                 })}
               </div>
-              <button type="button" disabled={buildPicks.length < 2} onClick={saveBuiltWorkout}
+              <button type="button" disabled={buildMode === "week" ? !canSaveWeek : !canSaveDay} onClick={saveBuiltWorkout}
                 style={{ width:"100%",padding:"12px",borderRadius:10,border:"none",
-                  background:buildPicks.length>=2?P:"#334155",color:"#fff",fontSize:13,fontWeight:800,
-                  cursor:buildPicks.length>=2?"pointer":"not-allowed",opacity:buildPicks.length>=2?1:0.6 }}>
-                Save & Start Workout →
+                  background:(buildMode === "week" ? canSaveWeek : canSaveDay)?P:"#334155",color:"#fff",fontSize:13,fontWeight:800,
+                  cursor:(buildMode === "week" ? canSaveWeek : canSaveDay)?"pointer":"not-allowed",
+                  opacity:(buildMode === "week" ? canSaveWeek : canSaveDay)?1:0.6 }}>
+                {buildMode === "week" ? "Save Week Plan & Start Today →" : "Save & Start Workout →"}
               </button>
             </div>
           )}
