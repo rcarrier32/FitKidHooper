@@ -13,8 +13,10 @@ const VAPID_PUBLIC_KEY = "BKTyb_hHdQoeCzVSQ6DuBqolJMNKBdMh3hjY73gevAl-qwwyVTWy6b
 export const NOTIFICATION_CATEGORIES = [
   { key: "dailyMission",   label: "Daily mission",    desc: "When today's mission is still undone" },
   { key: "streakRisk",     label: "Streak at risk",   desc: "Before your training streak resets" },
+  { key: "messages",       label: "Messages",         desc: "When a friend sends you a message" },
+  { key: "mentions",       label: "Mentions",         desc: "When a friend @mentions you in a comment" },
   { key: "friendRequest",  label: "Friend requests",  desc: "When someone wants to add you" },
-  { key: "friendActivity", label: "Friend activity",  desc: "When a friend logs a workout" },
+  { key: "friendActivity", label: "Friend activity",  desc: "When a friend logs a workout or earns a badge" },
   { key: "challenges",     label: "Challenges",       desc: "New challenges and results" },
   { key: "weeklyRecap",    label: "Weekly recap",     desc: "Your weekly training summary" },
 ];

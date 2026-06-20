@@ -24,7 +24,7 @@ export default function ProgressRail({ settings, ctx, P = "#f97316", onOpenPath,
 
   const headerLabel = playLike
     ? `Play like ${playLike}`
-    : "Legend Quests";
+    : "Train Like Legends";
 
   return (
     <div style={{
@@ -46,7 +46,7 @@ export default function ProgressRail({ settings, ctx, P = "#f97316", onOpenPath,
               fontFamily: "'DM Mono',monospace", fontSize: 10, letterSpacing: "0.14em",
               color: P, textTransform: "uppercase", fontWeight: 800,
             }}>
-              ⭐ Legend Quests · {headerLabel}
+              ⭐ Train Like Legends · {headerLabel}
             </div>
             <div style={{ fontSize: 13, fontWeight: 800, color: "var(--fkh-text)", marginTop: 2 }}>
               Rank: {progress.currentRank}

@@ -416,26 +416,33 @@ export default function BoardView({
 
           {friendRoster.length > 0 && (
             <div style={{ marginBottom: 16 }}>
-              <div style={{ ...lbl, marginBottom: 8 }}>Your squad</div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                <div style={lbl}>Your squad</div>
+                <button onClick={() => setMessageFriend("inbox")} style={{
+                  display: "inline-flex", alignItems: "center", gap: 4, padding: "5px 11px", borderRadius: 99,
+                  border: `1px solid ${P}44`, background: `${P}12`, color: P, fontSize: 11, fontWeight: 800, cursor: "pointer",
+                }}>💬 Messages</button>
+              </div>
               <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 4 }}>
                 {friendRoster.map(prof => (
-                  <button
-                    key={prof.id}
-                    type="button"
-                    onClick={() => viewFriend(prof.id)}
-                    style={{
-                      background: "none", border: "none", padding: 0, cursor: "pointer",
-                      flex: "0 0 auto", textAlign: "center", width: 64,
-                    }}
-                  >
-                    <FriendAvatar profile={prof} size={48} P={P} />
-                    <div style={{
-                      fontSize: 10, fontWeight: 700, color: "var(--fkh-text-muted)",
-                      marginTop: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                  <div key={prof.id} style={{ flex: "0 0 auto", textAlign: "center", width: 64 }}>
+                    <button type="button" onClick={() => viewFriend(prof.id)} style={{
+                      background: "none", border: "none", padding: 0, cursor: "pointer", width: "100%",
                     }}>
-                      {prof.displayName?.split(" ")[0] || "Friend"}
-                    </div>
-                  </button>
+                      <FriendAvatar profile={prof} size={48} P={P} />
+                      <div style={{
+                        fontSize: 10, fontWeight: 700, color: "var(--fkh-text-muted)",
+                        marginTop: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                      }}>
+                        {prof.displayName?.split(" ")[0] || "Friend"}
+                      </div>
+                    </button>
+                    <button type="button" onClick={() => setMessageFriend({ id: prof.id, name: prof.displayName })}
+                      title="Message" style={{
+                        marginTop: 4, padding: "2px 10px", borderRadius: 99, border: `1px solid ${P}33`,
+                        background: "transparent", color: P, fontSize: 11, cursor: "pointer",
+                      }}>💬</button>
+                  </div>
                 ))}
               </div>
             </div>
@@ -676,7 +683,7 @@ export default function BoardView({
           P={P}
           SF={SF}
           bd={bd}
-          initialFriend={messageFriend}
+          initialFriend={messageFriend === "inbox" ? null : messageFriend}
           onClose={() => setMessageFriend(null)}
         />
       )}

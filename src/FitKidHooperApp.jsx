@@ -7,6 +7,7 @@ import FeedbackCenter from "./components/FeedbackCenter.jsx";
 import { useAuth } from "./hooks/useAuth.js";
 import { getAgeGroup, getAgeGroupLabel } from "./lib/periodStats.js";
 import { exportCanonicalSave, importCanonicalSave } from "./lib/canonicalSave.js";
+import { withStoredAvatar, writeStoredAvatar } from "./lib/avatarStorage.js";
 import { migrateIdentitySettings, normalizeJerseyNumber, POSITIONS } from "./lib/identity.js";
 import { CATS, CAT_DOT_COLORS } from "./lib/categories.js";
 import { BADGES_DEF, BADGE_CATS, getEarnedBadges, getBadgeProgress } from "./lib/badges.js";
@@ -5123,7 +5124,7 @@ export default function FitKidHooperApp() {
         raw.dateOfBirth = `${year}-06-15`;
       }
       delete raw.athleteAge; // remove stale key regardless
-      return migrateIdentitySettings(migrateThemeSettings({ ...DEFAULT, ...raw }));
+      return withStoredAvatar(migrateIdentitySettings(migrateThemeSettings({ ...DEFAULT, ...raw })));
     } catch { return DEFAULT; }
   });
   const [showSettings, setShowSettings] = useState(false);
@@ -5299,7 +5300,10 @@ export default function FitKidHooperApp() {
   };
   const trainingWeek = calcWeek(settings.startDate);
 
-  useEffect(()=>{ try{localStorage.setItem("s_settings",JSON.stringify(settings))}catch{} },[settings]);
+  useEffect(()=>{
+    writeStoredAvatar(settings.avatar || null);
+    try{localStorage.setItem("s_settings",JSON.stringify(settings))}catch{}
+  },[settings]);
   useEffect(()=>{
     const bgColor = bg(settings);
     document.documentElement.style.setProperty("--fkh-bg", bgColor);
@@ -5777,6 +5781,14 @@ export default function FitKidHooperApp() {
     if (auth.isSignedIn) auth.syncNow();
   }, [auth.isSignedIn]);
 
+  // Auto-sync the leaderboard on app open / sign-in (not just when Boards is
+  // opened). Self-throttled to ~30 min, so it's cheap to fire here.
+  useEffect(() => {
+    maybeAutoSyncLeaderboard({
+      settings, completed, missionLog, getCategory: getExerciseCategory, earnedBadges, ledger,
+    }).catch(() => {});
+  }, [auth.isSignedIn]);
+
   useEffect(() => {
     scheduleMissionReminder({
       missionComplete: missionClaimed,
@@ -6069,7 +6081,7 @@ export default function FitKidHooperApp() {
         renderBottomNav={renderBottomNav}
         questsPanel={
           <div style={{ padding:"14px 18px 0" }}>
-            <div style={{ fontSize:13, fontWeight:800, color:P, marginBottom:8 }}>⭐ Legend Quests</div>
+            <div style={{ fontSize:13, fontWeight:800, color:P, marginBottom:8 }}>⭐ Train Like Legends</div>
             <ProgressionView
               tab="journeys"
               settings={settings}
