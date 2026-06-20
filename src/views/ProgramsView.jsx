@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import { pathTagForProgram } from "../lib/achievements.js";
 import { track, ANALYTICS_EVENTS } from "../lib/analytics.js";
 import {
@@ -7,8 +8,17 @@ import {
   isProgramSessionComplete,
   countProgramSessionsDone,
 } from "../lib/programProgress.js";
+import { readCustomWorkouts, saveCustomWorkout, deleteCustomWorkout } from "../lib/customWorkouts.js";
+import { generateWorkoutFromMission } from "../lib/missionWorkout.js";
 
 const todayKey = () => new Date().toLocaleDateString("en-CA");
+
+const HUB_SECTIONS = [
+  { id: "plans", label: "Plans", emoji: "📋" },
+  { id: "drills", label: "Drills", emoji: "🏀" },
+  { id: "quick", label: "Quick", emoji: "⚡" },
+  { id: "build", label: "Build", emoji: "🛠" },
+];
 
 export default function ProgramsView({
   programs,
@@ -19,12 +29,22 @@ export default function ProgramsView({
   setProgramProgress,
   programSegment,
   setProgramSegment,
+  programsHubSection,
+  setProgramsHubSection,
   recommendedProgramIds,
   earnedBadges,
   selectedProgram,
   setSelectedProgram,
   allExercises,
   exerciseMeta,
+  cats,
+  workouts,
+  workoutTemplates,
+  favorites,
+  todayMission,
+  searchExercises,
+  onPickCategory,
+  startQuickWorkout,
   P,
   BG,
   SF,
@@ -41,6 +61,11 @@ export default function ProgramsView({
   isDone,
   completed,
 }) {
+  const [query, setQuery] = useState("");
+  const [customWorkouts, setCustomWorkouts] = useState(() => readCustomWorkouts());
+  const [buildName, setBuildName] = useState("");
+  const [buildPicks, setBuildPicks] = useState([]);
+
   const enrollProg = (prog) => {
     const startDate = new Date().toLocaleDateString("en-CA");
     const startedAt = Date.now();
@@ -55,6 +80,54 @@ export default function ProgramsView({
   const unenrollProg = (progId) => {
     setEnrolledPrograms(p => { const n = { ...p }; delete n[progId]; return n; });
     if (selectedProgram === progId) setSelectedProgram(null);
+  };
+
+  const searchResults = useMemo(() => {
+    const q = query.trim();
+    if (q.length < 2) return { programs: [], exercises: [] };
+    const qLower = q.toLowerCase();
+    const matchedPrograms = programs.filter(p =>
+      `${p.name} ${p.desc}`.toLowerCase().includes(qLower),
+    );
+    const matchedExercises = searchExercises(q, 20);
+    return { programs: matchedPrograms, exercises: matchedExercises };
+  }, [query, programs, searchExercises]);
+
+  const favExercises = useMemo(() => (
+    Object.entries(favorites?.exercises || {})
+      .sort((a, b) => b[1] - a[1])
+      .map(([id]) => allExercises[id])
+      .filter(Boolean)
+  ), [favorites, allExercises]);
+
+  const openExercise = (ex, list = []) => {
+    const enriched = { ...ex, meta: ex.meta || exerciseMeta[ex.id] || {} };
+    openDetail(enriched, list.map(e => ({ ...e, meta: e.meta || exerciseMeta[e.id] || {} })));
+  };
+
+  const startCustomList = (exerciseIds, name, emoji = "🏋️") => {
+    const exs = exerciseIds.map(id => allExercises[id]).filter(Boolean);
+    if (!exs.length) return;
+    openExercise(exs[0], exs);
+  };
+
+  const saveBuiltWorkout = () => {
+    if (buildPicks.length < 2) return;
+    const entry = saveCustomWorkout({ name: buildName || "My Workout", exerciseIds: buildPicks });
+    setCustomWorkouts(readCustomWorkouts());
+    setBuildName("");
+    setBuildPicks([]);
+    startCustomList(entry.exerciseIds, entry.name, entry.emoji);
+  };
+
+  const toggleBuildPick = (exId) => {
+    setBuildPicks(prev => prev.includes(exId) ? prev.filter(id => id !== exId) : [...prev, exId]);
+  };
+
+  const generateFromMission = () => {
+    const w = generateWorkoutFromMission(todayMission, allExercises);
+    if (!w?.exercises?.length) return;
+    openExercise(w.exercises[0], w.exercises);
   };
 
   if (selectedProgram) {
@@ -205,6 +278,7 @@ export default function ProgramsView({
     { id: "browse", label: "Browse" },
     { id: "completed", label: "Completed" },
   ];
+
   const segmentPrograms = (() => {
     if (programSegment === "forYou") {
       const ids = new Set(recommendedProgramIds);
@@ -214,17 +288,75 @@ export default function ProgramsView({
     if (programSegment === "completed") {
       return programs.filter(p =>
         earnedBadges.includes(p.badgeId) ||
-        (enrolledPrograms[p.id] && computeProgramProgress(p, programProgress) >= 1)
+        (enrolledPrograms[p.id] && computeProgramProgress(p, programProgress) >= 1),
       );
     }
     return programs;
   })();
+
   const segmentLabel = {
     forYou: recommendedProgramIds.length ? "Recommended for your game" : "Popular programs",
     myPlan: "Your active enrollments",
-    browse: "All programs",
+    browse: "All multi-week plans",
     completed: "Programs you've finished",
   }[programSegment];
+
+  const renderProgramCard = (prog) => {
+    const enrolled = !!enrolledPrograms[prog.id];
+    const pct = enrolled ? Math.round(computeProgramProgress(prog, programProgress) * 100) : 0;
+    const completedBadge = earnedBadges.includes(prog.badgeId);
+    return (
+      <div key={prog.id} onClick={() => setSelectedProgram(prog.id)}
+        style={{ borderRadius:14,border:`1px solid ${enrolled?prog.color+"33":"rgba(255,255,255,0.07)"}`,
+          background:enrolled?`${prog.color}08`:SF,
+          padding:"16px",marginBottom:10,cursor:"pointer",
+          boxShadow:enrolled?`0 2px 12px ${prog.color}18`:"none" }}>
+        <div style={{ display:"flex",gap:12,alignItems:"flex-start" }}>
+          <div style={{ width:48,height:48,borderRadius:12,
+            background:`${prog.color}18`,border:`2px solid ${prog.color}${enrolled?"55":"33"}`,
+            display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0 }}>
+            {prog.emoji}
+          </div>
+          <div style={{ flex:1,minWidth:0 }}>
+            <div style={{ display:"flex",alignItems:"center",gap:6,marginBottom:3,flexWrap:"wrap" }}>
+              <span style={{ fontSize:14,fontWeight:800,color:"var(--fkh-text)" }}>{prog.name}</span>
+              {enrolled && <span style={{ fontSize:9,padding:"2px 7px",borderRadius:99,background:prog.color,color:"#fff",fontWeight:700 }}>ENROLLED</span>}
+              {completedBadge && <span style={{ fontSize:9,padding:"2px 7px",borderRadius:99,background:"rgba(34,197,94,0.2)",color:"#22c55e",fontWeight:700 }}>✓ DONE</span>}
+            </div>
+            <div style={{ fontSize:11,color:"#64748b",marginBottom:6 }}>{prog.duration} weeks · {prog.daysPerWeek}x/week · Ages {prog.ageRange[0]}–{prog.ageRange[1]}</div>
+            {(() => {
+              const pathTag = pathTagForProgram(prog.id);
+              return pathTag ? (
+                <div style={{ fontSize:10,color:P,fontWeight:700,marginBottom:6 }}>Builds your {pathTag}</div>
+              ) : null;
+            })()}
+            <div style={{ fontSize:12,color:"var(--fkh-text-muted)",lineHeight:1.4 }}>{prog.desc}</div>
+            {enrolled && (
+              <div style={{ marginTop:8 }}>
+                <div style={{ display:"flex",justifyContent:"space-between",marginBottom:4 }}>
+                  <span style={{ fontSize:10,color:prog.color,fontWeight:600 }}>{pct}% complete</span>
+                </div>
+                <div style={{ height:4,borderRadius:99,background:"rgba(255,255,255,0.08)" }}>
+                  <div style={{ height:"100%",width:`${pct}%`,borderRadius:99,background:prog.color }}/>
+                </div>
+              </div>
+            )}
+          </div>
+          <div style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:6,flexShrink:0 }}>
+            <button onClick={e => { e.stopPropagation(); toggleFav("programs", prog.id); }}
+              style={{ width:28,height:28,borderRadius:8,
+                border:`1px solid ${isFav("programs", prog.id)?"rgba(250,204,21,0.45)":"rgba(250,204,21,0.22)"}`,
+                background:isFav("programs", prog.id)?"rgba(250,204,21,0.1)":"transparent",
+                color:isFav("programs", prog.id)?"#fbbf24":"rgba(250,204,21,0.5)",
+                fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center" }}>
+              {isFav("programs", prog.id)?"⭐":"☆"}
+            </button>
+            <span style={{ fontSize:16,color:"#475569" }}>›</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div style={{ background:BG,minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:80 }}>
@@ -239,90 +371,246 @@ export default function ProgramsView({
           </div>
           <button onClick={() => setShowSettings(true)} style={{ padding:"8px 10px",borderRadius:10,border:`1px solid ${bd}`,background:SF,color:"#64748b",fontSize:14,cursor:"pointer" }}>⚙️</button>
         </div>
-        <p style={{ fontSize:12,color:"#64748b",margin:"8px 0 0",lineHeight:1.5 }}>
-          Multi-week development plans built from existing drills. Pick a program and follow it week by week.
+        <p style={{ fontSize:12,color:"#64748b",margin:"8px 0 12px",lineHeight:1.5 }}>
+          Plans, drills, quick workouts, and custom sessions — all in one place.
         </p>
-      </div>
 
-      <div style={{ display:"flex",gap:6,padding:"0 18px 12px",overflowX:"auto" }}>
-        {programSegments.map(seg => (
-          <button key={seg.id} onClick={() => setProgramSegment(seg.id)} style={{
-            flexShrink:0,padding:"7px 14px",borderRadius:999,fontSize:12,fontWeight:800,cursor:"pointer",
-            border:`1px solid ${programSegment===seg.id?P:bd}`,
-            background:programSegment===seg.id?`${P}20`:"transparent",
-            color:programSegment===seg.id?P:"#64748b",
-          }}>{seg.label}</button>
-        ))}
-      </div>
-
-      <div style={{ padding:"0 18px 0" }}>
-        <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:`${P}70`,textTransform:"uppercase",marginBottom:10 }}>
-          {segmentLabel}
+        <div style={{ position:"relative",marginBottom:12 }}>
+          <span style={{ position:"absolute",left:12,top:11,fontSize:14,pointerEvents:"none" }}>🔍</span>
+          <input
+            type="search"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Search programs & exercises…"
+            style={{
+              width:"100%",padding:"10px 14px 10px 36px",borderRadius:12,border:`1px solid ${bd}`,
+              background:SF,color:"var(--fkh-text)",fontSize:14,boxSizing:"border-box",outline:"none",
+            }}
+          />
         </div>
-        {segmentPrograms.length === 0 && (
-          <div style={{ fontSize:12,color:"#64748b",lineHeight:1.5,marginBottom:16,padding:"12px 14px",borderRadius:12,border:`1px solid ${bd}`,background:SF }}>
-            {programSegment === "myPlan" && "No active programs — browse For You or start a program below."}
-            {programSegment === "completed" && "No completed programs yet. Finish a enrolled plan to see it here."}
-            {programSegment === "forYou" && "Set a favorite player in Settings to get personalized picks."}
-          </div>
-        )}
-        {segmentPrograms.map(prog => {
-          const enrolled = !!enrolledPrograms[prog.id];
-          const pct = enrolled ? Math.round(computeProgramProgress(prog, programProgress) * 100) : 0;
-          const completedBadge = earnedBadges.includes(prog.badgeId);
-          return (
-            <div key={prog.id} onClick={() => setSelectedProgram(prog.id)}
-              style={{ borderRadius:14,border:`1px solid ${enrolled?prog.color+"33":"rgba(255,255,255,0.07)"}`,
-                background:enrolled?`${prog.color}08`:SF,
-                padding:"16px",marginBottom:10,cursor:"pointer",
-                boxShadow:enrolled?`0 2px 12px ${prog.color}18`:"none" }}>
-              <div style={{ display:"flex",gap:12,alignItems:"flex-start" }}>
-                <div style={{ width:48,height:48,borderRadius:12,
-                  background:`${prog.color}18`,border:`2px solid ${prog.color}${enrolled?"55":"33"}`,
-                  display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0 }}>
-                  {prog.emoji}
-                </div>
-                <div style={{ flex:1,minWidth:0 }}>
-                  <div style={{ display:"flex",alignItems:"center",gap:6,marginBottom:3,flexWrap:"wrap" }}>
-                    <span style={{ fontSize:14,fontWeight:800,color:"var(--fkh-text)" }}>{prog.name}</span>
-                    {enrolled && <span style={{ fontSize:9,padding:"2px 7px",borderRadius:99,background:prog.color,color:"#fff",fontWeight:700 }}>ENROLLED</span>}
-                    {completedBadge && <span style={{ fontSize:9,padding:"2px 7px",borderRadius:99,background:"rgba(34,197,94,0.2)",color:"#22c55e",fontWeight:700 }}>✓ DONE</span>}
-                  </div>
-                  <div style={{ fontSize:11,color:"#64748b",marginBottom:6 }}>{prog.duration} weeks · {prog.daysPerWeek}x/week · Ages {prog.ageRange[0]}–{prog.ageRange[1]}</div>
-                  {(() => {
-                    const pathTag = pathTagForProgram(prog.id);
-                    return pathTag ? (
-                      <div style={{ fontSize:10,color:P,fontWeight:700,marginBottom:6 }}>Builds your {pathTag}</div>
-                    ) : null;
-                  })()}
-                  <div style={{ fontSize:12,color:"var(--fkh-text-muted)",lineHeight:1.4 }}>{prog.desc}</div>
-                  {enrolled && (
-                    <div style={{ marginTop:8 }}>
-                      <div style={{ display:"flex",justifyContent:"space-between",marginBottom:4 }}>
-                        <span style={{ fontSize:10,color:prog.color,fontWeight:600 }}>{pct}% complete</span>
-                      </div>
-                      <div style={{ height:4,borderRadius:99,background:"rgba(255,255,255,0.08)" }}>
-                        <div style={{ height:"100%",width:`${pct}%`,borderRadius:99,background:prog.color }}/>
-                      </div>
+      </div>
+
+      {query.trim().length >= 2 && (
+        <div style={{ padding:"0 18px 14px" }}>
+          {searchResults.programs.length > 0 && (
+            <>
+              <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.14em",color:`${P}70`,textTransform:"uppercase",marginBottom:8 }}>Programs</div>
+              {searchResults.programs.map(renderProgramCard)}
+            </>
+          )}
+          {searchResults.exercises.length > 0 && (
+            <>
+              <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.14em",color:`${P}70`,textTransform:"uppercase",marginBottom:8,marginTop:searchResults.programs.length?12:0 }}>Exercises</div>
+              {searchResults.exercises.map(ex => {
+                const catInfo = cats[ex._cat] || { emoji:"🏀", label:ex._cat };
+                return (
+                  <button key={ex.id} type="button" onClick={() => openExercise(ex)} style={{
+                    width:"100%",padding:"10px 12px",marginBottom:6,borderRadius:10,border:`1px solid ${bd}`,
+                    background:SF,cursor:"pointer",textAlign:"left",display:"flex",alignItems:"center",gap:10,
+                  }}>
+                    <span>{catInfo.emoji}</span>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontSize:12,fontWeight:700,color:isDone(ex.id)?"#22c55e":"var(--fkh-text)" }}>{ex.name}</div>
+                      <div style={{ fontSize:10,color:"#64748b" }}>{catInfo.label}</div>
                     </div>
-                  )}
-                </div>
-                <div style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:6,flexShrink:0 }}>
-                  <button onClick={e => { e.stopPropagation(); toggleFav("programs", prog.id); }}
-                    style={{ width:28,height:28,borderRadius:8,
-                      border:`1px solid ${isFav("programs", prog.id)?"rgba(250,204,21,0.45)":"rgba(250,204,21,0.22)"}`,
-                      background:isFav("programs", prog.id)?"rgba(250,204,21,0.1)":"transparent",
-                      color:isFav("programs", prog.id)?"#fbbf24":"rgba(250,204,21,0.5)",
-                      fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center" }}>
-                    {isFav("programs", prog.id)?"⭐":"☆"}
+                    <button type="button" onClick={e => { e.stopPropagation(); toggleFav("exercises", ex.id); }}
+                      style={{ background:"none",border:"none",fontSize:14,cursor:"pointer",color:isFav("exercises",ex.id)?"#fbbf24":"#475569" }}>
+                      {isFav("exercises",ex.id)?"⭐":"☆"}
+                    </button>
                   </button>
-                  <span style={{ fontSize:16,color:"#475569" }}>›</span>
+                );
+              })}
+            </>
+          )}
+          {!searchResults.programs.length && !searchResults.exercises.length && (
+            <div style={{ fontSize:12,color:"#64748b",textAlign:"center",padding:12 }}>No matches</div>
+          )}
+        </div>
+      )}
+
+      {query.trim().length < 2 && (
+        <>
+          <div style={{ display:"flex",gap:6,padding:"0 18px 12px",overflowX:"auto" }}>
+            {HUB_SECTIONS.map(seg => (
+              <button key={seg.id} onClick={() => setProgramsHubSection(seg.id)} style={{
+                flexShrink:0,padding:"8px 14px",borderRadius:999,fontSize:12,fontWeight:800,cursor:"pointer",
+                border:`1px solid ${programsHubSection===seg.id?P:bd}`,
+                background:programsHubSection===seg.id?`${P}20`:"transparent",
+                color:programsHubSection===seg.id?P:"#64748b",
+                display:"flex",alignItems:"center",gap:5,
+              }}>
+                <span>{seg.emoji}</span>{seg.label}
+              </button>
+            ))}
+          </div>
+
+          {programsHubSection === "plans" && (
+            <>
+              <div style={{ display:"flex",gap:6,padding:"0 18px 12px",overflowX:"auto" }}>
+                {programSegments.map(seg => (
+                  <button key={seg.id} onClick={() => setProgramSegment(seg.id)} style={{
+                    flexShrink:0,padding:"6px 12px",borderRadius:999,fontSize:11,fontWeight:700,cursor:"pointer",
+                    border:`1px solid ${programSegment===seg.id?P+"55":bd}`,
+                    background:programSegment===seg.id?`${P}14`:"transparent",
+                    color:programSegment===seg.id?P:"#64748b",
+                  }}>{seg.label}</button>
+                ))}
+              </div>
+              <div style={{ padding:"0 18px 0" }}>
+                <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:`${P}70`,textTransform:"uppercase",marginBottom:10 }}>
+                  {segmentLabel}
                 </div>
+                {segmentPrograms.length === 0 && (
+                  <div style={{ fontSize:12,color:"#64748b",lineHeight:1.5,marginBottom:16,padding:"12px 14px",borderRadius:12,border:`1px solid ${bd}`,background:SF }}>
+                    {programSegment === "myPlan" && "No active programs — browse For You or start a plan below."}
+                    {programSegment === "completed" && "No completed programs yet."}
+                    {programSegment === "forYou" && "Set a favorite player in Settings to get personalized picks."}
+                  </div>
+                )}
+                {segmentPrograms.map(renderProgramCard)}
+              </div>
+            </>
+          )}
+
+          {programsHubSection === "drills" && (
+            <div style={{ padding:"0 18px" }}>
+              {favExercises.length > 0 && (
+                <div style={{ marginBottom:16 }}>
+                  <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.14em",color:`${P}70`,textTransform:"uppercase",marginBottom:8 }}>⭐ Favorites</div>
+                  <div style={{ display:"flex",gap:8,overflowX:"auto",paddingBottom:4 }}>
+                    {favExercises.map(ex => (
+                      <button key={ex.id} type="button" onClick={() => openExercise(ex)} style={{
+                        flexShrink:0,padding:"10px 12px",borderRadius:12,border:`1px solid ${P}33`,
+                        background:`${P}0c`,cursor:"pointer",minWidth:130,textAlign:"left",
+                      }}>
+                        <div style={{ fontSize:12,fontWeight:700,color:"var(--fkh-text)" }}>{ex.name}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.14em",color:`${P}70`,textTransform:"uppercase",marginBottom:10 }}>Training Modules</div>
+              <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10 }}>
+                {Object.entries(cats).map(([key, cat]) => {
+                  const total = (workouts[key] || []).length;
+                  const done = (workouts[key] || []).filter(ex => isDone(ex.id)).length;
+                  const pct = total ? Math.round((done / total) * 100) : 0;
+                  return (
+                    <button key={key} type="button" onClick={() => onPickCategory?.(key)} style={{
+                      padding:"12px",borderRadius:14,border:`1px solid ${bd}`,background:SF,
+                      cursor:"pointer",textAlign:"left",
+                    }}>
+                      <div style={{ fontSize:20 }}>{cat.emoji}</div>
+                      <div style={{ fontSize:12,fontWeight:800,color:"var(--fkh-text)",marginTop:4 }}>{cat.label}</div>
+                      <div style={{ fontSize:10,color:"#64748b",marginTop:2 }}>{done}/{total} · {pct}%</div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
-          );
-        })}
-      </div>
+          )}
+
+          {programsHubSection === "quick" && (
+            <div style={{ padding:"0 18px" }}>
+              <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.14em",color:`${P}70`,textTransform:"uppercase",marginBottom:10 }}>Quick Workout Templates</div>
+              <p style={{ fontSize:12,color:"#64748b",lineHeight:1.5,margin:"0 0 12px" }}>
+                Age-aware sessions built from your drill library. Star a template to favorite it.
+              </p>
+              <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
+                {Object.entries(workoutTemplates).map(([key, tmpl]) => (
+                  <div key={key} style={{ borderRadius:14,border:`1px solid ${bd}`,background:SF,padding:"14px",display:"flex",alignItems:"center",gap:12 }}>
+                    <div style={{ fontSize:28 }}>{tmpl.emoji}</div>
+                    <div style={{ flex:1,minWidth:0 }}>
+                      <div style={{ fontSize:14,fontWeight:800,color:"var(--fkh-text)" }}>{tmpl.name}</div>
+                      <div style={{ fontSize:11,color:"#64748b",marginTop:2,lineHeight:1.4 }}>{tmpl.desc}</div>
+                    </div>
+                    <div style={{ display:"flex",flexDirection:"column",gap:6,flexShrink:0 }}>
+                      <button type="button" onClick={() => toggleFav("workouts", key)}
+                        style={{ width:32,height:32,borderRadius:8,border:`1px solid ${isFav("workouts",key)?"rgba(250,204,21,0.45)":"rgba(250,204,21,0.22)"}`,
+                          background:"transparent",color:isFav("workouts",key)?"#fbbf24":"#64748b",fontSize:14,cursor:"pointer" }}>
+                        {isFav("workouts",key)?"⭐":"☆"}
+                      </button>
+                      <button type="button" onClick={() => startQuickWorkout?.(key)}
+                        style={{ padding:"8px 12px",borderRadius:8,border:"none",background:P,color:"#fff",fontSize:11,fontWeight:800,cursor:"pointer" }}>
+                        Start
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {programsHubSection === "build" && (
+            <div style={{ padding:"0 18px" }}>
+              <div style={{ borderRadius:14,border:`1px solid ${P}33`,background:`${P}0a`,padding:"14px",marginBottom:14 }}>
+                <div style={{ fontSize:13,fontWeight:800,color:"var(--fkh-text)",marginBottom:6 }}>🎯 From Today's Mission</div>
+                <div style={{ fontSize:12,color:"#64748b",lineHeight:1.45,marginBottom:10 }}>
+                  {todayMission?.title ? `Generate a workout from: ${todayMission.title}` : "Complete your daily mission setup first."}
+                </div>
+                <button type="button" onClick={generateFromMission}
+                  style={{ width:"100%",padding:"11px",borderRadius:10,border:"none",background:P,color:"#fff",fontSize:13,fontWeight:800,cursor:"pointer" }}>
+                  Generate Mission Workout →
+                </button>
+              </div>
+
+              {customWorkouts.length > 0 && (
+                <div style={{ marginBottom:14 }}>
+                  <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.14em",color:`${P}70`,textTransform:"uppercase",marginBottom:8 }}>Saved Workouts</div>
+                  {customWorkouts.map(cw => (
+                    <div key={cw.id} style={{ display:"flex",alignItems:"center",gap:10,marginBottom:8,padding:"12px",borderRadius:12,border:`1px solid ${bd}`,background:SF }}>
+                      <span style={{ fontSize:22 }}>{cw.emoji}</span>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:13,fontWeight:700,color:"var(--fkh-text)" }}>{cw.name}</div>
+                        <div style={{ fontSize:10,color:"#64748b" }}>{cw.exerciseIds.length} exercises</div>
+                      </div>
+                      <button type="button" onClick={() => startCustomList(cw.exerciseIds, cw.name)} style={{ padding:"7px 10px",borderRadius:8,border:`1px solid ${P}44`,background:`${P}12`,color:P,fontSize:11,fontWeight:700,cursor:"pointer" }}>Start</button>
+                      <button type="button" onClick={() => { deleteCustomWorkout(cw.id); setCustomWorkouts(readCustomWorkouts()); }} style={{ background:"none",border:"none",color:"#64748b",fontSize:16,cursor:"pointer" }}>×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.14em",color:`${P}70`,textTransform:"uppercase",marginBottom:8 }}>Build Custom Workout</div>
+              <input
+                value={buildName}
+                onChange={e => setBuildName(e.target.value)}
+                placeholder="Workout name (optional)"
+                style={{ width:"100%",padding:"10px 12px",borderRadius:10,border:`1px solid ${bd}`,background:SF,color:"var(--fkh-text)",fontSize:13,marginBottom:10,boxSizing:"border-box" }}
+              />
+              <div style={{ fontSize:11,color:"#64748b",marginBottom:8 }}>Tap exercises to add ({buildPicks.length} selected, min 2)</div>
+              <div style={{ maxHeight:280,overflowY:"auto",marginBottom:12 }}>
+                {(favExercises.length ? favExercises : Object.values(allExercises).slice(0, 40)).map(ex => {
+                  const picked = buildPicks.includes(ex.id);
+                  const catInfo = cats[ex._cat] || { label:ex._cat };
+                  return (
+                    <button key={ex.id} type="button" onClick={() => toggleBuildPick(ex.id)} style={{
+                      width:"100%",padding:"9px 11px",marginBottom:5,borderRadius:9,cursor:"pointer",textAlign:"left",
+                      border:`1px solid ${picked?P+"55":bd}`,
+                      background:picked?`${P}14`:SF,
+                      display:"flex",alignItems:"center",gap:8,
+                    }}>
+                      <span style={{ width:18,height:18,borderRadius:5,border:`1.5px solid ${picked?P:"#475569"}`,background:picked?P:"transparent",color:"#fff",fontSize:10,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+                        {picked?"✓":""}
+                      </span>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:12,fontWeight:600,color:"var(--fkh-text)" }}>{ex.name}</div>
+                        <div style={{ fontSize:10,color:"#64748b" }}>{catInfo.label}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              <button type="button" disabled={buildPicks.length < 2} onClick={saveBuiltWorkout}
+                style={{ width:"100%",padding:"12px",borderRadius:10,border:"none",
+                  background:buildPicks.length>=2?P:"#334155",color:"#fff",fontSize:13,fontWeight:800,
+                  cursor:buildPicks.length>=2?"pointer":"not-allowed",opacity:buildPicks.length>=2?1:0.6 }}>
+                Save & Start Workout →
+              </button>
+            </div>
+          )}
+        </>
+      )}
 
       {renderBottomNav()}
     </div>

@@ -58,6 +58,7 @@ export default function TodayView({
   exerciseMeta,
   workoutTemplates,
   searchExercises,
+  onOpenProgramsSection,
   onPickCategory,
   onOpenPath,
   onSetFavorite,
@@ -315,9 +316,9 @@ export default function TodayView({
               style={{ flex:1, minWidth:120, padding:"10px 12px", borderRadius:10, border:`1px solid ${P}44`, background:`${P}12`, color:P, fontWeight:800, fontSize:12, cursor:"pointer" }}>
               Bonus Workout
             </button>
-            <button type="button" onClick={onShowFindDrills}
+            <button type="button" onClick={() => onOpenProgramsSection?.("drills")}
               style={{ flex:1, minWidth:120, padding:"10px 12px", borderRadius:10, border:`1px solid ${bd}`, background:"rgba(255,255,255,0.04)", color:"var(--fkh-text)", fontWeight:800, fontSize:12, cursor:"pointer" }}>
-              Find a Drill
+              Browse Drills
             </button>
           </div>
         </div>
@@ -340,6 +341,12 @@ export default function TodayView({
         onToggle={onToggleWorkoutOpen}
         labelStyle={homeLbl}
         accentColor={P}>
+        <div style={{ margin:"0 20px 10px", textAlign:"right" }}>
+          <button type="button" onClick={() => onOpenProgramsSection?.("quick")}
+            style={{ padding:"6px 10px", borderRadius:8, border:`1px solid ${P}33`, background:"transparent", color:P, fontSize:10, fontWeight:700, cursor:"pointer" }}>
+            All templates in Programs →
+          </button>
+        </div>
 
         <div style={{ position:"relative" }}>
           <div onScroll={e => { const el = e.currentTarget; onTemplateScrolledEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 4); }}
@@ -470,10 +477,10 @@ export default function TodayView({
 
       {!missionClaimed && (
         <div style={{ margin:"0 20px 14px", textAlign:"center" }}>
-          <button type="button" onClick={onShowFindDrills}
+          <button type="button" onClick={() => onOpenProgramsSection?.("drills")}
             style={{ padding:"10px 16px", borderRadius:12, border:`1px solid ${bd}`, background:SF,
               color:"var(--fkh-text)", fontWeight:800, fontSize:12, cursor:"pointer" }}>
-            Find a Drill →
+            Browse Programs →
           </button>
         </div>
       )}

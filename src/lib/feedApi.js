@@ -31,7 +31,7 @@ export async function fetchFriendsFeed(limit = 40) {
 
   const { data: profs } = await sb
     .from("athlete_profiles")
-    .select("id, display_name, active_title, equipped, favorite_playlike, primary_path_id, path_snapshot")
+    .select("id, display_name, active_title, equipped, avatar_url, favorite_playlike, primary_path_id, path_snapshot")
     .in("id", ids);
   const profileMap = Object.fromEntries((profs || []).map(p => [p.id, profileSnippet(p)]));
 

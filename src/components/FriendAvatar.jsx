@@ -2,7 +2,7 @@ import { getAchievementMeta } from "../lib/achievements.js";
 import { initialsFromName } from "../lib/friendProfileApi.js";
 
 /**
- * Friend avatar — initials + optional equipped frame/gear until cloud avatars ship.
+ * Friend avatar — profile photo when synced, else initials + frame/gear.
  */
 export default function FriendAvatar({
   profile,
@@ -14,6 +14,7 @@ export default function FriendAvatar({
 }) {
   const name = displayName || profile?.displayName || "Hooper";
   const initials = initialsFromName(name);
+  const avatarUrl = profile?.avatarUrl || null;
   const equipped = profile?.equipped || {};
   const frame = equipped.frame ? getAchievementMeta(equipped.frame) : null;
   const gear = equipped.avatar_gear ? getAchievementMeta(equipped.avatar_gear) : null;
@@ -30,18 +31,27 @@ export default function FriendAvatar({
     }}>
       <div style={{
         width: size, height: size, borderRadius: "50%",
-        background: `${borderColor}22`,
+        background: avatarUrl ? "#1e293b" : `${borderColor}22`,
         border: `2px solid ${borderColor}`,
         display: "flex", alignItems: "center", justifyContent: "center",
         overflow: "hidden",
         boxShadow: frame ? `0 0 10px ${borderColor}44` : "none",
       }}>
-        <span style={{
-          fontSize: size * 0.38, fontWeight: 800, color: borderColor,
-          fontFamily: "'DM Mono',monospace", lineHeight: 1,
-        }}>
-          {initials}
-        </span>
+        {avatarUrl ? (
+          <img
+            src={avatarUrl}
+            alt=""
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            loading="lazy"
+          />
+        ) : (
+          <span style={{
+            fontSize: size * 0.38, fontWeight: 800, color: borderColor,
+            fontFamily: "'DM Mono',monospace", lineHeight: 1,
+          }}>
+            {initials}
+          </span>
+        )}
       </div>
       {gear?.emoji && (
         <span style={{

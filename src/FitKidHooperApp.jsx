@@ -8,7 +8,8 @@ import { useAuth } from "./hooks/useAuth.js";
 import { getAgeGroup, getAgeGroupLabel } from "./lib/periodStats.js";
 import { exportCanonicalSave, importCanonicalSave } from "./lib/canonicalSave.js";
 import { withStoredAvatar, writeStoredAvatar } from "./lib/avatarStorage.js";
-import { migrateIdentitySettings, normalizeJerseyNumber, POSITIONS } from "./lib/identity.js";
+import { syncAvatarToCloud, clearAvatarFromCloud } from "./lib/avatarCloud.js";
+import { getEffectiveAthleteId } from "./lib/auth.js";
 import { CATS, CAT_DOT_COLORS } from "./lib/categories.js";
 import { BADGES_DEF, BADGE_CATS, getEarnedBadges, getBadgeProgress } from "./lib/badges.js";
 import { PROGRESSION_CHAINS, getChainForExercise, getChainStatus } from "./lib/progressionChains.js";
@@ -5155,6 +5156,7 @@ export default function FitKidHooperApp() {
       return Object.keys(JSON.parse(localStorage.getItem("fkh-programs") || "{}")).length ? "myPlan" : "forYou";
     } catch { return "forYou"; }
   });
+  const [programsHubSection, setProgramsHubSection] = useState("plans");
   const [lockerBadgesOpen, setLockerBadgesOpen] = useState(true);
   const [showFindDrills, setShowFindDrills] = useState(false);
   const [workoutOpen, setWorkoutOpen] = useState(() => {
@@ -5181,6 +5183,11 @@ export default function FitKidHooperApp() {
   const focusChallengesFriends = useCallback(() => {
     setFriendsFocusTick(t => t + 1);
     setView("boards");
+  }, []);
+
+  const openProgramsSection = useCallback((section = "plans") => {
+    setProgramsHubSection(section);
+    setView("programs");
   }, []);
   const [badgeDates, setBadgeDates] = useState(()=>{
     try{return JSON.parse(localStorage.getItem("fkh-badge-dates")||"{}");}catch{return {};}
@@ -5304,6 +5311,23 @@ export default function FitKidHooperApp() {
     writeStoredAvatar(settings.avatar || null);
     try{localStorage.setItem("s_settings",JSON.stringify(settings))}catch{}
   },[settings]);
+
+  const avatarSyncRef = useRef(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const athleteId = await getEffectiveAthleteId();
+      if (cancelled || !athleteId) return;
+      if (!settings.avatar) {
+        await clearAvatarFromCloud(athleteId);
+        return;
+      }
+      if (avatarSyncRef.current === settings.avatar) return;
+      avatarSyncRef.current = settings.avatar;
+      await syncAvatarToCloud(settings.avatar, athleteId);
+    })();
+    return () => { cancelled = true; };
+  }, [settings.avatar]);
   useEffect(()=>{
     const bgColor = bg(settings);
     document.documentElement.style.setProperty("--fkh-bg", bgColor);
@@ -5509,6 +5533,13 @@ export default function FitKidHooperApp() {
   const refreshWorkout = useCallback(() => {
     loadWorkoutForTemplate(selectedTemplate, { forceRegenerate: true });
   }, [selectedTemplate, loadWorkoutForTemplate]);
+
+  const startQuickWorkout = useCallback((templateKey) => {
+    selectTemplate(templateKey);
+    const w = loadWorkoutForTemplate(templateKey);
+    const exs = (w?.exercises || []).map(e => ({ ...e, meta: e.meta || EXERCISE_META[e.id] || {} }));
+    if (exs[0]) openDetail(exs[0], exs);
+  }, [selectTemplate, loadWorkoutForTemplate, openDetail]);
 
   const quickWorkoutComplete = useMemo(
     () => isQuickWorkoutCompleteToday(todaysWorkout, completed, today),
@@ -5925,12 +5956,22 @@ export default function FitKidHooperApp() {
         setProgramProgress={setProgramProgress}
         programSegment={programSegment}
         setProgramSegment={setProgramSegment}
+        programsHubSection={programsHubSection}
+        setProgramsHubSection={setProgramsHubSection}
         recommendedProgramIds={recommendedProgramIds}
         earnedBadges={earnedBadges}
         selectedProgram={selectedProgram}
         setSelectedProgram={setSelectedProgram}
         allExercises={ALL_EXERCISES}
         exerciseMeta={EXERCISE_META}
+        cats={CATS}
+        workouts={WORKOUTS}
+        workoutTemplates={WORKOUT_TEMPLATES}
+        favorites={favorites}
+        todayMission={todayMission}
+        searchExercises={searchExercises}
+        onPickCategory={(cat) => { setActiveCat(cat); setPrevView("programs"); setView("cat"); }}
+        startQuickWorkout={startQuickWorkout}
         P={P}
         BG={BG}
         SF={SF}
@@ -6663,8 +6704,9 @@ export default function FitKidHooperApp() {
         programs={PROGRAMS}
         progressCtx={progressCtx}
         showFindDrills={showFindDrills}
-        onShowFindDrills={() => setShowFindDrills(true)}
+        onShowFindDrills={() => openProgramsSection("drills")}
         onHideFindDrills={() => setShowFindDrills(false)}
+        onOpenProgramsSection={openProgramsSection}
         favorites={favorites}
         cats={CATS}
         workouts={WORKOUTS}

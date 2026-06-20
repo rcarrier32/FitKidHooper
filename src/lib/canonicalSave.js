@@ -9,6 +9,7 @@
  */
 export const CANONICAL_SAVE_KEYS = [
   "s_settings",
+  "fkh-avatar",
   "s_done",
   "s_strday",
   "shot_log_v2",
@@ -27,6 +28,7 @@ export const CANONICAL_SAVE_KEYS = [
   "fkh-home-sections",
   "fkh-shot-goal",
   "shot_week_goal",
+  "fkh-custom-workouts",
   "fkh-data-version",
 ];
 
@@ -35,23 +37,23 @@ export const CLOUD_SAVE_KEYS = CANONICAL_SAVE_KEYS.filter(k => k !== "s_settings
   "s_settings_cloud",
 ]);
 
-const AVATAR_STRIP_KEYS = ["avatar"];
+import {
+  readStoredAvatar,
+  writeStoredAvatar,
+  stripAvatarForCloud,
+} from "./avatarStorage.js";
 
 export function stripAvatarFromSettings(settings) {
-  if (!settings || typeof settings !== "object") return settings;
-  const { avatar, ...rest } = settings;
-  return { ...rest, _avatarLocal: avatar ? true : false };
+  return stripAvatarForCloud(settings);
 }
 
 export function exportCanonicalSave() {
   const data = { _exported: new Date().toISOString(), _version: 1 };
   for (const k of CANONICAL_SAVE_KEYS) {
     try {
-      const raw = localStorage.getItem(k);
-      if (raw != null) data[k] = JSON.parse(raw);
-    } catch {
-      try { data[k] = localStorage.getItem(k); } catch {}
-    }
+      const val = readRawSaveValue(k);
+      if (val !== undefined) data[k] = val;
+    } catch {}
   }
   if (data.s_settings) data.s_settings = stripAvatarFromSettings(data.s_settings);
   return data;
@@ -65,14 +67,14 @@ export function importCanonicalSave(data, { mergeSettings = true } = {}) {
       localStorage.setItem(k, JSON.stringify(data[k]));
     } catch {}
   }
-  if (mergeSettings && data.s_settings?._avatarLocal && !data.s_settings.avatar) {
+  if (mergeSettings && data.s_settings) {
     try {
-      const cur = JSON.parse(localStorage.getItem("s_settings") || "{}");
-      if (cur.avatar) {
-        const merged = { ...data.s_settings, avatar: cur.avatar };
-        delete merged._avatarLocal;
-        localStorage.setItem("s_settings", JSON.stringify(merged));
+      const avatar = data["fkh-avatar"] || data.s_settings.avatar || readStoredAvatar();
+      if (avatar) {
+        data.s_settings = { ...data.s_settings, avatar };
+        writeStoredAvatar(avatar);
       }
+      delete data.s_settings._avatarLocal;
     } catch {}
   }
 }
@@ -108,17 +110,59 @@ function mergeValue(local, cloud) {
 // Settings are preferences, not accumulative progress. Keep the device that has a
 // real (non-default) name; fall back to whichever exists. Avoids a fresh device's
 // defaults clobbering the real profile, and vice-versa.
+function readRawSaveValue(k) {
+  const raw = localStorage.getItem(k);
+  if (raw == null) return undefined;
+  if (k === "fkh-avatar") return raw;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return raw;
+  }
+}
+
+function writeRawSaveValue(k, value) {
+  if (value == null) return;
+  if (k === "fkh-avatar") {
+    writeStoredAvatar(typeof value === "string" ? value : null);
+    return;
+  }
+  try {
+    localStorage.setItem(k, JSON.stringify(value));
+  } catch {}
+}
+
+function readLocalSettingsForMerge() {
+  try {
+    return JSON.parse(localStorage.getItem("s_settings") || "{}");
+  } catch {
+    return {};
+  }
+}
+
 function mergeSettings(local, cloud) {
+  const avatar = local?.avatar || cloud?.avatar || readStoredAvatar() || null;
   const named = s => s && s.athleteName && s.athleteName !== "Champ";
-  if (named(local)) return { ...(cloud || {}), ...local };
-  if (named(cloud)) return { ...(local || {}), ...cloud };
-  return local || cloud || null;
+  let merged;
+  if (named(local)) merged = { ...(cloud || {}), ...local };
+  else if (named(cloud)) merged = { ...(local || {}), ...cloud };
+  else merged = local || cloud || null;
+  if (merged && avatar) merged.avatar = avatar;
+  if (merged?._avatarLocal) delete merged._avatarLocal;
+  return merged;
 }
 
 /** Merge a local canonical payload with a cloud one — superset, no data loss. */
 export function mergeCanonicalPayloads(localPayload, cloudPayload) {
-  const local = localPayload || {};
+  const local = { ...(localPayload || {}) };
   const cloud = cloudPayload || {};
+  // Full local settings (with avatar) for merge — readCanonicalPayload may omit avatar on upload paths.
+  const localSettings = readLocalSettingsForMerge();
+  if (localSettings && Object.keys(localSettings).length) {
+    local.s_settings = { ...localSettings, ...(local.s_settings || {}) };
+    const av = localSettings.avatar || readStoredAvatar();
+    if (av) local.s_settings.avatar = av;
+  }
   const out = {};
   const keys = new Set([...CANONICAL_SAVE_KEYS, ...Object.keys(local), ...Object.keys(cloud)]);
   for (const k of keys) {
@@ -128,29 +172,36 @@ export function mergeCanonicalPayloads(localPayload, cloudPayload) {
   return out;
 }
 
-export function readCanonicalPayload() {
+export function readCanonicalPayload({ forCloudUpload = false } = {}) {
   const payload = {};
   for (const k of CANONICAL_SAVE_KEYS) {
-    try {
-      const raw = localStorage.getItem(k);
-      if (raw == null) continue;
-      payload[k] = JSON.parse(raw);
-    } catch {
-      payload[k] = localStorage.getItem(k);
-    }
+    const val = readRawSaveValue(k);
+    if (val !== undefined) payload[k] = val;
   }
-  if (payload.s_settings) {
+  if (forCloudUpload && payload.s_settings) {
     payload.s_settings = stripAvatarFromSettings(payload.s_settings);
+    delete payload["fkh-avatar"];
+  } else if (payload.s_settings) {
+    const avatar = payload["fkh-avatar"] || payload.s_settings.avatar || readStoredAvatar();
+    if (avatar) payload.s_settings = { ...payload.s_settings, avatar };
   }
   return payload;
 }
 
 export function writeCanonicalPayload(payload) {
   if (!payload) return;
+  const avatar = payload["fkh-avatar"]
+    || payload.s_settings?.avatar
+    || readStoredAvatar();
   for (const k of CANONICAL_SAVE_KEYS) {
     if (payload[k] == null) continue;
+    writeRawSaveValue(k, payload[k]);
+  }
+  if (avatar) {
+    writeStoredAvatar(avatar);
     try {
-      localStorage.setItem(k, JSON.stringify(payload[k]));
+      const s = JSON.parse(localStorage.getItem("s_settings") || "{}");
+      localStorage.setItem("s_settings", JSON.stringify({ ...s, avatar }));
     } catch {}
   }
 }

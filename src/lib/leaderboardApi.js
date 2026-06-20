@@ -1,4 +1,4 @@
-import { computeAllPeriodStats, getAgeGroup } from "./periodStats.js";
+import { readCachedAvatarUrl } from "./avatarCloud.js";
 import { getSupabaseClient, isSupabaseConfigured } from "./supabaseClient.js";
 import { profileForCloud, boardDisplayName } from "./identity.js";
 import { getDeviceAthleteId, getEffectiveAthleteId } from "./auth.js";
@@ -219,6 +219,8 @@ export async function pushFromAppState({ settings, completed, missionLog, getCat
   };
   const pathSnapshot = buildPathSnapshot(progressCtx, settings);
 
+  const cachedAvatarUrl = readCachedAvatarUrl();
+
   const payload = buildPushPayload({
     displayName,
     dateOfBirth: settings.dateOfBirth,
@@ -240,6 +242,7 @@ export async function pushFromAppState({ settings, completed, missionLog, getCat
       active_title: cloudProfile.active_title,
       equipped: cloudProfile.equipped,
       user_id: athleteId,
+      ...(cachedAvatarUrl ? { avatar_url: cachedAvatarUrl } : {}),
     },
   });
 

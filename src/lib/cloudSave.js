@@ -50,7 +50,7 @@ export async function pushCloudSave(userId) {
   const sb = getSupabaseClient();
   if (!sb || !userId) return { ok: false, reason: "not_configured" };
 
-  const payload = readCanonicalPayload();
+  const payload = readCanonicalPayload({ forCloudUpload: true });
   const local = getLocalCloudMeta();
   const version = Math.max(local.version, 0) + 1;
   const updated_at = new Date().toISOString();
@@ -90,13 +90,14 @@ export async function syncCloudSave(userId) {
 
   const local = readCanonicalPayload();
   const merged = mergeCanonicalPayloads(local, data.payload);
-  writeCanonicalPayload(merged); // local now holds the superset too
+  writeCanonicalPayload(merged);
 
+  const forCloud = readCanonicalPayload({ forCloudUpload: true });
   const version = Math.max(getLocalCloudMeta().version, data.version || 0) + 1;
   const updated_at = new Date().toISOString();
   const { error: upErr } = await sb.from("athlete_save").upsert({
     user_id: userId,
-    payload: merged,
+    payload: forCloud,
     version,
     updated_at,
   }, { onConflict: "user_id" });

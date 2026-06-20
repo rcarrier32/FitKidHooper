@@ -6,7 +6,7 @@ import { getAchievementMeta, getTrack, MASTERY_TRACKS } from "./achievements.js"
 import { getPositionLabel, getPositionEmoji } from "./identity.js";
 
 const PROFILE_COLS = [
-  "id", "display_name", "jersey_number", "position",
+  "id", "display_name", "jersey_number", "position", "avatar_url",
   "favorite_player", "favorite_current", "favorite_playlike",
   "active_title", "equipped", "primary_path_id", "path_snapshot",
 ].join(", ");
@@ -25,6 +25,7 @@ export function profileSnippet(row) {
   return {
     id: row.id,
     displayName: row.display_name || "Hooper",
+    avatarUrl: row.avatar_url || null,
     jerseyNumber: row.jersey_number ?? null,
     position: row.position || "any",
     favoriteAllTime: row.favorite_player || "",
