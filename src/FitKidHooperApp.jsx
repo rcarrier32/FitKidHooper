@@ -5239,7 +5239,7 @@ export default function FitKidHooperApp() {
   const [messagesDeepLink, setMessagesDeepLink] = useState(() => consumeMessagesDeepLink());
   const [openMessagesInbox, setOpenMessagesInbox] = useState(false);
   const auth = useAuth(settings);
-  const { unreadMessages, refreshUnreadMessages } = useUnreadMessages(auth.isSignedIn);
+  const { unreadMessages, refreshUnreadMessages } = useUnreadMessages(auth.isSignedIn, auth.user?.id);
   const [showFeedback, setShowFeedback] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showAppMap, setShowAppMap] = useState(false);
@@ -5295,6 +5295,13 @@ export default function FitKidHooperApp() {
   const focusMeFriends = useCallback(() => {
     setProgressTab("friends");
     setView("progress");
+    setFriendsFocusTick(t => t + 1);
+  }, []);
+
+  const navigateToMessages = useCallback(() => {
+    setProgressTab("friends");
+    setView("progress");
+    setOpenMessagesInbox(true);
     setFriendsFocusTick(t => t + 1);
   }, []);
 
@@ -6012,6 +6019,17 @@ export default function FitKidHooperApp() {
   }, [inviteCode]);
 
   useEffect(() => {
+    if (auth.loading || !auth.isSignedIn || !auth.user?.id) return;
+    refreshUnreadMessages();
+    const retry = setTimeout(refreshUnreadMessages, 1500);
+    return () => clearTimeout(retry);
+  }, [auth.loading, auth.isSignedIn, auth.user?.id, refreshUnreadMessages]);
+
+  useEffect(() => {
+    if (auth.isSignedIn) refreshUnreadMessages();
+  }, [view, auth.isSignedIn, refreshUnreadMessages]);
+
+  useEffect(() => {
     if (!messagesDeepLink) return;
     setView("progress");
     setProgressTab("friends");
@@ -6142,7 +6160,7 @@ export default function FitKidHooperApp() {
           <span style={{ position:"relative", display:"inline-flex", alignItems:"center", justifyContent:"center" }}>
             <span style={{ fontSize:18 }}>{n.emoji}</span>
             {n.id === "progress" && unreadMessages > 0 && (
-              <CountBadge count={unreadMessages} P={P} style={{ position:"absolute", top:-6, right:-10, minWidth:16, height:16, fontSize:9, padding:"0 4px" }} />
+              <CountBadge count={unreadMessages} P={P} style={{ position:"absolute", top:-8, right:-12, minWidth:18, height:18, fontSize:10, padding:"0 5px", boxShadow:"0 0 0 2px var(--fkh-bg, #0b1220)" }} />
             )}
           </span>
           <span style={{ fontSize:9,color:view===n.id?P:"#475569",fontWeight:view===n.id?700:400,letterSpacing:"0.04em" }}>{n.label}</span>
@@ -6971,6 +6989,10 @@ export default function FitKidHooperApp() {
         onSetFavorite={() => setShowSettings(true)}
         onOpenPlayerHighlight={openPlayerHighlight}
         onFocusFriends={focusMeFriends}
+        onOpenMessages={navigateToMessages}
+        unreadMessages={unreadMessages}
+        isSignedIn={auth.isSignedIn}
+        onOpenAuth={() => setShowAuth(true)}
         onOpenChallenges={() => setView("boards")}
         onOpenProgram={(id) => { setSelectedProgram(id); setView("programs"); }}
         workoutOpen={workoutOpen}

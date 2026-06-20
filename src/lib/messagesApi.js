@@ -53,10 +53,13 @@ export async function unreadMessageCount() {
   if (!isSupabaseConfigured()) return 0;
   const sb = getSupabaseClient();
   if (!sb) return 0;
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session?.user?.id) return 0;
   const { data, error } = await sb.rpc("unread_message_count");
   if (error) {
     console.warn("[messages] unread_message_count:", error.message);
     return 0;
   }
-  return typeof data === "number" ? data : 0;
+  const n = typeof data === "number" ? data : Number(data);
+  return Number.isFinite(n) && n > 0 ? n : 0;
 }

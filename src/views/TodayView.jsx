@@ -3,6 +3,7 @@ import WarmUpCard from "../components/WarmUpCard.jsx";
 import ProgressRail from "../components/ProgressRail.jsx";
 import ChallengeStrip from "../components/ChallengeStrip.jsx";
 import FriendsTeaser from "../components/FriendsTeaser.jsx";
+import CountBadge from "../components/CountBadge.jsx";
 import FindDrillsSheet from "../components/FindDrillsSheet.jsx";
 import HomeCollapsibleSection from "../components/HomeCollapsibleSection.jsx";
 import TourPromptBanner from "../components/TourPromptBanner.jsx";
@@ -76,7 +77,11 @@ export default function TodayView({
   onSetFavorite,
   onOpenPlayerHighlight,
   onFocusFriends,
+  onOpenMessages,
   onOpenChallenges,
+  unreadMessages = 0,
+  isSignedIn = false,
+  onOpenAuth,
   onOpenProgram,
   workoutOpen,
   onToggleWorkoutOpen,
@@ -117,6 +122,7 @@ export default function TodayView({
   );
   const mission = todayMission;
   const claimed = missionClaimed;
+  const unread = Number(unreadMessages) || 0;
 
   return (
     <>
@@ -132,6 +138,36 @@ export default function TodayView({
 
       {showTourPrompt && (
         <TourPromptBanner P={P} onStartTour={onStartTour} onDismiss={onDismissTourPrompt} />
+      )}
+
+      {unread > 0 && (
+        <button
+          type="button"
+          onClick={onOpenMessages || onFocusFriends}
+          style={{
+            display: "block",
+            width: "calc(100% - 40px)",
+            margin: "0 20px 12px",
+            textAlign: "left",
+            borderRadius: 14,
+            border: `1.5px solid ${P}`,
+            background: `${P}20`,
+            padding: "12px 14px",
+            cursor: "pointer",
+            boxShadow: `0 0 0 1px ${P}22 inset`,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 20 }}>💬</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 800, color: "var(--fkh-text)" }}>
+                {unread === 1 ? "New message waiting for you" : `${unread} new messages waiting for you`}
+              </div>
+              <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 3 }}>Tap to open Messages</div>
+            </div>
+            <CountBadge count={unread} P={P} />
+          </div>
+        </button>
       )}
 
       <HomeCollapsibleSection
@@ -358,7 +394,13 @@ export default function TodayView({
         labelStyle={homeLbl}
         accentColor={P}
       >
-        <FriendsTeaser P={P} onOpenFriends={onFocusFriends} />
+        <FriendsTeaser
+          P={P}
+          onOpenFriends={onOpenMessages || onFocusFriends}
+          unreadMessages={unread}
+          isSignedIn={isSignedIn}
+          onSignIn={onOpenAuth}
+        />
         <ChallengeStrip
           P={P}
           variant="teaser"
