@@ -3053,7 +3053,7 @@ function ShotTracker({ P, S, BG, athleteName, settings }) {
     ];
     const last = entries[entries.length-1];
     save({...log, [k]:[...(log[k]||[]), ...entries]});
-    trackShotSession({ makes, misses, shotType: tid, usedCourtMap: Boolean(loc && loc !== "__noloc__") });
+    trackShotSession({ makes: made, misses: missed, shotType: tid, usedCourtMap: Boolean(loc && loc !== "__noloc__") });
     setLastShot(last);
     setActiveType(null); setActiveLoc(null); setShotCount({made:0, missed:0});
   };
@@ -3099,6 +3099,7 @@ function ShotTracker({ P, S, BG, athleteName, settings }) {
   const allByType = useMemo(()=>{ const c={}; allFlat.forEach(s=>{c[s.type]=(c[s.type]||0)+1}); return c; },[allFlat]);
   const allTotal = allFlat.length;
   const streak = useMemo(()=>{ let s=0,d=new Date(); while(true){const k=d.toLocaleDateString("en-CA");if((log[k]||[]).length>0){s++;d.setDate(d.getDate()-1)}else break} return s; },[log]);
+  const todayTotal = todayShots.length;
   const todayMade = useMemo(()=>todayShots.filter(s=>s.made!==false).length,[todayShots]);
   const todayPct = todayTotal>0 ? Math.round((todayMade/todayTotal)*100) : 0;
 
