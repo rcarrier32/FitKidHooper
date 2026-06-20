@@ -20,7 +20,7 @@ import {
   WEEK_DAY_KEYS,
   WEEK_DAY_LABELS,
 } from "../lib/customWorkouts.js";
-import { generateWorkoutFromMission } from "../lib/missionWorkout.js";
+import { generateCustomMissionWorkout, BUILD_FOCUS_OPTIONS, BUILD_INTENSITY_OPTIONS } from "../lib/missionGenerator.js";
 
 const todayKey = () => new Date().toLocaleDateString("en-CA");
 
@@ -79,6 +79,10 @@ export default function ProgramsView({
   const [buildMode, setBuildMode] = useState("day");
   const [buildWeekDays, setBuildWeekDays] = useState(emptyWeekDays);
   const [activeBuildDay, setActiveBuildDay] = useState(getTodayWeekDayKey);
+  const [missionFocus, setMissionFocus] = useState("mission");
+  const [missionIntensity, setMissionIntensity] = useState("medium");
+  const [buildCatFilter, setBuildCatFilter] = useState("all");
+  const [buildPickQuery, setBuildPickQuery] = useState("");
 
   const enrollProg = (prog) => {
     const startDate = new Date().toLocaleDateString("en-CA");
@@ -169,8 +173,32 @@ export default function ProgramsView({
   const canSaveWeek = WEEK_DAY_KEYS.some(k => (buildWeekDays[k]?.length || 0) >= 2);
   const canSaveDay = buildPicks.length >= 2;
 
+  const buildExerciseList = useMemo(() => {
+    const q = buildPickQuery.trim().toLowerCase();
+    let list = Object.values(allExercises);
+    if (buildCatFilter === "favorites") {
+      list = favExercises;
+    } else if (buildCatFilter !== "all") {
+      list = list.filter(ex => ex._cat === buildCatFilter);
+    }
+    if (q.length >= 2) {
+      list = list.filter(ex =>
+        `${ex.name} ${ex._cat} ${cats[ex._cat]?.label || ""}`.toLowerCase().includes(q),
+      );
+    }
+    return list.sort((a, b) => a.name.localeCompare(b.name));
+  }, [allExercises, buildCatFilter, buildPickQuery, favExercises, cats]);
+
   const generateFromMission = () => {
-    const w = generateWorkoutFromMission(todayMission, allExercises);
+    const w = generateCustomMissionWorkout({
+      settings,
+      workouts,
+      exerciseMeta,
+      focusId: missionFocus,
+      intensityId: missionIntensity,
+      mission: todayMission,
+      allExercises,
+    });
     if (!w?.exercises?.length) return;
     openExercise(w.exercises[0], w.exercises);
   };
@@ -589,13 +617,42 @@ export default function ProgramsView({
           {programsHubSection === "build" && (
             <div style={{ padding:"0 18px" }}>
               <div style={{ borderRadius:14,border:`1px solid ${P}33`,background:`${P}0a`,padding:"14px",marginBottom:14 }}>
-                <div style={{ fontSize:13,fontWeight:800,color:"var(--fkh-text)",marginBottom:6 }}>🎯 From Today's Mission</div>
-                <div style={{ fontSize:12,color:"#64748b",lineHeight:1.45,marginBottom:10 }}>
-                  {todayMission?.title ? `Generate a workout from: ${todayMission.title}` : "Complete your daily mission setup first."}
+                <div style={{ fontSize:13,fontWeight:800,color:"var(--fkh-text)",marginBottom:8 }}>🎯 Generate Mission Workout</div>
+                <div style={{ fontSize:11,color:"#64748b",fontWeight:700,marginBottom:6 }}>What do you want to work on?</div>
+                <div style={{ display:"flex",gap:6,flexWrap:"wrap",marginBottom:12 }}>
+                  {BUILD_FOCUS_OPTIONS.map(opt => (
+                    <button key={opt.id} type="button" onClick={() => setMissionFocus(opt.id)} style={{
+                      padding:"7px 10px",borderRadius:999,fontSize:11,fontWeight:800,cursor:"pointer",
+                      border:`1px solid ${missionFocus===opt.id?P:bd}`,
+                      background:missionFocus===opt.id?`${P}18`:"transparent",
+                      color:missionFocus===opt.id?P:"#64748b",
+                    }}>
+                      {opt.emoji} {opt.label}
+                    </button>
+                  ))}
                 </div>
+                <div style={{ fontSize:11,color:"#64748b",fontWeight:700,marginBottom:6 }}>How hard should it be?</div>
+                <div style={{ display:"flex",gap:6,marginBottom:10 }}>
+                  {BUILD_INTENSITY_OPTIONS.map(opt => (
+                    <button key={opt.id} type="button" onClick={() => setMissionIntensity(opt.id)} style={{
+                      flex:1,padding:"10px 8px",borderRadius:10,fontSize:11,fontWeight:800,cursor:"pointer",textAlign:"left",
+                      border:`1px solid ${missionIntensity===opt.id?P:bd}`,
+                      background:missionIntensity===opt.id?`${P}18`:"transparent",
+                      color:missionIntensity===opt.id?P:"#64748b",
+                    }}>
+                      <div>{opt.emoji} {opt.label}</div>
+                      <div style={{ fontSize:9,fontWeight:600,marginTop:3,opacity:0.85 }}>{opt.desc}</div>
+                    </button>
+                  ))}
+                </div>
+                {missionFocus === "mission" && todayMission?.title && (
+                  <div style={{ fontSize:11,color:"#64748b",lineHeight:1.45,marginBottom:10 }}>
+                    Includes drills from: {todayMission.title}
+                  </div>
+                )}
                 <button type="button" onClick={generateFromMission}
                   style={{ width:"100%",padding:"11px",borderRadius:10,border:"none",background:P,color:"#fff",fontSize:13,fontWeight:800,cursor:"pointer" }}>
-                  Generate Mission Workout →
+                  Generate & Start Workout →
                 </button>
               </div>
 
@@ -670,8 +727,33 @@ export default function ProgramsView({
                   ? `${WEEK_DAY_LABELS[activeBuildDay]}: ${activeBuildPicks.length} selected · ${weekPlanTotal} total`
                   : `Tap exercises to add (${buildPicks.length} selected, min 2)`}
               </div>
+              <input
+                value={buildPickQuery}
+                onChange={e => setBuildPickQuery(e.target.value)}
+                placeholder="Search drills to add…"
+                style={{ width:"100%",padding:"9px 12px",borderRadius:10,border:`1px solid ${bd}`,background:SF,color:"var(--fkh-text)",fontSize:13,marginBottom:8,boxSizing:"border-box" }}
+              />
+              <div style={{ display:"flex",gap:5,marginBottom:10,overflowX:"auto",paddingBottom:2 }}>
+                {[
+                  { id: "all", label: "All" },
+                  { id: "favorites", label: "⭐ Favs" },
+                  ...Object.entries(cats).map(([id, cat]) => ({ id, label: cat.label })),
+                ].map(opt => (
+                  <button key={opt.id} type="button" onClick={() => setBuildCatFilter(opt.id)} style={{
+                    flexShrink:0,padding:"6px 10px",borderRadius:999,fontSize:10,fontWeight:800,cursor:"pointer",
+                    border:`1px solid ${buildCatFilter===opt.id?P:bd}`,
+                    background:buildCatFilter===opt.id?`${P}18`:"transparent",
+                    color:buildCatFilter===opt.id?P:"#64748b",
+                  }}>{opt.label}</button>
+                ))}
+              </div>
               <div style={{ maxHeight:280,overflowY:"auto",marginBottom:12 }}>
-                {(favExercises.length ? favExercises : Object.values(allExercises).slice(0, 40)).map(ex => {
+                {buildExerciseList.length === 0 && (
+                  <div style={{ fontSize:12,color:"#64748b",textAlign:"center",padding:16 }}>
+                    No drills match — try All or a different category.
+                  </div>
+                )}
+                {buildExerciseList.map(ex => {
                   const picked = activeBuildPicks.includes(ex.id);
                   const catInfo = cats[ex._cat] || { label:ex._cat };
                   return (
