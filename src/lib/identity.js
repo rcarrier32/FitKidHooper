@@ -1,5 +1,7 @@
 /** Identity helpers — extends s_settings, no separate profile system. */
 
+import { normalizeProfileFields } from "./profileHydrate.js";
+
 export const POSITIONS = [
   { id: "guard", label: "Guard", emoji: "🏃" },
   { id: "wing", label: "Wing", emoji: "🏀" },
@@ -29,13 +31,9 @@ export function migrateIdentitySettings(raw) {
   if (!s.playStyle) s.playStyle = "any";
   if (s.activeTitle === undefined) s.activeTitle = null;
   if (s.equipped === undefined || s.equipped === null) s.equipped = {};
-  // Three favorite dimensions. Seed all-time from the legacy single field.
-  if (s.favoriteAllTime === undefined) s.favoriteAllTime = s.favoritePlayer || "";
-  if (s.favoriteCurrent === undefined) s.favoriteCurrent = "";
-  if (s.favoritePlayLike === undefined) s.favoritePlayLike = "";
   if (s.lastName === undefined) s.lastName = "";
   s.leaderboardSharing = true;
-  return s;
+  return normalizeProfileFields(s);
 }
 
 /** Public board name: first name + last initial (privacy-friendly for kids). */

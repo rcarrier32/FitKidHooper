@@ -1,4 +1,5 @@
 import { getSupabaseClient, isSupabaseConfigured } from "./supabaseClient.js";
+import { isDefaultAthleteProfile, isRealName } from "./settingsMerge.js";
 
 const DEVICE_ID_KEY = "fkh-athlete-id";
 const LEGACY_LINKED_KEY = "fkh-auth-linked";
@@ -240,19 +241,43 @@ export async function linkDeviceProfileOnAuth(user, settings) {
   const { profileForCloud } = await import("./identity.js");
   const profile = profileForCloud(settings);
   const metaName = user.user_metadata?.username;
+  const localShell = isDefaultAthleteProfile(settings) || !isRealName(settings.athleteName);
 
-  await sb.from("athlete_profiles").upsert({
+  const { data: existing } = await sb
+    .from("athlete_profiles")
+    .select("display_name, date_of_birth, jersey_number, favorite_player, favorite_current, favorite_playlike, position, age_group")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const { getAgeGroup } = await import("./periodStats.js");
+  const row = {
     id: user.id,
     user_id: user.id,
     legacy_device_id: deviceId,
-    display_name: profile.display_name || metaName || settings.athleteName,
-    date_of_birth: profile.date_of_birth,
-    age_group: (await import("./periodStats.js")).getAgeGroup(settings.dateOfBirth),
-    jersey_number: profile.jersey_number,
-    favorite_player: profile.favorite_player,
-    position: profile.position,
     updated_at: new Date().toISOString(),
-  }, { onConflict: "id" });
+  };
+
+  if (localShell && existing) {
+    row.display_name = existing.display_name;
+    row.date_of_birth = existing.date_of_birth;
+    row.age_group = existing.age_group || getAgeGroup(existing.date_of_birth);
+    row.jersey_number = existing.jersey_number;
+    row.favorite_player = existing.favorite_player;
+    row.favorite_current = existing.favorite_current;
+    row.favorite_playlike = existing.favorite_playlike;
+    row.position = existing.position || "any";
+  } else {
+    row.display_name = profile.display_name || metaName || settings.athleteName;
+    row.date_of_birth = profile.date_of_birth;
+    row.age_group = getAgeGroup(settings.dateOfBirth);
+    row.jersey_number = profile.jersey_number;
+    row.favorite_player = profile.favorite_player;
+    row.favorite_current = profile.favorite_current;
+    row.favorite_playlike = profile.favorite_playlike;
+    row.position = profile.position;
+  }
+
+  await sb.from("athlete_profiles").upsert(row, { onConflict: "id" });
 
   // Re-parent device-keyed board data (leaderboard stats, friendships, board
   // memberships, invites) onto the authenticated user id so a returning athlete

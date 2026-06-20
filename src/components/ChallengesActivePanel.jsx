@@ -10,20 +10,26 @@ function loadSectionOpen(key, defaultOpen = true) {
   return defaultOpen;
 }
 
-/**
- * Unified Active challenges: personal weekly goals + squad challenge.
- */
+/** Personal weekly challenges (squad challenges live on the Squad tab). */
 export default function ChallengesActivePanel({
   personalChallenges = [],
   P = "#f97316",
   SF,
   bd,
   onAddFriends,
+  squadOnly = false,
 }) {
+  if (squadOnly) {
+    return (
+      <div style={{ padding: "0 0 8px" }}>
+        <ChallengeStrip P={P} variant="full" onAddFriends={onAddFriends} />
+      </div>
+    );
+  }
+
   const active = personalChallenges.filter(c => !c.done);
   const done = personalChallenges.filter(c => c.done);
   const [personalOpen, setPersonalOpen] = useState(() => loadSectionOpen("personal", true));
-  const [squadOpen, setSquadOpen] = useState(() => loadSectionOpen("squad", true));
 
   const sectionLbl = {
     fontFamily: "'DM Mono',monospace",
@@ -36,12 +42,9 @@ export default function ChallengesActivePanel({
 
   useEffect(() => {
     try {
-      localStorage.setItem("fkh-challenge-sections", JSON.stringify({
-        personal: personalOpen,
-        squad: squadOpen,
-      }));
+      localStorage.setItem("fkh-challenge-sections", JSON.stringify({ personal: personalOpen }));
     } catch { /* ignore */ }
-  }, [personalOpen, squadOpen]);
+  }, [personalOpen]);
 
   return (
     <div style={{ padding: "0 0 8px" }}>
@@ -95,17 +98,6 @@ export default function ChallengesActivePanel({
             ))}
           </div>
         </div>
-      </HomeCollapsibleSection>
-
-      <HomeCollapsibleSection
-        title="Squad challenge"
-        hint="Friends"
-        open={squadOpen}
-        onToggle={() => setSquadOpen(o => !o)}
-        labelStyle={sectionLbl}
-        accentColor={P}
-      >
-        <ChallengeStrip P={P} variant="full" onAddFriends={onAddFriends} />
       </HomeCollapsibleSection>
     </div>
   );

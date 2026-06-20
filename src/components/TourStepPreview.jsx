@@ -25,6 +25,21 @@ export default function TourStepPreview({ stepId, P = "#f97316" }) {
     );
   }
 
+  if (stepId === "squad") {
+    return (
+      <div style={{ padding: "4px 2px 0" }}>
+        <div style={{ ...box, padding: "8px 10px", marginBottom: 6, borderColor: `${P}33` }}>
+          <div style={{ fontSize: 10, fontWeight: 800, color: P }}>👥 Squad challenge</div>
+          <div style={{ fontSize: 9, color: "#64748b", marginTop: 4 }}>Compete with friends</div>
+        </div>
+        <div style={{ ...box, padding: "8px 10px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ fontSize: 10, fontWeight: 800, color: "var(--fkh-text)" }}>Friends & messages</div>
+          <div style={{ minWidth: 16, height: 16, borderRadius: 99, background: P, color: "#fff", fontSize: 9, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>2</div>
+        </div>
+      </div>
+    );
+  }
+
   if (stepId === "shots") {
     return (
       <div style={{ padding: "4px 2px 0" }}>
@@ -78,7 +93,7 @@ export default function TourStepPreview({ stepId, P = "#f97316" }) {
           </div>
           <div style={{ fontSize: 8, color: "#64748b", marginTop: 3 }}>↑ tap names for highlight videos</div>
         </div>
-        <div style={{ ...box, padding: "6px 10px", fontSize: 9, color: "#94a3b8" }}>🏆 Leaderboards · squad challenges</div>
+        <div style={{ ...box, padding: "6px 10px", fontSize: 9, color: "#94a3b8" }}>🏆 Personal goals · legend paths</div>
       </div>
     );
   }
@@ -94,7 +109,7 @@ export default function TourStepPreview({ stepId, P = "#f97316" }) {
           </div>
         </div>
         <div style={{ display: "flex", gap: 4 }}>
-          {["Overview", "Friends", "Badges", "Stats"].map((t, i) => (
+          {["Overview", "Skills", "Badges", "Stats"].map((t, i) => (
             <div key={t} style={{
               ...box, flex: 1, padding: "4px 2px", fontSize: 7, fontWeight: 700, textAlign: "center",
               color: i === 0 ? P : "#64748b",

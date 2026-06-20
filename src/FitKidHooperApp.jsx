@@ -5,7 +5,7 @@ import AuthSheet from "./components/AuthSheet.jsx";
 import NotificationSettings from "./components/NotificationSettings.jsx";
 import FeedbackCenter from "./components/FeedbackCenter.jsx";
 import { useAuth } from "./hooks/useAuth.js";
-import { useUnreadMessages } from "./hooks/useUnreadMessages.js";
+import { useSquadNotifications } from "./hooks/useSquadNotifications.js";
 import CountBadge from "./components/CountBadge.jsx";
 import { getAgeGroup, getAgeGroupLabel } from "./lib/periodStats.js";
 import { exportCanonicalSave, importCanonicalSave } from "./lib/canonicalSave.js";
@@ -13,6 +13,7 @@ import { recoverFromSyncBackupIfNeeded } from "./lib/syncBackup.js";
 import { withStoredAvatar, writeStoredAvatar } from "./lib/avatarStorage.js";
 import { safePersistKey } from "./lib/dataSafety.js";
 import { mergeUserSettings } from "./lib/settingsMerge.js";
+import { hydrateSettingsFromCloudProfile, persistHydratedSettings, normalizeProfileFields } from "./lib/profileHydrate.js";
 import { syncAvatarToCloud, clearAvatarFromCloud } from "./lib/avatarCloud.js";
 import { getEffectiveAthleteId } from "./lib/auth.js";
 import { CATS, CAT_DOT_COLORS } from "./lib/categories.js";
@@ -113,6 +114,7 @@ import {
 import TodayView from "./views/TodayView.jsx";
 import ProgramsView from "./views/ProgramsView.jsx";
 import MeView from "./views/MeView.jsx";
+import SquadView from "./views/SquadView.jsx";
 import ChallengesView from "./views/ChallengesView.jsx";
 import DayPlanPanel from "./components/DayPlanPanel.jsx";
 import { buildTrainingDayPlan, currentWeekDates, scheduleCategoryExerciseIds, weekdayIndexFromDate } from "./lib/trainingDayPlan.js";
@@ -5068,6 +5070,16 @@ const MIGRATIONS = [
       console.error("[fkh] program progress recovery failed", e);
     }
   },
+  // ── v4 → v5: legacy favoritePlayer → split Settings fields ─────
+  () => {
+    try {
+      const raw = JSON.parse(localStorage.getItem("s_settings") || "{}");
+      const next = normalizeProfileFields(raw);
+      if (JSON.stringify(next) !== JSON.stringify(raw)) {
+        localStorage.setItem("s_settings", JSON.stringify(next));
+      }
+    } catch { /* ignore */ }
+  },
 ];
 
 const DATA_VERSION = MIGRATIONS.length; // keep in lock-step automatically
@@ -5184,8 +5196,8 @@ function loadSettingsFromStorage(defaults) {
       raw.dateOfBirth = `${year}-06-15`;
     }
     delete raw.athleteAge;
-    const merged = mergeUserSettings(raw, defaults);
-    return withStoredAvatar(migrateIdentitySettings(migrateThemeSettings(merged)));
+    const merged = mergeUserSettings(raw, {});
+    return withStoredAvatar(migrateIdentitySettings(migrateThemeSettings({ ...defaults, ...merged })));
   } catch {
     return { ...defaults };
   }
@@ -5201,7 +5213,7 @@ export default function FitKidHooperApp() {
   const [messagesDeepLink, setMessagesDeepLink] = useState(() => consumeMessagesDeepLink());
   const [openMessagesInbox, setOpenMessagesInbox] = useState(false);
   const auth = useAuth(settings);
-  const { unreadMessages, refreshUnreadMessages } = useUnreadMessages(auth.isSignedIn, auth.user?.id);
+  const { squadNotifications, unreadMessages, friendRequests, refreshSquadNotifications } = useSquadNotifications(auth.isSignedIn);
   const [showFeedback, setShowFeedback] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showAppMap, setShowAppMap] = useState(false);
@@ -5250,20 +5262,13 @@ export default function FitKidHooperApp() {
     try { localStorage.setItem("fkh-workout-open", workoutOpen ? "1" : "0"); } catch {}
   }, [workoutOpen]);
 
-  const focusChallengesFriends = useCallback(() => {
-    setFriendsFocusTick(t => t + 1);
-    setView("boards");
-  }, []);
-
-  const focusMeFriends = useCallback(() => {
-    setProgressTab("friends");
-    setView("progress");
+  const focusSquad = useCallback(() => {
+    setView("squad");
     setFriendsFocusTick(t => t + 1);
   }, []);
 
   const navigateToMessages = useCallback(() => {
-    setProgressTab("friends");
-    setView("progress");
+    setView("squad");
     setOpenMessagesInbox(true);
     setFriendsFocusTick(t => t + 1);
   }, []);
@@ -5310,15 +5315,25 @@ export default function FitKidHooperApp() {
     setGrowthLog(readGrowthLog());
   }, []);
 
+  const hydrateProfileIntoState = useCallback(async (userId) => {
+    if (!userId) return;
+    const current = loadSettingsFromStorage(DEFAULT);
+    const hydrated = await hydrateSettingsFromCloudProfile(userId, current);
+    if (JSON.stringify(hydrated) === JSON.stringify(current)) return;
+    persistHydratedSettings(hydrated, current);
+    setSettings(withStoredAvatar(migrateThemeSettings(hydrated)));
+  }, []);
+
   const applyCloudSync = useCallback(async () => {
     const result = await auth.syncNow();
     if (result?.ok) {
       persistProgramProgressRecovery();
       reloadAthleteStateFromStorage();
-      refreshUnreadMessages();
+      await hydrateProfileIntoState(auth.user?.id);
+      refreshSquadNotifications();
     }
     return result;
-  }, [auth.syncNow, reloadAthleteStateFromStorage, refreshUnreadMessages]);
+  }, [auth.syncNow, auth.user?.id, reloadAthleteStateFromStorage, hydrateProfileIntoState, refreshSquadNotifications]);
   const [reportPeriod, setReportPeriod] = useState("30d");
   const [strDay, setStrDay] = useState(()=>localStorage.getItem('s_strday')||'Day 1');
   const [onboardName, setOnboardName] = useState('');
@@ -5988,20 +6003,20 @@ export default function FitKidHooperApp() {
 
   useEffect(() => {
     if (auth.loading || !auth.isSignedIn || !auth.user?.id) return;
-    refreshUnreadMessages();
-    const retry = setTimeout(refreshUnreadMessages, 1500);
+    refreshSquadNotifications();
+    const retry = setTimeout(refreshSquadNotifications, 1500);
     return () => clearTimeout(retry);
-  }, [auth.loading, auth.isSignedIn, auth.user?.id, refreshUnreadMessages]);
+  }, [auth.loading, auth.isSignedIn, auth.user?.id, refreshSquadNotifications]);
 
   useEffect(() => {
-    if (auth.isSignedIn) refreshUnreadMessages();
-  }, [view, auth.isSignedIn, refreshUnreadMessages]);
+    if (auth.isSignedIn) refreshSquadNotifications();
+  }, [view, auth.isSignedIn, refreshSquadNotifications]);
 
   useEffect(() => {
     if (!messagesDeepLink) return;
-    setView("progress");
-    setProgressTab("friends");
+    setView("squad");
     setOpenMessagesInbox(true);
+    setFriendsFocusTick(t => t + 1);
     setMessagesDeepLink(false);
   }, [messagesDeepLink]);
 
@@ -6014,6 +6029,14 @@ export default function FitKidHooperApp() {
     })();
     return () => { cancelled = true; };
   }, [auth.isSignedIn, applyCloudSync]);
+
+  // Fill blank Settings fields from cloud profile without any page refresh.
+  useEffect(() => {
+    if (auth.loading || !auth.isSignedIn || !auth.user?.id) return;
+    let cancelled = false;
+    hydrateProfileIntoState(auth.user.id).catch(() => {});
+    return () => { cancelled = true; };
+  }, [auth.loading, auth.isSignedIn, auth.user?.id, hydrateProfileIntoState]);
 
   // Auto-sync the leaderboard on app open / sign-in (not just when Boards is
   // opened). Self-throttled to ~30 min, so it's cheap to fire here.
@@ -6084,6 +6107,7 @@ export default function FitKidHooperApp() {
   const homeLbl = { fontFamily:"'DM Mono',monospace",fontSize:12,letterSpacing:"0.13em",color:P,fontWeight:800,marginBottom:10,textTransform:"uppercase" };
   const NAV = [
     {id:"home",     emoji:"☀️",label:"Today"},
+    {id:"squad",    emoji:"👥",label:"Squad"},
     {id:"shots",    emoji:"🏀",label:"Shots"},
     {id:"programs", emoji:"📋",label:"Programs"},
     {id:"boards",  emoji:"🏆",label:"Challenges"},
@@ -6127,8 +6151,8 @@ export default function FitKidHooperApp() {
         <button key={n.id} onClick={()=>setView(n.id)} style={{ flex:1,padding:"10px 0 12px",border:"none",background:"transparent",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2 }}>
           <span style={{ position:"relative", display:"inline-flex", alignItems:"center", justifyContent:"center" }}>
             <span style={{ fontSize:18 }}>{n.emoji}</span>
-            {n.id === "progress" && unreadMessages > 0 && (
-              <CountBadge count={unreadMessages} P={P} style={{ position:"absolute", top:-8, right:-12, minWidth:18, height:18, fontSize:10, padding:"0 5px", boxShadow:"0 0 0 2px var(--fkh-bg, #0b1220)" }} />
+            {n.id === "squad" && squadNotifications > 0 && (
+              <CountBadge count={squadNotifications} P={P} style={{ position:"absolute", top:-8, right:-12, minWidth:18, height:18, fontSize:10, padding:"0 5px", boxShadow:"0 0 0 2px var(--fkh-bg, #0b1220)" }} />
             )}
           </span>
           <span style={{ fontSize:9,color:view===n.id?P:"#475569",fontWeight:view===n.id?700:400,letterSpacing:"0.04em" }}>{n.label}</span>
@@ -6214,6 +6238,40 @@ export default function FitKidHooperApp() {
     );
   }
 
+  /* SQUAD */
+  if (view === "squad") {
+    return (
+      <SquadView
+        settings={settings}
+        completed={completed}
+        missionLog={missionLog}
+        getCategory={getExerciseCategory}
+        earnedBadges={earnedBadges}
+        ledger={ledger}
+        personalChallenges={personalChallenges}
+        currentLevel={currentLevel}
+        xpData={xpData}
+        P={P}
+        BG={BG}
+        SF={SF}
+        bd={bd}
+        lbl={lbl}
+        initialInviteCode={inviteCode}
+        isSignedIn={auth.isSignedIn}
+        onOpenAuth={() => setShowAuth(true)}
+        focusFriendsTick={friendsFocusTick}
+        onPushSuccess={() => setPushError(null)}
+        unreadMessages={unreadMessages}
+        friendRequests={friendRequests}
+        onUnreadRefresh={refreshSquadNotifications}
+        openMessagesInbox={openMessagesInbox}
+        onMessagesInboxOpened={() => setOpenMessagesInbox(false)}
+        shellOverlays={shellOverlays}
+        renderBottomNav={renderBottomNav}
+      />
+    );
+  }
+
   /* SHOTS */
   if (view==="shots") return (
     <div style={{ background:BG,minHeight:"100vh",maxWidth:680,margin:"0 auto" }}>
@@ -6280,33 +6338,9 @@ export default function FitKidHooperApp() {
           const ex = ALL_EXERCISES[exId];
           if (ex) openDetail({ ...ex, meta: EXERCISE_META[exId] || {} }, []);
         }}
-        friendsPanel={
-          <BoardView
-            modes={["friends"]}
-            settings={settings}
-            completed={completed}
-            missionLog={missionLog}
-            getCategory={getExerciseCategory}
-            earnedBadges={earnedBadges}
-            ledger={ledger}
-            personalChallenges={personalChallenges}
-            currentLevel={currentLevel}
-            xpData={xpData}
-            P={P} BG={BG} SF={SF} bd={bd} lbl={lbl}
-            initialInviteCode={inviteCode}
-            isSignedIn={auth.isSignedIn}
-            onOpenAuth={() => setShowAuth(true)}
-            onAddFriends={focusChallengesFriends}
-            focusFriendsTick={friendsFocusTick}
-            onPushSuccess={() => setPushError(null)}
-            unreadMessages={unreadMessages}
-            onUnreadRefresh={refreshUnreadMessages}
-            openMessagesInbox={openMessagesInbox}
-            onMessagesInboxOpened={() => setOpenMessagesInbox(false)}
-          />
-        }
+        onOpenSquad={focusSquad}
         renderBottomNav={renderBottomNav}
-        unreadMessages={unreadMessages}
+        squadNotifications={squadNotifications}
       />
     );
   }
@@ -6341,7 +6375,7 @@ export default function FitKidHooperApp() {
         initialInviteCode={inviteCode}
         isSignedIn={auth.isSignedIn}
         onOpenAuth={() => setShowAuth(true)}
-        onAddFriends={focusChallengesFriends}
+            onAddFriends={focusSquad}
         focusFriendsTick={friendsFocusTick}
         onPushSuccess={() => setPushError(null)}
         shellOverlays={shellOverlays}
@@ -6889,6 +6923,7 @@ export default function FitKidHooperApp() {
         setShowAppMap(false);
         switch(dest){
           case "today": setView("home"); break;
+          case "squad": setView("squad"); break;
           case "shots": setView("shots"); break;
           case "programs": setView("programs"); break;
           case "boards": setView("boards"); break;
@@ -6910,8 +6945,6 @@ export default function FitKidHooperApp() {
             FKH <span style={{ color:P }}>Fit Kid Hooper</span>
           </h1>
           <div style={{ position:"relative",width:56,height:56,flexShrink:0,marginLeft:4 }}>
-            <button onClick={()=>setShowSettings(true)} aria-label="Settings"
-              style={{ position:"absolute",top:-20,left:-22,background:"none",border:"none",color:P,fontSize:17,cursor:"pointer",padding:0,lineHeight:1,zIndex:1 }}>⚙</button>
             <div onClick={()=>{ setView("progress"); setProgressTab("overview"); }}
               style={{ width:56,height:56,borderRadius:"50%",background:`${P}18`,border:`3px solid ${P}`,overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer" }}>
               {settings.avatar?<img src={settings.avatar} alt="" style={{ width:"100%",height:"100%",objectFit:"cover" }}/>:<span style={{ fontSize:24 }}>👤</span>}
@@ -7007,7 +7040,7 @@ export default function FitKidHooperApp() {
         onOpenPath={openLegendsJourney}
         onSetFavorite={() => setShowSettings(true)}
         onOpenPlayerHighlight={openPlayerHighlight}
-        onFocusFriends={focusMeFriends}
+        onFocusFriends={focusSquad}
         onOpenMessages={navigateToMessages}
         unreadMessages={unreadMessages}
         isSignedIn={auth.isSignedIn}

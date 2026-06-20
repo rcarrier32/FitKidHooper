@@ -58,13 +58,12 @@ export default function MeView({
   onLogHeight,
   onOpenPlayerHighlight,
   onOpenExercise,
-  friendsPanel,
+  onOpenSquad,
   renderBottomNav,
-  unreadMessages = 0,
+  squadNotifications = 0,
 }) {
   const subTabs = [
     { id:"overview", label:"Overview" },
-    { id:"friends",  label:"👋 Friends" },
     { id:"skills",   label:"Skills" },
     { id:"locker",   label:"🏅 Badges" },
     { id:"stats",    label:"Stats" },
@@ -87,7 +86,6 @@ export default function MeView({
       <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 20px",borderBottom:`1px solid ${P}14`,position:"sticky",top:0,background:BG,backdropFilter:"blur(10px)",zIndex:10 }}>
         <h1 style={{ fontSize:16,fontWeight:800,margin:0,color:P,display:"flex",alignItems:"center",gap:8 }}>
           ⭐ Me
-          {unreadMessages > 0 && <CountBadge count={unreadMessages} P={P} />}
         </h1>
         <div style={{ display:"flex",gap:8 }}>
           <button onClick={onShowHelp}
@@ -111,7 +109,6 @@ export default function MeView({
             display:"inline-flex",alignItems:"center",gap:6,
           }}>
             <span>{t.label}</span>
-            {t.id === "friends" && unreadMessages > 0 && <CountBadge count={unreadMessages} P={P} />}
           </button>
         ))}
       </div>
@@ -133,6 +130,21 @@ export default function MeView({
           pushBusy={pushBusy}
           pushError={pushError}
         />
+      )}
+
+      {progressTab === "overview" && onOpenSquad && (
+        <div style={{ padding:"0 18px 12px" }}>
+          <button type="button" onClick={onOpenSquad}
+            style={{ width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,
+              padding:"12px 14px",borderRadius:14,border:`1px solid ${squadNotifications > 0 ? P : `${P}33`}`,
+              background:squadNotifications > 0 ? `${P}14` : `${P}0c`,cursor:"pointer",textAlign:"left" }}>
+            <div>
+              <div style={{ fontSize:13,fontWeight:800,color:"var(--fkh-text)" }}>👥 Squad</div>
+              <div style={{ fontSize:11,color:"#94a3b8",marginTop:3 }}>Friends, messages, and team challenges</div>
+            </div>
+            {squadNotifications > 0 && <CountBadge count={squadNotifications} P={P} />}
+          </button>
+        </div>
       )}
 
       {progressTab === "locker" && (
@@ -160,9 +172,7 @@ export default function MeView({
         </div>
       )}
 
-      {progressTab === "friends" && friendsPanel}
-
-      {progressTab !== "stats" && progressTab !== "overview" && progressTab !== "friends" && (
+      {progressTab !== "stats" && progressTab !== "overview" && (
         <ProgressionView
           tab={progressTab}
           settings={settings}

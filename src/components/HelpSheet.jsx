@@ -8,20 +8,21 @@ export default function HelpSheet({ P, SF, onClose, onOpenMap, onReplayTour }) {
   }, [onClose]);
 
   const TABS = [
-    { e:"☀️", t:"Today & daily mission", d:"Your home base: Daily Mission (bonus XP), My Programs, Train Like Legends, Squad & Friends, and Quick Workout. Tap section headers to expand or collapse. Tap any drill for video + coaching cues, then check it off to earn XP." },
+    { e:"☀️", t:"Today & daily mission", d:"Your home base: Daily Mission (bonus XP), My Programs, Train Like Legends, and Quick Workout. Tap section headers to expand or collapse. Tap any drill for video + coaching cues, then check it off to earn XP." },
+    { e:"👥", t:"Squad", d:"Friends, private messages, the feed, and squad challenges. The Squad tab badge shows unread messages and pending friend requests." },
     { e:"📋", t:"Programs hub", d:"Search any program or drill at the top. Plans — enroll in multi-week programs and track sessions. Drills — browse every training module. Quick — start a shuffled template workout. Build — save a custom day or weekly plan." },
     { e:"🏀", t:"Log your shots", d:"On Shots, tap a zone on the court — left and right are detected automatically. Enter makes and misses, then log. Defaults to today; tap Yesterday or pick a date if you forgot to log earlier. Quick Tap is for shot types without the court map." },
     { e:"🎯", t:"Set a weekly goal", d:"On Shots, tap Set Goal to pick how many makes you want this week. The bar fills as you score — try to beat it before the week runs out!" },
     { e:"⭐", t:"Train Like Legends", d:"On Challenges, scroll to Train Like Legends. Legend names are tap-to-watch links to real highlights. Climb ranks with reps and signature-move drills — then build your own game on the court." },
     { e:"🏆", t:"Challenges & leaderboards", d:"Personal goals and squad challenges show first. Expand Train Like Legends for legend paths — each path collapses so nothing gets buried. Rankings tab for age-group and friends leaderboards." },
-    { e:"👥", t:"Friends & messages", d:"Me → Friends — add by username or friend code. Message privately from a friend's profile. Unread counts show on Me, Friends, and Messages. @mention friends in feed comments for a notification." },
+    { e:"💬", t:"Friends & messages", d:"Squad tab — add by username or friend code. Message privately from a friend's profile. Unread counts show on the Squad tab badge. @mention friends in feed comments for a notification." },
     { e:"🏅", t:"Earn XP & badges", d:"Training and making shots earns XP and levels you up from Rookie to Elite Hooper. Me → Badges tab — locked badges show exactly what to do to earn them." },
     { e:"📈", t:"Stats & calendar", d:"Me → Stats — streaks, monthly drill log, and links to Training History & Calendar for your weekly plan." },
     { e:"🔔", t:"Notifications", d:"Settings → Notifications — push alerts are on by default. Uncheck any category you don't want (messages, daily mission, friend activity, and more)." },
     { e:"☁️", t:"Sign in to sync", d:"Settings → Sign in (username + 6-digit passcode) to back up progress, keep it across devices, and add friends." },
   ];
   const TIPS = [
-    { e:"🧭", d:"Five tabs at the bottom: Today, Shots, Programs, Challenges, and Me. Replay the guided tour from Settings → App tour." },
+    { e:"🧭", d:"Six tabs at the bottom: Today, Squad, Shots, Programs, Challenges, and Me. Replay the guided tour from Settings → App tour." },
     { e:"🔥", d:"Streaks are forgiving — one rest day won't break your streak. Two missed days in a row resets it." },
     { e:"⭐", d:"Tap the star on any drill, program, or workout template to save it as a favorite." },
     { e:"🔍", d:"Search exercises and programs from the Programs tab search bar — crossover, Mikan, plank, and more." },

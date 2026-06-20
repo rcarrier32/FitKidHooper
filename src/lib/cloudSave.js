@@ -9,12 +9,36 @@ import { isAuthConfigured } from "./auth.js";
 import { scorePayload, isSubstantialPayload } from "./payloadScore.js";
 import { snapshotLocalBackup } from "./syncBackup.js";
 import { wouldRegressPayload } from "./dataSafety.js";
+import { isDefaultAthleteProfile } from "./settingsMerge.js";
+import {
+  fetchAthleteProfilePatch,
+  mergeProfilePatch,
+  needsProfileHydrate,
+} from "./profileHydrate.js";
 
 const LOCAL_CLOUD_VERSION_KEY = "fkh-cloud-version";
 const LOCAL_CLOUD_UPDATED_KEY = "fkh-cloud-updated";
 
 /** Cloud wins restore when it is this much richer than local (name-only shell ≈ 5). */
 const CLOUD_RESTORE_SCORE_GAP = 12;
+
+/** Pull identity from athlete_profiles when save payload is incomplete. */
+async function enrichPayloadFromAthleteProfile(sb, userId, payload) {
+  const settings = payload?.s_settings;
+  if (!settings) return payload;
+  if (!isDefaultAthleteProfile(settings) && !needsProfileHydrate(settings)) return payload;
+
+  const patch = await fetchAthleteProfilePatch(userId);
+  if (!Object.keys(patch).length) return payload;
+
+  return { ...payload, s_settings: mergeProfilePatch(settings, patch) };
+}
+
+async function writeMergedPayload(sb, userId, payload) {
+  const enriched = await enrichPayloadFromAthleteProfile(sb, userId, payload);
+  writeCanonicalPayload(enriched, { force: true });
+  return enriched;
+}
 
 export function getLocalCloudMeta() {
   try {
@@ -84,7 +108,11 @@ export async function pullCloudSave(userId) {
   const cloudScore = scorePayload(data.payload);
 
   if (localMeta.version > data.version && !cloudIsMuchRicher(cloudScore, localScore)) {
-    return { ok: true, skipped: true, reason: "local_newer", remote: data };
+    const cloudHasIdentity = !isDefaultAthleteProfile(data.payload?.s_settings);
+    const localProfileDefault = isDefaultAthleteProfile(local.s_settings);
+    if (!(localProfileDefault && cloudHasIdentity)) {
+      return { ok: true, skipped: true, reason: "local_newer", remote: data };
+    }
   }
 
   const merged = mergeCanonicalPayloads(local, data.payload);
@@ -95,7 +123,7 @@ export async function pullCloudSave(userId) {
   }
 
   snapshotLocalBackup(local);
-  writeCanonicalPayload(merged, { force: true });
+  await writeMergedPayload(sb, userId, merged);
   setLocalCloudMeta(data.version, data.updated_at);
   return { ok: true, pulled: true, version: data.version, restored: cloudScore > localScore };
 }
@@ -154,9 +182,12 @@ export async function syncCloudSave(userId) {
       return { ...pushResult, direction: "push_only" };
     }
 
-    if (localScore === 0 || cloudIsMuchRicher(cloudScore, localScore)) {
+    const localProfileDefault = isDefaultAthleteProfile(local.s_settings);
+    const cloudHasIdentity = cloudPayload && !isDefaultAthleteProfile(cloudPayload.s_settings);
+
+    if (localScore === 0 || cloudIsMuchRicher(cloudScore, localScore) || (localProfileDefault && cloudHasIdentity)) {
       const restored = mergeCanonicalPayloads(local, cloudPayload);
-      writeCanonicalPayload(restored, { force: true });
+      await writeMergedPayload(sb, userId, restored);
       setLocalCloudMeta(data.version, data.updated_at);
       const upload = await uploadMergedSave(sb, userId, readCanonicalPayload(), data.version);
       return {
@@ -180,7 +211,7 @@ export async function syncCloudSave(userId) {
       return { ok: true, skipped: true, reason: "would_regress", localScore, cloudScore, mergedScore };
     }
 
-    writeCanonicalPayload(merged, { force: true });
+    await writeMergedPayload(sb, userId, merged);
 
     const forCloud = payloadForCloudUpload(readCanonicalPayload());
     if (wouldRegressPayload(forCloud, payloadForCloudUpload(cloudPayload))) {

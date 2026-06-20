@@ -44,7 +44,15 @@ export const TOUR_STEPS = [
     highlightNav: "home",
     emoji: "☀️",
     title: "Today",
-    body: "Your daily mission, enrolled programs, legend progress, friends, and a quick workout — all on one screen. Tap any section header to expand or collapse it.",
+    body: "Your daily mission, enrolled programs, legend progress, and a quick workout — all on one screen. Tap any section header to expand or collapse it.",
+  },
+  {
+    id: "squad",
+    view: "squad",
+    highlightNav: "squad",
+    emoji: "👥",
+    title: "Squad",
+    body: "Friends, private messages, the friends feed, and squad challenges live here. The badge shows unread messages and friend requests.",
   },
   {
     id: "shots",
@@ -70,7 +78,7 @@ export const TOUR_STEPS = [
     highlightNav: "boards",
     emoji: "🏆",
     title: "Challenges",
-    body: "Personal goals, squad competitions, and leaderboards. Scroll to Train Like Legends — legend names link to real highlight videos so you can study their game.",
+    body: "Personal goals, rankings, and Train Like Legends paths. Expand each section to see legend journeys and highlight videos.",
   },
   {
     id: "me",
@@ -79,7 +87,7 @@ export const TOUR_STEPS = [
     progressTab: "overview",
     emoji: "⭐",
     title: "Me",
-    body: "Your profile, XP, friends, messages, badges, and stats. Replay this tour anytime from Settings or ❓ Help. Now go get buckets!",
+    body: "Your profile, XP, badges, and stats. Settings and replay tour live here. Now go get buckets!",
   },
 ];
 
