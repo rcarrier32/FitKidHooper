@@ -23,7 +23,10 @@ import {
 } from "../lib/boardsApi.js";
 import AthleteCard from "./AthleteCard.jsx";
 import FeedView from "./FeedView.jsx";
+import FriendAvatar from "./FriendAvatar.jsx";
+import FriendProfileSheet from "./FriendProfileSheet.jsx";
 import ChallengesActivePanel from "./ChallengesActivePanel.jsx";
+import { fetchProfileSnippets, profileSnippet } from "../lib/friendProfileApi.js";
 import { getAchievementMeta } from "../lib/achievements.js";
 
 function fmtRelativePush(ts) {
@@ -52,6 +55,7 @@ export default function BoardView({
   currentLevel,
   xpData,
   P,
+  BG,
   SF,
   bd,
   lbl,
@@ -64,7 +68,7 @@ export default function BoardView({
 }) {
   const myAgeGroup = getAgeGroup(settings.dateOfBirth);
   const friendsPanelRef = useRef(null);
-  const [mode, setMode] = useState("active"); // active | rankings | feed
+  const [mode, setMode] = useState("challenges"); // challenges | friends | rankings
   const [boardType, setBoardType] = useState("age_group");
   const [ageGroup, setAgeGroup] = useState(myAgeGroup);
   const [period, setPeriod] = useState("week");
@@ -79,23 +83,53 @@ export default function BoardView({
   const [friendMsg, setFriendMsg] = useState(null);
   const [friendUsername, setFriendUsername] = useState("");
   const [requests, setRequests] = useState([]);
+  const [requesterProfiles, setRequesterProfiles] = useState({});
+  const [friendProfileId, setFriendProfileId] = useState(null);
+  const [friendRoster, setFriendRoster] = useState([]);
   const configured = isLeaderboardConfigured();
+
+  const viewFriend = useCallback(id => {
+    if (id) setFriendProfileId(id);
+  }, []);
 
   useEffect(() => {
     getBoardAthleteId().then(setAthleteId);
   }, []);
 
   const loadRequests = useCallback(async () => {
-    if (!isSignedIn) { setRequests([]); return; }
-    setRequests(await listFriendRequests());
+    if (!isSignedIn) { setRequests([]); setRequesterProfiles({}); return; }
+    const list = await listFriendRequests();
+    setRequests(list);
+    const ids = list.map(r => r.requester_id).filter(Boolean);
+    if (ids.length) {
+      const map = await fetchProfileSnippets(ids);
+      setRequesterProfiles(map);
+    } else {
+      setRequesterProfiles({});
+    }
   }, [isSignedIn]);
 
   useEffect(() => { loadRequests(); }, [loadRequests]);
 
   useEffect(() => {
+    if (mode !== "friends" || !athleteId || !configured) {
+      setFriendRoster([]);
+      return;
+    }
+    let alive = true;
+    (async () => {
+      const ids = (await listFriendAthleteIds(athleteId)).filter(id => id !== athleteId);
+      if (!ids.length) { if (alive) setFriendRoster([]); return; }
+      const map = await fetchProfileSnippets(ids);
+      if (!alive) return;
+      setFriendRoster(ids.map(id => map[id] || profileSnippet({ id, display_name: "Friend" })));
+    })();
+    return () => { alive = false; };
+  }, [mode, athleteId, configured, requests.length]);
+
+  useEffect(() => {
     if (!focusFriendsTick) return;
-    setMode("rankings");
-    setBoardType("friends");
+    setMode("friends");
     const timer = setTimeout(() => {
       friendsPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 80);
@@ -115,13 +149,21 @@ export default function BoardView({
       result = await fetchFriendsBoard({ athleteIds: friendIds, period });
     }
 
-    setRows(result.rows);
     if (result.error) setError(result.error);
+    else if (result.rows?.length) {
+      const map = await fetchProfileSnippets(result.rows.map(r => r.athlete_id));
+      setRows(result.rows.map(r => ({
+        ...r,
+        profile: map[r.athlete_id] || profileSnippet({ id: r.athlete_id, display_name: r.display_name }),
+      })));
+    } else {
+      setRows(result.rows || []);
+    }
     setLoading(false);
   }, [boardType, ageGroup, period, configured, athleteId]);
 
   const syncAndLoad = useCallback(async (force = false) => {
-    if (configured && settings.leaderboardSharing) {
+    if (configured) {
       await maybeAutoSyncLeaderboard({
         settings, completed, missionLog, getCategory, earnedBadges, ledger, force,
       });
@@ -134,15 +176,11 @@ export default function BoardView({
   useEffect(() => {
     if (initialInviteCode && athleteId) {
       setInviteInput(initialInviteCode);
-      setBoardType("friends");
+      setMode("friends");
     }
   }, [initialInviteCode, athleteId]);
 
   const handleSyncNow = async () => {
-    if (!settings.leaderboardSharing) {
-      setError("Turn on “Share on Leaderboard” in Settings first");
-      return;
-    }
     setPushing(true);
     setError(null);
     setPushMsg(null);
@@ -229,7 +267,7 @@ export default function BoardView({
       />
 
       <div style={{ display: "flex", gap: 6, margin: "14px 0 0" }}>
-        {[["active", "🎯 Active"], ["rankings", "🏆 Rankings"], ["feed", "📣 Feed"]].map(([m, label]) => (
+        {[["challenges", "🎯 Challenges"], ["friends", "👋 Friends"], ["rankings", "🏆 Rankings"]].map(([m, label]) => (
           <button key={m} onClick={() => setMode(m)} style={{
             flex: 1, padding: "9px 4px", borderRadius: 10, fontSize: 11, fontWeight: 800, cursor: "pointer",
             border: `1px solid ${mode === m ? P : bd}`,
@@ -239,18 +277,171 @@ export default function BoardView({
         ))}
       </div>
 
-      {mode === "active" ? (
+      {mode === "challenges" ? (
         <div style={{ marginTop: 12 }}>
           <ChallengesActivePanel
             personalChallenges={personalChallenges}
             P={P}
             SF={SF}
             bd={bd}
-            onAddFriends={onAddFriends}
+            onAddFriends={() => { onAddFriends?.(); setMode("friends"); }}
           />
         </div>
-      ) : mode === "feed" ? (
-        <div style={{ marginTop: 16 }}><FeedView P={P} SF={SF} bd={bd} /></div>
+      ) : mode === "friends" ? (
+        <div style={{ marginTop: 12 }}>
+          <div ref={friendsPanelRef} style={{ background: SF, border: `1px solid ${bd}`, borderRadius: 14, padding: 14, marginBottom: 16 }}>
+            {!isSignedIn && (
+              <div style={{
+                marginBottom: 12, padding: "10px 12px", borderRadius: 10,
+                background: `${P}12`, border: `1px solid ${P}28`, fontSize: 11, color: "var(--fkh-text-muted)", lineHeight: 1.5,
+              }}>
+                Sign in to add friends and keep your friend list across devices.
+                <button type="button" onClick={onOpenAuth} style={{
+                  display: "block", marginTop: 8, padding: "8px 12px", borderRadius: 8, border: `1px solid ${P}44`,
+                  background: "transparent", color: P, fontSize: 11, fontWeight: 700, cursor: "pointer", width: "100%",
+                }}>Sign in</button>
+              </div>
+            )}
+            <div style={{ fontSize: 14, fontWeight: 800, color: P, marginBottom: 4 }}>👋 Add a friend</div>
+            <div style={{ fontSize: 11, color: "#64748b", marginBottom: 10, lineHeight: 1.45 }}>
+              Train together — add by username or share a friend code.
+            </div>
+
+            {requests.length > 0 && (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+                  Friend requests ({requests.length})
+                </div>
+                {requests.map(r => {
+                  const prof = requesterProfiles[r.requester_id] || profileSnippet({
+                    id: r.requester_id,
+                    display_name: r.display_name,
+                  });
+                  return (
+                  <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 10, background: `${P}10`, border: `1px solid ${P}22`, marginBottom: 6 }}>
+                    <FriendAvatar
+                      profile={prof}
+                      displayName={r.display_name || r.username}
+                      size={36}
+                      P={P}
+                      onPress={() => viewFriend(r.requester_id)}
+                    />
+                    <div style={{ flex: 1, minWidth: 0, fontSize: 12, color: "var(--fkh-text)", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <button
+                        type="button"
+                        onClick={() => viewFriend(r.requester_id)}
+                        style={{
+                          background: "none", border: "none", padding: 0, margin: 0,
+                          font: "inherit", fontWeight: 700, color: "var(--fkh-text)",
+                          cursor: "pointer", textDecoration: "underline",
+                        }}
+                      >
+                        @{r.username || "athlete"}
+                      </button>
+                      {r.display_name ? <span style={{ color: "#64748b", fontWeight: 400 }}> · {r.display_name}</span> : null}
+                    </div>
+                    <button onClick={() => handleRespond(r.id, true)} style={{ padding: "6px 12px", borderRadius: 8, border: "none", background: P, color: "#000", fontSize: 11, fontWeight: 800, cursor: "pointer" }}>Accept</button>
+                    <button onClick={() => handleRespond(r.id, false)} style={{ padding: "6px 10px", borderRadius: 8, border: `1px solid ${bd}`, background: "transparent", color: "#94a3b8", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Decline</button>
+                  </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
+              <input
+                value={friendUsername}
+                onChange={e => setFriendUsername(e.target.value.replace(/[^a-z0-9_]/gi, "").toLowerCase())}
+                placeholder="Friend's username"
+                disabled={!isSignedIn}
+                maxLength={20}
+                style={{
+                  flex: 1, padding: "8px 10px", borderRadius: 8, border: `1px solid ${bd}`,
+                  background: "rgba(255,255,255,0.05)", color: "var(--fkh-text)", fontSize: 13,
+                }}
+              />
+              <button onClick={handleSendRequest} disabled={!isSignedIn || !friendUsername.trim()} style={{
+                padding: "8px 16px", borderRadius: 8, border: "none",
+                background: isSignedIn && friendUsername.trim() ? P : `${P}55`,
+                color: "#000", fontSize: 11, fontWeight: 800,
+                cursor: isSignedIn && friendUsername.trim() ? "pointer" : "not-allowed",
+              }}>Add</button>
+            </div>
+            <div style={{ fontSize: 10, color: "#64748b", marginBottom: 10 }}>
+              They'll get a request to accept. Or share a one-time code:
+            </div>
+
+            <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+              <button onClick={handleCreateInvite} disabled={!isSignedIn} style={{
+                flex: 1, padding: "8px 10px", borderRadius: 8, border: `1px solid ${P}44`,
+                background: "transparent", color: isSignedIn ? P : "#64748b", fontSize: 11, fontWeight: 700,
+                cursor: isSignedIn ? "pointer" : "not-allowed", opacity: isSignedIn ? 1 : 0.6,
+              }}>Get friend code</button>
+            </div>
+            {inviteCode && (
+              <div style={{ fontSize: 20, fontWeight: 800, fontFamily: "'DM Mono',monospace", color: P, letterSpacing: "0.15em", marginBottom: 8 }}>
+                {inviteCode}
+              </div>
+            )}
+            {inviteCode && (
+              <div style={{ fontSize: 10, color: "#64748b", wordBreak: "break-all", marginBottom: 8 }}>
+                Link: {getInviteUrl(inviteCode)}
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                value={inviteInput}
+                onChange={e => setInviteInput(e.target.value.toUpperCase())}
+                placeholder="Enter friend code"
+                maxLength={6}
+                style={{
+                  flex: 1, padding: "8px 10px", borderRadius: 8, border: `1px solid ${bd}`,
+                  background: "rgba(255,255,255,0.05)", color: "var(--fkh-text)", fontSize: 13,
+                }}
+              />
+              <button onClick={handleAcceptInvite} style={{
+                padding: "8px 14px", borderRadius: 8, border: "none", background: P,
+                color: "#000", fontSize: 11, fontWeight: 800, cursor: "pointer",
+              }}>Redeem</button>
+            </div>
+            {friendMsg && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 8 }}>{friendMsg}</div>}
+          </div>
+
+          {friendRoster.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ ...lbl, marginBottom: 8 }}>Your squad</div>
+              <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 4 }}>
+                {friendRoster.map(prof => (
+                  <button
+                    key={prof.id}
+                    type="button"
+                    onClick={() => viewFriend(prof.id)}
+                    style={{
+                      background: "none", border: "none", padding: 0, cursor: "pointer",
+                      flex: "0 0 auto", textAlign: "center", width: 64,
+                    }}
+                  >
+                    <FriendAvatar profile={prof} size={48} P={P} />
+                    <div style={{
+                      fontSize: 10, fontWeight: 700, color: "var(--fkh-text-muted)",
+                      marginTop: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                    }}>
+                      {prof.displayName?.split(" ")[0] || "Friend"}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div style={{ marginBottom: 8 }}>
+            <div style={{ ...lbl, marginBottom: 4 }}>Friends feed</div>
+            <div style={{ fontSize: 11, color: "#64748b", lineHeight: 1.45, marginBottom: 12 }}>
+              See what friends unlocked · React with emojis · Comment and @tag teammates
+            </div>
+            <FeedView P={P} SF={SF} bd={bd} onViewFriend={viewFriend} />
+          </div>
+        </div>
       ) : (<>
 
       {!configured && (
@@ -284,98 +475,16 @@ export default function BoardView({
       </div>
 
       {boardType === "friends" && (
-        <div ref={friendsPanelRef} style={{ background: SF, border: `1px solid ${bd}`, borderRadius: 14, padding: 14, marginBottom: 16 }}>
-          {!isSignedIn && (
-            <div style={{
-              marginBottom: 12, padding: "10px 12px", borderRadius: 10,
-              background: `${P}12`, border: `1px solid ${P}28`, fontSize: 11, color: "var(--fkh-text-muted)", lineHeight: 1.5,
-            }}>
-              Sign in to add friends and keep your friend list across devices.
-              <button type="button" onClick={onOpenAuth} style={{
-                display: "block", marginTop: 8, padding: "8px 12px", borderRadius: 8, border: `1px solid ${P}44`,
-                background: "transparent", color: P, fontSize: 11, fontWeight: 700, cursor: "pointer", width: "100%",
-              }}>Sign in</button>
-            </div>
-          )}
-          <div style={{ fontSize: 12, fontWeight: 700, color: P, marginBottom: 8 }}>Add a friend</div>
-
-          {/* Incoming friend requests — accept or decline */}
-          {requests.length > 0 && (
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
-                Friend requests ({requests.length})
-              </div>
-              {requests.map(r => (
-                <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 10, background: `${P}10`, border: `1px solid ${P}22`, marginBottom: 6 }}>
-                  <div style={{ flex: 1, minWidth: 0, fontSize: 12, color: "var(--fkh-text)", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    @{r.username || "athlete"}{r.display_name ? <span style={{ color: "#64748b", fontWeight: 400 }}> · {r.display_name}</span> : null}
-                  </div>
-                  <button onClick={() => handleRespond(r.id, true)} style={{ padding: "6px 12px", borderRadius: 8, border: "none", background: P, color: "#000", fontSize: 11, fontWeight: 800, cursor: "pointer" }}>Accept</button>
-                  <button onClick={() => handleRespond(r.id, false)} style={{ padding: "6px 10px", borderRadius: 8, border: `1px solid ${bd}`, background: "transparent", color: "#94a3b8", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Decline</button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Add by username — the other person confirms */}
-          <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
-            <input
-              value={friendUsername}
-              onChange={e => setFriendUsername(e.target.value.replace(/[^a-z0-9_]/gi, "").toLowerCase())}
-              placeholder="Friend's username"
-              disabled={!isSignedIn}
-              maxLength={20}
-              style={{
-                flex: 1, padding: "8px 10px", borderRadius: 8, border: `1px solid ${bd}`,
-                background: "rgba(255,255,255,0.05)", color: "var(--fkh-text)", fontSize: 13,
-              }}
-            />
-            <button onClick={handleSendRequest} disabled={!isSignedIn || !friendUsername.trim()} style={{
-              padding: "8px 16px", borderRadius: 8, border: "none",
-              background: isSignedIn && friendUsername.trim() ? P : `${P}55`,
-              color: "#000", fontSize: 11, fontWeight: 800,
-              cursor: isSignedIn && friendUsername.trim() ? "pointer" : "not-allowed",
-            }}>Add</button>
+        <button type="button" onClick={() => setMode("friends")} style={{
+          display: "block", width: "100%", marginBottom: 16, padding: "12px 14px", borderRadius: 12,
+          border: `1px solid ${P}44`, background: `${P}10`, color: P, fontSize: 12, fontWeight: 800,
+          cursor: "pointer", textAlign: "left",
+        }}>
+          👋 Add or manage friends →
+          <div style={{ fontSize: 10, fontWeight: 500, color: "#64748b", marginTop: 4 }}>
+            Friend codes, requests, and the friends feed live on the Friends tab
           </div>
-          <div style={{ fontSize: 10, color: "#64748b", marginBottom: 10 }}>
-            They'll get a request to accept. Or share a one-time code:
-          </div>
-
-          <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-            <button onClick={handleCreateInvite} disabled={!isSignedIn} style={{
-              flex: 1, padding: "8px 10px", borderRadius: 8, border: `1px solid ${P}44`,
-              background: "transparent", color: isSignedIn ? P : "#64748b", fontSize: 11, fontWeight: 700,
-              cursor: isSignedIn ? "pointer" : "not-allowed", opacity: isSignedIn ? 1 : 0.6,
-            }}>Get friend code</button>
-          </div>
-          {inviteCode && (
-            <div style={{ fontSize: 20, fontWeight: 800, fontFamily: "'DM Mono',monospace", color: P, letterSpacing: "0.15em", marginBottom: 8 }}>
-              {inviteCode}
-            </div>
-          )}
-          {inviteCode && (
-            <div style={{ fontSize: 10, color: "#64748b", wordBreak: "break-all", marginBottom: 8 }}>
-              Link: {getInviteUrl(inviteCode)}
-            </div>
-          )}
-          <div style={{ display: "flex", gap: 8 }}>
-            <input
-              value={inviteInput}
-              onChange={e => setInviteInput(e.target.value.toUpperCase())}
-              placeholder="Enter friend code"
-              maxLength={6}
-              style={{
-                flex: 1, padding: "8px 10px", borderRadius: 8, border: `1px solid ${bd}`,
-                background: "rgba(255,255,255,0.05)", color: "var(--fkh-text)", fontSize: 13,
-              }}
-            />
-            <button onClick={handleAcceptInvite} style={{
-              padding: "8px 14px", borderRadius: 8, border: "none", background: P,
-              color: "#000", fontSize: 11, fontWeight: 800, cursor: "pointer",
-            }}>Redeem</button>
-          </div>
-          {friendMsg && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 8 }}>{friendMsg}</div>}
-        </div>
+        </button>
       )}
 
       <div style={{
@@ -386,17 +495,17 @@ export default function BoardView({
           <div>
             <div style={{ fontSize: 13, fontWeight: 700, color: P, marginBottom: 4 }}>Board sync</div>
             <div style={{ fontSize: 11, color: "#64748b" }}>
-              {settings.leaderboardSharing ? "Auto-syncs as you train" : "Sharing is off"}
+              Auto-syncs as you train
               {" · "}{getAgeGroupLabel(myAgeGroup)}
             </div>
             <div style={{ fontSize: 10, color: "#475569", marginTop: 4, fontFamily: "'DM Mono',monospace" }}>
               {fmtRelativePush(getLastPushTime())}
             </div>
           </div>
-          <button onClick={handleSyncNow} disabled={!configured || pushing || !settings.leaderboardSharing} style={{
+          <button onClick={handleSyncNow} disabled={!configured || pushing} style={{
             padding: "10px 16px", borderRadius: 12, flexShrink: 0, background: "transparent",
-            border: `1px solid ${configured && settings.leaderboardSharing ? P : "rgba(255,255,255,0.12)"}`,
-            color: configured && settings.leaderboardSharing ? P : "#64748b",
+            border: `1px solid ${configured ? P : "rgba(255,255,255,0.12)"}`,
+            color: configured ? P : "#64748b",
             fontSize: 12, fontWeight: 700, cursor: configured ? "pointer" : "not-allowed",
           }}>
             {pushing ? "Syncing…" : "Sync now"}
@@ -467,7 +576,7 @@ export default function BoardView({
           background: SF, borderRadius: 14, border: `1px solid ${bd}`,
         }}>
           {boardType === "friends"
-            ? "No friends on the board yet. Share a friend code!"
+            ? "No friends on the board yet. Tap 👋 Friends above to add someone!"
             : "No rankings yet — train and sync to appear!"}
         </div>
       ) : (
@@ -476,6 +585,7 @@ export default function BoardView({
             const rank = i + 1;
             const isMe = row.athlete_id === athleteId;
             const rowTitle = row.active_title ? getAchievementMeta(row.active_title) : null;
+            const canView = !isMe && boardType === "friends";
             return (
               <div key={row.athlete_id} style={{
                 display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 12,
@@ -484,17 +594,40 @@ export default function BoardView({
               }}>
                 <div style={{
                   fontFamily: "'DM Mono',monospace", fontSize: rank <= 3 ? 20 : 14,
-                  fontWeight: 800, color: rank <= 3 ? P : "#64748b", minWidth: 32, textAlign: "center",
+                  fontWeight: 800, color: rank <= 3 ? P : "#64748b", minWidth: 28, textAlign: "center",
                 }}>{medalForRank(rank)}</div>
+                <FriendAvatar
+                  profile={row.profile}
+                  displayName={row.display_name}
+                  size={40}
+                  P={P}
+                  onPress={canView ? () => viewFriend(row.athlete_id) : null}
+                />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-                    <span style={{
-                      fontSize: 13, fontWeight: 700,
-                      color: isMe ? P : "var(--fkh-text)",
-                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                    }}>
-                      {row.display_name}{isMe ? " (you)" : ""}
-                    </span>
+                    {canView ? (
+                      <button
+                        type="button"
+                        onClick={() => viewFriend(row.athlete_id)}
+                        style={{
+                          background: "none", border: "none", padding: 0, margin: 0,
+                          fontSize: 13, fontWeight: 700, color: "var(--fkh-text)",
+                          cursor: "pointer", textDecoration: "underline",
+                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                          maxWidth: "100%", textAlign: "left",
+                        }}
+                      >
+                        {row.display_name}
+                      </button>
+                    ) : (
+                      <span style={{
+                        fontSize: 13, fontWeight: 700,
+                        color: isMe ? P : "var(--fkh-text)",
+                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                      }}>
+                        {row.display_name}{isMe ? " (you)" : ""}
+                      </span>
+                    )}
                     {rowTitle && (
                       <span style={{
                         flexShrink: 0, fontSize: 9, fontWeight: 800, color: rowTitle.color,
@@ -521,6 +654,15 @@ export default function BoardView({
         </div>
       )}
       </>)}
+      {friendProfileId && (
+        <FriendProfileSheet
+          athleteId={friendProfileId}
+          P={P}
+          BG={BG || "#0b1220"}
+          bd={bd}
+          onClose={() => setFriendProfileId(null)}
+        />
+      )}
     </div>
   );
 }

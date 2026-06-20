@@ -76,10 +76,10 @@ export const FAVORITE_PLAYER_REGISTRY = [
   },
   {
     keys: ["brunson", "jalen"],
-    primaryPath: "midrange",
-    programs: ["become-shooter", "complete-hooper"],
-    categories: ["shooting_lab", "footwork_lab"],
-    label: "Crafty mid-range",
+    primaryPath: "maestro",
+    programs: ["guard-handles", "complete-hooper", "become-shooter"],
+    categories: ["footwork", "footwork_lab", "game_handles"],
+    label: "Footwork master",
   },
   {
     keys: ["durant", "kd"],
@@ -108,6 +108,20 @@ export const FAVORITE_PLAYER_REGISTRY = [
     programs: ["jump-higher", "complete-hooper"],
     categories: ["explosion", "athletic"],
     label: "Above the rim",
+  },
+  {
+    keys: ["richardson", "jrich", "j-rich"],
+    primaryPath: "skywalker",
+    programs: ["jump-higher", "first-step"],
+    categories: ["explosion", "athletic"],
+    label: "360 dunks & hang time",
+  },
+  {
+    keys: ["wilkins", "dominique", "nique"],
+    primaryPath: "skywalker",
+    programs: ["jump-higher", "bodyweight-beast"],
+    categories: ["explosion", "athletic"],
+    label: "Power dunks & windmills",
   },
   {
     keys: ["kawhi", "leonard"],

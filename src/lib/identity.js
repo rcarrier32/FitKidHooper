@@ -34,6 +34,7 @@ export function migrateIdentitySettings(raw) {
   if (s.favoriteCurrent === undefined) s.favoriteCurrent = "";
   if (s.favoritePlayLike === undefined) s.favoritePlayLike = "";
   if (s.lastName === undefined) s.lastName = "";
+  s.leaderboardSharing = true;
   return s;
 }
 

@@ -4,6 +4,7 @@ import {
   fetchFeedComments, postFeedComment,
 } from "../lib/feedApi.js";
 import { getAchievementMeta } from "../lib/achievements.js";
+import FriendAvatar from "./FriendAvatar.jsx";
 
 /** Render comment text with @mentions highlighted. */
 function renderBody(text, P) {
@@ -26,7 +27,29 @@ function describe(item) {
   return { emoji: meta?.emoji || "⭐", verb: "reached", label: meta?.name || "a new rank" };
 }
 
-export default function FeedView({ P = "#f97316", SF, bd }) {
+function FriendName({ item, P, onViewFriend }) {
+  const name = item.isMe ? "You" : item.name;
+  if (item.isMe || !onViewFriend) {
+    return (
+      <span style={{ fontWeight: 800, color: item.isMe ? P : "var(--fkh-text)" }}>{name}</span>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={e => { e.stopPropagation(); onViewFriend(item.athlete_id); }}
+      style={{
+        background: "none", border: "none", padding: 0, margin: 0,
+        font: "inherit", fontWeight: 800, color: "var(--fkh-text)",
+        cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 2,
+      }}
+    >
+      {name}
+    </button>
+  );
+}
+
+export default function FeedView({ P = "#f97316", SF, bd, onViewFriend }) {
   const [rows, setRows] = useState(null); // null = loading
   const [reactions, setReactions] = useState({}); // key -> { counts, mine:Set }
   const [comments, setComments] = useState({}); // key -> [comment]
@@ -57,8 +80,9 @@ export default function FeedView({ P = "#f97316", SF, bd }) {
     const res = await postFeedComment(item.athlete_id, item.achievement_id, text);
     if (res.ok) {
       setComments(prev => ({ ...prev, [key]: [...(prev[key] || []), res.comment] }));
+      loadComments();
     }
-  }, [draft]);
+  }, [draft, loadComments]);
 
   // Optimistic toggle: update local counts immediately, then persist.
   const react = useCallback((item, rid) => {
@@ -93,23 +117,29 @@ export default function FeedView({ P = "#f97316", SF, bd }) {
         const d = describe(item);
         const key = reactionKey(item.athlete_id, item.achievement_id);
         const r = reactions[key] || { counts: {}, mine: new Set() };
+        const viewProfile = !item.isMe && onViewFriend ? () => onViewFriend(item.athlete_id) : null;
         return (
           <div key={`${key}-${i}`} style={{
             padding: "11px 14px", borderRadius: 12,
             background: item.isMe ? `${P}12` : SF, border: `1px solid ${item.isMe ? `${P}33` : bd}`,
           }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <span style={{ fontSize: 22, flexShrink: 0 }}>{d.emoji}</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <FriendAvatar
+                profile={item.profile}
+                displayName={item.name}
+                size={40}
+                P={P}
+                onPress={viewProfile}
+              />
+              <span style={{ fontSize: 20, flexShrink: 0 }}>{d.emoji}</span>
               <div style={{ flex: 1, minWidth: 0, fontSize: 13, color: "var(--fkh-text)", lineHeight: 1.4 }}>
-                <span style={{ fontWeight: 800, color: item.isMe ? P : "var(--fkh-text)" }}>
-                  {item.isMe ? "You" : item.name}
-                </span>{" "}
+                <FriendName item={item} P={P} onViewFriend={onViewFriend} />{" "}
                 <span style={{ color: "var(--fkh-text-muted)" }}>{d.verb}</span>{" "}
                 <span style={{ fontWeight: 700 }}>{d.label}</span>
               </div>
               <span style={{ fontSize: 10, color: "#475569", flexShrink: 0 }}>{relativeTime(item.earned_at)}</span>
             </div>
-            <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap", paddingLeft: 50 }}>
               {REACTIONS.map(({ id, emoji }) => {
                 const count = r.counts[id] || 0;
                 const mine = r.mine.has(id);
@@ -130,7 +160,7 @@ export default function FeedView({ P = "#f97316", SF, bd }) {
               const cmts = comments[key] || [];
               const isOpen = openKey === key;
               return (
-                <div style={{ marginTop: 8 }}>
+                <div style={{ marginTop: 8, paddingLeft: 50 }}>
                   <button onClick={() => { setOpenKey(isOpen ? null : key); setDraft(""); }} style={{
                     background: "transparent", border: "none", cursor: "pointer",
                     color: isOpen ? P : "#64748b", fontSize: 11, fontWeight: 700, padding: 0,
@@ -138,13 +168,34 @@ export default function FeedView({ P = "#f97316", SF, bd }) {
                     💬 {cmts.length > 0 ? `${cmts.length} comment${cmts.length > 1 ? "s" : ""}` : "Comment"}
                   </button>
                   {isOpen && (
-                    <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+                    <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
                       {cmts.map(c => (
-                        <div key={c.id} style={{ fontSize: 12, lineHeight: 1.45 }}>
-                          <span style={{ fontWeight: 700, color: c.isMe ? P : "var(--fkh-text)" }}>
-                            {c.isMe ? "You" : c.authorName}
-                          </span>{" "}
-                          <span style={{ color: "var(--fkh-text-muted)" }}>{renderBody(c.body, P)}</span>
+                        <div key={c.id} style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                          <FriendAvatar
+                            profile={c.authorProfile}
+                            displayName={c.authorName}
+                            size={28}
+                            P={P}
+                            onPress={!c.isMe && onViewFriend ? () => onViewFriend(c.author_id) : null}
+                          />
+                          <div style={{ flex: 1, minWidth: 0, fontSize: 12, lineHeight: 1.45 }}>
+                            {c.isMe ? (
+                              <span style={{ fontWeight: 700, color: P }}>You</span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => onViewFriend?.(c.author_id)}
+                                style={{
+                                  background: "none", border: "none", padding: 0, margin: 0,
+                                  font: "inherit", fontWeight: 700, color: "var(--fkh-text)",
+                                  cursor: "pointer", textDecoration: "underline",
+                                }}
+                              >
+                                {c.authorName}
+                              </button>
+                            )}{" "}
+                            <span style={{ color: "var(--fkh-text-muted)" }}>{renderBody(c.body, P)}</span>
+                          </div>
                         </div>
                       ))}
                       <div style={{ display: "flex", gap: 6, marginTop: 4 }}>

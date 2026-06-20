@@ -5,6 +5,7 @@
  */
 import { getSupabaseClient, isSupabaseConfigured } from "./supabaseClient.js";
 import { getBoardAthleteId, listFriendAthleteIds } from "./boardsApi.js";
+import { fetchProfileSnippets, profileSnippet } from "./friendProfileApi.js";
 
 // Named, narratable events (skip legacy badges + cosmetics that ride a milestone).
 const FEED_KINDS = ["milestone", "title", "recognition"];
@@ -30,13 +31,14 @@ export async function fetchFriendsFeed(limit = 40) {
 
   const { data: profs } = await sb
     .from("athlete_profiles")
-    .select("id, display_name")
+    .select("id, display_name, active_title, equipped, favorite_playlike, primary_path_id, path_snapshot")
     .in("id", ids);
-  const nameMap = Object.fromEntries((profs || []).map(p => [p.id, p.display_name]));
+  const profileMap = Object.fromEntries((profs || []).map(p => [p.id, profileSnippet(p)]));
 
   return ach.map(a => ({
     ...a,
-    name: nameMap[a.athlete_id] || "Hooper",
+    name: profileMap[a.athlete_id]?.displayName || "Hooper",
+    profile: profileMap[a.athlete_id] || { id: a.athlete_id, displayName: "Hooper" },
     isMe: a.athlete_id === me,
   }));
 }
@@ -107,16 +109,18 @@ export async function fetchFeedComments() {
   if (error) return { map: {}, me };
 
   const authorIds = [...new Set((data || []).map(c => c.author_id))];
-  let names = {};
-  if (authorIds.length) {
-    const { data: profs } = await sb.from("athlete_profiles").select("id, display_name").in("id", authorIds);
-    names = Object.fromEntries((profs || []).map(p => [p.id, p.display_name]));
-  }
+  const profileMap = await fetchProfileSnippets(authorIds);
 
   const map = {};
   for (const c of data || []) {
     const k = reactionKey(c.target_id, c.achievement_id);
-    (map[k] ||= []).push({ ...c, authorName: names[c.author_id] || "Hooper", isMe: c.author_id === me });
+    const prof = profileMap[c.author_id];
+    (map[k] ||= []).push({
+      ...c,
+      authorName: prof?.displayName || "Hooper",
+      authorProfile: prof || { id: c.author_id, displayName: "Hooper" },
+      isMe: c.author_id === me,
+    });
   }
   return { map, me };
 }

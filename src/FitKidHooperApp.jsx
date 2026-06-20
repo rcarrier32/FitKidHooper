@@ -77,6 +77,7 @@ import {
   chipStyle, actionBtnStyle, hexToHsl, contrastOn,
 } from "./lib/themeColors.js";
 import HelpSheet from "./components/HelpSheet.jsx";
+import AppMapSheet from "./components/AppMapSheet.jsx";
 import ProgramWeekStrip from "./components/ProgramWeekStrip.jsx";
 import { CHALLENGES_DEF, getChallengeProgress, buildPersonalChallenges } from "./lib/personalChallenges.js";
 import {
@@ -5130,6 +5131,7 @@ export default function FitKidHooperApp() {
   const auth = useAuth(settings);
   const [showFeedback, setShowFeedback] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [showAppMap, setShowAppMap] = useState(false);
   const [view, setView] = useState("home");
   const [prevView, setPrevView] = useState("home");
   const [activeCat, setActiveCat] = useState(null);
@@ -6484,7 +6486,7 @@ export default function FitKidHooperApp() {
                 <p style={{ textAlign:"center",color:"#64748b",fontSize:12,marginBottom:14 }}>We'll set up your training path. You can change it anytime.</p>
                 <input type="text" value={onboardPlayLike} onChange={e=>setOnboardPlayLike(e.target.value)} placeholder="e.g. Steph Curry" style={onbInput}/>
                 <div style={{ display:"flex",flexWrap:"wrap",gap:6,marginBottom:16 }}>
-                  {["Steph Curry","Allen Iverson","Kyrie Irving","Vince Carter","Klay Thompson"].map(n=>(
+                  {["Steph Curry","Allen Iverson","Kyrie Irving","Jalen Brunson","Vince Carter","Klay Thompson"].map(n=>(
                     <button key={n} onClick={()=>setOnboardPlayLike(n)} style={{ padding:"6px 11px",borderRadius:999,fontSize:11,fontWeight:700,cursor:"pointer",border:`1px solid ${onboardPlayLike===n?"#f97316":"#ffffff22"}`,background:onboardPlayLike===n?"#f9731622":"transparent",color:onboardPlayLike===n?"#f97316":"#94a3b8" }}>{n}</button>
                   ))}
                 </div>
@@ -6496,7 +6498,25 @@ export default function FitKidHooperApp() {
         </div>
         );
       })()}
-      {showHelp&&<HelpSheet P={P} SF={SF} onClose={()=>setShowHelp(false)}/>}
+      {showHelp&&<HelpSheet P={P} SF={SF} onClose={()=>setShowHelp(false)} onOpenMap={()=>{ setShowHelp(false); setShowAppMap(true); }}/>}
+      {showAppMap&&<AppMapSheet P={P} SF={SF} onClose={()=>setShowAppMap(false)} onNavigate={dest=>{
+        setShowAppMap(false);
+        switch(dest){
+          case "today": setView("home"); break;
+          case "shots": setView("shots"); break;
+          case "programs": setView("programs"); break;
+          case "boards": setView("boards"); break;
+          case "paths": setView("progress"); setProgressTab("journeys"); break;
+          case "progress": setView("progress"); setProgressTab("overview"); break;
+          case "badges": setView("progress"); setProgressTab("locker"); break;
+          case "stats": setView("progress"); setProgressTab("stats"); break;
+          case "history": setView("history"); break;
+          case "settings": setShowSettings(true); break;
+          case "account": setShowAuth(true); break;
+          case "help": setShowHelp(true); break;
+          default: break;
+        }
+      }}/>}
 
       <div style={{ padding:"26px 20px 16px",borderBottom:`1px solid ${P}14` }}>
         <div style={{ display:"flex",alignItems:"center",gap:12 }}>

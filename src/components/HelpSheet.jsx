@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-export default function HelpSheet({ P, SF, onClose }) {
+export default function HelpSheet({ P, SF, onClose, onOpenMap }) {
   useEffect(() => {
     const h = e => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", h);
@@ -13,17 +13,22 @@ export default function HelpSheet({ P, SF, onClose }) {
     { e:"📈", t:"Check your stats",   d:"Training History and the Training Calendar (Me → Stats) show your streaks, monthly drill log, and weekly plan." },
     { e:"☀️", t:"Do today's workout", d:"Today shows your workout and a daily mission. Tap any drill for a short video and coaching cues, then check it off when you finish to earn XP." },
     { e:"📋", t:"Follow a program",   d:"Programs are multi-week plans like Jump Higher. Open one, tap Start Program, and follow it session by session — your progress saves on its own, and finishing earns a badge." },
-    { e:"🏅", t:"Earn XP & badges",   d:"Training and making shots earns XP and levels you up from Rookie to Elite Hooper. Collect badges on Me → Badges and show them off on your profile." },
+    { e:"🏅", t:"Earn XP & badges",   d:"Training and making shots earns XP and levels you up from Rookie to Elite Hooper. Collect badges on Me → 📈 Progress → Badges — locked ones show exactly what to do to earn them." },
+    { e:"⭐", t:"Climb your path",     d:"Pick who you play like and you'll follow a legend path on Today. Each rank needs both reps AND signature moves — your Path shows the exact drills (like crossovers) to do next. Tap a move to open it." },
+    { e:"👥", t:"Add friends",         d:"On Boards, type a friend's username and tap Add — they confirm the request. Or share a friend code. See your friends' wins in the Feed and cheer them on with reactions and comments (use @name to ping them)." },
+    { e:"🔔", t:"Turn on reminders",   d:"In Settings → Reminders, switch on nudges for your daily mission, streak, and friend activity. Every kind is on by default — uncheck any you don't want." },
+    { e:"☁️", t:"Sign in to sync",     d:"Make an account (username + 6-digit passcode) in Settings to back up your progress, keep it across devices, and add friends." },
   ];
   const TIPS = [
     { e:"🧭", d:"Get around with the tabs at the bottom: Today, Shots, Programs, Challenges, and Me. Tap ⚙ Settings from Today or Me for profile and customization." },
-    { e:"🏆", d:"Challenges combine personal goals and squad competitions. Your stats sync to age-group leaderboards when sharing is on (This Week, Month, YTD, All Time)." },
+    { e:"🏆", d:"Challenges combine personal goals and squad competitions. Your stats sync to age-group and friends leaderboards when sharing is on (This Week, Month, YTD, All Time)." },
+    { e:"🔥", d:"Streaks are forgiving — one rest day won't break your streak. Rest is part of training, especially while you're growing. Two missed days in a row resets it." },
     { e:"⭐", d:"Tap the star on any drill or program to save it as a favorite." },
     { e:"🔍", d:"Use Find a Drill on Today to search any exercise by name — crossover, Mikan, plank, and more." },
-    { e:"🗓", d:"Open Training Calendar from Me → Stats to see your weekly plan and tap any day for drill history." },
-    { e:"⚙️", d:"In Settings you can set your birthday, pick your goals, favorite player, and change the app colors." },
-    { e:"📲", d:"Add the app to your home screen anytime — open ⚙ Settings → Install on Home Screen. On iPhone use Share → Add to Home Screen in Safari." },
-    { e:"💾", d:"Everything is saved on this device. To back it up, open ⚙ Settings → Advanced — Data & Backup." },
+    { e:"🗓", d:"Open Training History & Calendar from Me → 📈 Progress → Stats to see your streaks, drill log, and weekly plan." },
+    { e:"⚙️", d:"In Settings you can set your first and last name, birthday, goals, who you play like, reminders, and the app colors. On Boards, friends see your first name and last initial." },
+    { e:"📲", d:"Add the app to your home screen anytime — open ⚙ Settings → Install on Home Screen. On iPhone use Share → Add to Home Screen in Safari (needed for reminders on iPhone)." },
+    { e:"💾", d:"Your progress is saved on this device and, when you sign in, backed up to the cloud and merged across your devices." },
   ];
   const card = { background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:12,padding:"12px 14px" };
   const kicker = { fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:"#334155",marginBottom:10,textTransform:"uppercase" };
@@ -47,6 +52,17 @@ export default function HelpSheet({ P, SF, onClose }) {
           <p style={{ fontSize:13,lineHeight:1.55,color:"var(--fkh-text-muted)",margin:0 }}>
             This is your basketball training buddy. Here's everything you can do — and how to do it:
           </p>
+          {onOpenMap && (
+            <button onClick={onOpenMap}
+              style={{ marginTop:12,width:"100%",display:"flex",alignItems:"center",gap:10,padding:"11px 14px",borderRadius:12,border:`1px solid ${P}44`,background:`${P}12`,cursor:"pointer",textAlign:"left" }}>
+              <span style={{ fontSize:18 }}>🗺</span>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:13,fontWeight:800,color:P }}>Open the app map</div>
+                <div style={{ fontSize:11,color:"var(--fkh-text-muted)" }}>Browse every feature and jump straight to it</div>
+              </div>
+              <span style={{ color:P,fontSize:13 }}>→</span>
+            </button>
+          )}
         </div>
 
         <div style={{ padding:"16px 20px 2px" }}>

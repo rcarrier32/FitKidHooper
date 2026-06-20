@@ -6,6 +6,7 @@ import { buildPathSnapshot } from "./achievements.js";
 import { getStreak, getAllTrainingDayCount } from "./progressStats.js";
 import { readLocalPBs } from "./benchmarksApi.js";
 import { computeCatCounts } from "./achievements.js";
+import { computeExCounts } from "./pathSignatures.js";
 
 const LAST_PUSH_KEY = "fkh-last-push";
 const PUSH_DISMISS_KEY = "fkh-push-prompt-dismissed-until";
@@ -153,7 +154,6 @@ export const AUTO_SYNC_MIN_MS = 30 * 60 * 1000;
 
 export function canAutoSyncLeaderboard(settings) {
   if (!isLeaderboardConfigured()) return false;
-  if (settings?.leaderboardSharing === false) return false;
   const name = settings?.athleteName?.trim();
   if (!name || name === "Champ") return false;
   return true;
@@ -214,6 +214,7 @@ export async function pushFromAppState({ settings, completed, missionLog, getCat
     maxStreak: getStreak(completed),
     trainingDays: getAllTrainingDayCount(completed, shotLog),
     catCounts: computeCatCounts(completed, getCategory),
+    exCounts: computeExCounts(completed),
     benchmarkPBs: readLocalPBs(),
   };
   const pathSnapshot = buildPathSnapshot(progressCtx, settings);

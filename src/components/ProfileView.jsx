@@ -34,16 +34,16 @@ export default function ProfileView({
           <button onClick={onViewLeaderboard} style={{ background:"none",border:"none",color:"#64748b",fontSize:12,cursor:"pointer",fontWeight:700 }}>Open Challenges →</button>
         </div>
         <p style={{ fontSize:11,color:"#64748b",margin:"0 0 10px",lineHeight:1.5 }}>
-          {settings.leaderboardSharing
-            ? `Stats sync to the ${settings.dateOfBirth ? getAgeGroupLabel(getAgeGroup(settings.dateOfBirth)) : "age group"} board automatically.`
-            : "Leaderboard sharing is off. Turn it on in Settings."}
+          {settings.dateOfBirth
+            ? `Stats sync to the ${getAgeGroupLabel(getAgeGroup(settings.dateOfBirth))} board automatically.`
+            : "Stats sync to Challenges automatically. Set your birthday for the right age group."}
         </p>
         {pushError && <div style={{ fontSize:11,color:"#f87171",marginBottom:8 }}>{pushError}</div>}
         <button
           onClick={onPushStats}
-          disabled={pushBusy || !settings.leaderboardSharing}
-          style={{ width:"100%",padding:"11px",borderRadius:10,border:`1px solid ${P}44`,cursor:settings.leaderboardSharing?"pointer":"not-allowed",
-            background:"transparent",color:settings.leaderboardSharing?P:"#64748b",
+          disabled={pushBusy}
+          style={{ width:"100%",padding:"11px",borderRadius:10,border:`1px solid ${P}44`,cursor:"pointer",
+            background:"transparent",color:P,
             fontSize:12,fontWeight:700 }}>
           {pushBusy ? "Syncing…" : "Sync leaderboard now"}
         </button>
