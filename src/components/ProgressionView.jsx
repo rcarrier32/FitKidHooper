@@ -72,18 +72,24 @@ const SLOT_LABELS = { frame: "Card Frame", avatar_gear: "Gear", emote: "Emote" }
 const RARITY_RING = { common: "#64748b", rare: "#38bdf8", epic: "#a78bfa", legendary: "#f59e0b" };
 
 /** Collapsible section header (Home-style), used inside Progress sub-tabs. */
-function Collapsible({ title, count, P, children, defaultOpen = true }) {
+function Collapsible({ title, count, P, children, defaultOpen = true, subtitle }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div style={{ marginBottom: 10 }}>
-      <button onClick={() => setOpen(o => !o)} style={{
+      <button type="button" onClick={() => setOpen(o => !o)} style={{
         width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center",
         background: "transparent", border: "none", cursor: "pointer", padding: "10px 0",
+        textAlign: "left",
       }}>
-        <span style={{ fontSize: 11, fontWeight: 800, color: "#64748b", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-          {title}{count != null ? ` (${count})` : ""}
-        </span>
-        <span style={{ color: P, fontSize: 12 }}>{open ? "▾" : "▸"}</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <span style={{ fontSize: 11, fontWeight: 800, color: "#64748b", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+            {title}{count != null ? ` (${count})` : ""}
+          </span>
+          {subtitle && !open && (
+            <div style={{ fontSize: 10, color: "#475569", marginTop: 3, fontWeight: 600 }}>{subtitle}</div>
+          )}
+        </div>
+        <span style={{ color: P, fontSize: 12, flexShrink: 0, marginLeft: 8 }}>{open ? "▾" : "▸"}</span>
       </button>
       {open && children}
     </div>
@@ -338,22 +344,25 @@ export default function ProgressionView({
         const info = trackRankInfo(track, ctx);
         const stageProg = trackStageProgress(track, ctx);
         const isRec = recTrack && track.id === recTrack.id;
+        const collapsedHint = info.complete
+          ? "Complete ✓"
+          : `${info.currentRank}${info.nextGoal ? ` → ${info.nextGoal}` : ""}`;
         return (
-          <div key={track.id} style={{
+          <Collapsible
+            key={track.id}
+            title={`${track.emoji} ${track.archetype}`}
+            count={`${info.reached}/${info.total}`}
+            subtitle={collapsedHint}
+            P={P}
+            defaultOpen={Boolean(isRec)}
+          >
+          <div style={{
             background: "var(--fkh-surface)", border: `1px solid ${isRec ? `${P}45` : "rgba(255,255,255,0.07)"}`,
-            borderRadius: 16, padding: "14px 14px", marginBottom: 12,
+            borderRadius: 16, padding: "14px 14px", marginBottom: 4,
           }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-              <div style={{ fontSize: 15, fontWeight: 800, color: "var(--fkh-text)" }}>
-                {track.emoji} {track.archetype}
-              </div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: info.complete ? "#22c55e" : P }}>
-                {info.reached}/{info.total}
-              </div>
-            </div>
-            <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 3, lineHeight: 1.45 }}>{track.theme}</div>
+            <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 8, lineHeight: 1.45 }}>{track.theme}</div>
             {!info.complete && stageProg.progressLabel && (
-              <div style={{ fontSize: 11, color: "#64748b", marginTop: 8 }}>
+              <div style={{ fontSize: 11, color: "#64748b", marginBottom: 8 }}>
                 {stageProg.progressLabel}
                 <div style={{ height: 4, borderRadius: 99, background: "rgba(255,255,255,0.06)", overflow: "hidden", marginTop: 6 }}>
                   <div style={{ width: `${stageProg.stagePct}%`, height: "100%", background: isRec ? P : "#64748b" }} />
@@ -377,6 +386,7 @@ export default function ProgressionView({
               </div>
             )}
           </div>
+          </Collapsible>
         );
       })}
     </div>

@@ -6345,26 +6345,24 @@ export default function FitKidHooperApp() {
         onPushSuccess={() => setPushError(null)}
         shellOverlays={shellOverlays}
         renderBottomNav={renderBottomNav}
+        progressCtx={progressCtx}
         questsPanel={
-          <div style={{ padding:"14px 18px 0" }}>
-            <div style={{ fontSize:13, fontWeight:800, color:P, marginBottom:8 }}>⭐ Train Like Legends</div>
-            <ProgressionView
-              tab="journeys"
-              settings={settings}
-              ledgerIds={ledgerSet}
-              ledger={ledger}
-              ctx={progressCtx}
-              P={P}
-              benchmarkPBs={benchmarkPBs}
-              onLogBenchmark={handleLogBenchmark}
-              onEquipTitle={handleEquipTitle}
-              onEquipCosmetic={handleEquipCosmetic}
-              onUnequipSlot={handleUnequipSlot}
-              allExercises={ALL_EXERCISES}
-              onOpenExercise={exId => { const ex = ALL_EXERCISES[exId]; if (ex) openDetail({ ...ex, meta: EXERCISE_META[exId] || {} }, []); }}
-              onOpenPlayerHighlight={openPlayerHighlight}
-            />
-          </div>
+          <ProgressionView
+            tab="journeys"
+            settings={settings}
+            ledgerIds={ledgerSet}
+            ledger={ledger}
+            ctx={progressCtx}
+            P={P}
+            benchmarkPBs={benchmarkPBs}
+            onLogBenchmark={handleLogBenchmark}
+            onEquipTitle={handleEquipTitle}
+            onEquipCosmetic={handleEquipCosmetic}
+            onUnequipSlot={handleUnequipSlot}
+            allExercises={ALL_EXERCISES}
+            onOpenExercise={exId => { const ex = ALL_EXERCISES[exId]; if (ex) openDetail({ ...ex, meta: EXERCISE_META[exId] || {} }, []); }}
+            onOpenPlayerHighlight={openPlayerHighlight}
+          />
         }
       />
     );
