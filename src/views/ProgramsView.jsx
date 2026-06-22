@@ -7,6 +7,7 @@ import {
   isProgramExerciseDone,
   isProgramSessionComplete,
   countProgramSessionsDone,
+  getActiveProgramScheduleStatus,
 } from "../lib/programProgress.js";
 import {
   readCustomWorkouts,
@@ -21,6 +22,8 @@ import {
   WEEK_DAY_LABELS,
 } from "../lib/customWorkouts.js";
 import { generateCustomMissionWorkout, BUILD_FOCUS_OPTIONS, BUILD_INTENSITY_OPTIONS } from "../lib/missionGenerator.js";
+import { safePersistKey } from "../lib/dataSafety.js";
+import { buildTrainingDayPlan } from "../lib/trainingDayPlan.js";
 
 const todayKey = () => new Date().toLocaleDateString("en-CA");
 
@@ -50,6 +53,7 @@ export default function ProgramsView({
   exerciseMeta,
   cats,
   workouts,
+  schedule,
   workoutTemplates,
   favorites,
   todayMission,
@@ -87,16 +91,23 @@ export default function ProgramsView({
   const enrollProg = (prog) => {
     const startDate = new Date().toLocaleDateString("en-CA");
     const startedAt = Date.now();
-    setEnrolledPrograms(p => ({ ...p, [prog.id]: { startDate, startedAt } }));
+    const nextEnrolled = { ...enrolledPrograms, [prog.id]: { startDate, startedAt } };
+    setEnrolledPrograms(nextEnrolled);
+    safePersistKey("fkh-programs", nextEnrolled, { force: true });
     track(ANALYTICS_EVENTS.PROGRAM_ENROLL, { program_id: prog.id });
-    setProgramProgress(prev => ({
-      ...prev,
-      [prog.id]: { _meta: { enrollmentStartedAt: startedAt } },
-    }));
+    setProgramProgress(prev => {
+      const next = { ...prev, [prog.id]: { _meta: { enrollmentStartedAt: startedAt } } };
+      safePersistKey("fkh-program-progress", next, { force: true });
+      return next;
+    });
+    setProgramSegment("myPlan");
   };
 
   const unenrollProg = (progId) => {
-    setEnrolledPrograms(p => { const n = { ...p }; delete n[progId]; return n; });
+    const nextEnrolled = { ...enrolledPrograms };
+    delete nextEnrolled[progId];
+    setEnrolledPrograms(nextEnrolled);
+    safePersistKey("fkh-programs", nextEnrolled, { force: true });
     if (selectedProgram === progId) setSelectedProgram(null);
   };
 
@@ -212,6 +223,13 @@ export default function ProgramsView({
       const sessionDone = (week, sessionIdx) => isProgramSessionComplete(prog, programProgress, week, sessionIdx);
       const totalSessions = prog.weeks.reduce((s, w) => s + w.sessions.length, 0);
       const doneSessions = countProgramSessionsDone(prog, programProgress);
+      const today = todayKey();
+      const schedStatus = enrollment
+        ? getActiveProgramScheduleStatus(prog, enrollment, programProgress, today)
+        : null;
+      const todayPlan = enrollment
+        ? buildTrainingDayPlan(today, schedule, [prog], enrolledPrograms, programProgress, workouts)
+        : null;
 
       return (
         <div style={{ background:BG,minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:80 }}>
@@ -259,6 +277,36 @@ export default function ProgramsView({
                   Start Program →
                 </button>
             }
+
+            <div style={{ fontSize:11,color:"#64748b",lineHeight:1.55,margin:"-8px 0 16px",padding:"10px 12px",borderRadius:10,background:"rgba(255,255,255,0.03)",border:`1px solid ${bd}` }}>
+              Each session is <span style={{ color:"var(--fkh-text)",fontWeight:700 }}>3 focused drills</span>, {prog.daysPerWeek}× per week with rest days in between.
+              {enrollment && todayPlan?.scheduleDay?.cats?.length > 0 && (
+                <> On program days, your general plan ({todayPlan.scheduleDay.label}) adds more drills — see <span style={{ color:prog.color,fontWeight:700 }}>Today → Training</span> or the calendar.</>
+              )}
+            </div>
+
+            {enrollment && schedStatus && (
+              <div style={{ marginBottom:16,padding:"11px 13px",borderRadius:12,background:`${prog.color}0c`,border:`1px solid ${prog.color}33` }}>
+                <div style={{ fontSize:10,fontWeight:800,color:prog.color,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:4 }}>Today</div>
+                {schedStatus.kind === "due" && (
+                  <div style={{ fontSize:12,color:"var(--fkh-text)",lineHeight:1.5 }}>
+                    Session due: <span style={{ fontWeight:700 }}>{schedStatus.session.focus}</span>
+                    {" "}({schedStatus.session.exercises.length} drills)
+                  </div>
+                )}
+                {(schedStatus.kind === "rest" || schedStatus.kind === "restAfterSession") && (
+                  <div style={{ fontSize:12,color:"#94a3b8",lineHeight:1.5 }}>
+                    Program rest day{schedStatus.opensLabel ? ` — next session ${schedStatus.opensLabel}` : ""}.
+                    {todayPlan?.scheduleDay?.cats?.length > 0 && (
+                      <> General training still on: {todayPlan.scheduleDay.label}.</>
+                    )}
+                  </div>
+                )}
+                {schedStatus.kind === "weekComplete" && (
+                  <div style={{ fontSize:12,color:"#22c55e",fontWeight:600 }}>Week {schedStatus.week} complete ✓</div>
+                )}
+              </div>
+            )}
           </div>
 
           {prog.weeks.map(week => {

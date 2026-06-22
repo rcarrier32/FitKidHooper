@@ -140,6 +140,29 @@ export default function TodayView({
     if (list[0]) openDetail(list[0], list);
   };
 
+  const startProgramSession = (task) => {
+    if (!task?.exercises?.length || task.programId == null) return;
+    const ctx = { programId: task.programId, week: task.week, sessionIdx: task.sessionIdx };
+    const list = task.exercises
+      .map(id => allExercises[id])
+      .filter(Boolean)
+      .map(e => ({ ...e, meta: e.meta || exerciseMeta[e.id] || {} }));
+    if (list[0]) openDetail(list[0], list, ctx);
+  };
+
+  const openProgramExercise = (task, exId) => {
+    const ctx = task.programId != null
+      ? { programId: task.programId, week: task.week, sessionIdx: task.sessionIdx }
+      : null;
+    const list = task.exercises
+      .map(id => allExercises[id])
+      .filter(Boolean)
+      .map(e => ({ ...e, meta: e.meta || exerciseMeta[e.id] || {} }));
+    const ex = allExercises[exId];
+    if (!ex) return;
+    openDetail({ ...ex, meta: ex.meta || exerciseMeta[exId] || {} }, list, ctx);
+  };
+
   return (
     <>
       {/* Coach FKH — compact motivational bar */}
@@ -235,6 +258,7 @@ export default function TodayView({
               const { cur, target } = getMissionTaskProgress(task, completed, today, programProgress);
               const taskDone = cur >= target;
               const pctRaw = target > 0 ? Math.min(1, cur / target) : 0;
+              const accent = task.type === "program" && task.programColor ? task.programColor : P;
               return (
                 <div key={task.id} style={{
                   padding:"9px 11px", borderRadius:10,
@@ -243,11 +267,11 @@ export default function TodayView({
                     : task.optional ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.04)",
                   border:`1px solid ${taskDone
                     ? "rgba(34,197,94,0.18)"
-                    : task.optional ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.07)"}`,
+                    : task.optional ? "rgba(255,255,255,0.04)" : `${accent}22`}`,
                 }}>
                   <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:task.optional ? 0 : 6 }}>
                     <div style={{ width:17, height:17, borderRadius:5, flexShrink:0,
-                      border:`1.5px solid ${taskDone ? "#22c55e" : task.optional ? "#2d3748" : P + "55"}`,
+                      border:`1.5px solid ${taskDone ? "#22c55e" : task.optional ? "#2d3748" : accent + "55"}`,
                       background:taskDone ? "#22c55e" : "transparent",
                       display:"flex", alignItems:"center", justifyContent:"center" }}>
                       {taskDone && <span style={{ color:"#fff", fontSize:9, fontWeight:900 }}>✓</span>}
@@ -256,6 +280,14 @@ export default function TodayView({
                       color:taskDone ? "#22c55e" : task.optional ? "#475569" : "var(--fkh-text)" }}>
                       {task.label}
                     </span>
+                    {task.type === "program" && task.kindLabel && (
+                      <span style={{ fontSize:8, padding:"2px 6px", borderRadius:99, flexShrink:0,
+                        background: task.kind === "strength" ? "rgba(34,197,94,0.12)" : `${accent}18`,
+                        color: task.kind === "strength" ? "#22c55e" : accent,
+                        fontWeight:800, letterSpacing:"0.06em" }}>
+                        {task.kindLabel.toUpperCase()}
+                      </span>
+                    )}
                     {task.optional && <span style={{ fontSize:8, color:"#334155",
                       fontWeight:700, letterSpacing:"0.08em", flexShrink:0 }}>OPTIONAL</span>}
                     <span style={{ fontSize:11, fontWeight:700, flexShrink:0,
@@ -266,31 +298,43 @@ export default function TodayView({
                   {!task.optional && (
                     <div style={{ height:3, borderRadius:99, background:"rgba(255,255,255,0.06)", marginLeft:25 }}>
                       <div style={{ height:"100%", width:`${pctRaw * 100}%`, borderRadius:99,
-                        background:taskDone ? "#22c55e" : P, transition:"width 0.35s" }}/>
+                        background:taskDone ? "#22c55e" : accent, transition:"width 0.35s" }}/>
                     </div>
                   )}
                   {(task.type === "program" || task.type === "category") && task.exercises?.length > 0 && (
-                    <div style={{ display:"flex", gap:5, marginTop:7, marginLeft:25, flexWrap:"wrap" }}>
-                      {task.exercises.map(exId => {
-                        const ex = allExercises[exId];
-                        if (!ex) return null;
-                        const done = task.type === "program" && task.programId != null
-                          ? isProgramExerciseDone(programProgress, task.programId, task.week, task.sessionIdx, exId)
-                          : !!completed[`${today}-${exId}`];
-                        return (
-                          <button key={exId}
-                            onClick={() => {
-                              const enriched = { ...ex, _cat:ex._cat, meta:ex.meta || exerciseMeta[exId] || {} };
-                              openDetail(enriched, task.exercises.map(id => allExercises[id]).filter(Boolean).map(e => ({ ...e, meta:e.meta || exerciseMeta[e.id] || {} })));
-                            }}
-                            style={{ fontSize:9, padding:"3px 8px", borderRadius:99, cursor:"pointer",
-                              background:done ? "rgba(34,197,94,0.12)" : "rgba(255,255,255,0.05)",
-                              border:`1px solid ${done ? "rgba(34,197,94,0.25)" : "rgba(255,255,255,0.08)"}`,
-                              color:done ? "#22c55e" : "#94a3b8", fontWeight:600 }}>
-                            {done ? "✓ " : ""}{ex.name}
-                          </button>
-                        );
-                      })}
+                    <div style={{ marginTop:7, marginLeft:25 }}>
+                      <div style={{ display:"flex", gap:5, flexWrap:"wrap" }}>
+                        {task.exercises.map(exId => {
+                          const ex = allExercises[exId];
+                          if (!ex) return null;
+                          const done = task.type === "program" && task.programId != null
+                            ? isProgramExerciseDone(programProgress, task.programId, task.week, task.sessionIdx, exId)
+                            : !!completed[`${today}-${exId}`];
+                          return (
+                            <button key={exId} type="button"
+                              onClick={() => {
+                                if (task.type === "program") openProgramExercise(task, exId);
+                                else {
+                                  const enriched = { ...ex, _cat:ex._cat, meta:ex.meta || exerciseMeta[exId] || {} };
+                                  openDetail(enriched, task.exercises.map(id => allExercises[id]).filter(Boolean).map(e => ({ ...e, meta:e.meta || exerciseMeta[e.id] || {} })));
+                                }
+                              }}
+                              style={{ fontSize:9, padding:"3px 8px", borderRadius:99, cursor:"pointer",
+                                background:done ? "rgba(34,197,94,0.12)" : "rgba(255,255,255,0.05)",
+                                border:`1px solid ${done ? "rgba(34,197,94,0.25)" : "rgba(255,255,255,0.08)"}`,
+                                color:done ? "#22c55e" : "#94a3b8", fontWeight:600 }}>
+                              {done ? "✓ " : ""}{ex.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {task.type === "program" && !taskDone && (
+                        <button type="button" onClick={() => startProgramSession(task)}
+                          style={{ width:"100%", marginTop:8, padding:"8px 10px", borderRadius:8, border:"none",
+                            background: accent, color:"#fff", fontSize:11, fontWeight:800, cursor:"pointer" }}>
+                          Start {task.kindLabel || "session"} →
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -364,8 +408,15 @@ export default function TodayView({
               compact
               showDateHeader={false}
               onOpenCategory={onPickCategory}
-              onOpenExercise={ex => startExerciseList([{ ...ex, meta: exerciseMeta[ex.id] || {} }])}
-              onStartProgramSession={startExerciseList}
+              onOpenExercise={(ex, list, ctx) => {
+                const enriched = { ...ex, meta: ex.meta || exerciseMeta[ex.id] || {} };
+                const fullList = (list || [ex]).map(e => ({ ...e, meta: e.meta || exerciseMeta[e.id] || {} }));
+                openDetail(enriched, fullList, ctx);
+              }}
+              onStartProgramSession={(exList, ctx) => {
+                const list = (exList || []).map(e => ({ ...e, meta: e.meta || exerciseMeta[e.id] || {} }));
+                if (list[0]) openDetail(list[0], list, ctx);
+              }}
               onStartCustomWorkout={startExerciseList}
               onOpenCalendar={onOpenSchedule}
             />
@@ -411,17 +462,31 @@ export default function TodayView({
                   {statusLine && (
                     <div style={{ fontSize:11, color:"#94a3b8", marginTop:4, marginLeft:24 }}>{statusLine}</div>
                   )}
-                  {dueExercises.length > 0 && (
+                  {dueExercises.length > 0 && sched.kind === "due" && (
                     <div style={{ marginTop:8, marginLeft:24, display:"flex", flexDirection:"column", gap:4 }}
                       onClick={e => e.stopPropagation()}>
-                      {dueExercises.slice(0, 4).map(ex => (
+                      {dueExercises.map(ex => (
                         <button key={ex.id} type="button"
-                          onClick={() => startExerciseList(dueExercises.map(e => ({ ...e, meta: exerciseMeta[e.id] || {} })))}
+                          onClick={() => {
+                            const ctx = { programId: prog.id, week: sched.week, sessionIdx: sched.sessionIdx };
+                            const list = dueExercises.map(e => ({ ...e, meta: exerciseMeta[e.id] || {} }));
+                            if (list[0]) openDetail(list[0], list, ctx);
+                          }}
                           style={{ textAlign:"left", padding:"6px 8px", borderRadius:8, border:`1px solid ${prog.color}33`,
                             background:"rgba(255,255,255,0.04)", color:"var(--fkh-text)", fontSize:11, fontWeight:600, cursor:"pointer" }}>
-                          {isDone(ex.id) ? "✓ " : ""}{ex.name}
+                          {isProgramExerciseDone(programProgress, prog.id, sched.week, sched.sessionIdx, ex.id) ? "✓ " : ""}{ex.name}
                         </button>
                       ))}
+                      <button type="button"
+                        onClick={() => {
+                          const ctx = { programId: prog.id, week: sched.week, sessionIdx: sched.sessionIdx };
+                          const list = dueExercises.map(e => ({ ...e, meta: exerciseMeta[e.id] || {} }));
+                          if (list[0]) openDetail(list[0], list, ctx);
+                        }}
+                        style={{ marginTop:4, padding:"7px 10px", borderRadius:8, border:"none",
+                          background: prog.color, color:"#fff", fontSize:11, fontWeight:800, cursor:"pointer" }}>
+                        Start session →
+                      </button>
                     </div>
                   )}
                 </div>

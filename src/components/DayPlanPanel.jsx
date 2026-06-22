@@ -113,10 +113,45 @@ export default function DayPlanPanel({
                   </div>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  {session.exercises.map(exId => renderExercise(exId, loggedIds.has(exId), `${program.id}-${exId}`))}
+                  {session.exercises.map(exId => {
+                    const exList = sessionExercises(session);
+                    const pCtx = { programId: program.id, week, sessionIdx };
+                    const ex = allExercises[exId];
+                    if (!ex) return null;
+                    const inner = (
+                      <>
+                        <span style={{ flex: 1, fontSize: 12, color: "var(--fkh-text)", fontWeight: 500,
+                          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {ex.name}
+                        </span>
+                        {loggedIds.has(exId) && <span style={{ color: "#22c55e", fontSize: 13, flexShrink: 0 }}>✓</span>}
+                      </>
+                    );
+                    const rowStyle = {
+                      display: "flex", alignItems: "center", gap: 8,
+                      padding: "7px 9px", borderRadius: 8,
+                      background: "rgba(255,255,255,0.03)",
+                      border: "1px solid rgba(255,255,255,0.06)",
+                    };
+                    if (onOpenExercise) {
+                      return (
+                        <button key={`${program.id}-${exId}`} type="button"
+                          onClick={() => onOpenExercise(ex, exList, pCtx)}
+                          style={{ ...rowStyle, width: "100%", cursor: "pointer", textAlign: "left" }}>
+                          {inner}
+                        </button>
+                      );
+                    }
+                    return <div key={`${program.id}-${exId}`} style={rowStyle}>{inner}</div>;
+                  })}
                 </div>
                 {!done && exList.length > 0 && onStartProgramSession && (
-                  <button type="button" onClick={() => onStartProgramSession(exList)}
+                  <button type="button"
+                    onClick={() => onStartProgramSession(exList, {
+                      programId: program.id,
+                      week,
+                      sessionIdx,
+                    })}
                     style={{ width: "100%", marginTop: 8, padding: "8px 10px", borderRadius: 8, border: "none",
                       background: program.color, color: "#fff", fontSize: 11, fontWeight: 800, cursor: "pointer" }}>
                     Start session →

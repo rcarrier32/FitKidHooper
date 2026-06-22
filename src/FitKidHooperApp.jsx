@@ -118,6 +118,12 @@ import SquadView from "./views/SquadView.jsx";
 import ChallengesView from "./views/ChallengesView.jsx";
 import DayPlanPanel from "./components/DayPlanPanel.jsx";
 import { buildTrainingDayPlan, currentWeekDates, scheduleCategoryExerciseIds, weekdayIndexFromDate } from "./lib/trainingDayPlan.js";
+import {
+  getProgramKind,
+  programKindLabel,
+  sortDueProgramEntries,
+  missionTitleForDuePrograms,
+} from "./lib/programKind.js";
 
 
 /* ═══════════════════════════════════════════════════════════════
@@ -2591,49 +2597,53 @@ function generateDailyMission(todayStr, settings, completed, enrolledPrograms, p
   let title = "Daily Training";
   let bonusXP = 50;
 
-  /* ── Task 1: Due program session (any enrolled plan) or category day ── */
+  /* ── Due program session(s) — all enrolled plans due today, strength before skill ── */
   const enrolledList = PROGRAMS.filter(p => enrolledPrograms[p.id]);
-  let activeProg = null;
-  let dueSession = null;
+  const dueEntries = [];
   for (const prog of enrolledList) {
     const enrollment = enrolledPrograms[prog.id];
     const due = findDueProgramSession(prog, enrollment, programProgress, todayStr);
-    if (due) {
-      activeProg = prog;
-      dueSession = due;
-      break;
-    }
+    if (due) dueEntries.push({ prog, due });
   }
+  const sortedDue = sortDueProgramEntries(dueEntries);
   let task1Cat = null;
-  if (activeProg && dueSession) {
-    const { session, sessionIdx, week } = dueSession;
-    title = `${activeProg.emoji} ${activeProg.name} — Week ${week}`;
-    task1Cat = ALL_EXERCISES[session.exercises[0]]?._cat || null;
-    tasks.push({
-      id:"task-prog", type:"program",
-      label:`${activeProg.name}: ${session.focus}`,
-      exercises: session.exercises,
-      target: session.exercises.length,
-      required: true,
-      programId: activeProg.id,
-      week,
-      sessionIdx,
-    });
-    bonusXP = 75;
-    const dayIdx = weekdayIndexFromDate(todayStr);
-    const dayPlan = SCHEDULE[dayIdx];
-    if (dayPlan?.cats?.length) {
-      const scheduleExs = scheduleCategoryExerciseIds(dayPlan, WORKOUTS, 2, 6);
-      if (scheduleExs.length > 0) {
-        tasks.push({
-          id: "task-schedule",
-          type: "category",
-          label: `Also today: ${dayPlan.label}`,
-          exercises: scheduleExs,
-          target: Math.min(3, scheduleExs.length),
-          required: false,
-          optional: true,
-        });
+  if (sortedDue.length > 0) {
+    title = missionTitleForDuePrograms(sortedDue);
+    task1Cat = ALL_EXERCISES[sortedDue[0].due.session.exercises[0]]?._cat || null;
+    bonusXP = sortedDue.length > 1 ? 100 : 75;
+    for (const { prog, due } of sortedDue) {
+      const { session, sessionIdx, week } = due;
+      tasks.push({
+        id: `task-prog-${prog.id}`,
+        type: "program",
+        label: `${prog.emoji} ${prog.name}: ${session.focus}`,
+        kind: getProgramKind(prog.id),
+        kindLabel: programKindLabel(prog.id),
+        exercises: session.exercises,
+        target: session.exercises.length,
+        required: true,
+        programId: prog.id,
+        week,
+        sessionIdx,
+        programColor: prog.color,
+      });
+    }
+    if (sortedDue.length === 1) {
+      const dayIdx = weekdayIndexFromDate(todayStr);
+      const dayPlan = SCHEDULE[dayIdx];
+      if (dayPlan?.cats?.length) {
+        const scheduleExs = scheduleCategoryExerciseIds(dayPlan, WORKOUTS, 2, 6);
+        if (scheduleExs.length > 0) {
+          tasks.push({
+            id: "task-schedule",
+            type: "category",
+            label: `Also today: ${dayPlan.label}`,
+            exercises: scheduleExs,
+            target: Math.min(3, scheduleExs.length),
+            required: false,
+            optional: true,
+          });
+        }
       }
     }
   }
@@ -3756,8 +3766,8 @@ function CalendarView({
     return map;
   }, [year, mon, daysInMon, schedule, programs, enrolledPrograms, programProgress, workouts]);
 
-  const startSession = (exercises) => {
-    if (exercises?.[0]) onOpenExercise?.(exercises[0]);
+  const startSession = (exercises, ctx) => {
+    if (exercises?.[0]) onOpenExercise?.(exercises[0], exercises, ctx);
   };
 
   // intensity → opacity suffix (same pattern used app-wide)
@@ -3887,7 +3897,7 @@ function CalendarView({
           bd={bd}
           onOpenCategory={onOpenCategory}
           onOpenExercise={onOpenExercise}
-          onStartProgramSession={startSession}
+          onStartProgramSession={(exs, ctx) => startSession(exs, ctx)}
           onStartCustomWorkout={startSession}
         />
       )}
@@ -5979,12 +5989,14 @@ export default function FitKidHooperApp() {
   );
 
   const activeProgForMission = useMemo(() => {
+    const dueList = [];
     for (const prog of PROGRAMS) {
       if (!enrolledPrograms[prog.id]) continue;
       const due = findDueProgramSession(prog, enrolledPrograms[prog.id], programProgress, today);
-      if (due) return prog;
+      if (due) dueList.push({ prog, due });
     }
-    return PROGRAMS.find(p => enrolledPrograms[p.id]) || null;
+    const sorted = sortDueProgramEntries(dueList);
+    return sorted[0]?.prog || PROGRAMS.find(p => enrolledPrograms[p.id]) || null;
   }, [enrolledPrograms, programProgress, today]);
 
   const dueSessionForMission = useMemo(() => {
@@ -6234,6 +6246,7 @@ export default function FitKidHooperApp() {
         exerciseMeta={EXERCISE_META}
         cats={CATS}
         workouts={WORKOUTS}
+        schedule={SCHEDULE}
         workoutTemplates={WORKOUT_TEMPLATES}
         favorites={favorites}
         todayMission={todayMission}
@@ -6785,8 +6798,8 @@ export default function FitKidHooperApp() {
                   SF={SF}
                   bd={bd}
                   onOpenCategory={cat => { setActiveCat(cat); setPrevView("schedule"); setView("cat"); }}
-                  onOpenExercise={ex => openDetail(ex, [ex])}
-                  onStartProgramSession={exs => { if (exs?.[0]) openDetail(exs[0], exs); }}
+                  onOpenExercise={(ex, list, ctx) => openDetail(ex, list || [ex], ctx)}
+                  onStartProgramSession={(exs, ctx) => { if (exs?.[0]) openDetail(exs[0], exs, ctx); }}
                   onStartCustomWorkout={exs => { if (exs?.[0]) openDetail(exs[0], exs); }}
                 />
               </div>
@@ -6890,7 +6903,8 @@ export default function FitKidHooperApp() {
             allExercises={ALL_EXERCISES}
             workouts={WORKOUTS}
             onOpenCategory={cat => { setActiveCat(cat); setPrevView("schedule"); setView("cat"); }}
-            onOpenExercise={ex => openDetail(ex, [ex])}
+            onOpenExercise={(ex, list, ctx) => openDetail(ex, list || [ex], ctx)}
+            onStartProgramSession={(exs, ctx) => { if (exs?.[0]) openDetail(exs[0], exs, ctx); }}
           />
         )}
 
