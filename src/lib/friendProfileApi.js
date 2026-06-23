@@ -49,6 +49,45 @@ export function pathRankLabel(profile) {
   return `${track.emoji} ${track.archetype}`;
 }
 
+/** Batch-fetch usernames keyed by user id. */
+export async function fetchUsernames(userIds) {
+  const map = {};
+  if (!isSupabaseConfigured() || !userIds?.length) return map;
+  const sb = getSupabaseClient();
+  if (!sb) return map;
+
+  const ids = [...new Set(userIds.filter(Boolean))];
+  const { data, error } = await sb
+    .from("auth_usernames")
+    .select("user_id, username")
+    .in("user_id", ids);
+  if (error || !data) return map;
+  for (const row of data) {
+    map[row.user_id] = row.username;
+  }
+  return map;
+}
+
+/** Week stats for friend list overviews. */
+export async function fetchFriendWeekStats(athleteIds) {
+  const map = {};
+  if (!isSupabaseConfigured() || !athleteIds?.length) return map;
+  const sb = getSupabaseClient();
+  if (!sb) return map;
+
+  const ids = [...new Set(athleteIds.filter(Boolean))];
+  const { data, error } = await sb
+    .from("leaderboard_stats")
+    .select("athlete_id, xp, streak, training_days, play_like")
+    .in("athlete_id", ids)
+    .eq("period", "week");
+  if (error || !data) return map;
+  for (const row of data) {
+    map[row.athlete_id] = row;
+  }
+  return map;
+}
+
 /** Batch-fetch profile snippets keyed by athlete id. */
 export async function fetchProfileSnippets(athleteIds) {
   const map = {};

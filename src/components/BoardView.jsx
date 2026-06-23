@@ -27,11 +27,28 @@ import AthleteCard from "./AthleteCard.jsx";
 import FeedView from "./FeedView.jsx";
 import FriendAvatar from "./FriendAvatar.jsx";
 import FriendProfileSheet from "./FriendProfileSheet.jsx";
-import MessagesSheet from "./MessagesSheet.jsx";
+import MessagesSheet, { MessagesPanel } from "./MessagesSheet.jsx";
 import CountBadge from "./CountBadge.jsx";
 import ChallengesActivePanel from "./ChallengesActivePanel.jsx";
-import { fetchProfileSnippets, profileSnippet } from "../lib/friendProfileApi.js";
+import { fetchProfileSnippets, fetchUsernames, fetchFriendWeekStats, profileSnippet, pathRankLabel } from "../lib/friendProfileApi.js";
 import { getAchievementMeta } from "../lib/achievements.js";
+
+const SQUAD_TABS = [
+  ["friends", "Friends"],
+  ["messages", "Messages"],
+  ["challenges", "Challenges"],
+  ["requests", "Requests"],
+];
+
+function friendOverviewLine(profile, stats) {
+  const parts = [];
+  const path = pathRankLabel(profile);
+  if (path) parts.push(path);
+  if (stats?.streak > 0) parts.push(`${stats.streak}-day streak`);
+  else if (stats?.training_days > 0) parts.push(`${stats.training_days} training days this week`);
+  if (stats?.play_like) parts.push(`plays like ${stats.play_like}`);
+  return parts.join(" · ") || "On your squad";
+}
 
 function fmtRelativePush(ts) {
   if (!ts) return "Not synced yet";
@@ -77,8 +94,10 @@ export default function BoardView({
 }) {
   const myAgeGroup = getAgeGroup(settings.dateOfBirth);
   const friendsPanelRef = useRef(null);
-  const [mode, setMode] = useState(modes[0]); // which of: challenges | friends | rankings
-  const [messageFriend, setMessageFriend] = useState(null); // { id, name } → open chat
+  const isSquadLayout = modes.length === 1 && modes[0] === "friends";
+  const [mode, setMode] = useState(modes[0]);
+  const [squadTab, setSquadTab] = useState("friends");
+  const [messageFriend, setMessageFriend] = useState(null);
   const [boardType, setBoardType] = useState("age_group");
   const [ageGroup, setAgeGroup] = useState(myAgeGroup);
   const [period, setPeriod] = useState("week");
@@ -172,9 +191,17 @@ export default function BoardView({
     (async () => {
       const ids = (await listFriendAthleteIds(athleteId)).filter(id => id !== athleteId);
       if (!ids.length) { if (alive) setFriendRoster([]); return; }
-      const map = await fetchProfileSnippets(ids);
+      const [map, usernames, stats] = await Promise.all([
+        fetchProfileSnippets(ids),
+        fetchUsernames(ids),
+        fetchFriendWeekStats(ids),
+      ]);
       if (!alive) return;
-      setFriendRoster(ids.map(id => map[id] || profileSnippet({ id, display_name: "Friend" })));
+      setFriendRoster(ids.map(id => ({
+        profile: map[id] || profileSnippet({ id, display_name: "Friend" }),
+        username: usernames[id] || null,
+        stats: stats[id] || null,
+      })));
     })();
     return () => { alive = false; };
   }, [mode, athleteId, configured, requests.length]);
@@ -182,11 +209,17 @@ export default function BoardView({
   useEffect(() => {
     if (!focusFriendsTick || !modes.includes("friends")) return;
     setMode("friends");
+    if (!openMessagesInbox) setSquadTab("friends");
     const timer = setTimeout(() => {
       friendsPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 80);
     return () => clearTimeout(timer);
-  }, [focusFriendsTick]);
+  }, [focusFriendsTick, openMessagesInbox, modes]);
+
+  useEffect(() => {
+    if (!isSquadLayout || !openMessagesInbox) return;
+    setSquadTab("messages");
+  }, [openMessagesInbox, isSquadLayout]);
 
   useEffect(() => {
     if (mode !== "friends" || !isSignedIn) return;
@@ -197,9 +230,15 @@ export default function BoardView({
   useEffect(() => {
     if (!openMessagesInbox) return;
     if (modes.includes("friends")) setMode("friends");
-    setMessageFriend("inbox");
+    setSquadTab("messages");
+    setMessageFriend(null);
     onMessagesInboxOpened?.();
   }, [openMessagesInbox, modes, onMessagesInboxOpened]);
+
+  const openMessageWithFriend = useCallback(friend => {
+    setSquadTab("messages");
+    setMessageFriend(friend);
+  }, []);
 
   const load = useCallback(async () => {
     if (!configured) return;
@@ -331,14 +370,16 @@ export default function BoardView({
   const myRow = rows.find(r => r.athlete_id === athleteId);
 
   return (
-    <div style={{ padding: "0 20px 100px" }}>
-      <AthleteCard
-        settings={settings}
-        currentLevel={currentLevel}
-        totalXP={xpData?.total}
-        variant="compact"
-        P={P}
-      />
+    <div style={{ padding: isSquadLayout ? "0 20px 24px" : "0 20px 100px" }}>
+      {!isSquadLayout && (
+        <AthleteCard
+          settings={settings}
+          currentLevel={currentLevel}
+          totalXP={xpData?.total}
+          variant="compact"
+          P={P}
+        />
+      )}
 
       {modes.length > 1 && (
         <div style={{ display: "flex", gap: 6, margin: "14px 0 0" }}>
@@ -370,255 +411,329 @@ export default function BoardView({
           />
         </div>
       ) : mode === "friends" ? (
-        <div style={{ marginTop: 12 }}>
-          <div ref={friendsPanelRef} style={{ background: SF, border: `1px solid ${bd}`, borderRadius: 14, padding: 14, marginBottom: 16 }}>
-            {!isSignedIn && (
-              <div style={{
-                marginBottom: 12, padding: "10px 12px", borderRadius: 10,
-                background: `${P}12`, border: `1px solid ${P}28`, fontSize: 11, color: "var(--fkh-text-muted)", lineHeight: 1.5,
-              }}>
-                Sign in to add friends and keep your friend list across devices.
+        <div style={{ marginTop: isSquadLayout ? 0 : 12 }} ref={friendsPanelRef}>
+          <div style={{ display: "flex", gap: 5, marginBottom: 12, overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+            {SQUAD_TABS.map(([tab, label]) => {
+              const badge = tab === "messages" ? unreadMessages
+                : tab === "requests" ? requests.length : 0;
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => {
+                    setSquadTab(tab);
+                    if (tab !== "messages") setMessageFriend(null);
+                  }}
+                  style={{
+                    flex: "1 0 auto", minWidth: 0, padding: "9px 10px", borderRadius: 10,
+                    fontSize: 10, fontWeight: 800, cursor: "pointer",
+                    border: `1px solid ${squadTab === tab ? P : bd}`,
+                    background: squadTab === tab ? `${P}18` : "transparent",
+                    color: squadTab === tab ? P : "#64748b",
+                    display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 4,
+                  }}
+                >
+                  <span>{label}</span>
+                  {badge > 0 && <CountBadge count={badge} P={P} />}
+                </button>
+              );
+            })}
+          </div>
+
+          {squadTab === "friends" && (
+            <>
+              {!isSignedIn && (
+                <div style={{
+                  marginBottom: 12, padding: "10px 12px", borderRadius: 10,
+                  background: `${P}12`, border: `1px solid ${P}28`, fontSize: 11, color: "var(--fkh-text-muted)", lineHeight: 1.5,
+                }}>
+                  Sign in to see your squad and message friends.
+                  <button type="button" onClick={onOpenAuth} style={{
+                    display: "block", marginTop: 8, padding: "8px 12px", borderRadius: 8, border: `1px solid ${P}44`,
+                    background: "transparent", color: P, fontSize: 11, fontWeight: 700, cursor: "pointer", width: "100%",
+                  }}>Sign in</button>
+                </div>
+              )}
+
+              {isSignedIn && friendRoster.length === 0 && (
+                <div style={{
+                  marginBottom: 14, padding: "14px 12px", borderRadius: 12,
+                  background: `${P}0c`, border: `1px solid ${P}22`, fontSize: 12, color: "#94a3b8", lineHeight: 1.5,
+                }}>
+                  No friends yet. Tap <strong style={{ color: P }}>Requests</strong> to search for someone or share a friend code.
+                </div>
+              )}
+
+              {friendRoster.length > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ ...lbl, marginBottom: 8 }}>Your squad</div>
+                  {friendRoster.map(({ profile: prof, username, stats }) => (
+                    <button
+                      key={prof.id}
+                      type="button"
+                      onClick={() => viewFriend(prof.id)}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 12, width: "100%",
+                        padding: "10px 12px", marginBottom: 8, borderRadius: 12, cursor: "pointer",
+                        border: `1px solid ${bd}`, background: "rgba(255,255,255,0.03)", textAlign: "left",
+                      }}
+                    >
+                      <FriendAvatar profile={prof} size={48} P={P} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: "var(--fkh-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {prof.displayName}
+                        </div>
+                        {username && (
+                          <div style={{ fontSize: 11, color: P, fontWeight: 700, marginTop: 2 }}>@{username}</div>
+                        )}
+                        <div style={{ fontSize: 10, color: "#64748b", marginTop: 4, lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {friendOverviewLine(prof, stats)}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div style={{ marginBottom: 8 }}>
+                <div style={{ ...lbl, marginBottom: 4 }}>Friends feed</div>
+                <div style={{ fontSize: 11, color: "#64748b", lineHeight: 1.45, marginBottom: 12 }}>
+                  See what friends unlocked · React with emojis · Comment and @tag teammates
+                </div>
+                <FeedView P={P} SF={SF} bd={bd} onViewFriend={viewFriend} />
+              </div>
+            </>
+          )}
+
+          {squadTab === "messages" && (
+            isSignedIn ? (
+              <MessagesPanel
+                P={P}
+                SF={SF}
+                bd={bd}
+                embedded
+                initialFriend={messageFriend}
+                onUnreadChange={onUnreadRefresh}
+              />
+            ) : (
+              <div style={{ padding: "20px 12px", fontSize: 12, color: "#94a3b8", textAlign: "center", lineHeight: 1.5 }}>
+                Sign in to message friends.
                 <button type="button" onClick={onOpenAuth} style={{
-                  display: "block", marginTop: 8, padding: "8px 12px", borderRadius: 8, border: `1px solid ${P}44`,
-                  background: "transparent", color: P, fontSize: 11, fontWeight: 700, cursor: "pointer", width: "100%",
+                  display: "block", margin: "10px auto 0", padding: "8px 16px", borderRadius: 8,
+                  border: `1px solid ${P}44`, background: "transparent", color: P, fontSize: 11, fontWeight: 700, cursor: "pointer",
                 }}>Sign in</button>
               </div>
-            )}
-            <div style={{ fontSize: 14, fontWeight: 800, color: P, marginBottom: 4 }}>👋 Add a friend</div>
-            <div style={{ fontSize: 11, color: "#64748b", marginBottom: 10, lineHeight: 1.45 }}>
-              Search by first name, last name, or username — or share a friend code.
-            </div>
+            )
+          )}
 
-            {requests.length > 0 && (
-              <div style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
-                  Friend requests ({requests.length})
+          {squadTab === "challenges" && (
+            <ChallengesActivePanel
+              personalChallenges={personalChallenges}
+              P={P}
+              SF={SF}
+              bd={bd}
+              squadOnly
+              onAddFriends={() => setSquadTab("requests")}
+            />
+          )}
+
+          {squadTab === "requests" && (
+            <div style={{ background: SF, border: `1px solid ${bd}`, borderRadius: 14, padding: 14 }}>
+              {!isSignedIn && (
+                <div style={{
+                  marginBottom: 12, padding: "10px 12px", borderRadius: 10,
+                  background: `${P}12`, border: `1px solid ${P}28`, fontSize: 11, color: "var(--fkh-text-muted)", lineHeight: 1.5,
+                }}>
+                  Sign in to add friends and keep your friend list across devices.
+                  <button type="button" onClick={onOpenAuth} style={{
+                    display: "block", marginTop: 8, padding: "8px 12px", borderRadius: 8, border: `1px solid ${P}44`,
+                    background: "transparent", color: P, fontSize: 11, fontWeight: 700, cursor: "pointer", width: "100%",
+                  }}>Sign in</button>
                 </div>
-                {requests.map(r => {
-                  const prof = requesterProfiles[r.requester_id] || profileSnippet({
-                    id: r.requester_id,
-                    display_name: r.display_name,
-                  });
-                  return (
-                  <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 10, background: `${P}10`, border: `1px solid ${P}22`, marginBottom: 6 }}>
-                    <FriendAvatar
-                      profile={prof}
-                      displayName={r.display_name || r.username}
-                      size={36}
-                      P={P}
-                      onPress={() => viewFriend(r.requester_id)}
-                    />
-                    <div style={{ flex: 1, minWidth: 0, fontSize: 12, color: "var(--fkh-text)", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      <button
-                        type="button"
-                        onClick={() => viewFriend(r.requester_id)}
-                        style={{
-                          background: "none", border: "none", padding: 0, margin: 0,
-                          font: "inherit", fontWeight: 700, color: "var(--fkh-text)",
-                          cursor: "pointer", textDecoration: "underline",
-                        }}
-                      >
-                        @{r.username || "athlete"}
-                      </button>
-                      {r.display_name ? <span style={{ color: "#64748b", fontWeight: 400 }}> · {r.display_name}</span> : null}
-                    </div>
-                    <button onClick={() => handleRespond(r.id, true)} style={{ padding: "6px 12px", borderRadius: 8, border: "none", background: P, color: "#000", fontSize: 11, fontWeight: 800, cursor: "pointer" }}>Accept</button>
-                    <button onClick={() => handleRespond(r.id, false)} style={{ padding: "6px 10px", borderRadius: 8, border: `1px solid ${bd}`, background: "transparent", color: "#94a3b8", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Decline</button>
-                  </div>
-                  );
-                })}
-              </div>
-            )}
+              )}
 
-            <div style={{ marginBottom: 10 }}>
-              <input
-                value={friendSearchQuery}
-                onChange={e => setFriendSearchQuery(e.target.value)}
-                placeholder="Search name or username"
-                disabled={!isSignedIn}
-                maxLength={40}
-                style={{
-                  width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${bd}`,
-                  background: "rgba(255,255,255,0.05)", color: "var(--fkh-text)", fontSize: 13,
-                  boxSizing: "border-box",
-                }}
-              />
-              {friendSearchQuery.trim().length >= 2 && (
-                <div style={{ marginTop: 6 }}>
-                  {searchLoading && (
-                    <div style={{ fontSize: 11, color: "#64748b", padding: "6px 2px" }}>Searching…</div>
-                  )}
-                  {!searchLoading && searchResults.length === 0 && (
-                    <div style={{ fontSize: 11, color: "#64748b", padding: "6px 2px" }}>No athletes found</div>
-                  )}
-                  {searchResults.map(a => {
-                    const prof = profileSnippet({
-                      id: a.user_id,
-                      display_name: a.display_name,
-                      avatar_url: a.avatar_url,
+              {requests.length > 0 && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+                    Pending requests ({requests.length})
+                  </div>
+                  {requests.map(r => {
+                    const prof = requesterProfiles[r.requester_id] || profileSnippet({
+                      id: r.requester_id,
+                      display_name: r.display_name,
                     });
-                    const selected = selectedAthlete?.user_id === a.user_id;
                     return (
-                      <button
-                        key={a.user_id}
-                        type="button"
-                        onClick={() => setSelectedAthlete(a)}
-                        style={{
-                          display: "flex", alignItems: "center", gap: 8, width: "100%",
-                          padding: "8px 10px", marginBottom: 4, borderRadius: 10, cursor: "pointer",
-                          border: `1px solid ${selected ? P : bd}`,
-                          background: selected ? `${P}18` : "rgba(255,255,255,0.03)",
-                          textAlign: "left",
-                        }}
-                      >
-                        <FriendAvatar profile={prof} displayName={a.display_name || a.username} size={36} P={P} />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--fkh-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {a.display_name || a.username || "Athlete"}
-                          </div>
-                          {a.username && (
-                            <div style={{ fontSize: 10, color: "#64748b" }}>@{a.username}</div>
-                          )}
+                      <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 10, background: `${P}10`, border: `1px solid ${P}22`, marginBottom: 6 }}>
+                        <FriendAvatar
+                          profile={prof}
+                          displayName={r.display_name || r.username}
+                          size={36}
+                          P={P}
+                          onPress={() => viewFriend(r.requester_id)}
+                        />
+                        <div style={{ flex: 1, minWidth: 0, fontSize: 12, color: "var(--fkh-text)", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          <button
+                            type="button"
+                            onClick={() => viewFriend(r.requester_id)}
+                            style={{
+                              background: "none", border: "none", padding: 0, margin: 0,
+                              font: "inherit", fontWeight: 700, color: "var(--fkh-text)",
+                              cursor: "pointer", textDecoration: "underline",
+                            }}
+                          >
+                            @{r.username || "athlete"}
+                          </button>
+                          {r.display_name ? <span style={{ color: "#64748b", fontWeight: 400 }}> · {r.display_name}</span> : null}
                         </div>
-                      </button>
+                        <button type="button" onClick={() => handleRespond(r.id, true)} style={{ padding: "6px 12px", borderRadius: 8, border: "none", background: P, color: "#000", fontSize: 11, fontWeight: 800, cursor: "pointer" }}>Accept</button>
+                        <button type="button" onClick={() => handleRespond(r.id, false)} style={{ padding: "6px 10px", borderRadius: 8, border: `1px solid ${bd}`, background: "transparent", color: "#94a3b8", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Decline</button>
+                      </div>
                     );
                   })}
                 </div>
               )}
-              <button
-                onClick={handleSendRequest}
-                disabled={!isSignedIn || !selectedAthlete || sendingRequest}
-                style={{
-                  width: "100%", marginTop: 8, padding: "10px 16px", borderRadius: 8, border: "none",
-                  background: isSignedIn && selectedAthlete && !sendingRequest ? P : `${P}55`,
-                  color: "#000", fontSize: 12, fontWeight: 800,
-                  cursor: isSignedIn && selectedAthlete && !sendingRequest ? "pointer" : "not-allowed",
-                }}
-              >
-                {sendingRequest ? "Sending…" : "Add friend"}
-              </button>
-            </div>
 
-            {sentRequests.length > 0 && (
-              <div style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
-                  Your requests
-                </div>
-                {sentRequests.map(r => {
-                  const statusLabel = r.status === "pending" ? "Pending"
-                    : r.status === "accepted" ? "Accepted"
-                    : r.status === "declined" ? "Declined" : r.status;
-                  const statusColor = r.status === "accepted" ? "#22c55e"
-                    : r.status === "declined" ? "#94a3b8" : P;
-                  return (
-                    <div key={r.id} style={{
-                      display: "flex", alignItems: "center", gap: 8, padding: "6px 10px",
-                      borderRadius: 8, background: "rgba(255,255,255,0.03)", border: `1px solid ${bd}`, marginBottom: 4,
-                    }}>
-                      <div style={{ flex: 1, minWidth: 0, fontSize: 12, color: "var(--fkh-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {r.display_name || (r.username ? `@${r.username}` : "Athlete")}
+              <div style={{ fontSize: 14, fontWeight: 800, color: P, marginBottom: 4 }}>Find a friend</div>
+              <div style={{ fontSize: 11, color: "#64748b", marginBottom: 10, lineHeight: 1.45 }}>
+                Search by first name, last name, or username — or share a friend code.
+              </div>
+
+              <div style={{ marginBottom: 10 }}>
+                <input
+                  value={friendSearchQuery}
+                  onChange={e => setFriendSearchQuery(e.target.value)}
+                  placeholder="Search name or username"
+                  disabled={!isSignedIn}
+                  maxLength={40}
+                  style={{
+                    width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${bd}`,
+                    background: "rgba(255,255,255,0.05)", color: "var(--fkh-text)", fontSize: 13,
+                    boxSizing: "border-box",
+                  }}
+                />
+                {friendSearchQuery.trim().length >= 2 && (
+                  <div style={{ marginTop: 6 }}>
+                    {searchLoading && (
+                      <div style={{ fontSize: 11, color: "#64748b", padding: "6px 2px" }}>Searching…</div>
+                    )}
+                    {!searchLoading && searchResults.length === 0 && (
+                      <div style={{ fontSize: 11, color: "#64748b", padding: "6px 2px" }}>No athletes found</div>
+                    )}
+                    {searchResults.map(a => {
+                      const prof = profileSnippet({
+                        id: a.user_id,
+                        display_name: a.display_name,
+                        avatar_url: a.avatar_url,
+                      });
+                      const selected = selectedAthlete?.user_id === a.user_id;
+                      return (
+                        <button
+                          key={a.user_id}
+                          type="button"
+                          onClick={() => setSelectedAthlete(a)}
+                          style={{
+                            display: "flex", alignItems: "center", gap: 8, width: "100%",
+                            padding: "8px 10px", marginBottom: 4, borderRadius: 10, cursor: "pointer",
+                            border: `1px solid ${selected ? P : bd}`,
+                            background: selected ? `${P}18` : "rgba(255,255,255,0.03)",
+                            textAlign: "left",
+                          }}
+                        >
+                          <FriendAvatar profile={prof} displayName={a.display_name || a.username} size={36} P={P} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--fkh-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {a.display_name || a.username || "Athlete"}
+                            </div>
+                            {a.username && (
+                              <div style={{ fontSize: 10, color: "#64748b" }}>@{a.username}</div>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={handleSendRequest}
+                  disabled={!isSignedIn || !selectedAthlete || sendingRequest}
+                  style={{
+                    width: "100%", marginTop: 8, padding: "10px 16px", borderRadius: 8, border: "none",
+                    background: isSignedIn && selectedAthlete && !sendingRequest ? P : `${P}55`,
+                    color: "#000", fontSize: 12, fontWeight: 800,
+                    cursor: isSignedIn && selectedAthlete && !sendingRequest ? "pointer" : "not-allowed",
+                  }}
+                >
+                  {sendingRequest ? "Sending…" : "Add friend"}
+                </button>
+              </div>
+
+              {sentRequests.length > 0 && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+                    Your requests
+                  </div>
+                  {sentRequests.map(r => {
+                    const statusLabel = r.status === "pending" ? "Pending"
+                      : r.status === "accepted" ? "Accepted"
+                      : r.status === "declined" ? "Declined" : r.status;
+                    const statusColor = r.status === "accepted" ? "#22c55e"
+                      : r.status === "declined" ? "#94a3b8" : P;
+                    return (
+                      <div key={r.id} style={{
+                        display: "flex", alignItems: "center", gap: 8, padding: "6px 10px",
+                        borderRadius: 8, background: "rgba(255,255,255,0.03)", border: `1px solid ${bd}`, marginBottom: 4,
+                      }}>
+                        <div style={{ flex: 1, minWidth: 0, fontSize: 12, color: "var(--fkh-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {r.display_name || (r.username ? `@${r.username}` : "Athlete")}
+                        </div>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: statusColor, flexShrink: 0 }}>{statusLabel}</span>
                       </div>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: statusColor, flexShrink: 0 }}>{statusLabel}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            <div style={{ fontSize: 10, color: "#64748b", marginBottom: 10 }}>
-              Or share a one-time code:
-            </div>
-
-            <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-              <button onClick={handleCreateInvite} disabled={!isSignedIn} style={{
-                flex: 1, padding: "8px 10px", borderRadius: 8, border: `1px solid ${P}44`,
-                background: "transparent", color: isSignedIn ? P : "#64748b", fontSize: 11, fontWeight: 700,
-                cursor: isSignedIn ? "pointer" : "not-allowed", opacity: isSignedIn ? 1 : 0.6,
-              }}>Get friend code</button>
-            </div>
-            {inviteCode && (
-              <div style={{ fontSize: 20, fontWeight: 800, fontFamily: "'DM Mono',monospace", color: P, letterSpacing: "0.15em", marginBottom: 8 }}>
-                {inviteCode}
-              </div>
-            )}
-            {inviteCode && (
-              <div style={{ fontSize: 10, color: "#64748b", wordBreak: "break-all", marginBottom: 8 }}>
-                Link: {getInviteUrl(inviteCode)}
-              </div>
-            )}
-            <div style={{ display: "flex", gap: 8 }}>
-              <input
-                value={inviteInput}
-                onChange={e => setInviteInput(e.target.value.toUpperCase())}
-                placeholder="Enter friend code"
-                maxLength={6}
-                style={{
-                  flex: 1, padding: "8px 10px", borderRadius: 8, border: `1px solid ${bd}`,
-                  background: "rgba(255,255,255,0.05)", color: "var(--fkh-text)", fontSize: 13,
-                }}
-              />
-              <button onClick={handleAcceptInvite} style={{
-                padding: "8px 14px", borderRadius: 8, border: "none", background: P,
-                color: "#000", fontSize: 11, fontWeight: 800, cursor: "pointer",
-              }}>Redeem</button>
-            </div>
-            {friendMsg && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 8 }}>{friendMsg}</div>}
-          </div>
-
-          {isSignedIn && (
-            <div style={{ marginBottom: 16 }}>
-              <button type="button" onClick={() => setMessageFriend("inbox")} style={{
-                width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
-                padding: "12px 14px", borderRadius: 12, border: `1px solid ${unreadMessages > 0 ? P : `${P}44`}`,
-                background: unreadMessages > 0 ? `${P}18` : `${P}10`, color: P, fontSize: 13, fontWeight: 800,
-                cursor: "pointer", textAlign: "left",
-              }}>
-                <span>💬 Messages</span>
-                <CountBadge count={unreadMessages} P={P} />
-              </button>
-              {unreadMessages > 0 && (
-                <div style={{ fontSize: 10, color: "#64748b", marginTop: 6, lineHeight: 1.45, paddingLeft: 2 }}>
-                  You have {unreadMessages} unread message{unreadMessages === 1 ? "" : "s"} — tap to read.
+                    );
+                  })}
                 </div>
               )}
-            </div>
-          )}
 
-          {friendRoster.length > 0 && (
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ ...lbl, marginBottom: 8 }}>Your squad</div>
-              <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 4 }}>
-                {friendRoster.map(prof => (
-                  <div key={prof.id} style={{ flex: "0 0 auto", textAlign: "center", width: 64 }}>
-                    <button type="button" onClick={() => viewFriend(prof.id)} style={{
-                      background: "none", border: "none", padding: 0, cursor: "pointer", width: "100%",
-                    }}>
-                      <FriendAvatar profile={prof} size={48} P={P} />
-                      <div style={{
-                        fontSize: 10, fontWeight: 700, color: "var(--fkh-text-muted)",
-                        marginTop: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                      }}>
-                        {prof.displayName?.split(" ")[0] || "Friend"}
-                      </div>
-                    </button>
-                    <button type="button" onClick={() => setMessageFriend({ id: prof.id, name: prof.displayName })}
-                      title="Message" style={{
-                        marginTop: 4, padding: "2px 10px", borderRadius: 99, border: `1px solid ${P}33`,
-                        background: "transparent", color: P, fontSize: 11, cursor: "pointer",
-                      }}>💬</button>
-                  </div>
-                ))}
+              <div style={{ fontSize: 10, color: "#64748b", marginBottom: 10 }}>
+                Or share a one-time code:
               </div>
+
+              <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                <button type="button" onClick={handleCreateInvite} disabled={!isSignedIn} style={{
+                  flex: 1, padding: "8px 10px", borderRadius: 8, border: `1px solid ${P}44`,
+                  background: "transparent", color: isSignedIn ? P : "#64748b", fontSize: 11, fontWeight: 700,
+                  cursor: isSignedIn ? "pointer" : "not-allowed", opacity: isSignedIn ? 1 : 0.6,
+                }}>Get friend code</button>
+              </div>
+              {inviteCode && (
+                <div style={{ fontSize: 20, fontWeight: 800, fontFamily: "'DM Mono',monospace", color: P, letterSpacing: "0.15em", marginBottom: 8 }}>
+                  {inviteCode}
+                </div>
+              )}
+              {inviteCode && (
+                <div style={{ fontSize: 10, color: "#64748b", wordBreak: "break-all", marginBottom: 8 }}>
+                  Link: {getInviteUrl(inviteCode)}
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  value={inviteInput}
+                  onChange={e => setInviteInput(e.target.value.toUpperCase())}
+                  placeholder="Enter friend code"
+                  maxLength={6}
+                  style={{
+                    flex: 1, padding: "8px 10px", borderRadius: 8, border: `1px solid ${bd}`,
+                    background: "rgba(255,255,255,0.05)", color: "var(--fkh-text)", fontSize: 13,
+                  }}
+                />
+                <button type="button" onClick={handleAcceptInvite} style={{
+                  padding: "8px 14px", borderRadius: 8, border: "none", background: P,
+                  color: "#000", fontSize: 11, fontWeight: 800, cursor: "pointer",
+                }}>Redeem</button>
+              </div>
+              {friendMsg && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 8 }}>{friendMsg}</div>}
             </div>
           )}
-
-          <div style={{ marginBottom: 8 }}>
-            <div style={{ ...lbl, marginBottom: 4 }}>Friends feed</div>
-            <div style={{ fontSize: 11, color: "#64748b", lineHeight: 1.45, marginBottom: 12 }}>
-              See what friends unlocked · React with emojis · Comment and @tag teammates
-            </div>
-            <FeedView P={P} SF={SF} bd={bd} onViewFriend={viewFriend} />
-          </div>
         </div>
       ) : (<>
 
@@ -839,10 +954,14 @@ export default function BoardView({
           BG={BG || "#0b1220"}
           bd={bd}
           onClose={() => setFriendProfileId(null)}
-          onMessage={f => { setFriendProfileId(null); setMessageFriend(f); }}
+          onMessage={f => {
+            setFriendProfileId(null);
+            if (isSquadLayout) openMessageWithFriend(f);
+            else setMessageFriend(f);
+          }}
         />
       )}
-      {messageFriend && (
+      {messageFriend && !isSquadLayout && (
         <MessagesSheet
           P={P}
           SF={SF}
