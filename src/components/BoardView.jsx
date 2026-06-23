@@ -15,8 +15,10 @@ import {
   maybeAutoSyncLeaderboard,
   createFriendInvite,
   acceptFriendInvite,
-  sendFriendRequest,
+  sendFriendRequestTo,
+  searchAthletesForFriend,
   listFriendRequests,
+  listSentFriendRequests,
   respondFriendRequest,
   listFriendAthleteIds,
   getInviteUrl,
@@ -89,8 +91,13 @@ export default function BoardView({
   const [inviteCode, setInviteCode] = useState(null);
   const [inviteInput, setInviteInput] = useState(initialInviteCode || "");
   const [friendMsg, setFriendMsg] = useState(null);
-  const [friendUsername, setFriendUsername] = useState("");
+  const [friendSearchQuery, setFriendSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [selectedAthlete, setSelectedAthlete] = useState(null);
+  const [sendingRequest, setSendingRequest] = useState(false);
   const [requests, setRequests] = useState([]);
+  const [sentRequests, setSentRequests] = useState([]);
   const [requesterProfiles, setRequesterProfiles] = useState({});
   const [friendProfileId, setFriendProfileId] = useState(null);
   const [friendRoster, setFriendRoster] = useState([]);
@@ -117,7 +124,44 @@ export default function BoardView({
     }
   }, [isSignedIn]);
 
-  useEffect(() => { loadRequests(); }, [loadRequests]);
+  const loadSentRequests = useCallback(async () => {
+    if (!isSignedIn) { setSentRequests([]); return; }
+    const list = await listSentFriendRequests();
+    setSentRequests(list);
+  }, [isSignedIn]);
+
+  useEffect(() => { loadRequests(); loadSentRequests(); }, [loadRequests, loadSentRequests]);
+
+  useEffect(() => {
+    if (!isSignedIn) {
+      setSearchResults([]);
+      setSelectedAthlete(null);
+      return undefined;
+    }
+    const q = friendSearchQuery.trim();
+    if (q.length < 2) {
+      setSearchResults([]);
+      setSelectedAthlete(null);
+      return undefined;
+    }
+    let alive = true;
+    const timer = setTimeout(async () => {
+      setSearchLoading(true);
+      try {
+        const results = await searchAthletesForFriend(q);
+        if (!alive) return;
+        setSearchResults(results);
+        setSelectedAthlete(prev => (
+          prev && results.some(r => r.user_id === prev.user_id) ? prev : null
+        ));
+      } catch {
+        if (alive) setSearchResults([]);
+      } finally {
+        if (alive) setSearchLoading(false);
+      }
+    }, 300);
+    return () => { alive = false; clearTimeout(timer); };
+  }, [friendSearchQuery, isSignedIn]);
 
   useEffect(() => {
     if (mode !== "friends" || !athleteId || !configured) {
@@ -143,6 +187,12 @@ export default function BoardView({
     }, 80);
     return () => clearTimeout(timer);
   }, [focusFriendsTick]);
+
+  useEffect(() => {
+    if (mode !== "friends" || !isSignedIn) return;
+    loadRequests();
+    loadSentRequests();
+  }, [focusFriendsTick, mode, isSignedIn, loadRequests, loadSentRequests]);
 
   useEffect(() => {
     if (!openMessagesInbox) return;
@@ -240,20 +290,28 @@ export default function BoardView({
   };
 
   const handleSendRequest = async () => {
-    const u = friendUsername.trim();
-    if (!u) return;
+    if (!selectedAthlete?.user_id) return;
+    const { user_id: id, username: u, display_name: name } = selectedAthlete;
     setFriendMsg(null);
+    setSendingRequest(true);
     try {
-      const res = await sendFriendRequest(u);
+      const res = await sendFriendRequestTo(id);
+      const label = name || (u ? `@${u}` : "them");
       if (res.status === "accepted") {
-        setFriendMsg(`You're now friends with @${u}!`);
+        setFriendMsg(`You're now friends with ${label}!`);
         await load();
       } else {
-        setFriendMsg(`Request sent to @${u} — they'll need to accept.`);
+        setFriendMsg(`Request sent to ${label} — they'll need to accept.`);
       }
-      setFriendUsername("");
+      setFriendSearchQuery("");
+      setSearchResults([]);
+      setSelectedAthlete(null);
+      await loadSentRequests();
+      onUnreadRefresh?.();
     } catch (e) {
       setFriendMsg(e.message || "Could not send request");
+    } finally {
+      setSendingRequest(false);
     }
   };
 
@@ -262,6 +320,7 @@ export default function BoardView({
     try {
       await respondFriendRequest(id, accept);
       await loadRequests();
+      onUnreadRefresh?.();
       if (accept) { setFriendMsg("Friend added!"); await load(); }
     } catch (e) {
       setFriendMsg(e.message || "Could not respond");
@@ -327,7 +386,7 @@ export default function BoardView({
             )}
             <div style={{ fontSize: 14, fontWeight: 800, color: P, marginBottom: 4 }}>👋 Add a friend</div>
             <div style={{ fontSize: 11, color: "#64748b", marginBottom: 10, lineHeight: 1.45 }}>
-              Train together — add by username or share a friend code.
+              Search by first name, last name, or username — or share a friend code.
             </div>
 
             {requests.length > 0 && (
@@ -371,27 +430,103 @@ export default function BoardView({
               </div>
             )}
 
-            <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
+            <div style={{ marginBottom: 10 }}>
               <input
-                value={friendUsername}
-                onChange={e => setFriendUsername(e.target.value.replace(/[^a-z0-9_]/gi, "").toLowerCase())}
-                placeholder="Friend's username"
+                value={friendSearchQuery}
+                onChange={e => setFriendSearchQuery(e.target.value)}
+                placeholder="Search name or username"
                 disabled={!isSignedIn}
-                maxLength={20}
+                maxLength={40}
                 style={{
-                  flex: 1, padding: "8px 10px", borderRadius: 8, border: `1px solid ${bd}`,
+                  width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${bd}`,
                   background: "rgba(255,255,255,0.05)", color: "var(--fkh-text)", fontSize: 13,
+                  boxSizing: "border-box",
                 }}
               />
-              <button onClick={handleSendRequest} disabled={!isSignedIn || !friendUsername.trim()} style={{
-                padding: "8px 16px", borderRadius: 8, border: "none",
-                background: isSignedIn && friendUsername.trim() ? P : `${P}55`,
-                color: "#000", fontSize: 11, fontWeight: 800,
-                cursor: isSignedIn && friendUsername.trim() ? "pointer" : "not-allowed",
-              }}>Add</button>
+              {friendSearchQuery.trim().length >= 2 && (
+                <div style={{ marginTop: 6 }}>
+                  {searchLoading && (
+                    <div style={{ fontSize: 11, color: "#64748b", padding: "6px 2px" }}>Searching…</div>
+                  )}
+                  {!searchLoading && searchResults.length === 0 && (
+                    <div style={{ fontSize: 11, color: "#64748b", padding: "6px 2px" }}>No athletes found</div>
+                  )}
+                  {searchResults.map(a => {
+                    const prof = profileSnippet({
+                      id: a.user_id,
+                      display_name: a.display_name,
+                      avatar_url: a.avatar_url,
+                    });
+                    const selected = selectedAthlete?.user_id === a.user_id;
+                    return (
+                      <button
+                        key={a.user_id}
+                        type="button"
+                        onClick={() => setSelectedAthlete(a)}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 8, width: "100%",
+                          padding: "8px 10px", marginBottom: 4, borderRadius: 10, cursor: "pointer",
+                          border: `1px solid ${selected ? P : bd}`,
+                          background: selected ? `${P}18` : "rgba(255,255,255,0.03)",
+                          textAlign: "left",
+                        }}
+                      >
+                        <FriendAvatar profile={prof} displayName={a.display_name || a.username} size={36} P={P} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--fkh-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {a.display_name || a.username || "Athlete"}
+                          </div>
+                          {a.username && (
+                            <div style={{ fontSize: 10, color: "#64748b" }}>@{a.username}</div>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              <button
+                onClick={handleSendRequest}
+                disabled={!isSignedIn || !selectedAthlete || sendingRequest}
+                style={{
+                  width: "100%", marginTop: 8, padding: "10px 16px", borderRadius: 8, border: "none",
+                  background: isSignedIn && selectedAthlete && !sendingRequest ? P : `${P}55`,
+                  color: "#000", fontSize: 12, fontWeight: 800,
+                  cursor: isSignedIn && selectedAthlete && !sendingRequest ? "pointer" : "not-allowed",
+                }}
+              >
+                {sendingRequest ? "Sending…" : "Add friend"}
+              </button>
             </div>
+
+            {sentRequests.length > 0 && (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+                  Your requests
+                </div>
+                {sentRequests.map(r => {
+                  const statusLabel = r.status === "pending" ? "Pending"
+                    : r.status === "accepted" ? "Accepted"
+                    : r.status === "declined" ? "Declined" : r.status;
+                  const statusColor = r.status === "accepted" ? "#22c55e"
+                    : r.status === "declined" ? "#94a3b8" : P;
+                  return (
+                    <div key={r.id} style={{
+                      display: "flex", alignItems: "center", gap: 8, padding: "6px 10px",
+                      borderRadius: 8, background: "rgba(255,255,255,0.03)", border: `1px solid ${bd}`, marginBottom: 4,
+                    }}>
+                      <div style={{ flex: 1, minWidth: 0, fontSize: 12, color: "var(--fkh-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {r.display_name || (r.username ? `@${r.username}` : "Athlete")}
+                      </div>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: statusColor, flexShrink: 0 }}>{statusLabel}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
             <div style={{ fontSize: 10, color: "#64748b", marginBottom: 10 }}>
-              They'll get a request to accept. Or share a one-time code:
+              Or share a one-time code:
             </div>
 
             <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>

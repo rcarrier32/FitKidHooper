@@ -277,6 +277,9 @@ export async function linkDeviceProfileOnAuth(user, settings) {
     row.position = profile.position;
   }
 
+  if (profile.first_name) row.first_name = profile.first_name;
+  if (profile.last_name) row.last_name = profile.last_name;
+
   await sb.from("athlete_profiles").upsert(row, { onConflict: "id" });
 
   // Re-parent device-keyed board data (leaderboard stats, friendships, board

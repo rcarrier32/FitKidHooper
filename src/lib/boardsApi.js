@@ -130,6 +130,27 @@ export async function sendFriendRequest(username) {
   return data; // { ok, status: 'pending' | 'accepted' }
 }
 
+/** Send a friend request to a user id (from search results). */
+export async function sendFriendRequestTo(userId) {
+  const sb = getSupabaseClient();
+  if (!sb) throw new Error("Boards backend not configured");
+  const { data, error } = await sb.rpc("send_friend_request_to", { p_target_id: userId });
+  if (error) throw error;
+  if (!data?.ok) throw new Error(data?.error || "Could not send request");
+  return data;
+}
+
+/** Search athletes by first name, last name, or username. */
+export async function searchAthletesForFriend(query) {
+  const sb = getSupabaseClient();
+  if (!sb) return [];
+  const q = String(query || "").trim();
+  if (q.length < 2) return [];
+  const { data, error } = await sb.rpc("search_athletes_for_friend", { p_query: q });
+  if (error) return [];
+  return data || [];
+}
+
 /** Incoming pending friend requests for the signed-in user. */
 export async function listFriendRequests() {
   const sb = getSupabaseClient();
@@ -147,6 +168,15 @@ export async function respondFriendRequest(requestId, accept) {
   if (error) throw error;
   if (!data?.ok) throw new Error(data?.error || "Could not respond");
   return data;
+}
+
+/** Outgoing friend requests (pending + recently accepted/declined). */
+export async function listSentFriendRequests() {
+  const sb = getSupabaseClient();
+  if (!sb) return [];
+  const { data, error } = await sb.rpc("list_sent_friend_requests");
+  if (error) return [];
+  return data || [];
 }
 
 export async function pushBoardStats(args) {

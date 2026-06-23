@@ -58,6 +58,8 @@ export function primaryFavorite(settings) {
 export function profileForCloud(settings) {
   return {
     display_name: boardDisplayName(settings),
+    first_name: (settings.athleteName || "").trim() || null,
+    last_name: (settings.lastName || "").trim() || null,
     date_of_birth: settings.dateOfBirth || null,
     jersey_number: normalizeJerseyNumber(settings.jerseyNumber),
     favorite_player: primaryFavorite(settings) || null,

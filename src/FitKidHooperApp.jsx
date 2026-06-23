@@ -39,6 +39,7 @@ import {
   consumeInviteDeepLink,
   consumeMissionDeepLink,
   consumeMessagesDeepLink,
+  consumeFriendsDeepLink,
   scheduleMissionReminder,
 } from "./lib/notifications.js";
 import {
@@ -5242,6 +5243,7 @@ export default function FitKidHooperApp() {
   const [inviteCode, setInviteCode] = useState(() => consumeInviteDeepLink());
   const [missionDeepLink, setMissionDeepLink] = useState(() => consumeMissionDeepLink());
   const [messagesDeepLink, setMessagesDeepLink] = useState(() => consumeMessagesDeepLink());
+  const [friendsDeepLink] = useState(() => consumeFriendsDeepLink());
   const [openMessagesInbox, setOpenMessagesInbox] = useState(false);
   const auth = useAuth(settings);
   const { squadNotifications, unreadMessages, friendRequests, refreshSquadNotifications } = useSquadNotifications(auth.isSignedIn);
@@ -6050,6 +6052,12 @@ export default function FitKidHooperApp() {
     setFriendsFocusTick(t => t + 1);
     setMessagesDeepLink(false);
   }, [messagesDeepLink]);
+
+  useEffect(() => {
+    if (!friendsDeepLink) return;
+    setView("squad");
+    setFriendsFocusTick(t => t + 1);
+  }, [friendsDeepLink]);
 
   useEffect(() => {
     if (!auth.isSignedIn) return;

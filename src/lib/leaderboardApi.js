@@ -234,6 +234,8 @@ export async function pushFromAppState({ settings, completed, missionLog, getCat
     playLike: cloudProfile.favorite_playlike || cloudProfile.favorite_current || cloudProfile.favorite_player || null,
     pathSnapshot,
     profileExtras: {
+      first_name: cloudProfile.first_name,
+      last_name: cloudProfile.last_name,
       jersey_number: cloudProfile.jersey_number,
       favorite_player: cloudProfile.favorite_player,
       favorite_current: cloudProfile.favorite_current,
