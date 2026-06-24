@@ -8,7 +8,7 @@ import FeedbackCenter from "./components/FeedbackCenter.jsx";
 import { useAuth } from "./hooks/useAuth.js";
 import { useSquadNotifications } from "./hooks/useSquadNotifications.js";
 import GuideNavButton from "./components/GuideNavButton.jsx";
-import { computeShotStyleMakes } from "./lib/shotStyles.js";
+import { computeShotStyleMakes, SHOT_STYLES, getShotStyle, getLastShotStyle, setLastShotStyle } from "./lib/shotStyles.js";
 import { getAgeGroup, getAgeGroupLabel } from "./lib/periodStats.js";
 import { exportCanonicalSave, importCanonicalSave } from "./lib/canonicalSave.js";
 import { recoverFromSyncBackupIfNeeded } from "./lib/syncBackup.js";
@@ -3092,7 +3092,7 @@ function ShotTracker({ P, S, BG, athleteName, settings, onLogChange, onOpenGuide
   const [activeLoc, setActiveLoc] = useState(null);
   const [lastShot, setLastShot] = useState(null);
   const [selDate, setSelDate] = useState(todayKey());
-  const [logDate, setLogDate] = useState(todayKey);
+  const [logDate, setLogDate] = useState(todayKey());
   const [range, setRange] = useState(14);
   const [useCustom, setUseCustom] = useState(false);
   const [custStart, setCustStart] = useState("");
