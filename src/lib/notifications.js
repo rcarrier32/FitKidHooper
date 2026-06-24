@@ -222,29 +222,40 @@ export function consumeInviteDeepLink() {
   return null;
 }
 
-/** Open Me → Friends → Messages inbox (from push notification tap). */
-export function consumeMessagesDeepLink() {
-  if (typeof window === "undefined") return false;
+/**
+ * Consume ?view=, ?messages=, ?friends= navigation deep links (push / SQL).
+ * Returns { tab, openMessages?, openFriends? } or null.
+ */
+export function consumeNavigationDeepLink() {
+  if (typeof window === "undefined") return null;
   const params = new URLSearchParams(window.location.search);
-  if (params.get("messages") !== "1" && params.get("view") !== "messages" && params.get("view") !== "me") return false;
-  params.delete("messages");
-  params.delete("view");
-  const qs = params.toString();
-  const path = window.location.pathname + (qs ? `?${qs}` : "");
-  window.history.replaceState({}, "", path);
-  return true;
-}
+  const view = params.get("view");
+  const messages = params.get("messages") === "1";
+  const friends = params.get("friends") === "1";
 
-/** Open Squad → Friends tab (from friend-request push tap). */
-export function consumeFriendsDeepLink() {
-  if (typeof window === "undefined") return false;
-  const params = new URLSearchParams(window.location.search);
-  if (params.get("friends") !== "1") return false;
-  params.delete("friends");
+  let tab = null;
+  let openMessages = false;
+  let openFriends = false;
+
+  if (view === "me" || view === "progress") tab = "progress";
+  else if (view === "boards" || view === "challenges") tab = "boards";
+  else if (view === "home" || view === "today") tab = "home";
+  else if (view === "squad") tab = "squad";
+  else if (view === "shots") tab = "shots";
+  else if (view === "programs") tab = "programs";
+  else if (view === "messages" || messages) { tab = "squad"; openMessages = true; }
+  else if (friends) { tab = "squad"; openFriends = true; }
+
+  if (!tab) return null;
+
+  if (view) params.delete("view");
+  if (messages) params.delete("messages");
+  if (friends) params.delete("friends");
   const qs = params.toString();
   const path = window.location.pathname + (qs ? `?${qs}` : "");
   window.history.replaceState({}, "", path);
-  return true;
+
+  return { tab, openMessages, openFriends };
 }
 
 /** Schedule a one-shot evening reminder if mission incomplete (call once per session). */

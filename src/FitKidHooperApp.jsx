@@ -39,8 +39,7 @@ import { resolveDailyAction, pickChallengeNudge } from "./lib/dailyAction.js";
 import {
   consumeInviteDeepLink,
   consumeMissionDeepLink,
-  consumeMessagesDeepLink,
-  consumeFriendsDeepLink,
+  consumeNavigationDeepLink,
   scheduleMissionReminder,
   dismissNotificationPrompt,
   needsNotificationSubscription,
@@ -84,6 +83,8 @@ import {
   tabPreviewLabel,
   migrateThemeSettings,
 } from "./lib/theme.js";
+import WhatsNewSheet from "./components/WhatsNewSheet.jsx";
+import { shouldShowWhatsNew, markWhatsNewSeen, WHATS_NEW_EVENT } from "./lib/changelog.js";
 import SettingsSheet from "./components/SettingsSheet.jsx";
 import HighlightVideoSheet from "./components/HighlightVideoSheet.jsx";
 import {
@@ -5258,16 +5259,17 @@ function loadSettingsFromStorage(defaults) {
 export default function FitKidHooperApp() {
   const [settings, setSettings] = useState(() => loadSettingsFromStorage(DEFAULT));
   const [showSettings, setShowSettings] = useState(false);
+  const [showPlayLikePicker, setShowPlayLikePicker] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const [authInitialMode, setAuthInitialMode] = useState("signin");
   const [inviteCode, setInviteCode] = useState(() => consumeInviteDeepLink());
   const [missionDeepLink, setMissionDeepLink] = useState(() => consumeMissionDeepLink());
-  const [messagesDeepLink, setMessagesDeepLink] = useState(() => consumeMessagesDeepLink());
-  const [friendsDeepLink] = useState(() => consumeFriendsDeepLink());
+  const [navDeepLink, setNavDeepLink] = useState(() => consumeNavigationDeepLink());
   const [openMessagesInbox, setOpenMessagesInbox] = useState(false);
   const auth = useAuth(settings);
   const { squadNotifications, unreadMessages, friendRequests, refreshSquadNotifications } = useSquadNotifications(auth.isSignedIn);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [showWhatsNew, setShowWhatsNew] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showAppMap, setShowAppMap] = useState(false);
   const [view, setView] = useState("home");
@@ -5297,6 +5299,7 @@ export default function FitKidHooperApp() {
   const [workoutOpen, setWorkoutOpen] = useState(() => {
     try { return localStorage.getItem("fkh-workout-open") === "1"; } catch { return false; }
   });
+  const [templateScrolledEnd, setTemplateScrolledEnd] = useState(false);
   const [friendsFocusTick, setFriendsFocusTick] = useState(0);
   const [playerHighlight, setPlayerHighlight] = useState(null);
 
@@ -5492,6 +5495,19 @@ export default function FitKidHooperApp() {
     setShowTourPrompt(shouldShowTourPrompt());
   }, [tourActive, showOnboarding]);
 
+  useEffect(() => {
+    const onShow = () => setShowWhatsNew(true);
+    window.addEventListener(WHATS_NEW_EVENT, onShow);
+    return () => window.removeEventListener(WHATS_NEW_EVENT, onShow);
+  }, []);
+
+  useEffect(() => {
+    if (showOnboarding || tourActive || auth.loading) return;
+    if (!shouldShowWhatsNew()) return;
+    const t = setTimeout(() => setShowWhatsNew(true), 800);
+    return () => clearTimeout(t);
+  }, [showOnboarding, tourActive, auth.loading]);
+
   const getExerciseCategory = useCallback(exId => (ALL_EXERCISES[exId] || {})._cat, []);
 
   const syncLeaderboard = useCallback(async ({ force = false } = {}) => {
@@ -5545,31 +5561,6 @@ export default function FitKidHooperApp() {
     }
   }, [syncLeaderboard]);
 
-  /* PWA install prompt ─────────────────────────────────────────── */
-  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-  const [installPrompt, setInstallPrompt] = useState(()=>window._installPrompt||null);
-  const [templateScrolledEnd, setTemplateScrolledEnd] = useState(false);
-  const [showInstallBanner, setShowInstallBanner] = useState(()=>{
-    if (isStandalone) return false;
-    if (localStorage.getItem('fkh-install-dismissed')) return false;
-    const snoozeUntil = parseInt(localStorage.getItem('fkh-install-snooze-until')||'0');
-    if (snoozeUntil > Date.now()) return false;
-    return true;
-  });
-  useEffect(()=>{
-    const handler = ()=>{ setInstallPrompt(window._installPrompt); setShowInstallBanner(p=>p||true); };
-    window.addEventListener('installpromptready', handler);
-    return ()=>window.removeEventListener('installpromptready', handler);
-  },[]);
-  const dismissInstall = ()=>{
-    setShowInstallBanner(false);
-    const count = parseInt(localStorage.getItem('fkh-install-dismiss-count')||'0') + 1;
-    localStorage.setItem('fkh-install-dismiss-count', String(count));
-    if (count >= 3) { localStorage.setItem('fkh-install-dismissed','1'); }
-    else { localStorage.setItem('fkh-install-snooze-until', String(Date.now()+7*86400000)); }
-  };
-  const triggerInstall = ()=>{ if (installPrompt){ installPrompt.prompt(); installPrompt.userChoice.then(()=>dismissInstall()); } };
 
   const calcWeek = startDate => {
     if (!startDate) return null;
@@ -5823,8 +5814,14 @@ export default function FitKidHooperApp() {
     setShowFeedback(true);
   }, []);
 
+  const dismissWhatsNew = useCallback(() => {
+    markWhatsNewSeen();
+    setShowWhatsNew(false);
+  }, []);
+
   const settingsSheet = showSettings ? (
     <SettingsSheet settings={settings} setSettings={setSettings} onClose={() => setShowSettings(false)} onOpenFeedback={openFeedback}
+      onOpenWhatsNew={() => setShowWhatsNew(true)}
       onOpenAuth={() => { setShowSettings(false); setShowAuth(true); }}
       onReplayTour={() => { setShowSettings(false); startTour(); }}
       isSignedIn={auth.isSignedIn}
@@ -5872,7 +5869,8 @@ export default function FitKidHooperApp() {
       case "progress": setView("progress"); setProgressTab("overview"); break;
       case "badges": setView("progress"); setProgressTab("locker"); break;
       case "stats": setView("progress"); setProgressTab("stats"); break;
-      case "history": setView("history"); break;
+      case "history": setPrevView("progress"); setView("history"); break;
+      case "playlike": setShowPlayLikePicker(true); break;
       case "settings": setShowSettings(true); break;
       case "account": setShowAuth(true); break;
       case "help": setShowHelp(true); break;
@@ -6147,18 +6145,15 @@ export default function FitKidHooperApp() {
   }, [view, auth.isSignedIn, refreshSquadNotifications]);
 
   useEffect(() => {
-    if (!messagesDeepLink) return;
-    setView("squad");
-    setOpenMessagesInbox(true);
-    setFriendsFocusTick(t => t + 1);
-    setMessagesDeepLink(false);
-  }, [messagesDeepLink]);
-
-  useEffect(() => {
-    if (!friendsDeepLink) return;
-    setView("squad");
-    setFriendsFocusTick(t => t + 1);
-  }, [friendsDeepLink]);
+    if (!navDeepLink) return;
+    setView(navDeepLink.tab);
+    if (navDeepLink.openMessages) {
+      setOpenMessagesInbox(true);
+      setFriendsFocusTick(t => t + 1);
+    }
+    if (navDeepLink.openFriends) setFriendsFocusTick(t => t + 1);
+    setNavDeepLink(null);
+  }, [navDeepLink]);
 
   useEffect(() => {
     if (!auth.isSignedIn) return;
@@ -6318,6 +6313,18 @@ export default function FitKidHooperApp() {
   const shellOverlays = (
     <>
       {settingsSheet}{feedbackSheet}{authSheet}{helpSheet}{appMapSheet}
+      {showPlayLikePicker && (
+        <PlayLikePickerSheet
+          open={showPlayLikePicker}
+          onClose={() => setShowPlayLikePicker(false)}
+          value={settings.favoritePlayLike || ""}
+          onChange={v => setSettings(s => ({ ...s, favoritePlayLike: v }))}
+          accent={P}
+        />
+      )}
+      {showWhatsNew && (
+        <WhatsNewSheet P={P} SF={SF} onClose={() => setShowWhatsNew(false)} onDismiss={dismissWhatsNew} />
+      )}
       {playerHighlight && (
         <HighlightVideoSheet
           videoId={playerHighlight.videoId}
@@ -6464,7 +6471,7 @@ export default function FitKidHooperApp() {
         onShowHelp={() => setShowHelp(true)}
         onOpenAppMap={() => setShowAppMap(true)}
         onReplayTour={startTour}
-        onViewHistory={() => setView("history")}
+        onViewHistory={() => { setPrevView("progress"); setView("history"); }}
         onOpenSchedule={() => openSchedule("progress", "calendar")}
         onViewReport={() => { setPrevView("progress"); setView("report"); }}
         onViewLeaderboard={() => setView("boards")}
@@ -6490,11 +6497,15 @@ export default function FitKidHooperApp() {
 
   /* HISTORY */
   if (view==="history") return (
-    <HistoryView
-      completed={completed} badgeDates={badgeDates} settings={settings}
-      allExercises={ALL_EXERCISES}
-      P={P} BG={BG} SF={SF} bd={bd} lbl={lbl}
-      onBack={()=>setView("progress")}/>
+    <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif", background:BG, color:"var(--fkh-text)", minHeight:"100vh", maxWidth:680, margin:"0 auto", paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
+      {shellOverlays}
+      <HistoryView
+        completed={completed} badgeDates={badgeDates} settings={settings}
+        allExercises={ALL_EXERCISES}
+        P={P} BG={BG} SF={SF} bd={bd} lbl={lbl}
+        onBack={() => setView(prevView === "progress" ? "progress" : "home")}/>
+      {renderBottomNav()}
+    </div>
   );
 
   /* CHALLENGES */
@@ -7071,6 +7082,10 @@ export default function FitKidHooperApp() {
             FKH <span style={{ color:P }}>Fit Kid Hooper</span>
           </h1>
           <div style={{ display:"flex",gap:6,flexShrink:0 }}>
+            <button type="button" onClick={openFeedback} title="Send feedback" aria-label="Send feedback"
+              style={{ background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:8,color:"var(--fkh-text-muted)",fontSize:12,fontWeight:700,cursor:"pointer",padding:"5px 10px" }}>
+              💬
+            </button>
             <button type="button" onClick={() => setShowHelp(true)}
               style={{ background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:8,color:"var(--fkh-text-muted)",fontSize:12,fontWeight:700,cursor:"pointer",padding:"5px 10px" }}>
               ❓
@@ -7174,7 +7189,7 @@ export default function FitKidHooperApp() {
         searchExercises={searchExercises}
         onPickCategory={(cat) => { setActiveCat(cat); setPrevView("home"); setView("cat"); }}
         onOpenPath={openLegendsJourney}
-        onSetFavorite={() => setShowSettings(true)}
+        onSetFavorite={() => setShowPlayLikePicker(true)}
         onOpenPlayerHighlight={openPlayerHighlight}
         onFocusFriends={focusSquad}
         onOpenMessages={navigateToMessages}

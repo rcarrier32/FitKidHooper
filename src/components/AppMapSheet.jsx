@@ -28,7 +28,7 @@ const MAP = [
     items:[
       { label:"Ranks from rookie to legend" },
       { label:"Signature drills required for each rank" },
-      { label:"Pick who you play like", to:"settings" },
+      { label:"Pick who you play like", to:"playlike" },
       { label:"Earn titles & card frames" },
     ] },
   { key:"progress", emoji:"📈", title:"Progress", blurb:"Everything you've earned.", to:"progress",

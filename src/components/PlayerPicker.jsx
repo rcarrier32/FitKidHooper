@@ -100,6 +100,7 @@ function PlayerListSheet({ open, onClose, pool, query, onQueryChange, results, v
 export default function PlayerPicker({
   value,
   onChange,
+  onPick,
   pool = "both",
   placeholder = "Search players…",
   quickPicks = PLAY_LIKE_QUICK_PICKS,
@@ -142,6 +143,7 @@ export default function PlayerPicker({
 
   const pick = (name) => {
     onChange(name);
+    onPick?.(name);
     setDraft(name);
     setFocused(false);
     setListOpen(false);

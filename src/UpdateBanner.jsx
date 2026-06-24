@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
+import { showWhatsNewSheet } from './lib/changelog.js'
 
 /**
  * Shown only when a new build is waiting — same pattern as the Fit app.
@@ -48,23 +49,41 @@ export default function UpdateBanner() {
       boxShadow: '0 4px 24px rgba(0,0,0,0.45)',
     }}>
       <span>🏀 New version ready</span>
-      <button
-        type="button"
-        onClick={() => updateServiceWorker(true)}
-        style={{
-          background: '#000',
-          color: '#f97316',
-          border: 'none',
-          borderRadius: 8,
-          padding: '8px 14px',
-          fontSize: 12,
-          fontWeight: 800,
-          cursor: 'pointer',
-          flexShrink: 0,
-        }}
-      >
-        Update
-      </button>
+      <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+        <button
+          type="button"
+          onClick={showWhatsNewSheet}
+          style={{
+            background: 'transparent',
+            color: '#000',
+            border: '1.5px solid rgba(0,0,0,0.35)',
+            borderRadius: 8,
+            padding: '8px 10px',
+            fontSize: 11,
+            fontWeight: 800,
+            cursor: 'pointer',
+          }}
+        >
+          What&apos;s new
+        </button>
+        <button
+          type="button"
+          onClick={() => updateServiceWorker(true)}
+          style={{
+            background: '#000',
+            color: '#f97316',
+            border: 'none',
+            borderRadius: 8,
+            padding: '8px 14px',
+            fontSize: 12,
+            fontWeight: 800,
+            cursor: 'pointer',
+          }}
+        >
+          Update
+        </button>
+      </div>
     </div>
   )
 }
+
