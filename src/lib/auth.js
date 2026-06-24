@@ -64,6 +64,27 @@ export async function getEffectiveAthleteId() {
   return getDeviceAthleteId();
 }
 
+/** Synchronous read of the persisted Supabase session (localStorage). */
+export function readStoredAuthSession() {
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k?.startsWith("sb-") || !k.endsWith("-auth-token")) continue;
+      const v = JSON.parse(localStorage.getItem(k) || "null");
+      if (!v) continue;
+      const accessToken = v.access_token || v.currentSession?.access_token;
+      if (!accessToken) continue;
+      const userId = v.user?.id || v.currentSession?.user?.id || null;
+      return { userId, key: k };
+    }
+  } catch { /* localStorage unavailable */ }
+  return null;
+}
+
+export function hasStoredAuthSession() {
+  return Boolean(readStoredAuthSession());
+}
+
 export async function getAuthSession() {
   const sb = getSupabaseClient();
   if (!sb) return { session: null, user: null };
@@ -74,8 +95,8 @@ export async function getAuthSession() {
 export function onAuthStateChange(callback) {
   const sb = getSupabaseClient();
   if (!sb) return () => {};
-  const { data: { subscription } } = sb.auth.onAuthStateChange((_event, session) => {
-    callback(session);
+  const { data: { subscription } } = sb.auth.onAuthStateChange((event, session) => {
+    callback(session, event);
   });
   return () => subscription.unsubscribe();
 }

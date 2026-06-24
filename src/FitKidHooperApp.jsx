@@ -16,7 +16,7 @@ import { safePersistKey } from "./lib/dataSafety.js";
 import { mergeUserSettings } from "./lib/settingsMerge.js";
 import { hydrateSettingsFromCloudProfile, persistHydratedSettings, normalizeProfileFields } from "./lib/profileHydrate.js";
 import { syncAvatarToCloud, clearAvatarFromCloud } from "./lib/avatarCloud.js";
-import { getEffectiveAthleteId } from "./lib/auth.js";
+import { getEffectiveAthleteId, hasStoredAuthSession } from "./lib/auth.js";
 import { CATS, CAT_DOT_COLORS } from "./lib/categories.js";
 import { BADGES_DEF, BADGE_CATS, getEarnedBadges, getBadgeProgress } from "./lib/badges.js";
 import { PROGRESSION_CHAINS, getChainForExercise, getChainStatus } from "./lib/progressionChains.js";
@@ -5116,6 +5116,21 @@ const MIGRATIONS = [
       }
     } catch { /* ignore */ }
   },
+  // ── v5 → v6: signed-in athletes skip onboarding after app updates ──
+  () => {
+    try {
+      if (localStorage.getItem("s_onboarded")) return;
+      if (hasStoredAuthSession()) {
+        localStorage.setItem("s_onboarded", "1");
+        return;
+      }
+      const hasUsername = Boolean(localStorage.getItem("fkh-last-username"));
+      const hasCloudSave = parseInt(localStorage.getItem("fkh-cloud-version") || "0", 10) > 0;
+      if (hasUsername && hasCloudSave) {
+        localStorage.setItem("s_onboarded", "1");
+      }
+    } catch { /* ignore */ }
+  },
 ];
 
 const DATA_VERSION = MIGRATIONS.length; // keep in lock-step automatically
@@ -5372,7 +5387,11 @@ export default function FitKidHooperApp() {
   }, [auth.syncNow, auth.user?.id, reloadAthleteStateFromStorage, hydrateProfileIntoState, refreshSquadNotifications]);
   const [reportPeriod, setReportPeriod] = useState("30d");
   const [strDay, setStrDay] = useState(()=>localStorage.getItem('s_strday')||'Day 1');
-  const [showOnboarding, setShowOnboarding] = useState(()=>!localStorage.getItem('s_onboarded')&&settings.athleteName===DEFAULT.athleteName);
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    if (localStorage.getItem("s_onboarded")) return false;
+    if (hasStoredAuthSession()) return false;
+    return settings.athleteName === DEFAULT.athleteName;
+  });
   const [tourActive, setTourActive] = useState(false);
   const [tourStep, setTourStep] = useState(0);
   const tourStepRef = useRef(0);
@@ -5447,6 +5466,13 @@ export default function FitKidHooperApp() {
     if (result.ok) setShowNotificationPrompt(false);
     return result;
   }, [auth.isSignedIn]);
+
+  useEffect(() => {
+    if (auth.loading) return;
+    if (!auth.isSignedIn) return;
+    localStorage.setItem("s_onboarded", "1");
+    setShowOnboarding(false);
+  }, [auth.loading, auth.isSignedIn]);
 
   useEffect(() => {
     if (!auth.isSignedIn || tourActive || showOnboarding) {
@@ -6983,7 +7009,7 @@ export default function FitKidHooperApp() {
         onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
       {renderMissionOverlays()}
       {tourOverlay}
-      {showOnboarding && (
+      {showOnboarding && !auth.loading && (
         <OnboardingSheet
           P={P}
           onComplete={({ settings: patch, finalize = true }) => {

@@ -7,6 +7,7 @@ import {
   isAuthConfigured,
   getSignedInUsername,
 } from "../lib/auth.js";
+import { getSupabaseClient } from "../lib/supabaseClient.js";
 import { syncCloudSave } from "../lib/cloudSave.js";
 import { setAnalyticsAthleteId } from "../lib/analytics.js";
 
@@ -18,14 +19,47 @@ export function useAuth(settings) {
 
   useEffect(() => {
     let mounted = true;
+    let initialResolved = false;
+
+    const resolveUser = (u) => {
+      if (!mounted) return;
+      setUser(u);
+      setAnalyticsAthleteId(u?.id ?? null);
+    };
+
+    const finishInitialLoad = () => {
+      if (!mounted || initialResolved) return;
+      initialResolved = true;
+      setLoading(false);
+    };
+
+    const unsub = onAuthStateChange((session, event) => {
+      resolveUser(session?.user ?? null);
+      if (event === "INITIAL_SESSION" || event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+        finishInitialLoad();
+      }
+    });
+
     getAuthSession().then(({ user: u }) => {
-      if (mounted) { setUser(u); setLoading(false); setAnalyticsAthleteId(u?.id ?? null); }
+      resolveUser(u);
+      finishInitialLoad();
     });
-    const unsub = onAuthStateChange(session => {
-      setUser(session?.user ?? null);
-      setAnalyticsAthleteId(session?.user?.id ?? null);
-    });
-    return () => { mounted = false; unsub(); };
+
+    const sb = getSupabaseClient();
+    const onVisible = () => {
+      if (document.visibilityState !== "visible" || !sb) return;
+      sb.auth.getSession().then(({ data: { session } }) => {
+        if (!mounted) return;
+        resolveUser(session?.user ?? null);
+      });
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      mounted = false;
+      unsub();
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []);
 
   useEffect(() => {

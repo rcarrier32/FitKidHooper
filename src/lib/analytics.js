@@ -1,4 +1,4 @@
-import { getDeviceAthleteId as getAthleteId } from "./auth.js";
+import { getDeviceAthleteId as getAthleteId, readStoredAuthSession } from "./auth.js";
 import { getSupabaseClient, isSupabaseConfigured } from "./supabaseClient.js";
 import { ANALYTICS_EVENTS } from "./analyticsTypes.js";
 
@@ -29,16 +29,7 @@ let athleteIdOverride = null;
 // listener sets the override, so without this the first event of a signed-in
 // session would log under the device id.
 function authIdFromStorage() {
-  try {
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k && k.startsWith("sb-") && k.endsWith("-auth-token")) {
-        const v = JSON.parse(localStorage.getItem(k) || "null");
-        return v?.user?.id || v?.currentSession?.user?.id || null;
-      }
-    }
-  } catch { /* localStorage unavailable */ }
-  return null;
+  return readStoredAuthSession()?.userId ?? null;
 }
 
 function activeAthleteId() {
