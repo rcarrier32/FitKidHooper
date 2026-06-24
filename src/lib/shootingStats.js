@@ -84,6 +84,48 @@ export function computeSpotStats(shotLog, { start = null, end = null } = {}) {
   return rows;
 }
 
+/** Per-location accuracy (named court spots), most-attempted first. */
+export function computeLocationStats(shotLog, { start = null, end = null } = {}) {
+  const map = {};
+  for (const [date, shots] of Object.entries(shotLog || {})) {
+    if (start && date < start) continue;
+    if (end && date > end) continue;
+    const list = Array.isArray(shots) ? shots : [];
+    for (const s of list) {
+      if (!s || typeof s !== "object") continue;
+      const label = s.location || TYPE_LABEL[s.type] || s.type;
+      if (!map[label]) map[label] = { label, m: 0, a: 0 };
+      map[label].a += 1;
+      if (s.made !== false) map[label].m += 1;
+    }
+  }
+  const rows = Object.values(map);
+  for (const r of rows) r.pct = pct(r.m, r.a);
+  rows.sort((a, b) => b.a - a.a);
+  return rows;
+}
+
+/** Per court-zone (layup, corner 3, etc.) accuracy. */
+export function computeZoneTypeStats(shotLog, { start = null, end = null } = {}) {
+  const map = {};
+  for (const [date, shots] of Object.entries(shotLog || {})) {
+    if (start && date < start) continue;
+    if (end && date > end) continue;
+    const list = Array.isArray(shots) ? shots : [];
+    for (const s of list) {
+      if (!s || typeof s !== "object" || !s.type) continue;
+      const label = TYPE_LABEL[s.type] || s.type;
+      if (!map[s.type]) map[s.type] = { id: s.type, label, m: 0, a: 0 };
+      map[s.type].a += 1;
+      if (s.made !== false) map[s.type].m += 1;
+    }
+  }
+  const rows = Object.values(map);
+  for (const r of rows) r.pct = pct(r.m, r.a);
+  rows.sort((a, b) => b.a - a.a);
+  return rows;
+}
+
 /** Convenience: all-time + this-week accuracy from the raw localStorage log. */
 export function shootingSnapshot(shotLog) {
   const { start, end } = getPeriodRange("week");

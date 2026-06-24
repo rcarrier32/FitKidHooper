@@ -38,7 +38,7 @@ import {
   pushEquippedIdentity,
 } from "./lib/achievementsApi.js";
 import { getStreak, getTrainingDays, getWeekShotGoal, getMonthShotGoal, setWeekShotGoal, setMonthShotGoal, getShotGoalPeriod, setShotGoalPeriod, getWeekMakesFromLog, getMonthMakesFromLog, daysLeftInWeek, daysLeftInMonth } from "./lib/progressStats.js";
-import { computeShootingStats } from "./lib/shootingStats.js";
+import { computeShootingStats, computeSpotStats, computeLocationStats, computeZoneTypeStats } from "./lib/shootingStats.js";
 import { resolveDailyAction, pickChallengeNudge } from "./lib/dailyAction.js";
 import {
   consumeInviteDeepLink,
@@ -2941,8 +2941,6 @@ const SHOT_TYPES = [
   { id:"three_slot",   label:"Slot 3",         emoji:"↗️", locations:["Left Slot","Right Slot"] },
   { id:"three_center", label:"Top 3",          emoji:"🎯", locations:null },
 ];
-/** Common spots for quick pick without scrolling the full grid. */
-const QUICK_SPOT_IDS = ["layup", "free_throw", "mid_bank", "three_corner", "three_center"];
 const SHOT_COLORS = {
   layup:"#34d399", rev_layup:"#6ee7b7", block_bank:"#60a5fa",
   mid_bank:"#93c5fd", mid:"#a78bfa", mid_baseline:"#c4b5fd", free_throw:"#fbbf24",
@@ -3176,7 +3174,6 @@ function ShotTracker({ P, S, BG, athleteName, settings, onLogChange, onOpenGuide
     setShotCount({ made:0, missed:0 });
   };
 
-  const selectType = tid => selectZone(tid);
   const undo = () => {
     const k = logDate;
     if (!(log[k]?.length)) return;
@@ -3188,11 +3185,14 @@ function ShotTracker({ P, S, BG, athleteName, settings, onLogChange, onOpenGuide
   const logDayShots = log[logDate]||[];
   const logDayLabel = logDate === todayKey() ? "Today" : fmtDate(logDate);
   const logDayTotal = logDayShots.length;
-  const logDayByType = useMemo(() => { const c={}; logDayShots.forEach(s=>{c[s.type]=(c[s.type]||0)+1}); return c; }, [logDayShots]);
   const allFlat = useMemo(()=>Object.values(log).flat(),[log]);
   const allByType = useMemo(()=>{ const c={}; allFlat.forEach(s=>{c[s.type]=(c[s.type]||0)+1}); return c; },[allFlat]);
   const allTotal = allFlat.length;
-  const styleAccuracy = useMemo(() => computeShootingStats(log).styles, [log]);
+  const allTimeStats = useMemo(() => computeShootingStats(log), [log]);
+  const styleAccuracy = useMemo(() => allTimeStats.styles, [allTimeStats]);
+  const locationStats = useMemo(() => computeLocationStats(log), [log]);
+  const zoneTypeStats = useMemo(() => computeZoneTypeStats(log), [log]);
+  const spotStats = useMemo(() => computeSpotStats(log), [log]);
   const streak = useMemo(()=>{ let s=0,d=new Date(); while(true){const k=d.toLocaleDateString("en-CA");if((log[k]||[]).length>0){s++;d.setDate(d.getDate()-1)}else break} return s; },[log]);
   const todayTotal = todayShots.length;
   const todayMade = useMemo(()=>todayShots.filter(s=>s.made!==false).length,[todayShots]);
@@ -3409,14 +3409,14 @@ function ShotTracker({ P, S, BG, athleteName, settings, onLogChange, onOpenGuide
         <div style={{ padding:"14px 16px 0" }}>
           <div style={{
             display:"flex", alignItems:"center", gap:8, flexWrap:"wrap",
-            marginBottom:14, padding:"10px 12px", borderRadius:12,
-            background: logDate !== todayKey() ? `${P}10` : sf,
-            border:`1px solid ${logDate !== todayKey() ? `${P}30` : bd}`,
+            marginBottom:12, padding:"8px 10px", borderRadius:10,
+            background: logDate !== todayKey() ? `${P}10` : "transparent",
+            border:`1px solid ${logDate !== todayKey() ? `${P}28` : bd}`,
           }}>
-            <span style={{ fontSize:11, fontWeight:700, color:"#64748b" }}>📅 Log for</span>
+            <span style={{ fontSize:10, fontWeight:700, color:"#64748b" }}>📅</span>
             {[["Today", todayKey()], ["Yesterday", offsetDateKey(-1)]].map(([label, key]) => (
               <button key={label} type="button" onClick={() => pickLogDate(key)} style={{
-                padding:"6px 12px", borderRadius:99, fontSize:11, fontWeight:700, cursor:"pointer",
+                padding:"5px 10px", borderRadius:99, fontSize:10, fontWeight:700, cursor:"pointer",
                 border:`1px solid ${logDate === key ? P : bd}`,
                 background: logDate === key ? `${P}20` : "transparent",
                 color: logDate === key ? P : "#64748b",
@@ -3428,162 +3428,148 @@ function ShotTracker({ P, S, BG, athleteName, settings, onLogChange, onOpenGuide
               max={todayKey()}
               onChange={e => pickLogDate(e.target.value)}
               style={{
-                flex:"1 1 130px", minWidth:130, background:"rgba(255,255,255,0.05)",
-                border:`1px solid ${bd}`, borderRadius:8, padding:"6px 10px",
-                color:"var(--fkh-text)", fontSize:12, outline:"none",
+                flex:"1 1 120px", minWidth:120, background:"rgba(255,255,255,0.05)",
+                border:`1px solid ${bd}`, borderRadius:8, padding:"5px 8px",
+                color:"var(--fkh-text)", fontSize:11, outline:"none",
               }}
             />
-            {logDate !== todayKey() && (
-              <span style={{ fontSize:10, color:P, fontWeight:600, width:"100%" }}>
-                Saving to {logDayLabel} — use this if you forgot to log yesterday
-              </span>
+          </div>
+
+          <div style={{ background:sf, border:`1px solid ${P}22`, borderRadius:14, padding:"12px 12px 14px", marginBottom:14 }}>
+            <div style={{ fontSize:14, fontWeight:800, color:"var(--fkh-text)", marginBottom:4 }}>Log Shots</div>
+            <div style={{ fontSize:11, color:"#64748b", marginBottom:12, lineHeight:1.45 }}>
+              Tap a spot on the court → pick how you shot → log makes and misses. FG% is calculated for you.
+            </div>
+
+            <CourtMap priColor={P} onZoneSelect={selectZone} lastShot={lastShot}/>
+
+            {activeType && !activeLoc && (
+              <div style={{ marginTop:12, paddingTop:12, borderTop:`1px solid ${bd}` }}>
+                <div style={{ fontSize:11, fontWeight:700, color:P, marginBottom:8 }}>
+                  {SHOT_TYPES.find(s=>s.id===activeType)?.emoji}{" "}
+                  {SHOT_TYPES.find(s=>s.id===activeType)?.label} — pick side
+                </div>
+                <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                  {SHOT_TYPES.find(s=>s.id===activeType)?.locations?.map(loc=>(
+                    <button key={loc} type="button" onClick={()=>setActiveLoc(loc)} style={{
+                      padding:"7px 12px", borderRadius:10, border:`1px solid ${P}40`,
+                      background:`${P}18`, color:P, fontSize:11, fontWeight:600, cursor:"pointer",
+                    }}>{loc}</button>
+                  ))}
+                  <button type="button" onClick={()=>{ setActiveType(null); setActiveLoc(null); }} style={{
+                    padding:"7px 10px", borderRadius:10, border:`1px solid ${bd}`,
+                    background:"transparent", color:"#64748b", fontSize:11, cursor:"pointer",
+                  }}>✕</button>
+                </div>
+              </div>
+            )}
+
+            {activeType && activeLoc && (() => {
+              const st = SHOT_TYPES.find(s=>s.id===activeType);
+              const loc = activeLoc === "__noloc__" ? null : activeLoc;
+              const total = shotCount.made + shotCount.missed;
+              const spotLabel = loc ? `${st?.label} · ${loc}` : st?.label;
+              const stepBtn = (style) => ({
+                width:40, height:40, borderRadius:10, border:"1px solid rgba(255,255,255,0.12)",
+                background:"rgba(255,255,255,0.06)", color:"var(--fkh-text)", fontSize:20,
+                fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center",
+                ...style,
+              });
+              return (
+                <div style={{ marginTop:12, paddingTop:12, borderTop:`1px solid ${bd}` }}>
+                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, marginBottom:10 }}>
+                    <div style={{ fontSize:12, fontWeight:700, color:P }}>{st?.emoji} {spotLabel}</div>
+                    <button type="button" onClick={()=>{ setActiveType(null); setActiveLoc(null); setShotCount({ made:0, missed:0 }); }}
+                      style={{ background:"transparent", border:"none", color:"#64748b", fontSize:11, cursor:"pointer", padding:0 }}>
+                      Change spot
+                    </button>
+                  </div>
+
+                  <div style={{ display:"flex", justifyContent:"center", gap:10, marginBottom:14 }}>
+                    {SHOT_STYLES.map(sty => (
+                      <button key={sty.id} type="button" title={sty.label} onClick={() => pickShotStyle(sty.id)}
+                        style={{
+                          width:46, height:46, borderRadius:12, cursor:"pointer",
+                          border:`1.5px solid ${shotStyle === sty.id ? P : bd}`,
+                          background: shotStyle === sty.id ? `${P}22` : "rgba(255,255,255,0.04)",
+                          fontSize:20, lineHeight:1,
+                        }}>
+                        {sty.emoji}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
+                    <span style={{ fontSize:12, fontWeight:700, color:"#22c55e", width:62 }}>Made</span>
+                    <button type="button" style={stepBtn()} onClick={()=>setShotCount(c=>({...c,made:Math.max(0,c.made-1)}))}>−</button>
+                    <input
+                      type="number" inputMode="numeric" min="0"
+                      value={shotCount.made}
+                      onChange={e=>setShotCount(c=>({...c,made:Math.max(0,parseInt(e.target.value)||0)}))}
+                      onFocus={e=>e.target.select()}
+                      style={{ width:48, textAlign:"center", fontSize:24, fontWeight:800, color:"#22c55e",
+                        fontFamily:"'DM Mono',monospace", background:"transparent", border:"none",
+                        outline:"none", WebkitAppearance:"none", MozAppearance:"textfield", padding:0 }}
+                    />
+                    <button type="button" style={stepBtn({ background:"#22c55e22", borderColor:"#22c55e44" })}
+                      onClick={()=>setShotCount(c=>({...c,made:c.made+1}))}>+</button>
+                  </div>
+                  <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
+                    <span style={{ fontSize:12, fontWeight:700, color:"#ef4444", width:62 }}>Miss</span>
+                    <button type="button" style={stepBtn()} onClick={()=>setShotCount(c=>({...c,missed:Math.max(0,c.missed-1)}))}>−</button>
+                    <input
+                      type="number" inputMode="numeric" min="0"
+                      value={shotCount.missed}
+                      onChange={e=>setShotCount(c=>({...c,missed:Math.max(0,parseInt(e.target.value)||0)}))}
+                      onFocus={e=>e.target.select()}
+                      style={{ width:48, textAlign:"center", fontSize:24, fontWeight:800, color:"#ef4444",
+                        fontFamily:"'DM Mono',monospace", background:"transparent", border:"none",
+                        outline:"none", WebkitAppearance:"none", MozAppearance:"textfield", padding:0 }}
+                    />
+                    <button type="button" style={stepBtn({ background:"#ef444422", borderColor:"#ef444444" })}
+                      onClick={()=>setShotCount(c=>({...c,missed:c.missed+1}))}>+</button>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={total===0}
+                    onClick={()=>logBatch(activeType, loc, shotCount.made, shotCount.missed)}
+                    style={{ width:"100%", padding:"12px", borderRadius:10, border:`1px solid ${P}44`,
+                      background:total>0?`${P}22`:"rgba(255,255,255,0.04)",
+                      color:total>0?P:"#334155", fontSize:13, fontWeight:700,
+                      cursor:total>0?"pointer":"default" }}>
+                    {total>0 ? `Log ${total} shot${total!==1?"s":""} ✓` : "Add makes or misses above"}
+                  </button>
+                </div>
+              );
+            })()}
+
+            {!activeType && (
+              <div style={{ textAlign:"center", fontSize:11, color:"#475569", marginTop:12, paddingTop:4 }}>
+                Tap a zone on the court to start
+              </div>
             )}
           </div>
 
-          {/* ── Log Shots: style → spot → makes/misses (system calculates %) ── */}
-          <div style={{ background:sf, border:`1px solid ${P}22`, borderRadius:14, padding:"12px 14px", marginBottom:14 }}>
-            <div style={{ fontSize:13, fontWeight:800, color:"var(--fkh-text)", marginBottom:2 }}>Log Shots</div>
-            <div style={{ fontSize:11, color:"#64748b", marginBottom:10, lineHeight:1.45 }}>
-              Pick how you shot, then where. Log makes <b>and</b> misses — your % is calculated automatically.
-            </div>
-            <div style={{ fontSize:9, color:"#475569", letterSpacing:"0.1em", textTransform:"uppercase", fontFamily:"'DM Mono',monospace", marginBottom:6 }}>
-              1 · Shot type
-            </div>
-            <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:12 }}>
-              {SHOT_STYLES.map(st => (
-                <button key={st.id} type="button" onClick={() => pickShotStyle(st.id)}
-                  style={{
-                    flex:"1 1 calc(50% - 6px)", minWidth:0, padding:"8px 10px", borderRadius:10, cursor:"pointer",
-                    textAlign:"left", display:"flex", alignItems:"center", gap:8,
-                    border:`1.5px solid ${shotStyle === st.id ? P : "rgba(255,255,255,0.1)"}`,
-                    background: shotStyle === st.id ? `${P}18` : "rgba(255,255,255,0.03)",
-                    color: shotStyle === st.id ? P : "#94a3b8",
-                  }}>
-                  <span style={{ fontSize:16 }}>{st.emoji}</span>
-                  <span style={{ fontSize:11, fontWeight: shotStyle === st.id ? 800 : 600, lineHeight:1.2 }}>{st.label}</span>
-                </button>
-              ))}
-            </div>
-            <div style={{ fontSize:9, color:"#475569", letterSpacing:"0.1em", textTransform:"uppercase", fontFamily:"'DM Mono',monospace", marginBottom:8 }}>
-              2 · Where on the court
-            </div>
-          </div>
-          <CourtMap priColor={P} onZoneSelect={selectZone} lastShot={lastShot}/>
-          {activeType && !activeLoc && (
-            <div style={{ background:`${P}10`,border:`1px solid ${P}28`,borderRadius:12,padding:"12px 14px",margin:"12px 0" }}>
-              <div style={{ fontSize:12,fontWeight:700,color:P,marginBottom:10 }}>
-                {SHOT_TYPES.find(s=>s.id===activeType)?.emoji} {SHOT_TYPES.find(s=>s.id===activeType)?.label} — Where from?
-              </div>
-              <div style={{ display:"flex",flexWrap:"wrap",gap:8 }}>
-                {SHOT_TYPES.find(s=>s.id===activeType)?.locations?.map(loc=>(
-                  <button key={loc} onClick={()=>setActiveLoc(loc)} style={{ padding:"7px 14px",borderRadius:10,border:`1px solid ${P}40`,background:`${P}18`,color:P,fontSize:12,fontWeight:600,cursor:"pointer" }}>{loc}</button>
-                ))}
-                <button onClick={()=>{setActiveType(null);setActiveLoc(null);}} style={{ padding:"7px 12px",borderRadius:10,border:"1px solid rgba(255,255,255,0.1)",background:"transparent",color:"#475569",fontSize:12,cursor:"pointer" }}>✕</button>
-              </div>
-            </div>
-          )}
-          {activeType && activeLoc && (() => {
-            const st = SHOT_TYPES.find(s=>s.id===activeType);
-            const loc = activeLoc==='__noloc__' ? null : activeLoc;
-            const total = shotCount.made + shotCount.missed;
-            const stepBtn = (style) => ({
-              width:44, height:44, borderRadius:10, border:"1px solid rgba(255,255,255,0.12)",
-              background:"rgba(255,255,255,0.06)", color:"var(--fkh-text)", fontSize:22,
-              fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center",
-              ...style,
-            });
-            return (
-              <div style={{ background:`${P}10`,border:`1px solid ${P}28`,borderRadius:14,padding:"14px 14px 12px",margin:"12px 0" }}>
-                <div style={{ fontSize:10,color:"#64748b",marginBottom:8,fontWeight:600 }}>
-                  {getShotStyle(shotStyle).emoji} {getShotStyle(shotStyle).label}
-                </div>
-                <div style={{ fontSize:12,fontWeight:700,color:P,marginBottom:14 }}>
-                  {st?.emoji} {st?.label}{loc?` — ${loc}`:''} — How many?
-                </div>
-                {/* Made row */}
-                <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:10 }}>
-                  <span style={{ fontSize:13,fontWeight:700,color:"#22c55e",width:68 }}>✅ Made</span>
-                  <button style={stepBtn()} onClick={()=>setShotCount(c=>({...c,made:Math.max(0,c.made-1)}))}>−</button>
-                  <input
-                    type="number" inputMode="numeric" min="0"
-                    value={shotCount.made}
-                    onChange={e=>setShotCount(c=>({...c,made:Math.max(0,parseInt(e.target.value)||0)}))}
-                    onFocus={e=>e.target.select()}
-                    style={{ width:52,textAlign:"center",fontSize:26,fontWeight:800,color:"#22c55e",
-                      fontFamily:"'DM Mono',monospace",background:"transparent",border:"none",
-                      outline:"none",WebkitAppearance:"none",MozAppearance:"textfield",padding:0 }}
-                  />
-                  <button style={stepBtn({background:"#22c55e22",borderColor:"#22c55e44"})} onClick={()=>setShotCount(c=>({...c,made:c.made+1}))}>+</button>
-                </div>
-                {/* Missed row */}
-                <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:14 }}>
-                  <span style={{ fontSize:13,fontWeight:700,color:"#ef4444",width:68 }}>❌ Missed</span>
-                  <button style={stepBtn()} onClick={()=>setShotCount(c=>({...c,missed:Math.max(0,c.missed-1)}))}>−</button>
-                  <input
-                    type="number" inputMode="numeric" min="0"
-                    value={shotCount.missed}
-                    onChange={e=>setShotCount(c=>({...c,missed:Math.max(0,parseInt(e.target.value)||0)}))}
-                    onFocus={e=>e.target.select()}
-                    style={{ width:52,textAlign:"center",fontSize:26,fontWeight:800,color:"#ef4444",
-                      fontFamily:"'DM Mono',monospace",background:"transparent",border:"none",
-                      outline:"none",WebkitAppearance:"none",MozAppearance:"textfield",padding:0 }}
-                  />
-                  <button style={stepBtn({background:"#ef444422",borderColor:"#ef444444"})} onClick={()=>setShotCount(c=>({...c,missed:c.missed+1}))}>+</button>
-                </div>
-                {/* Action row */}
-                <div style={{ display:"flex",gap:8 }}>
-                  <button
-                    disabled={total===0}
-                    onClick={()=>logBatch(activeType,loc,shotCount.made,shotCount.missed)}
-                    style={{ flex:1,padding:"12px",borderRadius:10,border:`1px solid ${P}44`,
-                      background:total>0?`${P}22`:"rgba(255,255,255,0.04)",
-                      color:total>0?P:"#334155",fontSize:13,fontWeight:700,cursor:total>0?"pointer":"default" }}>
-                    {total>0 ? `Log ${total} Shot${total!==1?'s':''} ✓` : 'Tap + to add shots'}
-                  </button>
-                  <button onClick={()=>{setActiveType(null);setActiveLoc(null);setShotCount({made:0,missed:0});}}
-                    style={{ padding:"12px 14px",borderRadius:10,border:"1px solid rgba(255,255,255,0.1)",background:"transparent",color:"#475569",fontSize:13,cursor:"pointer" }}>✕</button>
-                </div>
-              </div>
-            );
-          })()}
-          <div style={{ ...lbl, marginTop:14 }}>Quick spots</div>
-          <div style={{ display:"flex", gap:8, overflowX:"auto", paddingBottom:4, marginBottom:14, WebkitOverflowScrolling:"touch" }}>
-            {QUICK_SPOT_IDS.map(id => {
-              const s = SHOT_TYPES.find(t => t.id === id);
-              if (!s) return null;
-              const cnt = logDayByType[s.id] || 0;
-              const c = SHOT_COLORS[s.id];
-              return (
-                <button key={s.id} type="button" onClick={() => selectType(s.id)}
-                  style={{
-                    flexShrink:0, padding:"10px 12px", borderRadius:12, minWidth:88,
-                    border:`1px solid ${activeType === s.id ? c : `${c}28`}`,
-                    background:`${c}0e`, cursor:"pointer", textAlign:"center",
-                  }}>
-                  <div style={{ fontSize:18 }}>{s.emoji}</div>
-                  <div style={{ fontSize:10, fontWeight:700, color:c, marginTop:4, lineHeight:1.2 }}>{s.label}</div>
-                  {cnt > 0 && <div style={{ fontFamily:"'DM Mono',monospace", fontSize:11, color:c, marginTop:2 }}>{cnt}</div>}
-                </button>
-              );
-            })}
-          </div>
-          <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10 }}>
-            <div style={lbl}>{logDayLabel}'s Log ({logDayTotal})</div>
-            {logDayTotal>0&&<button onClick={undo} style={{ padding:"5px 12px",borderRadius:8,border:"1px solid rgba(239,68,68,0.25)",background:"rgba(239,68,68,0.08)",color:"#f87171",fontSize:11,fontWeight:600,cursor:"pointer" }}>↩ Undo</button>}
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+            <div style={lbl}>{logDayLabel}'s log ({logDayTotal})</div>
+            {logDayTotal>0 && (
+              <button type="button" onClick={undo} style={{
+                padding:"5px 12px", borderRadius:8, border:"1px solid rgba(239,68,68,0.25)",
+                background:"rgba(239,68,68,0.08)", color:"#f87171", fontSize:11, fontWeight:600, cursor:"pointer",
+              }}>↩ Undo</button>
+            )}
           </div>
           {logDayShots.length===0
-            ? <div style={{ textAlign:"center",padding:"20px 0",color:"#334155",fontSize:13 }}>No shots logged for {logDayLabel.toLowerCase()} yet 🏀</div>
-            : <div style={{ display:"flex",flexDirection:"column",gap:4,maxHeight:220,overflowY:"auto" }}>
+            ? <div style={{ textAlign:"center", padding:"16px 0", color:"#334155", fontSize:12 }}>No shots for {logDayLabel.toLowerCase()} yet 🏀</div>
+            : <div style={{ display:"flex", flexDirection:"column", gap:4, maxHeight:200, overflowY:"auto", marginBottom:14 }}>
                 {[...logDayShots].reverse().map((s,i)=>{ const def=SHOT_TYPES.find(t=>t.id===s.type),c=SHOT_COLORS[s.type]; const sty=getShotStyle(s.style); return (
-                  <div key={i} style={{ display:"flex",alignItems:"center",gap:10,padding:"7px 10px",background:sf,borderRadius:8,border:`1px solid ${c}1a` }}>
-                    <span style={{ fontSize:14 }}>{def?.emoji}</span>
-                    <div style={{ flex:1,minWidth:0 }}>
-                      <div style={{ fontSize:12,color:c,fontWeight:600 }}>{def?.label}</div>
-                      {s.style && <div style={{ fontSize:10,color:"#64748b",marginTop:1 }}>{sty.emoji} {sty.short}</div>}
+                  <div key={i} style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 10px", background:sf, borderRadius:8, border:`1px solid ${c}1a` }}>
+                    <span style={{ fontSize:13 }}>{def?.emoji}</span>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:11, color:c, fontWeight:600 }}>{def?.label}{s.location?` · ${s.location}`:""}</div>
+                      <div style={{ fontSize:10, color:"#64748b" }}>{sty.emoji} {sty.short}</div>
                     </div>
-                    <span style={{ fontSize:13 }}>{s.made===false?'❌':'✅'}</span>
-                    {s.location&&<span style={{ fontSize:10,color:"#475569",background:"rgba(255,255,255,0.04)",padding:"2px 7px",borderRadius:20 }}>{s.location}</span>}
-                    <span style={{ fontSize:10,fontFamily:"'DM Mono',monospace",color:"#334155" }}>{new Date(s.ts).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})}</span>
+                    <span style={{ fontSize:12 }}>{s.made===false?"❌":"✅"}</span>
                   </div>
                 );})}
               </div>
@@ -3620,7 +3606,19 @@ function ShotTracker({ P, S, BG, athleteName, settings, onLogChange, onOpenGuide
           </div>
           <div style={{ background:`${P}08`,border:`1px solid ${P}1e`,borderRadius:14,padding:"14px",marginBottom:14 }}>
             <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,color:"#334155",marginBottom:6 }}>{selDate===todayKey()?"TODAY":fmtDate(selDate).toUpperCase()}</div>
-            <div style={{ fontSize:22,fontWeight:800,color:P,fontFamily:"'DM Mono',monospace",marginBottom:10 }}>{selShots.length} <span style={{ fontSize:12,fontWeight:400,color:"#475569" }}>makes</span></div>
+            {(() => {
+              const attempts = selShots.length;
+              const makes = selShots.filter(s => s.made !== false).length;
+              const fg = attempts ? Math.round((makes / attempts) * 100) : 0;
+              return (
+                <>
+                  <div style={{ fontSize:22,fontWeight:800,color:P,fontFamily:"'DM Mono',monospace",marginBottom:4 }}>
+                    {fg}% <span style={{ fontSize:12,fontWeight:400,color:"#475569" }}>FG</span>
+                  </div>
+                  <div style={{ fontSize:11,color:"#64748b",marginBottom:10 }}>{makes}/{attempts} on this day</div>
+                </>
+              );
+            })()}
             {selShots.length===0
               ? <div style={{ color:"#334155",fontSize:12 }}>No shots on this day</div>
               : <div style={{ display:"flex",flexWrap:"wrap",gap:6 }}>
@@ -3658,20 +3656,18 @@ function ShotTracker({ P, S, BG, athleteName, settings, onLogChange, onOpenGuide
           <div style={{ background:sf,border:`1px solid ${bd}`,borderRadius:14,padding:"16px",marginBottom:14,display:"flex",gap:16,alignItems:"center" }}>
             <Donut size={128} data={SHOT_TYPES.map(t=>({value:allByType[t.id]||0,color:SHOT_COLORS[t.id]}))}/>
             <div style={{ flex:1 }}>
-              <div style={lbl}>All-Time Mix</div>
-              <div style={{ fontFamily:"'DM Mono',monospace",fontSize:28,fontWeight:800,color:P,lineHeight:1,marginBottom:2 }}>{allTotal}</div>
-              <div style={{ fontSize:10,color:"#475569",marginBottom:12 }}>total makes logged</div>
-              {SHOT_TYPES.filter(t=>(allByType[t.id]||0)>0).sort((a,b)=>(allByType[b.id]||0)-(allByType[a.id]||0)).slice(0,5).map(t=>(
-                <div key={t.id} style={{ display:"flex",alignItems:"center",gap:6,marginBottom:3 }}>
-                  <div style={{ width:8,height:8,borderRadius:"50%",background:SHOT_COLORS[t.id],flexShrink:0 }}/>
-                  <span style={{ fontSize:11,color:"var(--fkh-text-muted)",flex:1 }}>{t.label}</span>
-                  <span style={{ fontFamily:"'DM Mono',monospace",fontSize:11,color:SHOT_COLORS[t.id] }}>{allByType[t.id]}</span>
-                </div>
-              ))}
+              <div style={lbl}>Overall</div>
+              <div style={{ fontFamily:"'DM Mono',monospace",fontSize:28,fontWeight:800,color:P,lineHeight:1,marginBottom:2 }}>
+                {allTimeStats.pct != null ? `${allTimeStats.pct}%` : "—"}
+              </div>
+              <div style={{ fontSize:10,color:"#475569",marginBottom:8 }}>
+                {allTimeStats.makes}/{allTimeStats.attempts} all-time FG%
+              </div>
+              <div style={{ fontSize:10,color:"#475569" }}>{allTotal} attempts logged</div>
             </div>
           </div>
           <div style={{ background:sf,border:`1px solid ${bd}`,borderRadius:14,padding:"14px",marginBottom:14 }}>
-            <div style={lbl}>Accuracy by Shot Type</div>
+            <div style={lbl}>By creation type</div>
             <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
               {SHOT_STYLES.map(st => {
                 const s = styleAccuracy[st.id];
@@ -3693,21 +3689,58 @@ function ShotTracker({ P, S, BG, athleteName, settings, onLogChange, onOpenGuide
             </div>
           </div>
           <div style={{ background:sf,border:`1px solid ${bd}`,borderRadius:14,padding:"14px",marginBottom:14 }}>
-            <div style={lbl}>Location Heatmap</div>
-            {(()=>{ const lc={}; allFlat.forEach(s=>{if(s.location)lc[s.location]=(lc[s.location]||0)+1}); const ent=Object.entries(lc).sort((a,b)=>b[1]-a[1]),mx=Math.max(1,...ent.map(e=>e[1]));
-              return ent.length===0 ? <div style={{ color:"#334155",fontSize:12,textAlign:"center",padding:"12px 0" }}>Use the court map to log locations!</div>
-              : <div style={{ display:"flex",flexDirection:"column",gap:6 }}>{ent.map(([loc,cnt])=>(
-                <div key={loc} style={{ display:"flex",alignItems:"center",gap:10 }}>
-                  <div style={{ fontSize:11,color:"var(--fkh-text-muted)",width:100,flexShrink:0 }}>{loc}</div>
-                  <div style={{ flex:1,height:6,background:"rgba(255,255,255,0.05)",borderRadius:99,overflow:"hidden" }}>
-                    <div style={{ height:"100%",width:`${(cnt/mx)*100}%`,background:S,borderRadius:99 }}/>
-                  </div>
-                  <div style={{ fontFamily:"'DM Mono',monospace",fontSize:11,color:S,width:24,textAlign:"right" }}>{cnt}</div>
-                </div>
-              ))}</div>;
-            })()}
+            <div style={lbl}>By court zone</div>
+            <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
+              {zoneTypeStats.length === 0
+                ? <div style={{ color:"#334155",fontSize:12,textAlign:"center",padding:"8px 0" }}>Log shots from the court map</div>
+                : zoneTypeStats.map(z => {
+                  const c = SHOT_COLORS[z.id] || P;
+                  return (
+                    <div key={z.id} style={{ display:"flex",alignItems:"center",gap:8 }}>
+                      <span style={{ fontSize:11,color:"var(--fkh-text-muted)",flex:1,minWidth:0 }}>{z.label}</span>
+                      <div style={{ width:56,height:5,borderRadius:99,background:"rgba(255,255,255,0.07)",overflow:"hidden" }}>
+                        <div style={{ width:`${z.pct || 0}%`,height:"100%",background:c }} />
+                      </div>
+                      <span style={{ fontSize:11,fontWeight:800,color:c,fontFamily:"'DM Mono',monospace",width:44,textAlign:"right" }}>{z.pct}%</span>
+                      <span style={{ fontSize:10,color:"#475569",width:40,textAlign:"right" }}>{z.m}/{z.a}</span>
+                    </div>
+                  );
+                })}
+            </div>
           </div>
-          <div style={lbl}>Type Details</div>
+          <div style={{ background:sf,border:`1px solid ${bd}`,borderRadius:14,padding:"14px",marginBottom:14 }}>
+            <div style={lbl}>By location</div>
+            {locationStats.length === 0
+              ? <div style={{ color:"#334155",fontSize:12,textAlign:"center",padding:"12px 0" }}>Locations appear when you tap specific court zones</div>
+              : <div style={{ display:"flex",flexDirection:"column",gap:6 }}>
+                  {locationStats.map(loc => (
+                    <div key={loc.label} style={{ display:"flex",alignItems:"center",gap:8 }}>
+                      <div style={{ fontSize:11,color:"var(--fkh-text-muted)",flex:1,minWidth:0 }}>{loc.label}</div>
+                      <div style={{ width:56,height:5,borderRadius:99,background:"rgba(255,255,255,0.07)",overflow:"hidden" }}>
+                        <div style={{ width:`${loc.pct || 0}%`,height:"100%",background:S }} />
+                      </div>
+                      <span style={{ fontSize:11,fontWeight:800,color:S,fontFamily:"'DM Mono',monospace",width:44,textAlign:"right" }}>{loc.pct}%</span>
+                      <span style={{ fontSize:10,color:"#475569",width:40,textAlign:"right" }}>{loc.m}/{loc.a}</span>
+                    </div>
+                  ))}
+                </div>
+            }
+          </div>
+          {spotStats.length > 1 && (
+            <div style={{ background:sf,border:`1px solid ${bd}`,borderRadius:14,padding:"14px",marginBottom:14 }}>
+              <div style={lbl}>Spot detail</div>
+              <div style={{ display:"flex",flexDirection:"column",gap:6 }}>
+                {spotStats.slice(0, 12).map(s => (
+                  <div key={s.key} style={{ display:"flex",alignItems:"center",gap:8 }}>
+                    <span style={{ fontSize:11,color:"var(--fkh-text-muted)",flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{s.label}</span>
+                    <span style={{ fontSize:11,fontWeight:800,color:P,fontFamily:"'DM Mono',monospace" }}>{s.pct}%</span>
+                    <span style={{ fontSize:10,color:"#475569" }}>{s.m}/{s.a}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <div style={lbl}>7-day volume by zone</div>
           <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:8 }}>
             {SHOT_TYPES.map(t=>{ const total=allByType[t.id]||0,pct=allTotal>0?Math.round((total/allTotal)*100):0;
               const wk7=Array.from({length:7}).map((_,i)=>{const d=new Date();d.setDate(d.getDate()-(6-i));return(log[d.toLocaleDateString("en-CA")]||[]).filter(s=>s.type===t.id).length;});
