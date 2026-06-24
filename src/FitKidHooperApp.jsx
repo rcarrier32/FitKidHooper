@@ -11,11 +11,11 @@ import CountBadge from "./components/CountBadge.jsx";
 import { getAgeGroup, getAgeGroupLabel } from "./lib/periodStats.js";
 import { exportCanonicalSave, importCanonicalSave } from "./lib/canonicalSave.js";
 import { recoverFromSyncBackupIfNeeded } from "./lib/syncBackup.js";
-import { withStoredAvatar, writeStoredAvatar } from "./lib/avatarStorage.js";
+import { withStoredAvatar, writeStoredAvatar, readStoredAvatar, stripAvatarForCloud } from "./lib/avatarStorage.js";
 import { safePersistKey } from "./lib/dataSafety.js";
 import { mergeUserSettings } from "./lib/settingsMerge.js";
 import { hydrateSettingsFromCloudProfile, persistHydratedSettings, normalizeProfileFields } from "./lib/profileHydrate.js";
-import { syncAvatarToCloud, clearAvatarFromCloud } from "./lib/avatarCloud.js";
+import { syncAvatarToCloud, restoreLocalAvatarFromCloud } from "./lib/avatarCloud.js";
 import { getEffectiveAthleteId, hasStoredAuthSession } from "./lib/auth.js";
 import { CATS, CAT_DOT_COLORS } from "./lib/categories.js";
 import { BADGES_DEF, BADGE_CATS, getEarnedBadges, getBadgeProgress } from "./lib/badges.js";
@@ -5373,6 +5373,9 @@ export default function FitKidHooperApp() {
 
   const hydrateProfileIntoState = useCallback(async (userId) => {
     if (!userId) return;
+    if (!readStoredAvatar()) {
+      await restoreLocalAvatarFromCloud(userId);
+    }
     const stored = loadSettingsFromStorage(DEFAULT);
     const hydrated = await hydrateSettingsFromCloudProfile(userId, stored);
     const next = withStoredAvatar(migrateThemeSettings(hydrated));
@@ -5569,10 +5572,10 @@ export default function FitKidHooperApp() {
   };
   const trainingWeek = calcWeek(settings.startDate);
 
-  useEffect(()=>{
-    writeStoredAvatar(settings.avatar || null);
-    safePersistKey("s_settings", settings);
-  },[settings]);
+  useEffect(() => {
+    if (settings.avatar) writeStoredAvatar(settings.avatar);
+    safePersistKey("s_settings", stripAvatarForCloud(settings));
+  }, [settings]);
 
   const avatarSyncRef = useRef(null);
   useEffect(() => {
@@ -5580,13 +5583,11 @@ export default function FitKidHooperApp() {
     (async () => {
       const athleteId = await getEffectiveAthleteId();
       if (cancelled || !athleteId) return;
-      if (!settings.avatar) {
-        await clearAvatarFromCloud(athleteId);
-        return;
-      }
-      if (avatarSyncRef.current === settings.avatar) return;
-      avatarSyncRef.current = settings.avatar;
-      await syncAvatarToCloud(settings.avatar, athleteId);
+      const localAvatar = settings.avatar || readStoredAvatar();
+      if (!localAvatar) return;
+      if (avatarSyncRef.current === localAvatar) return;
+      avatarSyncRef.current = localAvatar;
+      await syncAvatarToCloud(localAvatar, athleteId);
     })();
     return () => { cancelled = true; };
   }, [settings.avatar]);

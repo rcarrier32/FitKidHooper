@@ -1,5 +1,6 @@
 import { getSupabaseClient, isSupabaseConfigured } from "./supabaseClient.js";
 import { getEffectiveAthleteId } from "./auth.js";
+import { readStoredAvatar, writeStoredAvatar, clearStoredAvatar } from "./avatarStorage.js";
 
 export const AVATAR_URL_KEY = "fkh-avatar-url";
 
@@ -89,8 +90,52 @@ export async function clearAvatarFromCloud(athleteIdIn) {
       .update({ avatar_url: null, updated_at: new Date().toISOString() })
       .eq("id", athleteId);
     writeCachedAvatarUrl(null);
+    clearStoredAvatar();
     return { ok: true };
   } catch {
     return { ok: false };
+  }
+}
+
+/** Pull cloud avatar into local storage when fkh-avatar was lost (update, sync, new device). */
+export async function restoreLocalAvatarFromCloud(athleteIdIn) {
+  if (!isSupabaseConfigured()) return { ok: false, reason: "not_configured" };
+  if (readStoredAvatar()) return { ok: true, reason: "already_local" };
+
+  const sb = getSupabaseClient();
+  if (!sb) return { ok: false, reason: "not_configured" };
+
+  const athleteId = athleteIdIn || (await getEffectiveAthleteId());
+  if (!athleteId) return { ok: false, reason: "no_athlete" };
+
+  let avatarUrl = readCachedAvatarUrl();
+  if (!avatarUrl) {
+    const { data: row } = await sb
+      .from("athlete_profiles")
+      .select("avatar_url")
+      .eq("id", athleteId)
+      .maybeSingle();
+    avatarUrl = row?.avatar_url || null;
+  }
+  if (!avatarUrl) return { ok: false, reason: "no_cloud_avatar" };
+
+  try {
+    const res = await fetch(avatarUrl);
+    if (!res.ok) return { ok: false, reason: "fetch_failed" };
+    const blob = await res.blob();
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+    if (typeof dataUrl !== "string" || !dataUrl.startsWith("data:")) {
+      return { ok: false, reason: "convert_failed" };
+    }
+    writeStoredAvatar(dataUrl);
+    writeCachedAvatarUrl(avatarUrl);
+    return { ok: true, dataUrl };
+  } catch {
+    return { ok: false, reason: "fetch_failed" };
   }
 }

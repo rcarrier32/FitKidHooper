@@ -110,7 +110,7 @@ function readRawSaveValue(k) {
 function writeRawSaveValue(k, value, { force = false } = {}) {
   if (value == null && k !== "fkh-avatar") return;
   if (k === "fkh-avatar") {
-    writeStoredAvatar(typeof value === "string" ? value : null);
+    if (typeof value === "string" && value) writeStoredAvatar(value);
     return;
   }
   safePersistKey(k, value, { force });

@@ -14,9 +14,16 @@ export function readStoredAvatar() {
 }
 
 export function writeStoredAvatar(dataUrl) {
+  if (!dataUrl) return;
   try {
-    if (dataUrl) localStorage.setItem(AVATAR_STORAGE_KEY, dataUrl);
-    else localStorage.removeItem(AVATAR_STORAGE_KEY);
+    localStorage.setItem(AVATAR_STORAGE_KEY, dataUrl);
+  } catch {}
+}
+
+/** Explicit removal only — never call writeStoredAvatar(null). */
+export function clearStoredAvatar() {
+  try {
+    localStorage.removeItem(AVATAR_STORAGE_KEY);
   } catch {}
 }
 
@@ -31,7 +38,7 @@ export function withStoredAvatar(settings) {
 /** Persist avatar to dedicated key; strip from object used for cloud upload. */
 export function stripAvatarForCloud(settings) {
   if (!settings || typeof settings !== "object") return settings;
-  writeStoredAvatar(settings.avatar || null);
+  if (settings.avatar) writeStoredAvatar(settings.avatar);
   const { avatar, ...rest } = settings;
   return avatar ? { ...rest, _avatarLocal: true } : rest;
 }
