@@ -2,9 +2,7 @@ import { useState } from "react";
 import { shootingSnapshot, computeSpotStats, ZONES } from "../lib/shootingStats.js";
 import { SHOT_STYLES } from "../lib/shotStyles.js";
 
-function readShotLog() {
-  try { return JSON.parse(localStorage.getItem("shot_log_v2") || "{}"); } catch { return {}; }
-}
+import { readShotLog } from "../lib/shotLog.js";
 
 /** Shooting accuracy — make %, not just raw makes — overall, this week, by zone,
  * with a drill-down to per-spot accuracy. */

@@ -8,6 +8,8 @@ import FeedbackCenter from "./components/FeedbackCenter.jsx";
 import { useAuth } from "./hooks/useAuth.js";
 import { useSquadNotifications } from "./hooks/useSquadNotifications.js";
 import GuideNavButton from "./components/GuideNavButton.jsx";
+import ShotTrackerErrorBoundary from "./components/ShotTrackerErrorBoundary.jsx";
+import { readShotLog, normalizeShotLog, writeShotLog, countShotMakes } from "./lib/shotLog.js";
 import { computeShotStyleMakes, SHOT_STYLES, getShotStyle, getLastShotStyle, setLastShotStyle } from "./lib/shotStyles.js";
 import { getAgeGroup, getAgeGroupLabel } from "./lib/periodStats.js";
 import { exportCanonicalSave, importCanonicalSave } from "./lib/canonicalSave.js";
@@ -3086,7 +3088,7 @@ function CourtMap({ priColor, onZoneSelect, lastShot }) {
 
 /* ═══════════════════════ SHOT TRACKER ═══════════════════════ */
 function ShotTracker({ P, S, BG, athleteName, settings, onLogChange, onOpenGuide }) {
-  const [log, setLog] = useState(()=>{ try{return JSON.parse(localStorage.getItem("shot_log_v2")||"{}")}catch{return{}} });
+  const [log, setLog] = useState(() => readShotLog());
   const [view, setView] = useState("log");
   const [activeType, setActiveType] = useState(null);
   const [activeLoc, setActiveLoc] = useState(null);
@@ -3104,7 +3106,11 @@ function ShotTracker({ P, S, BG, athleteName, settings, onLogChange, onOpenGuide
   const [goalPeriod, setGoalPeriod] = useState(() => getShotGoalPeriod());
   const [editingGoal, setEditingGoal] = useState(false);
 
-  const save = nl => { setLog(nl); try{localStorage.setItem("shot_log_v2",JSON.stringify(nl))}catch{}; onLogChange?.(); };
+  const save = nl => {
+    const normalized = writeShotLog(nl);
+    setLog(normalized);
+    onLogChange?.();
+  };
 
   const saveGoal = g => {
     const v = Math.max(1, parseInt(g, 10) || 100);
@@ -5276,6 +5282,14 @@ const MIGRATIONS = [
       }
     } catch { /* ignore */ }
   },
+  // ── v6 → v7: normalize shot_log_v2 (fixes Shots tab white-screen) ──
+  () => {
+    try {
+      const raw = JSON.parse(localStorage.getItem("shot_log_v2") || "{}");
+      const normalized = normalizeShotLog(raw);
+      localStorage.setItem("shot_log_v2", JSON.stringify(normalized));
+    } catch { /* ignore */ }
+  },
 ];
 
 const DATA_VERSION = MIGRATIONS.length; // keep in lock-step automatically
@@ -6140,9 +6154,8 @@ export default function FitKidHooperApp() {
 
   // Shared progression context — drives both the grant ledger and the journey UI.
   const progressCtx = useMemo(()=>{
-    let sl = {};
-    try { sl = JSON.parse(localStorage.getItem("shot_log_v2")||"{}"); } catch {}
-    const makes = Object.values(sl).flatMap(v=>v).filter(s=>s.made!==false).length;
+    const sl = readShotLog();
+    const makes = countShotMakes(sl);
     // streak gates only use the 7/14/30 thresholds, which the streak badges encode exactly.
     const maxStreak = earnedBadges.includes("streak-30") ? 30
       : earnedBadges.includes("streak-14") ? 14
@@ -6587,9 +6600,11 @@ export default function FitKidHooperApp() {
   if (view==="shots") return (
     <div style={{ background:BG,minHeight:"100vh",maxWidth:680,margin:"0 auto" }}>
       {shellOverlays}
-      <ShotTracker P={P} S={S} BG={BG} athleteName={settings.athleteName} settings={settings}
-        onLogChange={() => setShotLogTick(t => t + 1)}
-        onOpenGuide={() => openGuide("explore")} />
+      <ShotTrackerErrorBoundary P={P} onRepaired={() => setShotLogTick(t => t + 1)}>
+        <ShotTracker P={P} S={S} BG={BG} athleteName={settings.athleteName} settings={settings}
+          onLogChange={() => setShotLogTick(t => t + 1)}
+          onOpenGuide={() => openGuide("explore")} />
+      </ShotTrackerErrorBoundary>
       {renderBottomNav()}
     </div>
   );

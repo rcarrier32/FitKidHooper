@@ -35,7 +35,9 @@ function tallyShots(shotLog, { start = null, end = null } = {}) {
   for (const [date, shots] of Object.entries(shotLog || {})) {
     if (start && date < start) continue;
     if (end && date > end) continue;
-    for (const s of shots || []) {
+    const list = Array.isArray(shots) ? shots : [];
+    for (const s of list) {
+      if (!s || typeof s !== "object") continue;
       const made = s.made !== false;
       a += 1; if (made) m += 1;
       const z = ZONE_OF[s.type];
@@ -62,7 +64,9 @@ export function computeSpotStats(shotLog, { start = null, end = null } = {}) {
   for (const [date, shots] of Object.entries(shotLog || {})) {
     if (start && date < start) continue;
     if (end && date > end) continue;
-    for (const s of shots || []) {
+    const list = Array.isArray(shots) ? shots : [];
+    for (const s of list) {
+      if (!s || typeof s !== "object") continue;
       const key = `${s.type}|${s.location || ""}`;
       if (!map[key]) {
         const zone = ZONE_OF[s.type] || null;

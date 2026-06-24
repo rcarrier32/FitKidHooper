@@ -38,9 +38,11 @@ export function normalizeShotStyle(raw) {
 /** Made shots grouped by creation style (for legend path gates). */
 export function computeShotStyleMakes(shotLog) {
   const counts = Object.fromEntries(SHOT_STYLES.map(s => [s.id, 0]));
-  for (const shots of Object.values(shotLog || {})) {
-    for (const s of shots) {
-      if (s.made === false) continue;
+  const log = typeof shotLog === "object" && shotLog && !Array.isArray(shotLog) ? shotLog : {};
+  for (const shots of Object.values(log)) {
+    const list = Array.isArray(shots) ? shots : [];
+    for (const s of list) {
+      if (!s || s.made === false) continue;
       const style = normalizeShotStyle(s.style);
       if (style) counts[style]++;
     }
