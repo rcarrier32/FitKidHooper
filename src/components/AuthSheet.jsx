@@ -27,8 +27,8 @@ const btnGhost = (P) => ({
   fontSize: 12, fontWeight: 700, cursor: "pointer",
 });
 
-export default function AuthSheet({ P, SF, onClose, onSignedIn }) {
-  const [mode, setMode] = useState("signin");
+export default function AuthSheet({ P, SF, onClose, onSignedIn, initialMode = "signin", zIndex = 350 }) {
+  const [mode, setMode] = useState(initialMode);
   const [username, setUsername] = useState(getLastUsername());
   const [passcode, setPasscode] = useState("");
   const [passcode2, setPasscode2] = useState("");
@@ -148,7 +148,7 @@ export default function AuthSheet({ P, SF, onClose, onSignedIn }) {
 
   return (
     <div style={{
-      position: "fixed", inset: 0, background: "rgba(0,0,0,0.82)", zIndex: 350,
+      position: "fixed", inset: 0, background: "rgba(0,0,0,0.82)", zIndex,
       display: "flex", alignItems: "flex-end", justifyContent: "center",
     }}>
       <div style={{

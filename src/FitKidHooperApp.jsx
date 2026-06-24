@@ -5244,6 +5244,7 @@ export default function FitKidHooperApp() {
   const [settings, setSettings] = useState(() => loadSettingsFromStorage(DEFAULT));
   const [showSettings, setShowSettings] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
+  const [authInitialMode, setAuthInitialMode] = useState("signin");
   const [inviteCode, setInviteCode] = useState(() => consumeInviteDeepLink());
   const [missionDeepLink, setMissionDeepLink] = useState(() => consumeMissionDeepLink());
   const [messagesDeepLink, setMessagesDeepLink] = useState(() => consumeMessagesDeepLink());
@@ -5807,7 +5808,24 @@ export default function FitKidHooperApp() {
   ) : null;
 
   const authSheet = showAuth ? (
-    <AuthSheet P={pri(settings)} SF={surf(settings)} onClose={() => setShowAuth(false)} onSignedIn={async() => { await applyCloudSync(); setShowAuth(false); }} />
+    <AuthSheet
+      P={pri(settings)}
+      SF={surf(settings)}
+      zIndex={showOnboarding ? 450 : 350}
+      initialMode={authInitialMode}
+      onClose={() => { setShowAuth(false); setAuthInitialMode("signin"); }}
+      onSignedIn={async () => {
+        await applyCloudSync();
+        setShowAuth(false);
+        setAuthInitialMode("signin");
+        if (showOnboarding) {
+          localStorage.setItem("s_onboarded", "1");
+          track(ANALYTICS_EVENTS.ONBOARDING_COMPLETE, {});
+          setShowOnboarding(false);
+          startTour();
+        }
+      }}
+    />
   ) : null;
 
   const feedbackSheet = showFeedback ? (
@@ -6981,6 +6999,7 @@ export default function FitKidHooperApp() {
             startTour();
           }}
           onAuthSuccess={applyCloudSync}
+          onForgotPasscode={() => { setAuthInitialMode("forgot"); setShowAuth(true); }}
         />
       )}
       {showHelp&&<HelpSheet P={P} SF={SF} onClose={()=>setShowHelp(false)} onReplayTour={startTour} onOpenMap={()=>{ setShowHelp(false); setShowAppMap(true); }}/>}
