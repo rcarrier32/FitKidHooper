@@ -5818,6 +5818,7 @@ export default function FitKidHooperApp() {
 
   const openFeedback = useCallback(() => {
     setShowSettings(false);
+    setShowHelp(false);
     setShowFeedback(true);
   }, []);
 
@@ -6430,6 +6431,7 @@ export default function FitKidHooperApp() {
         BadgesView={BadgesView}
         ProgressStatsPanel={ProgressStatsPanel}
         onOpenSettings={() => setShowSettings(true)}
+        onOpenFeedback={openFeedback}
         onShowHelp={() => setShowHelp(true)}
         onReplayTour={startTour}
         onViewHistory={() => setView("history")}
@@ -7028,7 +7030,7 @@ export default function FitKidHooperApp() {
           onForgotPasscode={() => { setAuthInitialMode("forgot"); setShowAuth(true); }}
         />
       )}
-      {showHelp&&<HelpSheet P={P} SF={SF} onClose={()=>setShowHelp(false)} onReplayTour={startTour} onOpenMap={()=>{ setShowHelp(false); setShowAppMap(true); }}/>}
+      {showHelp&&<HelpSheet P={P} SF={SF} onClose={()=>setShowHelp(false)} onReplayTour={startTour} onOpenFeedback={openFeedback} onOpenMap={()=>{ setShowHelp(false); setShowAppMap(true); }}/>}
       {showAppMap&&<AppMapSheet P={P} SF={SF} onClose={()=>setShowAppMap(false)} onNavigate={dest=>{
         setShowAppMap(false);
         switch(dest){

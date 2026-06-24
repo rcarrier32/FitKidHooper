@@ -42,6 +42,7 @@ export default function MeView({
   BadgesView,
   ProgressStatsPanel,
   onOpenSettings,
+  onOpenFeedback,
   onShowHelp,
   onReplayTour,
   onViewHistory,
@@ -81,7 +82,15 @@ export default function MeView({
   return (
     <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"var(--fkh-text)",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
       {shellOverlays}
-      {showHelp && <HelpSheet P={P} SF={SF} onClose={onCloseHelp} onReplayTour={onReplayTour} />}
+      {showHelp && (
+        <HelpSheet
+          P={P}
+          SF={SF}
+          onClose={onCloseHelp}
+          onReplayTour={onReplayTour}
+          onOpenFeedback={onOpenFeedback ? () => { onCloseHelp(); onOpenFeedback(); } : undefined}
+        />
+      )}
 
       <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 20px",borderBottom:`1px solid ${P}14`,position:"sticky",top:0,background:BG,backdropFilter:"blur(10px)",zIndex:10 }}>
         <h1 style={{ fontSize:16,fontWeight:800,margin:0,color:P,display:"flex",alignItems:"center",gap:8 }}>
@@ -124,6 +133,7 @@ export default function MeView({
           totalTracks={totalTracks}
           P={P}
           onOpenSettings={onOpenSettings}
+          onOpenFeedback={onOpenFeedback}
           onViewBadges={() => setProgressTab("locker")}
           onViewLeaderboard={onViewLeaderboard}
           onPushStats={onPushStats}

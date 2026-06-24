@@ -210,7 +210,7 @@ export default function AdminDashboard() {
         const [
           summary, dau, wau, mau, retention, sessions, trainingDays,
           screens, exercises, programs, mission, challenges, badges,
-          feedbackSummary, featureRequests,
+          feedbackSummary, backlog,
         ] = await Promise.all([
           sb.from("analytics_athlete_summary").select("*").maybeSingle(),
           sb.from("analytics_dau").select("*").order("day", { ascending: false }).limit(14),
@@ -226,11 +226,12 @@ export default function AdminDashboard() {
           sb.from("analytics_challenge_completion").select("*").limit(15),
           sb.from("analytics_badge_distribution").select("*").limit(15),
           sb.from("feedback_summary").select("*").maybeSingle(),
-          sb.from("feedback_feature_requests").select("*").limit(10),
+          sb.from("feedback_backlog").select("created_at, status, category, title, app_version, message")
+            .in("status", ["open", "triaged", "in_progress"]).limit(15),
         ]);
 
         if (cancelled) return;
-        const err = [summary, dau, wau, retention, screens, exercises, programs, feedbackSummary, featureRequests]
+        const err = [summary, dau, wau, retention, screens, exercises, programs, feedbackSummary, backlog]
           .map(r => r.error).find(Boolean);
         if (err) throw err;
 
@@ -250,7 +251,10 @@ export default function AdminDashboard() {
           challenges: challenges.data,
           badges: badges.data,
           feedbackSummary: feedbackSummary.data,
-          featureRequests: featureRequests.data,
+          backlog: (backlog.data || []).map(r => ({
+            ...r,
+            created_at: r.created_at ? new Date(r.created_at).toLocaleString() : "—",
+          })),
         });
       } catch (e) {
         if (!cancelled) setError(e.message || "Failed to load dashboard");
@@ -360,15 +364,33 @@ export default function AdminDashboard() {
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 12, marginBottom: 28 }}>
+          <StatCard label="Open backlog" value={fb?.open_total ?? 0} sub={`${fb?.open_bugs ?? 0} bugs · ${fb?.open_features ?? 0} ideas`}
+            active={drill?.value === "backlog"}
+            onClick={() => openDrill({ type: "feedback", value: "backlog", label: "Feedback backlog" })} />
+          <StatCard label="Open bugs" value={fb?.open_bugs ?? 0} active={drill?.value === "open_bugs"}
+            onClick={() => openDrill({ type: "feedback", value: "open_bugs", label: "Open bugs" })} />
+          <StatCard label="Open features" value={fb?.open_features ?? 0} active={drill?.value === "open_features"}
+            onClick={() => openDrill({ type: "feedback", value: "open_features", label: "Open feature ideas" })} />
           <StatCard label="Feedback total" value={fb?.total ?? 0} active={isActive("feedback")}
             onClick={() => openDrill({ type: "feedback", value: "general", label: "All feedback" })} />
           <StatCard label="Avg rating" value={fb?.avg_rating ?? "—"} />
           <StatCard label="👍 / 👎" value={`${fb?.thumbs_up ?? 0} / ${fb?.thumbs_down ?? 0}`} />
-          <StatCard label="Feature requests" value={fb?.feature_requests ?? 0} sub={`${fb?.bugs ?? 0} bugs`}
-            onClick={() => openDrill({ type: "feedback", value: "feature_request", label: "Feature requests" })} />
-          <StatCard label="Bugs reported" value={fb?.bugs ?? 0} active={drill?.value === "bug"}
-            onClick={() => openDrill({ type: "feedback", value: "bug", label: "Bug reports" })} />
+          <StatCard label="All bugs" value={fb?.bugs ?? 0} active={drill?.value === "bug"}
+            onClick={() => openDrill({ type: "feedback", value: "bug", label: "All bug reports" })} />
+          <StatCard label="All features" value={fb?.feature_requests ?? 0}
+            onClick={() => openDrill({ type: "feedback", value: "feature_request", label: "All feature requests" })} />
         </div>
+
+        <DataTable title="Feedback backlog (open items)" hint="Export: select * from feedback_backlog in Supabase SQL"
+          columns={[
+            { key: "created_at", label: "When" },
+            { key: "status", label: "Status" },
+            { key: "category", label: "Type" },
+            { key: "title", label: "Summary" },
+            { key: "app_version", label: "App" },
+          ]}
+          rows={data.backlog}
+          onRowClick={() => openDrill({ type: "feedback", value: "backlog", label: "Feedback backlog" })} />
 
         <DataTable title="Top screens" hint="Click a row for recent views"
           columns={[{ key: "screen", label: "Screen" }, { key: "views", label: "Views" }, { key: "unique_athletes", label: "Athletes" }]}
@@ -399,11 +421,6 @@ export default function AdminDashboard() {
           columns={[{ key: "badge_id", label: "Badge" }, { key: "earns", label: "Earns" }, { key: "unique_athletes", label: "Athletes" }]}
           rows={data.badges}
           onRowClick={row => openDrill({ type: "badge", value: row.badge_id, label: `Badge: ${row.badge_id}` })} />
-
-        <DataTable title="Recent feature requests" hint="Click Feedback cards above for full lists"
-          columns={[{ key: "message", label: "Message" }, { key: "rating", label: "Rating" }, { key: "created_at", label: "When" }]}
-          rows={data.featureRequests}
-          onRowClick={() => openDrill({ type: "feedback", value: "feature_request", label: "Feature requests" })} />
       </div>
     </div>
   );

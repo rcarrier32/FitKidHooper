@@ -262,10 +262,13 @@ export async function loadDrilldown(sb, drill) {
   if (type === "feedback") {
     const table = value === "bug" ? "feedback_bugs"
       : value === "feature_request" ? "feedback_feature_requests"
+      : value === "backlog" ? "feedback_backlog"
+      : value === "open_bugs" ? "feedback_open_bugs"
+      : value === "open_features" ? "feedback_open_features"
       : "feedback_general";
     const { data, error } = await sb
       .from(table)
-      .select("created_at, rating, sentiment, message, athlete_id")
+      .select("id, created_at, status, category, rating, sentiment, message, app_version, admin_notes")
       .order("created_at", { ascending: false })
       .limit(50);
     if (error) throw error;
@@ -273,9 +276,12 @@ export async function loadDrilldown(sb, drill) {
       title: label || `Feedback — ${value}`,
       columns: [
         { key: "created_at", label: "When" },
+        { key: "status", label: "Status" },
+        { key: "category", label: "Type" },
         { key: "rating", label: "Rating" },
         { key: "sentiment", label: "Sentiment" },
         { key: "message", label: "Message" },
+        { key: "admin_notes", label: "Notes" },
       ],
       rows: (data || []).map(r => ({
         ...r,
@@ -283,6 +289,9 @@ export async function loadDrilldown(sb, drill) {
         message: r.message || "—",
         rating: r.rating ?? "—",
         sentiment: r.sentiment ?? "—",
+        status: r.status ?? "open",
+        category: r.category ?? "—",
+        admin_notes: r.admin_notes || "—",
       })),
     };
   }

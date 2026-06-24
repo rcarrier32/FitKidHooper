@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-export default function HelpSheet({ P, SF, onClose, onOpenMap, onReplayTour }) {
+export default function HelpSheet({ P, SF, onClose, onOpenMap, onReplayTour, onOpenFeedback }) {
   useEffect(() => {
     const h = e => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", h);
@@ -20,6 +20,7 @@ export default function HelpSheet({ P, SF, onClose, onOpenMap, onReplayTour }) {
     { e:"📈", t:"Stats & calendar", d:"Me → Stats — streaks, monthly drill log, and links to Training History & Calendar for your weekly plan." },
     { e:"🔔", t:"Notifications", d:"Settings → Notifications — push alerts are on by default. Uncheck any category you don't want (messages, daily mission, friend activity, and more)." },
     { e:"☁️", t:"Sign in to sync", d:"Settings → Sign in (username + 6-digit passcode) to back up progress, keep it across devices, and add friends." },
+    { e:"💬", t:"Report a bug or idea", d:"Me → Send feedback, or Settings → Feedback Center. Tell us what's broken or what we should build next — kids and parents welcome." },
   ];
   const TIPS = [
     { e:"🧭", d:"Six tabs at the bottom: Today, Squad, Shots, Programs, Challenges, and Me. Replay the guided tour from Settings → App tour." },
@@ -30,6 +31,7 @@ export default function HelpSheet({ P, SF, onClose, onOpenMap, onReplayTour }) {
     { e:"⚙️", d:"Settings — name, birthday, goals, who you play like, colors, notifications, and install to home screen." },
     { e:"📲", d:"Add to home screen via Settings → Install. On iPhone: Safari Share → Add to Home Screen (needed for notifications)." },
     { e:"💾", d:"Progress saves on this device; sign in for cloud backup merged across devices." },
+    { e:"🐛", d:"Something not working? Me → Send feedback — pick Bug or Feature idea and leave a short note." },
   ];
   const card = { background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:12,padding:"12px 14px" };
   const kicker = { fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:"#334155",marginBottom:10,textTransform:"uppercase" };
@@ -72,6 +74,17 @@ export default function HelpSheet({ P, SF, onClose, onOpenMap, onReplayTour }) {
                 <div style={{ flex:1 }}>
                   <div style={{ fontSize:13,fontWeight:800,color:"var(--fkh-text)" }}>Open the app map</div>
                   <div style={{ fontSize:11,color:"var(--fkh-text-muted)" }}>Browse every feature and jump straight to it</div>
+                </div>
+                <span style={{ color:"#64748b",fontSize:13 }}>→</span>
+              </button>
+            )}
+            {onOpenFeedback && (
+              <button onClick={() => { onClose(); onOpenFeedback(); }}
+                style={{ width:"100%",display:"flex",alignItems:"center",gap:10,padding:"11px 14px",borderRadius:12,border:"1px solid rgba(255,255,255,0.1)",background:"rgba(255,255,255,0.04)",cursor:"pointer",textAlign:"left" }}>
+                <span style={{ fontSize:18 }}>💬</span>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:13,fontWeight:800,color:"var(--fkh-text)" }}>Send feedback</div>
+                  <div style={{ fontSize:11,color:"var(--fkh-text-muted)" }}>Report a bug or share a feature idea</div>
                 </div>
                 <span style={{ color:"#64748b",fontSize:13 }}>→</span>
               </button>

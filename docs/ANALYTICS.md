@@ -87,7 +87,10 @@ Events are queued in `localStorage` (`fkh-analytics-queue`) and flushed every 30
 | `analytics_onboarding_daily` | Profile setup vs tour completion by day |
 | `analytics_onboarding_funnel` | Tour completion rate among onboarded athletes |
 | `analytics_athlete_summary` | Active / new / total athletes |
-| `feedback_summary` | Ratings and sentiment |
+| `feedback_summary` | Ratings and sentiment (+ open bug/feature counts) |
+| `feedback_backlog` | Actionable bugs, features, and substantive general |
+| `feedback_open_bugs` | Open / triaged / in-progress bugs |
+| `feedback_open_features` | Open / triaged / in-progress feature ideas |
 | `feedback_feature_requests` | Feature ideas |
 | `feedback_bugs` | Bug reports |
 | `feedback_general` | General feedback |
@@ -116,8 +119,80 @@ select * from analytics_onboarding_daily limit 14;
 
 ## In-app surfaces
 
-- **Feedback Center** — Settings → Open Feedback Center (thumbs, 1–5 stars, category, message).
+- **Feedback Center** — Me → Send feedback, Help → Send feedback, or Settings → Open Feedback Center (thumbs, 1–5 stars, category, message).
 - **Admin dashboard** — `https://rcarrier32.github.io/FitKidHooper/?admin=YOUR_KEY` (key in GitHub secrets / `.env.local`). Click any stat card or table row to drill down; nested drill opens athlete event timelines. **Live event feed** in the header shows the latest 100 events.
+
+## Telegram alerts (founder)
+
+Get a phone ping when someone submits a **bug**, **feature idea**, or substantive general feedback (message or 👎).
+
+### One-time setup
+
+1. **Reuse your Sentinel FX bot** (or create one via [@BotFather](https://t.me/BotFather)) — note the bot token.
+2. **Chat ID** — message the bot from your phone, then open:
+   `https://api.telegram.org/bot<TOKEN>/getUpdates` and copy `message.chat.id`.
+3. **Deploy the edge function** (from repo root, Supabase CLI linked):
+   ```bash
+   supabase secrets set TELEGRAM_BOT_TOKEN=your_token TELEGRAM_CHAT_ID=your_chat_id
+   supabase functions deploy notify-telegram --no-verify-jwt
+   ```
+4. **Apply the DB trigger** — run `supabase/feedback_telegram.sql` in the Supabase SQL editor.
+
+### What you receive
+
+Example Telegram message:
+
+```
+🐛 Bug report
+App 1.0.0 · ★ 2/5 · 👎
+
+Week 2 drills don't show after I tapped Update
+```
+
+Silent skips: empty general feedback with only a thumbs-up and no message.
+
+Bot credentials are read from Sentinel FX `scripts/.outage_secrets` (`OUTAGE_ALERT_WEBHOOK`) — same @RyhansBot, stored as Supabase edge secrets (never in git).
+
+### Triage dataset (bugs & feature backlog)
+
+Run `supabase/feedback_triage.sql` (applied on prod). Each submission gets:
+
+| Field | Purpose |
+|-------|---------|
+| `status` | `open` → `triaged` → `in_progress` → `done` / `wont_fix` |
+| `admin_notes` | Your notes (SQL or RPC) |
+| `message`, `category`, `app_version`, `athlete_id` | From the athlete |
+
+**Export for Cursor / planning:**
+
+```sql
+-- Full actionable backlog (bugs + features + substantive general)
+select * from feedback_backlog;
+
+-- Open bugs only
+select * from feedback_open_bugs;
+
+-- Open feature ideas
+select * from feedback_open_features;
+
+-- Mark done after you ship a fix
+select update_feedback_triage(
+  'feedback-uuid-here'::uuid,
+  'done',
+  'Fixed in commit abc123'
+);
+```
+
+Admin dashboard shows **Open backlog**, **Open bugs**, **Open features**, and a backlog table with status.
+
+### Triage workflow
+
+1. Telegram ping on your phone
+2. Full list in **admin dashboard** → Bugs / Feature requests cards
+3. Paste into Cursor for fixes, or query:
+   ```sql
+   select * from feedback_bugs order by created_at desc limit 20;
+   ```
 
 ## Integration map
 
