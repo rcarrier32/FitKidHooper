@@ -11,8 +11,7 @@ import {
 } from "../lib/auth.js";
 import { calcAge } from "../lib/periodStats.js";
 import { POSITIONS } from "../lib/identity.js";
-
-const PLAY_LIKE_CHIPS = ["Steph Curry", "Allen Iverson", "Kyrie Irving", "Jalen Brunson", "Vince Carter", "Klay Thompson"];
+import PlayerPicker from "./PlayerPicker.jsx";
 
 const EXPERIENCE_OPTIONS = [
   ["beginner", "🌱 Beginner"],
@@ -171,13 +170,14 @@ export default function OnboardingSheet({ P = "#f97316", onComplete, onAuthSucce
     setBusy(true);
     try {
       await signInWithUsername({ username: normUser, passcode });
-      const patch = buildProfilePatch();
-      if (firstName.trim()) onComplete?.({ settings: patch, finalize: false });
+      const namePatch = firstName.trim()
+        ? { athleteName: firstName.trim(), lastName: lastName.trim() }
+        : {};
+      if (Object.keys(namePatch).length) {
+        onComplete?.({ settings: namePatch, finalize: false });
+      }
       await onAuthSuccess?.();
-      onComplete?.({
-        settings: firstName.trim() ? patch : {},
-        finalize: true,
-      });
+      onComplete?.({ settings: {}, finalize: true });
     } catch (err) {
       setError(err.message || "Sign-in failed");
     } finally {
@@ -282,14 +282,13 @@ export default function OnboardingSheet({ P = "#f97316", onComplete, onAuthSucce
     <>
       <div style={sectionStyle}>Your game</div>
       <label style={labelStyle}>Who do you play like?</label>
-      <input type="text" value={favoritePlayLike} onChange={e => setFavoritePlayLike(e.target.value)}
-        placeholder="e.g. Steph Curry" style={inputStyle} />
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
-        {PLAY_LIKE_CHIPS.map(n => (
-          <button key={n} type="button" onClick={() => setFavoritePlayLike(n)}
-            style={chip(favoritePlayLike === n)}>{n}</button>
-        ))}
-      </div>
+      <PlayerPicker
+        value={favoritePlayLike}
+        onChange={setFavoritePlayLike}
+        pool="both"
+        placeholder="e.g. Steph Curry"
+        accent={P}
+      />
     </>
   );
 
@@ -391,8 +390,6 @@ export default function OnboardingSheet({ P = "#f97316", onComplete, onAuthSucce
             Forgot passcode?
           </button>
         )}
-
-        {playLikeBlock}
 
         {error && <div style={{ fontSize: 11, color: "#f87171", marginBottom: 10, lineHeight: 1.45 }}>{error}</div>}
         <button type="submit" disabled={busy} style={btnPrimary}>

@@ -113,9 +113,17 @@ export default function TodayView({
   onEnableNotifications,
   onDismissNotificationPrompt,
   onOpenSchedule,
+  focusMissionSection = false,
+  onMissionFocusHandled,
 }) {
   const homeLbl = { fontFamily:"'DM Mono',monospace", fontSize:12, letterSpacing:"0.13em", color:P, fontWeight:800, marginBottom:10, textTransform:"uppercase" };
   const [homeOpen, setHomeOpen] = useState(loadHomeOpen);
+
+  useEffect(() => {
+    if (!focusMissionSection) return;
+    setHomeOpen(prev => ({ ...prev, mission: true }));
+    onMissionFocusHandled?.();
+  }, [focusMissionSection, onMissionFocusHandled]);
 
   useEffect(() => {
     try { localStorage.setItem("fkh-home-sections", JSON.stringify(homeOpen)); } catch { /* ignore */ }

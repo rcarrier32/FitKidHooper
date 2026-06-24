@@ -3,7 +3,6 @@ import ProgressionView from "../components/ProgressionView.jsx";
 import HomeCollapsibleSection from "../components/HomeCollapsibleSection.jsx";
 import ShootingCard from "../components/ShootingCard.jsx";
 import GrowthCard from "../components/GrowthCard.jsx";
-import HelpSheet from "../components/HelpSheet.jsx";
 import CountBadge from "../components/CountBadge.jsx";
 import { getStreak, getTrainingDays } from "../lib/progressStats.js";
 
@@ -37,13 +36,12 @@ export default function MeView({
   bd,
   lbl,
   shellOverlays,
-  showHelp,
-  onCloseHelp,
   BadgesView,
   ProgressStatsPanel,
   onOpenSettings,
   onOpenFeedback,
   onShowHelp,
+  onOpenAppMap,
   onReplayTour,
   onViewHistory,
   onOpenSchedule,
@@ -82,21 +80,16 @@ export default function MeView({
   return (
     <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"var(--fkh-text)",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
       {shellOverlays}
-      {showHelp && (
-        <HelpSheet
-          P={P}
-          SF={SF}
-          onClose={onCloseHelp}
-          onReplayTour={onReplayTour}
-          onOpenFeedback={onOpenFeedback ? () => { onCloseHelp(); onOpenFeedback(); } : undefined}
-        />
-      )}
 
       <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 20px",borderBottom:`1px solid ${P}14`,position:"sticky",top:0,background:BG,backdropFilter:"blur(10px)",zIndex:10 }}>
         <h1 style={{ fontSize:16,fontWeight:800,margin:0,color:P,display:"flex",alignItems:"center",gap:8 }}>
           ⭐ Me
         </h1>
         <div style={{ display:"flex",gap:8 }}>
+          <button onClick={onOpenAppMap}
+            style={{ background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:8,color:"var(--fkh-text-muted)",fontSize:12,fontWeight:700,cursor:"pointer",padding:"5px 10px" }}>
+            🗺 Map
+          </button>
           <button onClick={onShowHelp}
             style={{ background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:8,color:"var(--fkh-text-muted)",fontSize:12,fontWeight:700,cursor:"pointer",padding:"5px 10px" }}>
             ❓ Help

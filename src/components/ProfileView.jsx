@@ -74,19 +74,14 @@ export default function ProfileView({
       </button>
 
       <div style={{ marginTop:24,textAlign:"center" }}>
-        <button onClick={onOpenSettings}
-          style={{ padding:"12px 28px",borderRadius:12,fontSize:13,fontWeight:700,cursor:"pointer",
-            background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",color:"#64748b" }}>
-          ⚙ Settings & Customization
-        </button>
         {onOpenFeedback && (
           <button type="button" onClick={onOpenFeedback}
-            style={{ display:"block",width:"100%",marginTop:10,padding:"10px 16px",borderRadius:12,fontSize:12,fontWeight:700,cursor:"pointer",
+            style={{ display:"block",width:"100%",marginBottom:10,padding:"10px 16px",borderRadius:12,fontSize:12,fontWeight:700,cursor:"pointer",
               background:"transparent",border:"none",color:"#64748b" }}>
             💬 Send feedback (bug or idea)
           </button>
         )}
-        <div style={{ marginTop:10, fontSize:11, color:"#475569" }}>
+        <div style={{ fontSize:11, color:"#475569" }}>
           Training History & Calendar are in <b style={{ color:P }}>⭐ Me → Stats</b>
         </div>
       </div>

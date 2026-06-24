@@ -5398,6 +5398,7 @@ export default function FitKidHooperApp() {
   tourStepRef.current = tourStep;
   const [showTourPrompt, setShowTourPrompt] = useState(() => shouldShowTourPrompt());
   const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
+  const [homeMissionFocus, setHomeMissionFocus] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
   const [pushError, setPushError] = useState(null);
   const openSchedule = useCallback((returnView = "home", tab = "calendar") => {
@@ -5859,6 +5860,36 @@ export default function FitKidHooperApp() {
     <FeedbackCenter settings={settings} onClose={() => setShowFeedback(false)} />
   ) : null;
 
+  const navigateFromAppMap = useCallback((dest) => {
+    setShowAppMap(false);
+    switch (dest) {
+      case "today": setView("home"); break;
+      case "squad": setView("squad"); break;
+      case "shots": setView("shots"); break;
+      case "programs": setView("programs"); break;
+      case "boards": setView("boards"); break;
+      case "paths": setView("boards"); break;
+      case "progress": setView("progress"); setProgressTab("overview"); break;
+      case "badges": setView("progress"); setProgressTab("locker"); break;
+      case "stats": setView("progress"); setProgressTab("stats"); break;
+      case "history": setView("history"); break;
+      case "settings": setShowSettings(true); break;
+      case "account": setShowAuth(true); break;
+      case "help": setShowHelp(true); break;
+      default: break;
+    }
+  }, []);
+
+  const helpSheet = showHelp ? (
+    <HelpSheet P={P} SF={SF} onClose={() => setShowHelp(false)} onReplayTour={startTour}
+      onOpenFeedback={openFeedback}
+      onOpenMap={() => { setShowHelp(false); setShowAppMap(true); }} />
+  ) : null;
+
+  const appMapSheet = showAppMap ? (
+    <AppMapSheet P={P} SF={SF} onClose={() => setShowAppMap(false)} onNavigate={navigateFromAppMap} />
+  ) : null;
+
   useEffect(() => {
     const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
     return initAnalytics({ ageGroup: getAgeGroup(settings.dateOfBirth), isStandalone });
@@ -6095,7 +6126,7 @@ export default function FitKidHooperApp() {
   useEffect(() => {
     if (missionDeepLink) {
       setView("home");
-      setWorkoutOpen(true);
+      setHomeMissionFocus(true);
       setMissionDeepLink(false);
     }
   }, [missionDeepLink]);
@@ -6286,7 +6317,7 @@ export default function FitKidHooperApp() {
 
   const shellOverlays = (
     <>
-      {settingsSheet}{feedbackSheet}{authSheet}
+      {settingsSheet}{feedbackSheet}{authSheet}{helpSheet}{appMapSheet}
       {playerHighlight && (
         <HighlightVideoSheet
           videoId={playerHighlight.videoId}
@@ -6426,17 +6457,16 @@ export default function FitKidHooperApp() {
         bd={bd}
         lbl={lbl}
         shellOverlays={shellOverlays}
-        showHelp={showHelp}
-        onCloseHelp={() => setShowHelp(false)}
         BadgesView={BadgesView}
         ProgressStatsPanel={ProgressStatsPanel}
         onOpenSettings={() => setShowSettings(true)}
         onOpenFeedback={openFeedback}
         onShowHelp={() => setShowHelp(true)}
+        onOpenAppMap={() => setShowAppMap(true)}
         onReplayTour={startTour}
         onViewHistory={() => setView("history")}
         onOpenSchedule={() => openSchedule("progress", "calendar")}
-        onViewReport={() => setView("report")}
+        onViewReport={() => { setPrevView("progress"); setView("report"); }}
         onViewLeaderboard={() => setView("boards")}
         onPushStats={() => handlePushStats({ goToRanks: false })}
         pushBusy={pushBusy}
@@ -6526,7 +6556,7 @@ export default function FitKidHooperApp() {
       : WORKOUTS[activeCat];
     return (
       <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"var(--fkh-text)",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
-        {settingsSheet}{feedbackSheet}{authSheet}
+        {shellOverlays}
         <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 16px",borderBottom:`2px solid ${color}40`,position:"sticky",top:0,background:NV,backdropFilter:"blur(10px)",zIndex:10 }}>
           <button onClick={()=>setView(prevView)} style={{ background:`${color}14`,border:`1px solid ${color}30`,borderRadius:8,color,fontSize:12,fontWeight:700,cursor:"pointer",padding:"5px 10px",letterSpacing:"0.02em" }}>← Back</button>
           <span style={{ fontSize:15,fontWeight:800,color,letterSpacing:"-0.01em" }}>{CATS[activeCat].emoji} {CATS[activeCat].label}</span>
@@ -6598,7 +6628,7 @@ export default function FitKidHooperApp() {
 
     return (
       <div style={{ background:BG,minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:80 }}>
-        {settingsSheet}{feedbackSheet}{authSheet}
+        {shellOverlays}
         {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]} onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
         {renderMissionOverlays()}
         {activeExercise&&<ExerciseDetailSheet exercise={activeExercise} color={P}
@@ -6614,7 +6644,10 @@ export default function FitKidHooperApp() {
         <div style={{ padding:"20px 18px 14px" }}>
           <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4 }}>
             <div>
-              <button onClick={()=>setView("home")} style={{ marginBottom:10,padding:"5px 12px",borderRadius:8,border:`1px solid ${P}30`,background:`${P}14`,color:P,fontSize:11,fontWeight:700,cursor:"pointer" }}>← Home</button>
+              <button onClick={() => setView(prevView === "progress" ? "progress" : "home")}
+                style={{ marginBottom:10,padding:"5px 12px",borderRadius:8,border:`1px solid ${P}30`,background:`${P}14`,color:P,fontSize:11,fontWeight:700,cursor:"pointer" }}>
+                ← {prevView === "progress" ? "Me" : "Home"}
+              </button>
               <h1 style={{ fontSize:22,fontWeight:800,color:"var(--fkh-text)",margin:0 }}>📈 Progress Report</h1>
               <p style={{ fontSize:12,color:"#64748b",margin:"4px 0 0" }}>{settings.athleteName} · {periodLabel}</p>
             </div>
@@ -6802,17 +6835,19 @@ export default function FitKidHooperApp() {
 
   /* SCHEDULE / CALENDAR (Tier 1 — expose existing views) */
   if (view==="schedule") {
-    const scheduleBack = ["home", "profile", "report"].includes(prevView) ? prevView : "home";
+    const scheduleBack = ["home", "profile", "progress", "report"].includes(prevView) ? prevView : "home";
+    const scheduleBackLabel = scheduleBack === "progress" || scheduleBack === "profile" ? "Me"
+      : scheduleBack === "report" ? "Report" : "Home";
     return (
       <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"var(--fkh-text)",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
-        {settingsSheet}{feedbackSheet}{authSheet}
+        {shellOverlays}
         {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]} onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
         {renderMissionOverlays()}
         {tourOverlay}
         <div style={{ padding:"16px 20px 12px",borderBottom:`1px solid ${P}14`,position:"sticky",top:0,background:BG,backdropFilter:"blur(10px)",zIndex:10 }}>
           <button onClick={()=>setView(scheduleBack)}
             style={{ marginBottom:10,padding:"5px 12px",borderRadius:8,border:`1px solid ${P}30`,background:`${P}14`,color:P,fontSize:11,fontWeight:700,cursor:"pointer" }}>
-            ← {scheduleBack==="profile"?"Profile":scheduleBack==="report"?"Progress":"Home"}
+            ← {scheduleBackLabel}
           </button>
           <h1 style={{ fontSize:20,fontWeight:800,margin:0,color:"var(--fkh-text)" }}>🗓 Training Calendar</h1>
           <p style={{ fontSize:12,color:"#64748b",margin:"4px 0 0" }}>Weekly plan & training history</p>
@@ -6995,7 +7030,7 @@ export default function FitKidHooperApp() {
   /* HOME */
   return (
     <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"var(--fkh-text)",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
-      {settingsSheet}{feedbackSheet}{authSheet}
+      {shellOverlays}
       {activeExercise&&<ExerciseDetailSheet
         exercise={activeExercise} color={catColor(activeExercise._cat)}
         bg2={catBg(activeExercise._cat)} brd={catBrd(activeExercise._cat)}
@@ -7030,33 +7065,22 @@ export default function FitKidHooperApp() {
           onForgotPasscode={() => { setAuthInitialMode("forgot"); setShowAuth(true); }}
         />
       )}
-      {showHelp&&<HelpSheet P={P} SF={SF} onClose={()=>setShowHelp(false)} onReplayTour={startTour} onOpenFeedback={openFeedback} onOpenMap={()=>{ setShowHelp(false); setShowAppMap(true); }}/>}
-      {showAppMap&&<AppMapSheet P={P} SF={SF} onClose={()=>setShowAppMap(false)} onNavigate={dest=>{
-        setShowAppMap(false);
-        switch(dest){
-          case "today": setView("home"); break;
-          case "squad": setView("squad"); break;
-          case "shots": setView("shots"); break;
-          case "programs": setView("programs"); break;
-          case "boards": setView("boards"); break;
-          case "paths": setView("boards"); break;
-          case "progress": setView("progress"); setProgressTab("overview"); break;
-          case "badges": setView("progress"); setProgressTab("locker"); break;
-          case "stats": setView("progress"); setProgressTab("stats"); break;
-          case "history": setView("history"); break;
-          case "settings": setShowSettings(true); break;
-          case "account": setShowAuth(true); break;
-          case "help": setShowHelp(true); break;
-          default: break;
-        }
-      }}/>}
-
       <div style={{ padding:"26px 20px 16px",borderBottom:`1px solid ${P}14` }}>
         <div style={{ display:"flex",alignItems:"center",gap:12 }}>
           <h1 style={{ flex:1,minWidth:0,fontSize:28,fontWeight:800,margin:0,letterSpacing:"-0.03em",lineHeight:1.1 }}>
             FKH <span style={{ color:P }}>Fit Kid Hooper</span>
           </h1>
-          <div style={{ position:"relative",width:56,height:56,flexShrink:0,marginLeft:4 }}>
+          <div style={{ display:"flex",gap:6,flexShrink:0 }}>
+            <button type="button" onClick={() => setShowHelp(true)}
+              style={{ background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:8,color:"var(--fkh-text-muted)",fontSize:12,fontWeight:700,cursor:"pointer",padding:"5px 10px" }}>
+              ❓
+            </button>
+            <button type="button" onClick={() => setShowAppMap(true)}
+              style={{ background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:8,color:"var(--fkh-text-muted)",fontSize:12,fontWeight:700,cursor:"pointer",padding:"5px 10px" }}>
+              🗺
+            </button>
+          </div>
+          <div style={{ position:"relative",width:56,height:56,flexShrink:0 }}>
             <div onClick={()=>{ setView("progress"); setProgressTab("overview"); }}
               style={{ width:56,height:56,borderRadius:"50%",background:`${P}18`,border:`3px solid ${P}`,overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer" }}>
               {settings.avatar?<img src={settings.avatar} alt="" style={{ width:"100%",height:"100%",objectFit:"cover" }}/>:<span style={{ fontSize:24 }}>👤</span>}
@@ -7138,7 +7162,7 @@ export default function FitKidHooperApp() {
         programs={PROGRAMS}
         progressCtx={progressCtx}
         showFindDrills={showFindDrills}
-        onShowFindDrills={() => openProgramsSection("drills")}
+        onShowFindDrills={() => setShowFindDrills(true)}
         onHideFindDrills={() => setShowFindDrills(false)}
         onOpenProgramsSection={openProgramsSection}
         favorites={favorites}
@@ -7185,6 +7209,8 @@ export default function FitKidHooperApp() {
         onEnableNotifications={enableNotificationsFromPrompt}
         onDismissNotificationPrompt={dismissNotificationPromptBanner}
         onOpenSchedule={() => openSchedule("home", "week")}
+        focusMissionSection={homeMissionFocus}
+        onMissionFocusHandled={() => setHomeMissionFocus(false)}
       />
 
 

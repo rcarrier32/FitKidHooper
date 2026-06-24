@@ -21,6 +21,7 @@ import {
   hsl, pri, sec, bg, btn, surf, textPri, textMuted, str3,
   chipStyle, actionBtnStyle, hexToHsl, contrastOn,
 } from "../lib/themeColors.js";
+import PlayerPicker from "./PlayerPicker.jsx";
 
 function isBirthday(dob) {
   if (!dob) return false;
@@ -285,24 +286,37 @@ function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenA
                 </div>
                 <div style={{ flex:2 }}>
                   <div style={{ fontSize:11,color:"#475569",marginBottom:4,fontWeight:600 }}>Wants to play like 🎯</div>
-                  <input value={settings.favoritePlayLike||""} placeholder="e.g. Curry — picks your journey"
-                    onChange={e=>setSettings(p=>({...p,favoritePlayLike:e.target.value}))}
-                    style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.05)",border:`1.5px solid ${P}44`,borderRadius:10,padding:"8px 12px",fontSize:14,color:"var(--fkh-text)",outline:"none" }}/>
+                  <PlayerPicker
+                    value={settings.favoritePlayLike || ""}
+                    onChange={v => setSettings(p => ({ ...p, favoritePlayLike: v }))}
+                    pool="both"
+                    placeholder="e.g. Curry — picks your journey"
+                    accent={P}
+                    maxVisible={18}
+                  />
                 </div>
               </div>
-              <div style={{ display:"flex",gap:10,marginBottom:14 }}>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:11,color:"#475569",marginBottom:4,fontWeight:600 }}>Favorite player (now)</div>
-                  <input value={settings.favoriteCurrent||""} placeholder="Current player"
-                    onChange={e=>setSettings(p=>({...p,favoriteCurrent:e.target.value}))}
-                    style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.05)",border:`1.5px solid ${P}44`,borderRadius:10,padding:"8px 12px",fontSize:14,color:"var(--fkh-text)",outline:"none" }}/>
-                </div>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:11,color:"#475569",marginBottom:4,fontWeight:600 }}>All-time favorite 🐐</div>
-                  <input value={settings.favoriteAllTime||""} placeholder="Legend / GOAT"
-                    onChange={e=>setSettings(p=>({...p,favoriteAllTime:e.target.value}))}
-                    style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.05)",border:`1.5px solid ${P}44`,borderRadius:10,padding:"8px 12px",fontSize:14,color:"var(--fkh-text)",outline:"none" }}/>
-                </div>
+              <div style={{ marginBottom:14 }}>
+                <div style={{ fontSize:11,color:"#475569",marginBottom:6,fontWeight:600 }}>Favorite player (now)</div>
+                <PlayerPicker
+                  value={settings.favoriteCurrent || ""}
+                  onChange={v => setSettings(p => ({ ...p, favoriteCurrent: v }))}
+                  pool="active"
+                  placeholder="Current NBA star"
+                  accent={P}
+                  maxVisible={16}
+                />
+              </div>
+              <div style={{ marginBottom:14 }}>
+                <div style={{ fontSize:11,color:"#475569",marginBottom:6,fontWeight:600 }}>All-time favorite 🐐</div>
+                <PlayerPicker
+                  value={settings.favoriteAllTime || ""}
+                  onChange={v => setSettings(p => ({ ...p, favoriteAllTime: v }))}
+                  pool="legends"
+                  placeholder="Legend since 1990"
+                  accent={P}
+                  maxVisible={16}
+                />
               </div>
               <div style={{ fontSize:11,color:"#475569",marginBottom:4,fontWeight:600 }}>Training Start Date</div>
               <input type="date" value={settings.startDate||''} onChange={e=>setSettings(p=>({...p,startDate:e.target.value}))}
