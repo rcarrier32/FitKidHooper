@@ -67,10 +67,14 @@ const MAP = [
     items:[
       { label:"Name, birthday, goals, who you play like" },
       { label:"App colors & theme" },
+      { label:"What's new — latest update", to:"whatsnew" },
       { label:"Install on your home screen" },
     ] },
   { key:"help", emoji:"❓", title:"How-to guide", blurb:"Step-by-step help.", to:"help",
-    items:[ { label:"Open the full how-to guide", to:"help" } ] },
+    items:[
+      { label:"Open the full how-to guide", to:"help" },
+      { label:"What's new — latest update", to:"whatsnew" },
+    ] },
 ];
 
 export default function AppMapSheet({ P = "#f97316", SF, onClose, onNavigate }) {

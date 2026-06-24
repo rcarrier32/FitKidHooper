@@ -5836,6 +5836,13 @@ export default function FitKidHooperApp() {
     setShowFeedback(true);
   }, []);
 
+  const openWhatsNew = useCallback(() => {
+    setShowSettings(false);
+    setShowHelp(false);
+    setShowAppMap(false);
+    setShowWhatsNew(true);
+  }, []);
+
   const dismissWhatsNew = useCallback(() => {
     markWhatsNewSeen();
     setShowWhatsNew(false);
@@ -5843,7 +5850,7 @@ export default function FitKidHooperApp() {
 
   const settingsSheet = showSettings ? (
     <SettingsSheet settings={settings} setSettings={setSettings} onClose={() => setShowSettings(false)} onOpenFeedback={openFeedback}
-      onOpenWhatsNew={() => setShowWhatsNew(true)}
+      onOpenWhatsNew={openWhatsNew}
       onOpenAuth={() => { setShowSettings(false); setShowAuth(true); }}
       onReplayTour={() => { setShowSettings(false); startTour(); }}
       isSignedIn={auth.isSignedIn}
@@ -5896,13 +5903,15 @@ export default function FitKidHooperApp() {
       case "settings": setShowSettings(true); break;
       case "account": setShowAuth(true); break;
       case "help": setShowHelp(true); break;
+      case "whatsnew": openWhatsNew(); break;
       default: break;
     }
-  }, []);
+  }, [openWhatsNew]);
 
   const helpSheet = showHelp ? (
     <HelpSheet P={P} SF={SF} onClose={() => setShowHelp(false)} onReplayTour={startTour}
       onOpenFeedback={openFeedback}
+      onOpenWhatsNew={openWhatsNew}
       onOpenMap={() => { setShowHelp(false); setShowAppMap(true); }} />
   ) : null;
 

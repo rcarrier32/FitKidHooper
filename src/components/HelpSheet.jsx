@@ -1,6 +1,7 @@
 import { useEffect } from "react";
+import { getWhatsNew } from "../lib/changelog.js";
 
-export default function HelpSheet({ P, SF, onClose, onOpenMap, onReplayTour, onOpenFeedback }) {
+export default function HelpSheet({ P, SF, onClose, onOpenMap, onReplayTour, onOpenFeedback, onOpenWhatsNew }) {
   useEffect(() => {
     const h = e => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", h);
@@ -28,11 +29,12 @@ export default function HelpSheet({ P, SF, onClose, onOpenMap, onReplayTour, onO
     { e:"⭐", d:"Tap the star on any drill, program, or workout template to save it as a favorite." },
     { e:"🔍", d:"Search exercises and programs from the Programs tab search bar — crossover, Mikan, plank, and more." },
     { e:"🛠", d:"Programs → Build — pick drills for one day or map out a full week and save your custom plan." },
-    { e:"⚙️", d:"Settings — name, birthday, goals, who you play like, colors, notifications, and install to home screen." },
+    { e:"⚙️", d:"Settings — name, birthday, goals, who you play like, colors, notifications, What's new, and install to home screen." },
     { e:"📲", d:"Add to home screen via Settings → Install. On iPhone: Safari Share → Add to Home Screen (needed for notifications)." },
     { e:"💾", d:"Progress saves on this device; sign in for cloud backup merged across devices." },
     { e:"🐛", d:"Something not working? Me → Send feedback — pick Bug or Feature idea and leave a short note." },
   ];
+  const whatsNew = getWhatsNew();
   const card = { background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:12,padding:"12px 14px" };
   const kicker = { fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:"#334155",marginBottom:10,textTransform:"uppercase" };
 
@@ -56,6 +58,17 @@ export default function HelpSheet({ P, SF, onClose, onOpenMap, onReplayTour, onO
             Quick reference for everything in the app. New here? Take the guided tour first.
           </p>
           <div style={{ display:"flex",flexDirection:"column",gap:8,marginTop:12 }}>
+            {onOpenWhatsNew && (
+              <button onClick={() => { onClose(); onOpenWhatsNew(); }}
+                style={{ width:"100%",display:"flex",alignItems:"center",gap:10,padding:"11px 14px",borderRadius:12,border:`1px solid ${P}33`,background:`${P}0c`,cursor:"pointer",textAlign:"left" }}>
+                <span style={{ fontSize:18 }}>✨</span>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:13,fontWeight:800,color:P }}>What&apos;s new</div>
+                  <div style={{ fontSize:11,color:"var(--fkh-text-muted)" }}>{whatsNew.headline} — latest features &amp; fixes</div>
+                </div>
+                <span style={{ color:P,fontSize:13 }}>→</span>
+              </button>
+            )}
             {onReplayTour && (
               <button onClick={() => { onClose(); onReplayTour(); }}
                 style={{ width:"100%",display:"flex",alignItems:"center",gap:10,padding:"11px 14px",borderRadius:12,border:`1px solid ${P}44`,background:`${P}12`,cursor:"pointer",textAlign:"left" }}>
