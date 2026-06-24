@@ -14,7 +14,7 @@ import { recoverFromSyncBackupIfNeeded } from "./lib/syncBackup.js";
 import { withStoredAvatar, writeStoredAvatar, readStoredAvatar, stripAvatarForCloud } from "./lib/avatarStorage.js";
 import { safePersistKey } from "./lib/dataSafety.js";
 import { mergeUserSettings } from "./lib/settingsMerge.js";
-import { hydrateSettingsFromCloudProfile, persistHydratedSettings, normalizeProfileFields } from "./lib/profileHydrate.js";
+import { persistHydratedSettings, normalizeProfileFields, fetchAthleteProfilePatch, mergeProfilePatch } from "./lib/profileHydrate.js";
 import { syncAvatarToCloud, restoreLocalAvatarFromCloud } from "./lib/avatarCloud.js";
 import { getEffectiveAthleteId, hasStoredAuthSession } from "./lib/auth.js";
 import { CATS, CAT_DOT_COLORS } from "./lib/categories.js";
@@ -34,7 +34,7 @@ import {
   readLocalLedger, ledgerIdSet, mergeIntoLocalLedger, pushLedgerEntries, pullLedger,
   pushEquippedIdentity,
 } from "./lib/achievementsApi.js";
-import { getStreak, getTrainingDays, getWeekShotGoal } from "./lib/progressStats.js";
+import { getStreak, getTrainingDays, getWeekShotGoal, getMonthShotGoal, setWeekShotGoal, setMonthShotGoal, getShotGoalPeriod, setShotGoalPeriod, getWeekMakesFromLog, getMonthMakesFromLog, daysLeftInWeek, daysLeftInMonth } from "./lib/progressStats.js";
 import { resolveDailyAction, pickChallengeNudge } from "./lib/dailyAction.js";
 import {
   consumeInviteDeepLink,
@@ -3048,16 +3048,28 @@ function ShotTracker({ P, S, BG, athleteName, settings }) {
   const [custStart, setCustStart] = useState("");
   const [custEnd, setCustEnd] = useState("");
   const [shotCount, setShotCount] = useState({made:0, missed:0});
-  const [weekGoal, setWeekGoal] = useState(()=>{
-    try{ return parseInt(localStorage.getItem("fkh-shot-goal")||"100"); }catch{ return 100; }
-  });
+  const [weekGoal, setWeekGoal] = useState(() => getWeekShotGoal());
+  const [monthGoal, setMonthGoal] = useState(() => getMonthShotGoal());
+  const [goalPeriod, setGoalPeriod] = useState(() => getShotGoalPeriod());
   const [editingGoal, setEditingGoal] = useState(false);
 
   const save = nl => { setLog(nl); try{localStorage.setItem("shot_log_v2",JSON.stringify(nl))}catch{} };
 
   const saveGoal = g => {
-    setWeekGoal(g);
-    try{ localStorage.setItem("fkh-shot-goal", String(g)); }catch{}
+    const v = Math.max(1, parseInt(g, 10) || 100);
+    if (goalPeriod === "month") {
+      setMonthGoal(v);
+      setMonthShotGoal(v);
+    } else {
+      setWeekGoal(v);
+      setWeekShotGoal(v);
+    }
+  };
+
+  const switchGoalPeriod = period => {
+    setGoalPeriod(period);
+    setShotGoalPeriod(period);
+    setEditingGoal(false);
   };
 
   const logBatch = (tid, loc, made, missed) => {
@@ -3121,25 +3133,12 @@ function ShotTracker({ P, S, BG, athleteName, settings }) {
   const todayMade = useMemo(()=>todayShots.filter(s=>s.made!==false).length,[todayShots]);
   const todayPct = todayTotal>0 ? Math.round((todayMade/todayTotal)*100) : 0;
 
-  // Weekly makes: Monday → today
-  const weekMakes = useMemo(()=>{
-    const now = new Date();
-    const mondayOffset = (now.getDay()+6)%7; // days since last Mon (0=Mon)
-    let makes = 0;
-    for (let i = 0; i <= mondayOffset; i++) {
-      const d = new Date(now);
-      d.setDate(now.getDate() - mondayOffset + i);
-      const k = d.toLocaleDateString("en-CA");
-      makes += (log[k]||[]).filter(s=>s.made!==false).length;
-    }
-    return makes;
-  },[log]);
-
-  // Days remaining in the week (Mon–Sun), including today
-  const daysLeftInWeek = useMemo(()=>{
-    const dow = new Date().getDay(); // 0=Sun
-    return dow===0 ? 1 : 7-dow; // Sun=last day; Mon=7 left
-  },[]);
+  // Period makes: week (Mon→today) or month (1st→today)
+  const periodMakes = useMemo(() => (
+    goalPeriod === "month" ? getMonthMakesFromLog(log) : getWeekMakesFromLog(log)
+  ), [log, goalPeriod]);
+  const periodGoal = goalPeriod === "month" ? monthGoal : weekGoal;
+  const daysLeftInPeriod = goalPeriod === "month" ? daysLeftInMonth() : daysLeftInWeek();
 
   const histData = useMemo(()=>{
     const days=[];
@@ -3187,8 +3186,8 @@ function ShotTracker({ P, S, BG, athleteName, settings }) {
       </div>
       {/* ── Weekly Goal Widget ───────────────────────────────── */}
       {(()=>{
-        const pct      = Math.min(1, weekMakes / weekGoal);
-        const reached  = weekMakes >= weekGoal;
+        const pct      = Math.min(1, periodMakes / periodGoal);
+        const reached  = periodMakes >= periodGoal;
         const barColor = reached
           ? "linear-gradient(90deg,#22c55e,#16a34a)"
           : pct >= 0.75
@@ -3198,33 +3197,52 @@ function ShotTracker({ P, S, BG, athleteName, settings }) {
               : `linear-gradient(90deg,${P}cc,${P})`;
         const glowColor = reached ? "#22c55e" : P;
         const numColor  = reached ? "#22c55e" : pct >= 0.75 ? "#86efac" : "var(--fkh-text)";
+        const periodLabel = goalPeriod === "month" ? "month" : "week";
+        const goalPresets = goalPeriod === "month"
+          ? [200, 400, 600, 800, 1000, 1500]
+          : [50, 100, 150, 200, 300, 500];
 
         return (
           <div style={{ padding:"12px 16px 10px",borderBottom:`1px solid ${bd}` }}>
-            {/* Top row: counter + set-goal button */}
-            <div style={{ display:"flex",alignItems:"flex-end",justifyContent:"space-between",marginBottom:9 }}>
-              <div style={{ display:"flex",alignItems:"baseline",gap:6 }}>
+            {/* Top row: counter + period toggle + set-goal */}
+            <div style={{ display:"flex",alignItems:"flex-end",justifyContent:"space-between",marginBottom:9,gap:8 }}>
+              <div style={{ display:"flex",alignItems:"baseline",gap:6,minWidth:0,flex:1 }}>
                 <span style={{ fontFamily:"'DM Mono',monospace",fontSize:30,fontWeight:800,
                   color:numColor,lineHeight:1,
                   textShadow:reached?`0 0 20px #22c55e80`:pct>0.4?`0 0 16px ${P}60`:"none",
                   transition:"color 0.4s,text-shadow 0.4s" }}>
-                  {weekMakes}
+                  {periodMakes}
                 </span>
                 <span style={{ fontSize:13,color:"#475569",paddingBottom:2 }}>
-                  / {weekGoal} makes this week
+                  / {periodGoal} makes this {periodLabel}
                 </span>
                 {reached && (
                   <span style={{ fontSize:12,animation:"fkh-bounce 0.5s ease-out both" }}>🎯</span>
                 )}
               </div>
-              <button onClick={()=>setEditingGoal(e=>!e)}
-                style={{ fontSize:10,color:editingGoal?P:"#475569",
-                  background:editingGoal?`${P}14`:"transparent",
-                  border:`1px solid ${editingGoal?P+"40":"rgba(255,255,255,0.1)"}`,
-                  borderRadius:8,padding:"5px 11px",cursor:"pointer",fontWeight:600,
-                  transition:"all 0.2s" }}>
-                {editingGoal ? "Done ✓" : "Set Goal"}
-              </button>
+              <div style={{ display:"flex",alignItems:"center",gap:6,flexShrink:0 }}>
+                <div style={{ display:"flex",borderRadius:8,overflow:"hidden",border:`1px solid ${bd}` }}>
+                  {["week", "month"].map(p => (
+                    <button key={p} type="button" onClick={() => switchGoalPeriod(p)}
+                      style={{
+                        padding:"5px 9px", border:"none", cursor:"pointer", fontSize:10, fontWeight:700,
+                        textTransform:"capitalize",
+                        background: goalPeriod === p ? `${P}22` : "transparent",
+                        color: goalPeriod === p ? P : "#64748b",
+                      }}>
+                      {p}
+                    </button>
+                  ))}
+                </div>
+                <button onClick={()=>setEditingGoal(e=>!e)}
+                  style={{ fontSize:10,color:editingGoal?P:"#475569",
+                    background:editingGoal?`${P}14`:"transparent",
+                    border:`1px solid ${editingGoal?P+"40":"rgba(255,255,255,0.1)"}`,
+                    borderRadius:8,padding:"5px 11px",cursor:"pointer",fontWeight:600,
+                    transition:"all 0.2s" }}>
+                  {editingGoal ? "Done ✓" : "Set Goal"}
+                </button>
+              </div>
             </div>
 
             {/* Progress bar */}
@@ -3253,9 +3271,9 @@ function ShotTracker({ P, S, BG, athleteName, settings }) {
                   fontWeight:700,color:glowColor }}>
                   {Math.round(pct*100)}%
                 </span>
-                {!reached && weekMakes>0 && (
+                {!reached && periodMakes>0 && (
                   <span style={{ fontSize:10,color:"#334155" }}>
-                    · {weekGoal-weekMakes} to go
+                    · {periodGoal-periodMakes} to go
                   </span>
                 )}
                 {reached && (
@@ -3265,7 +3283,7 @@ function ShotTracker({ P, S, BG, athleteName, settings }) {
                 )}
               </div>
               <span style={{ fontSize:10,color:"#334155",fontFamily:"'DM Mono',monospace" }}>
-                {daysLeftInWeek}d left in week
+                {daysLeftInPeriod}d left in {periodLabel}
               </span>
             </div>
 
@@ -3274,16 +3292,16 @@ function ShotTracker({ P, S, BG, athleteName, settings }) {
               <div style={{ marginTop:10,paddingTop:10,borderTop:"1px solid rgba(255,255,255,0.06)" }}>
                 <div style={{ fontSize:9,color:"#475569",letterSpacing:"0.1em",
                   textTransform:"uppercase",fontFamily:"'DM Mono',monospace",marginBottom:8 }}>
-                  Weekly makes target
+                  {goalPeriod === "month" ? "Monthly" : "Weekly"} makes target
                 </div>
                 <div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>
-                  {[50,100,150,200,300,500].map(n=>(
+                  {goalPresets.map(n=>(
                     <button key={n} onClick={()=>{ saveGoal(n); setEditingGoal(false); }}
                       style={{ padding:"6px 13px",borderRadius:9,cursor:"pointer",fontSize:13,
-                        fontWeight:weekGoal===n?800:500,
-                        boxShadow:weekGoal===n?`0 0 8px ${P}40`:"none",
+                        fontWeight:periodGoal===n?800:500,
+                        boxShadow:periodGoal===n?`0 0 8px ${P}40`:"none",
                         transition:"all 0.15s",
-                        ...chipStyle(settings, weekGoal===n, P) }}>
+                        ...chipStyle(settings, periodGoal===n, P) }}>
                       {n}
                     </button>
                   ))}
@@ -5376,11 +5394,14 @@ export default function FitKidHooperApp() {
     if (!readStoredAvatar()) {
       await restoreLocalAvatarFromCloud(userId);
     }
-    const stored = loadSettingsFromStorage(DEFAULT);
-    const hydrated = await hydrateSettingsFromCloudProfile(userId, stored);
-    const next = withStoredAvatar(migrateThemeSettings(hydrated));
-    persistHydratedSettings(next, stored);
-    setSettings(prev => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
+    const patch = await fetchAthleteProfilePatch(userId);
+    setSettings(prev => {
+      const next = withStoredAvatar(migrateThemeSettings(
+        mergeProfilePatch(normalizeProfileFields(prev), patch)
+      ));
+      persistHydratedSettings(next, prev);
+      return JSON.stringify(prev) === JSON.stringify(next) ? prev : next;
+    });
   }, []);
 
   const applyCloudSync = useCallback(async () => {

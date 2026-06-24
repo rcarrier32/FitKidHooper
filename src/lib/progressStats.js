@@ -94,11 +94,80 @@ export function getWeekShotGoal() {
 }
 
 export function setWeekShotGoal(n) {
-  const v = String(n);
+  const v = String(Math.max(1, parseInt(n, 10) || 100));
   try {
     localStorage.setItem("shot_week_goal", v);
     localStorage.setItem("fkh-shot-goal", v);
   } catch {}
+}
+
+export function getMonthShotGoal() {
+  try {
+    const stored = localStorage.getItem("fkh-shot-month-goal") || localStorage.getItem("shot_month_goal");
+    if (stored) return parseInt(stored, 10);
+    return Math.max(200, getWeekShotGoal() * 4);
+  } catch {
+    return 400;
+  }
+}
+
+export function setMonthShotGoal(n) {
+  const v = String(Math.max(1, parseInt(n, 10) || 400));
+  try {
+    localStorage.setItem("fkh-shot-month-goal", v);
+    localStorage.setItem("shot_month_goal", v);
+  } catch {}
+}
+
+export function getShotGoalPeriod() {
+  try {
+    return localStorage.getItem("fkh-shot-goal-period") === "month" ? "month" : "week";
+  } catch {
+    return "week";
+  }
+}
+
+export function setShotGoalPeriod(period) {
+  try {
+    localStorage.setItem("fkh-shot-goal-period", period === "month" ? "month" : "week");
+  } catch {}
+}
+
+export function countMakesInLogRange(log, startDate, endDate) {
+  let makes = 0;
+  for (const [date, shots] of Object.entries(log || {})) {
+    if (startDate && date < startDate) continue;
+    if (endDate && date > endDate) continue;
+    makes += (shots || []).filter(s => s.made !== false).length;
+  }
+  return makes;
+}
+
+export function getWeekMakesFromLog(log, refDate = new Date()) {
+  const now = refDate instanceof Date ? refDate : new Date(refDate);
+  const mondayOffset = (now.getDay() + 6) % 7;
+  const start = new Date(now);
+  start.setDate(now.getDate() - mondayOffset);
+  const startKey = start.toLocaleDateString("en-CA");
+  const endKey = now.toLocaleDateString("en-CA");
+  return countMakesInLogRange(log, startKey, endKey);
+}
+
+export function getMonthMakesFromLog(log, refDate = new Date()) {
+  const now = refDate instanceof Date ? refDate : new Date(refDate);
+  const startKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+  const endKey = now.toLocaleDateString("en-CA");
+  return countMakesInLogRange(log, startKey, endKey);
+}
+
+export function daysLeftInWeek(refDate = new Date()) {
+  const dow = refDate.getDay();
+  return dow === 0 ? 1 : 7 - dow;
+}
+
+export function daysLeftInMonth(refDate = new Date()) {
+  const last = new Date(refDate.getFullYear(), refDate.getMonth() + 1, 0).getDate();
+  return Math.max(1, last - refDate.getDate() + 1);
 }
 
 export function getProgressSnapshot({ completed, shotLog, getCategory, period = "all_time" } = {}) {

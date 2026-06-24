@@ -16,7 +16,7 @@ const MAP = [
   { key:"shots", emoji:"🏀", title:"Shots", blurb:"Track every make and miss.", to:"shots",
     items:[
       { label:"Court shot tracker by zone" },
-      { label:"Weekly make goal" },
+      { label:"Weekly make goal", to:"shots" },
       { label:"Accuracy by zone & spot" },
     ] },
   { key:"programs", emoji:"📋", title:"Programs", blurb:"Multi-week training plans.", to:"programs",

@@ -2,6 +2,12 @@ import { isDefaultTheme } from "./theme.js";
 
 const DEFAULT_ATHLETE_NAME = "Champ";
 
+const IDENTITY_STRING_FIELDS = [
+  "athleteName", "lastName",
+  "favoritePlayLike", "favoriteAllTime", "favoriteCurrent", "favoritePlayer",
+  "dateOfBirth", "startDate", "playStyle", "experience",
+];
+
 /** True when settings look like a fresh/default profile shell (not a real athlete). */
 export function isProfileShell(settings) {
   if (!settings || typeof settings !== "object") return true;
@@ -19,11 +25,31 @@ export function isProfileShell(settings) {
   return !hasName && !hasLast && !hasFav && !hasCustomTheme && !hasDob;
 }
 
-/** Block writing a default shell over a configured profile in localStorage. */
+/** True when incoming would erase identity the athlete already saved locally. */
+export function wouldWipeIdentityFields(incoming, existing) {
+  const inc = incoming || {};
+  const ex = existing || {};
+  for (const key of IDENTITY_STRING_FIELDS) {
+    const was = String(ex[key] ?? "").trim();
+    const now = String(inc[key] ?? "").trim();
+    if (was && !now) return true;
+  }
+  if (ex.jerseyNumber != null && ex.jerseyNumber !== "" && (inc.jerseyNumber == null || inc.jerseyNumber === "")) {
+    return true;
+  }
+  if (Array.isArray(ex.goals) && ex.goals.length > 0 && (!Array.isArray(inc.goals) || inc.goals.length === 0)) {
+    return true;
+  }
+  return false;
+}
+
+/** Block writing a default shell or partial patch over a configured profile in localStorage. */
 export function shouldBlockSettingsPersist(incoming, existingRaw) {
   try {
     const existing = existingRaw || JSON.parse(localStorage.getItem("s_settings") || "{}");
-    return isProfileShell(incoming) && !isProfileShell(existing);
+    if (isProfileShell(incoming) && !isProfileShell(existing)) return true;
+    if (wouldWipeIdentityFields(incoming, existing)) return true;
+    return false;
   } catch {
     return false;
   }

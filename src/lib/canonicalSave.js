@@ -28,7 +28,10 @@ export const CANONICAL_SAVE_KEYS = [
   "fkh-daily-workouts",
   "fkh-home-sections",
   "fkh-shot-goal",
+  "fkh-shot-month-goal",
+  "fkh-shot-goal-period",
   "shot_week_goal",
+  "shot_month_goal",
   "fkh-custom-workouts",
   "fkh-data-version",
 ];
