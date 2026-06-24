@@ -1,30 +1,39 @@
 import { useState, useEffect, useCallback } from "react";
 import { unreadMessageCount } from "../lib/messagesApi.js";
 import { listFriendRequests } from "../lib/boardsApi.js";
+import {
+  countUnseenFeedActivity,
+  countUnseenChallengeActivity,
+  markSquadTabSeen,
+} from "../lib/squadActivity.js";
 
-/** Unread messages + pending friend requests for Squad tab badge. */
-export function useSquadNotifications(isSignedIn) {
-  const [count, setCount] = useState(0);
+/** Aggregate unread counts across all Squad categories for the tab badge. */
+export function useSquadNotifications(isSignedIn, username) {
   const [messages, setMessages] = useState(0);
   const [requests, setRequests] = useState(0);
+  const [feedActivity, setFeedActivity] = useState(0);
+  const [challengeActivity, setChallengeActivity] = useState(0);
 
   const refresh = useCallback(async () => {
     if (!isSignedIn) {
-      setCount(0);
       setMessages(0);
       setRequests(0);
+      setFeedActivity(0);
+      setChallengeActivity(0);
       return;
     }
-    const [msgN, reqList] = await Promise.all([
+    const [msgN, reqList, feedN, challengeN] = await Promise.all([
       unreadMessageCount(),
       listFriendRequests().catch(() => []),
+      countUnseenFeedActivity(username).catch(() => 0),
+      countUnseenChallengeActivity().catch(() => 0),
     ]);
     const reqN = Array.isArray(reqList) ? reqList.length : 0;
-    const m = typeof msgN === "number" && msgN > 0 ? msgN : 0;
-    setMessages(m);
+    setMessages(typeof msgN === "number" && msgN > 0 ? msgN : 0);
     setRequests(reqN);
-    setCount(m + reqN);
-  }, [isSignedIn]);
+    setFeedActivity(typeof feedN === "number" && feedN > 0 ? feedN : 0);
+    setChallengeActivity(typeof challengeN === "number" && challengeN > 0 ? challengeN : 0);
+  }, [isSignedIn, username]);
 
   useEffect(() => {
     refresh();
@@ -43,5 +52,20 @@ export function useSquadNotifications(isSignedIn) {
     };
   }, [refresh, isSignedIn]);
 
-  return { squadNotifications: count, unreadMessages: messages, friendRequests: requests, refreshSquadNotifications: refresh };
+  const markTabSeen = useCallback((tab) => {
+    markSquadTabSeen(tab);
+    refresh();
+  }, [refresh]);
+
+  const squadNotifications = messages + requests + feedActivity + challengeActivity;
+
+  return {
+    squadNotifications,
+    unreadMessages: messages,
+    friendRequests: requests,
+    feedActivity,
+    challengeActivity,
+    markSquadTabSeen: markTabSeen,
+    refreshSquadNotifications: refresh,
+  };
 }

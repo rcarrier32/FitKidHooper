@@ -88,6 +88,10 @@ export default function BoardView({
   onOpenAuth,
   modes = ["challenges", "friends", "rankings"],
   unreadMessages = 0,
+  friendRequests = 0,
+  feedActivity = 0,
+  challengeActivity = 0,
+  onSquadTabSeen,
   onUnreadRefresh,
   openMessagesInbox = false,
   onMessagesInboxOpened,
@@ -150,6 +154,13 @@ export default function BoardView({
   }, [isSignedIn]);
 
   useEffect(() => { loadRequests(); loadSentRequests(); }, [loadRequests, loadSentRequests]);
+
+  useEffect(() => {
+    if (!isSquadLayout || !onSquadTabSeen) return undefined;
+    return () => {
+      if (squadTab === "friends" || squadTab === "challenges") onSquadTabSeen(squadTab);
+    };
+  }, [isSquadLayout, squadTab, onSquadTabSeen]);
 
   useEffect(() => {
     if (!isSignedIn) {
@@ -394,7 +405,9 @@ export default function BoardView({
               display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5,
             }}>
               <span>{label}</span>
-              {m === "friends" && unreadMessages > 0 && <CountBadge count={unreadMessages} P={P} />}
+              {m === "friends" && (unreadMessages + friendRequests + feedActivity + challengeActivity) > 0 && (
+                <CountBadge count={unreadMessages + friendRequests + feedActivity + challengeActivity} P={P} />
+              )}
             </button>
           ))}
         </div>
@@ -415,13 +428,17 @@ export default function BoardView({
           <div style={{ display: "flex", gap: 5, marginBottom: 12, overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
             {SQUAD_TABS.map(([tab, label]) => {
               const badge = tab === "messages" ? unreadMessages
-                : tab === "requests" ? requests.length : 0;
+                : tab === "requests" ? (friendRequests || requests.length)
+                : tab === "friends" ? feedActivity
+                : tab === "challenges" ? challengeActivity
+                : 0;
               return (
                 <button
                   key={tab}
                   type="button"
                   onClick={() => {
                     setSquadTab(tab);
+                    if (tab === "friends" || tab === "challenges") onSquadTabSeen?.(tab);
                     if (tab !== "messages") setMessageFriend(null);
                   }}
                   style={{

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { shootingSnapshot, computeSpotStats, ZONES } from "../lib/shootingStats.js";
+import { SHOT_STYLES } from "../lib/shotStyles.js";
 
 function readShotLog() {
   try { return JSON.parse(localStorage.getItem("shot_log_v2") || "{}"); } catch { return {}; }
@@ -59,6 +60,38 @@ export default function ShootingCard({ P = "#f97316", SF, bd }) {
           );
         })}
       </div>
+
+      {(() => {
+        const styles = allTime.styles;
+        const hasStyles = SHOT_STYLES.some(st => (styles[st.id]?.a || 0) > 0);
+        if (!hasStyles) return null;
+        return (
+          <div style={{ marginTop: 12, borderTop: `1px solid ${bd}`, paddingTop: 10 }}>
+            <div style={{ fontSize: 10, color: "#475569", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8, fontFamily: "'DM Mono',monospace" }}>
+              By shot type
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {SHOT_STYLES.map(st => {
+                const s = styles[st.id];
+                const has = s?.a > 0;
+                if (!has) return null;
+                return (
+                  <div key={st.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 13, width: 18 }}>{st.emoji}</span>
+                    <span style={{ fontSize: 11, color: "var(--fkh-text-muted)", flex: 1, minWidth: 0 }}>{st.label}</span>
+                    <div style={{ width: 56, height: 5, borderRadius: 99, background: "rgba(255,255,255,0.07)", overflow: "hidden" }}>
+                      <div style={{ width: `${s.pct || 0}%`, height: "100%", background: P }} />
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 800, color: P, fontFamily: "'DM Mono',monospace", width: 62, textAlign: "right" }}>
+                      {s.pct}% · {s.m}/{s.a}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       {(() => {
         const spots = computeSpotStats(log);

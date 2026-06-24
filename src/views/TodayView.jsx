@@ -82,6 +82,7 @@ export default function TodayView({
   onFocusFriends,
   onOpenMessages,
   onOpenChallenges,
+  squadNotifications = 0,
   unreadMessages = 0,
   isSignedIn = false,
   onOpenAuth,
@@ -108,6 +109,7 @@ export default function TodayView({
   requiredTasksDone,
   showTourPrompt,
   onStartTour,
+  onOpenGuide,
   onDismissTourPrompt,
   showNotificationPrompt,
   onEnableNotifications,
@@ -188,7 +190,7 @@ export default function TodayView({
       </div>
 
       {showTourPrompt && (
-        <TourPromptBanner P={P} onStartTour={onStartTour} onDismiss={onDismissTourPrompt} />
+        <TourPromptBanner P={P} onStartTour={onStartTour} onOpenGuide={onOpenGuide} onDismiss={onDismissTourPrompt} />
       )}
 
       {showNotificationPrompt && (
@@ -543,6 +545,7 @@ export default function TodayView({
         <FriendsTeaser
           P={P}
           onOpenFriends={onOpenMessages || onFocusFriends}
+          squadNotifications={squadNotifications}
           unreadMessages={unread}
           isSignedIn={isSignedIn}
           onSignIn={onOpenAuth}

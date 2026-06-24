@@ -1,5 +1,5 @@
 /** Compact banner on Today for users who finished profile setup but never took the app tour. */
-export default function TourPromptBanner({ P = "#f97316", onStartTour, onDismiss }) {
+export default function TourPromptBanner({ P = "#f97316", onStartTour, onOpenGuide, onDismiss }) {
   return (
     <div style={{
       margin: "0 20px 12px", padding: "12px 14px", borderRadius: 14,
@@ -12,7 +12,7 @@ export default function TourPromptBanner({ P = "#f97316", onStartTour, onDismiss
           New: take the app tour
         </div>
         <div style={{ fontSize: 12, color: "#94a3b8", lineHeight: 1.45, marginBottom: 10 }}>
-          Walk through Today, Programs, Shots, Challenges & Me — takes about a minute.
+          Walk through every tab in about a minute — or browse the full guide anytime.
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button type="button" onClick={onStartTour}
@@ -22,6 +22,16 @@ export default function TourPromptBanner({ P = "#f97316", onStartTour, onDismiss
             }}>
             Start tour →
           </button>
+          {onOpenGuide && (
+            <button type="button" onClick={onOpenGuide}
+              style={{
+                padding: "8px 12px", borderRadius: 10, cursor: "pointer",
+                background: "transparent", border: `1px solid ${P}44`,
+                color: P, fontSize: 12, fontWeight: 700,
+              }}>
+              Open guide
+            </button>
+          )}
           <button type="button" onClick={onDismiss}
             style={{
               padding: "8px 12px", borderRadius: 10, cursor: "pointer",

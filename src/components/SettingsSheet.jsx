@@ -144,7 +144,7 @@ function isInstallIOS() {
 }
 
 /* ═══════════════════════ SETTINGS SHEET ═══════════════════════ */
-function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenWhatsNew, onOpenAuth, onReplayTour, isSignedIn, signedInUsername, onCloudSync, cloudSyncStatus, cloudSyncDetail, onLogout }) {
+function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenWhatsNew, onOpenAuth, onOpenGuide, isSignedIn, signedInUsername, onCloudSync, cloudSyncStatus, cloudSyncDetail, onLogout }) {
   const [tab, setTab] = useState("accent");
   const [showAdvancedColors, setShowAdvancedColors] = useState(false);
   const [guardrailNote, setGuardrailNote] = useState(null);
@@ -600,10 +600,10 @@ function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenW
               <div style={{ fontSize:10,color:"#64748b",marginTop:3 }}>See the latest features and improvements</div>
             </button>
           )}
-          {onReplayTour && (
-            <button onClick={onReplayTour} style={{ width:"100%",padding:"12px 14px",borderRadius:12,cursor:"pointer",marginBottom:10,...actionBtnStyle(settings),textAlign:"left" }}>
-              <div style={{ fontSize:13,fontWeight:700,color:P }}>🎓 Replay app tour</div>
-              <div style={{ fontSize:10,color:"#64748b",marginTop:3 }}>Walk through Today, Programs, Shots, Challenges & Me</div>
+          {onOpenGuide && (
+            <button onClick={onOpenGuide} style={{ width:"100%",padding:"12px 14px",borderRadius:12,cursor:"pointer",marginBottom:10,...actionBtnStyle(settings),textAlign:"left" }}>
+              <div style={{ fontSize:13,fontWeight:700,color:P }}>📖 App guide</div>
+              <div style={{ fontSize:10,color:"#64748b",marginTop:3 }}>Tour, explore the map, and how-to tips</div>
             </button>
           )}
           {appInstalled ? (

@@ -23,6 +23,10 @@ export default function SquadView({
   onPushSuccess,
   unreadMessages = 0,
   friendRequests = 0,
+  squadNotifications = 0,
+  feedActivity = 0,
+  challengeActivity = 0,
+  onSquadTabSeen,
   onUnreadRefresh,
   openMessagesInbox = false,
   onMessagesInboxOpened,
@@ -36,7 +40,7 @@ export default function SquadView({
       <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 20px",borderBottom:`1px solid ${P}14`,position:"sticky",top:0,background:BG,backdropFilter:"blur(10px)",zIndex:10 }}>
         <h1 style={{ fontSize:16,fontWeight:800,margin:0,color:P,display:"flex",alignItems:"center",gap:8 }}>
           <span>👥 Squad</span>
-          {(unreadMessages + friendRequests) > 0 && <CountBadge count={unreadMessages + friendRequests} P={P} />}
+          {(squadNotifications > 0) && <CountBadge count={squadNotifications} P={P} />}
         </h1>
         {!isSignedIn && (
           <button type="button" onClick={onOpenAuth}
@@ -74,6 +78,10 @@ export default function SquadView({
         focusFriendsTick={focusFriendsTick}
         onPushSuccess={onPushSuccess}
         unreadMessages={unreadMessages}
+        friendRequests={friendRequests}
+        feedActivity={feedActivity}
+        challengeActivity={challengeActivity}
+        onSquadTabSeen={onSquadTabSeen}
         onUnreadRefresh={onUnreadRefresh}
         openMessagesInbox={openMessagesInbox}
         onMessagesInboxOpened={onMessagesInboxOpened}

@@ -1,3 +1,5 @@
+import { buildTourSteps } from "./guideContent.js";
+
 export const TOUR_STORAGE_KEY = "fkh-tour-v1-complete";
 export const TOUR_PROMPT_DISMISS_KEY = "fkh-tour-prompt-dismissed";
 
@@ -37,59 +39,7 @@ export function markTourComplete() {
  */
 
 /** @type {TourStep[]} */
-export const TOUR_STEPS = [
-  {
-    id: "today",
-    view: "home",
-    highlightNav: "home",
-    emoji: "☀️",
-    title: "Today",
-    body: "Your daily mission, enrolled programs, legend progress, and a quick workout — all on one screen. Tap any section header to expand or collapse it.",
-  },
-  {
-    id: "squad",
-    view: "squad",
-    highlightNav: "squad",
-    emoji: "👥",
-    title: "Squad",
-    body: "Friends, private messages, the friends feed, and squad challenges live here. The badge shows unread messages and friend requests.",
-  },
-  {
-    id: "shots",
-    view: "shots",
-    highlightNav: "shots",
-    emoji: "🏀",
-    title: "Shots",
-    body: "Log makes on the court map or with Quick Tap. Pick today, yesterday, or another date if you forgot to log. Set a weekly make goal and track your progress.",
-  },
-  {
-    id: "programs",
-    view: "programs",
-    highlightNav: "programs",
-    clearProgramDetail: true,
-    programsHubSection: "plans",
-    emoji: "📋",
-    title: "Programs",
-    body: "Search any drill or program at the top. Switch between Plans, Drills, Quick workouts, and Build — where you can save a custom day or full week.",
-  },
-  {
-    id: "challenges",
-    view: "boards",
-    highlightNav: "boards",
-    emoji: "🏆",
-    title: "Challenges",
-    body: "Personal goals, rankings, and Train Like Legends paths. Expand each section to see legend journeys and highlight videos.",
-  },
-  {
-    id: "me",
-    view: "progress",
-    highlightNav: "progress",
-    progressTab: "overview",
-    emoji: "⭐",
-    title: "Me",
-    body: "Your profile, XP, badges, and stats. Settings and replay tour live here. Now go get buckets!",
-  },
-];
+export const TOUR_STEPS = buildTourSteps();
 
 export function applyTourStep(step, handlers) {
   if (!step) return;

@@ -35,6 +35,7 @@ import {
   pushEquippedIdentity,
 } from "./lib/achievementsApi.js";
 import { getStreak, getTrainingDays, getWeekShotGoal, getMonthShotGoal, setWeekShotGoal, setMonthShotGoal, getShotGoalPeriod, setShotGoalPeriod, getWeekMakesFromLog, getMonthMakesFromLog, daysLeftInWeek, daysLeftInMonth } from "./lib/progressStats.js";
+import { computeShootingStats } from "./lib/shootingStats.js";
 import { resolveDailyAction, pickChallengeNudge } from "./lib/dailyAction.js";
 import {
   consumeInviteDeepLink,
@@ -91,10 +92,9 @@ import {
   hsl, pri, sec, bg, btn, surf, nav, textPri, textMuted, str3,
   chipStyle, actionBtnStyle, hexToHsl, contrastOn,
 } from "./lib/themeColors.js";
-import HelpSheet from "./components/HelpSheet.jsx";
+import GuideSheet from "./components/GuideSheet.jsx";
 import OnboardingTour from "./components/OnboardingTour.jsx";
 import { TOUR_STEPS, applyTourStep, markTourComplete, shouldShowTourPrompt, dismissTourPrompt } from "./lib/onboardingTour.js";
-import AppMapSheet from "./components/AppMapSheet.jsx";
 import BoardView from "./components/BoardView.jsx";
 import ProgressionView from "./components/ProgressionView.jsx";
 import ProgramWeekStrip from "./components/ProgramWeekStrip.jsx";
@@ -2891,6 +2891,8 @@ const SHOT_TYPES = [
   { id:"three_slot",   label:"Slot 3",         emoji:"↗️", locations:["Left Slot","Right Slot"] },
   { id:"three_center", label:"Top 3",          emoji:"🎯", locations:null },
 ];
+/** Common spots for quick pick without scrolling the full grid. */
+const QUICK_SPOT_IDS = ["layup", "free_throw", "mid_bank", "three_corner", "three_center"];
 const SHOT_COLORS = {
   layup:"#34d399", rev_layup:"#6ee7b7", block_bank:"#60a5fa",
   mid_bank:"#93c5fd", mid:"#a78bfa", mid_baseline:"#c4b5fd", free_throw:"#fbbf24",
@@ -3048,6 +3050,7 @@ function ShotTracker({ P, S, BG, athleteName, settings }) {
   const [custStart, setCustStart] = useState("");
   const [custEnd, setCustEnd] = useState("");
   const [shotCount, setShotCount] = useState({made:0, missed:0});
+  const [shotStyle, setShotStyle] = useState(() => getLastShotStyle());
   const [weekGoal, setWeekGoal] = useState(() => getWeekShotGoal());
   const [monthGoal, setMonthGoal] = useState(() => getMonthShotGoal());
   const [goalPeriod, setGoalPeriod] = useState(() => getShotGoalPeriod());
@@ -3072,18 +3075,25 @@ function ShotTracker({ P, S, BG, athleteName, settings }) {
     setEditingGoal(false);
   };
 
+  const pickShotStyle = (id) => {
+    setShotStyle(id);
+    setLastShotStyle(id);
+  };
+
   const logBatch = (tid, loc, made, missed) => {
     if (made + missed === 0) return;
     const k = logDate;
     const isToday = k === todayKey();
     const ts = isToday ? Date.now() : new Date(`${k}T12:00:00`).getTime();
+    const style = shotStyle;
     const entries = [
-      ...Array(made).fill(null).map((_,i)  => ({type:tid, location:loc||null, ts:ts+i,   made:true})),
-      ...Array(missed).fill(null).map((_,i) => ({type:tid, location:loc||null, ts:ts+made+i, made:false})),
+      ...Array(made).fill(null).map((_,i)  => ({ type:tid, location:loc||null, ts:ts+i,   made:true,  style })),
+      ...Array(missed).fill(null).map((_,i) => ({ type:tid, location:loc||null, ts:ts+made+i, made:false, style })),
     ];
     const last = entries[entries.length-1];
     save({...log, [k]:[...(log[k]||[]), ...entries]});
     trackShotSession({ makes: made, misses: missed, shotType: tid, usedCourtMap: Boolean(loc && loc !== "__noloc__") });
+    setLastShotStyle(style);
     setLastShot(last);
     setActiveType(null); setActiveLoc(null); setShotCount({made:0, missed:0});
   };
@@ -3128,6 +3138,7 @@ function ShotTracker({ P, S, BG, athleteName, settings }) {
   const allFlat = useMemo(()=>Object.values(log).flat(),[log]);
   const allByType = useMemo(()=>{ const c={}; allFlat.forEach(s=>{c[s.type]=(c[s.type]||0)+1}); return c; },[allFlat]);
   const allTotal = allFlat.length;
+  const styleAccuracy = useMemo(() => computeShootingStats(log).styles, [log]);
   const streak = useMemo(()=>{ let s=0,d=new Date(); while(true){const k=d.toLocaleDateString("en-CA");if((log[k]||[]).length>0){s++;d.setDate(d.getDate()-1)}else break} return s; },[log]);
   const todayTotal = todayShots.length;
   const todayMade = useMemo(()=>todayShots.filter(s=>s.made!==false).length,[todayShots]);
@@ -3371,7 +3382,35 @@ function ShotTracker({ P, S, BG, athleteName, settings }) {
               </span>
             )}
           </div>
-          <div style={lbl}>Tap Court Zone to Log</div>
+
+          {/* ── Log Shots: style → spot → makes/misses (system calculates %) ── */}
+          <div style={{ background:sf, border:`1px solid ${P}22`, borderRadius:14, padding:"12px 14px", marginBottom:14 }}>
+            <div style={{ fontSize:13, fontWeight:800, color:"var(--fkh-text)", marginBottom:2 }}>Log Shots</div>
+            <div style={{ fontSize:11, color:"#64748b", marginBottom:10, lineHeight:1.45 }}>
+              Pick how you shot, then where. Log makes <b>and</b> misses — your % is calculated automatically.
+            </div>
+            <div style={{ fontSize:9, color:"#475569", letterSpacing:"0.1em", textTransform:"uppercase", fontFamily:"'DM Mono',monospace", marginBottom:6 }}>
+              1 · Shot type
+            </div>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:12 }}>
+              {SHOT_STYLES.map(st => (
+                <button key={st.id} type="button" onClick={() => pickShotStyle(st.id)}
+                  style={{
+                    flex:"1 1 calc(50% - 6px)", minWidth:0, padding:"8px 10px", borderRadius:10, cursor:"pointer",
+                    textAlign:"left", display:"flex", alignItems:"center", gap:8,
+                    border:`1.5px solid ${shotStyle === st.id ? P : "rgba(255,255,255,0.1)"}`,
+                    background: shotStyle === st.id ? `${P}18` : "rgba(255,255,255,0.03)",
+                    color: shotStyle === st.id ? P : "#94a3b8",
+                  }}>
+                  <span style={{ fontSize:16 }}>{st.emoji}</span>
+                  <span style={{ fontSize:11, fontWeight: shotStyle === st.id ? 800 : 600, lineHeight:1.2 }}>{st.label}</span>
+                </button>
+              ))}
+            </div>
+            <div style={{ fontSize:9, color:"#475569", letterSpacing:"0.1em", textTransform:"uppercase", fontFamily:"'DM Mono',monospace", marginBottom:8 }}>
+              2 · Where on the court
+            </div>
+          </div>
           <CourtMap priColor={P} onZoneSelect={selectZone} lastShot={lastShot}/>
           {activeType && !activeLoc && (
             <div style={{ background:`${P}10`,border:`1px solid ${P}28`,borderRadius:12,padding:"12px 14px",margin:"12px 0" }}>
@@ -3398,6 +3437,9 @@ function ShotTracker({ P, S, BG, athleteName, settings }) {
             });
             return (
               <div style={{ background:`${P}10`,border:`1px solid ${P}28`,borderRadius:14,padding:"14px 14px 12px",margin:"12px 0" }}>
+                <div style={{ fontSize:10,color:"#64748b",marginBottom:8,fontWeight:600 }}>
+                  {getShotStyle(shotStyle).emoji} {getShotStyle(shotStyle).label}
+                </div>
                 <div style={{ fontSize:12,fontWeight:700,color:P,marginBottom:14 }}>
                   {st?.emoji} {st?.label}{loc?` — ${loc}`:''} — How many?
                 </div>
@@ -3447,18 +3489,26 @@ function ShotTracker({ P, S, BG, athleteName, settings }) {
               </div>
             );
           })()}
-          <div style={{ ...lbl,marginTop:14 }}>Quick Tap</div>
-          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14 }}>
-            {SHOT_TYPES.map(s=>{ const cnt=logDayByType[s.id]||0,c=SHOT_COLORS[s.id]; return (
-              <button key={s.id} onClick={()=>selectType(s.id)} style={{ padding:"10px 12px",borderRadius:12,border:`1px solid ${c}28`,background:`${c}0e`,display:"flex",alignItems:"center",gap:10,cursor:"pointer",textAlign:"left" }}>
-                <span style={{ fontSize:18 }}>{s.emoji}</span>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:11,fontWeight:700,color:c,lineHeight:1.2 }}>{s.label}</div>
-                  {s.locations&&<div style={{ fontSize:9,color:"#475569" }}>pick location</div>}
-                </div>
-                <div style={{ fontFamily:"'DM Mono',monospace",fontSize:20,fontWeight:800,color:cnt>0?c:"rgba(255,255,255,0.08)",lineHeight:1 }}>{cnt}</div>
-              </button>
-            );})}
+          <div style={{ ...lbl, marginTop:14 }}>Quick spots</div>
+          <div style={{ display:"flex", gap:8, overflowX:"auto", paddingBottom:4, marginBottom:14, WebkitOverflowScrolling:"touch" }}>
+            {QUICK_SPOT_IDS.map(id => {
+              const s = SHOT_TYPES.find(t => t.id === id);
+              if (!s) return null;
+              const cnt = logDayByType[s.id] || 0;
+              const c = SHOT_COLORS[s.id];
+              return (
+                <button key={s.id} type="button" onClick={() => selectType(s.id)}
+                  style={{
+                    flexShrink:0, padding:"10px 12px", borderRadius:12, minWidth:88,
+                    border:`1px solid ${activeType === s.id ? c : `${c}28`}`,
+                    background:`${c}0e`, cursor:"pointer", textAlign:"center",
+                  }}>
+                  <div style={{ fontSize:18 }}>{s.emoji}</div>
+                  <div style={{ fontSize:10, fontWeight:700, color:c, marginTop:4, lineHeight:1.2 }}>{s.label}</div>
+                  {cnt > 0 && <div style={{ fontFamily:"'DM Mono',monospace", fontSize:11, color:c, marginTop:2 }}>{cnt}</div>}
+                </button>
+              );
+            })}
           </div>
           <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10 }}>
             <div style={lbl}>{logDayLabel}'s Log ({logDayTotal})</div>
@@ -3467,10 +3517,13 @@ function ShotTracker({ P, S, BG, athleteName, settings }) {
           {logDayShots.length===0
             ? <div style={{ textAlign:"center",padding:"20px 0",color:"#334155",fontSize:13 }}>No shots logged for {logDayLabel.toLowerCase()} yet 🏀</div>
             : <div style={{ display:"flex",flexDirection:"column",gap:4,maxHeight:220,overflowY:"auto" }}>
-                {[...logDayShots].reverse().map((s,i)=>{ const def=SHOT_TYPES.find(t=>t.id===s.type),c=SHOT_COLORS[s.type]; return (
+                {[...logDayShots].reverse().map((s,i)=>{ const def=SHOT_TYPES.find(t=>t.id===s.type),c=SHOT_COLORS[s.type]; const sty=getShotStyle(s.style); return (
                   <div key={i} style={{ display:"flex",alignItems:"center",gap:10,padding:"7px 10px",background:sf,borderRadius:8,border:`1px solid ${c}1a` }}>
                     <span style={{ fontSize:14 }}>{def?.emoji}</span>
-                    <span style={{ flex:1,fontSize:12,color:c,fontWeight:600 }}>{def?.label}</span>
+                    <div style={{ flex:1,minWidth:0 }}>
+                      <div style={{ fontSize:12,color:c,fontWeight:600 }}>{def?.label}</div>
+                      {s.style && <div style={{ fontSize:10,color:"#64748b",marginTop:1 }}>{sty.emoji} {sty.short}</div>}
+                    </div>
                     <span style={{ fontSize:13 }}>{s.made===false?'❌':'✅'}</span>
                     {s.location&&<span style={{ fontSize:10,color:"#475569",background:"rgba(255,255,255,0.04)",padding:"2px 7px",borderRadius:20 }}>{s.location}</span>}
                     <span style={{ fontSize:10,fontFamily:"'DM Mono',monospace",color:"#334155" }}>{new Date(s.ts).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})}</span>
@@ -3558,6 +3611,28 @@ function ShotTracker({ P, S, BG, athleteName, settings }) {
                   <span style={{ fontFamily:"'DM Mono',monospace",fontSize:11,color:SHOT_COLORS[t.id] }}>{allByType[t.id]}</span>
                 </div>
               ))}
+            </div>
+          </div>
+          <div style={{ background:sf,border:`1px solid ${bd}`,borderRadius:14,padding:"14px",marginBottom:14 }}>
+            <div style={lbl}>Accuracy by Shot Type</div>
+            <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
+              {SHOT_STYLES.map(st => {
+                const s = styleAccuracy[st.id];
+                const has = s?.a > 0;
+                return (
+                  <div key={st.id} style={{ display:"flex",alignItems:"center",gap:8 }}>
+                    <span style={{ fontSize:13,width:18 }}>{st.emoji}</span>
+                    <span style={{ fontSize:11,color:"var(--fkh-text-muted)",width:96,flexShrink:0 }}>{st.label}</span>
+                    <div style={{ flex:1,height:6,borderRadius:99,background:"rgba(255,255,255,0.07)",overflow:"hidden" }}>
+                      <div style={{ width:`${has ? s.pct : 0}%`,height:"100%",background:P }} />
+                    </div>
+                    <span style={{ fontSize:11,fontWeight:800,color:has?P:"#475569",fontFamily:"'DM Mono',monospace",width:72,textAlign:"right" }}>
+                      {has ? `${s.pct}%` : "—"}
+                    </span>
+                    <span style={{ fontSize:10,color:"#475569",width:36,textAlign:"right" }}>{has ? `${s.m}/${s.a}` : ""}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
           <div style={{ background:sf,border:`1px solid ${bd}`,borderRadius:14,padding:"14px",marginBottom:14 }}>
@@ -5285,11 +5360,11 @@ export default function FitKidHooperApp() {
   const [navDeepLink, setNavDeepLink] = useState(() => consumeNavigationDeepLink());
   const [openMessagesInbox, setOpenMessagesInbox] = useState(false);
   const auth = useAuth(settings);
-  const { squadNotifications, unreadMessages, friendRequests, refreshSquadNotifications } = useSquadNotifications(auth.isSignedIn);
+  const { squadNotifications, unreadMessages, friendRequests, feedActivity, challengeActivity, markSquadTabSeen, refreshSquadNotifications } = useSquadNotifications(auth.isSignedIn, auth.username);
   const [showFeedback, setShowFeedback] = useState(false);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
-  const [showHelp, setShowHelp] = useState(false);
-  const [showAppMap, setShowAppMap] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
+  const [guideMode, setGuideMode] = useState("explore");
   const [view, setView] = useState("home");
   const [prevView, setPrevView] = useState("home");
   const [activeCat, setActiveCat] = useState(null);
@@ -5469,10 +5544,14 @@ export default function FitKidHooperApp() {
     goToTourStep(prev - 1);
   }, [goToTourStep]);
 
+  const openGuide = useCallback((mode = "explore") => {
+    setGuideMode(mode);
+    setShowGuide(true);
+  }, []);
+
   const startTour = useCallback(() => {
-    setShowHelp(false);
+    setShowGuide(false);
     setShowSettings(false);
-    setShowAppMap(false);
     setShowTourPrompt(false);
     setTourActive(true);
     goToTourStep(0);
@@ -5832,14 +5911,13 @@ export default function FitKidHooperApp() {
 
   const openFeedback = useCallback(() => {
     setShowSettings(false);
-    setShowHelp(false);
+    setShowGuide(false);
     setShowFeedback(true);
   }, []);
 
   const openWhatsNew = useCallback(() => {
     setShowSettings(false);
-    setShowHelp(false);
-    setShowAppMap(false);
+    setShowGuide(false);
     setShowWhatsNew(true);
   }, []);
 
@@ -5852,7 +5930,7 @@ export default function FitKidHooperApp() {
     <SettingsSheet settings={settings} setSettings={setSettings} onClose={() => setShowSettings(false)} onOpenFeedback={openFeedback}
       onOpenWhatsNew={openWhatsNew}
       onOpenAuth={() => { setShowSettings(false); setShowAuth(true); }}
-      onReplayTour={() => { setShowSettings(false); startTour(); }}
+      onOpenGuide={() => { setShowSettings(false); openGuide("tour"); }}
       isSignedIn={auth.isSignedIn}
       signedInUsername={auth.username}
       onCloudSync={applyCloudSync}
@@ -5886,8 +5964,8 @@ export default function FitKidHooperApp() {
     <FeedbackCenter settings={settings} onClose={() => setShowFeedback(false)} />
   ) : null;
 
-  const navigateFromAppMap = useCallback((dest) => {
-    setShowAppMap(false);
+  const navigateFromGuide = useCallback((dest) => {
+    setShowGuide(false);
     switch (dest) {
       case "today": setView("home"); break;
       case "squad": setView("squad"); break;
@@ -5902,21 +5980,16 @@ export default function FitKidHooperApp() {
       case "playlike": setShowPlayLikePicker(true); break;
       case "settings": setShowSettings(true); break;
       case "account": setShowAuth(true); break;
-      case "help": setShowHelp(true); break;
+      case "guide": openGuide("explore"); break;
       case "whatsnew": openWhatsNew(); break;
       default: break;
     }
-  }, [openWhatsNew]);
+  }, [openGuide, openWhatsNew]);
 
-  const helpSheet = showHelp ? (
-    <HelpSheet P={P} SF={SF} onClose={() => setShowHelp(false)} onReplayTour={startTour}
-      onOpenFeedback={openFeedback}
-      onOpenWhatsNew={openWhatsNew}
-      onOpenMap={() => { setShowHelp(false); setShowAppMap(true); }} />
-  ) : null;
-
-  const appMapSheet = showAppMap ? (
-    <AppMapSheet P={P} SF={SF} onClose={() => setShowAppMap(false)} onNavigate={navigateFromAppMap} />
+  const guideSheet = showGuide ? (
+    <GuideSheet P={P} SF={SF} initialMode={guideMode} onClose={() => setShowGuide(false)}
+      onNavigate={navigateFromGuide} onStartTour={startTour}
+      onOpenFeedback={openFeedback} onOpenWhatsNew={openWhatsNew} />
   ) : null;
 
   useEffect(() => {
@@ -6343,7 +6416,7 @@ export default function FitKidHooperApp() {
 
   const shellOverlays = (
     <>
-      {settingsSheet}{feedbackSheet}{authSheet}{helpSheet}{appMapSheet}
+      {settingsSheet}{feedbackSheet}{authSheet}{guideSheet}
       {showPlayLikePicker && (
         <PlayLikePickerSheet
           open={showPlayLikePicker}
@@ -6444,6 +6517,10 @@ export default function FitKidHooperApp() {
         onPushSuccess={() => setPushError(null)}
         unreadMessages={unreadMessages}
         friendRequests={friendRequests}
+        feedActivity={feedActivity}
+        challengeActivity={challengeActivity}
+        squadNotifications={squadNotifications}
+        onSquadTabSeen={markSquadTabSeen}
         onUnreadRefresh={refreshSquadNotifications}
         openMessagesInbox={openMessagesInbox}
         onMessagesInboxOpened={() => setOpenMessagesInbox(false)}
@@ -6499,9 +6576,7 @@ export default function FitKidHooperApp() {
         ProgressStatsPanel={ProgressStatsPanel}
         onOpenSettings={() => setShowSettings(true)}
         onOpenFeedback={openFeedback}
-        onShowHelp={() => setShowHelp(true)}
-        onOpenAppMap={() => setShowAppMap(true)}
-        onReplayTour={startTour}
+        onOpenGuide={() => openGuide("explore")}
         onViewHistory={() => { setPrevView("progress"); setView("history"); }}
         onOpenSchedule={() => openSchedule("progress", "calendar")}
         onViewReport={() => { setPrevView("progress"); setView("report"); }}
@@ -7117,13 +7192,9 @@ export default function FitKidHooperApp() {
               style={{ background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:8,color:"var(--fkh-text-muted)",fontSize:12,fontWeight:700,cursor:"pointer",padding:"5px 10px" }}>
               💬
             </button>
-            <button type="button" onClick={() => setShowHelp(true)}
+            <button type="button" onClick={() => openGuide("explore")} title="Guide" aria-label="Open guide"
               style={{ background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:8,color:"var(--fkh-text-muted)",fontSize:12,fontWeight:700,cursor:"pointer",padding:"5px 10px" }}>
-              ❓
-            </button>
-            <button type="button" onClick={() => setShowAppMap(true)}
-              style={{ background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:8,color:"var(--fkh-text-muted)",fontSize:12,fontWeight:700,cursor:"pointer",padding:"5px 10px" }}>
-              🗺
+              📖
             </button>
           </div>
           <div style={{ position:"relative",width:56,height:56,flexShrink:0 }}>
@@ -7224,6 +7295,7 @@ export default function FitKidHooperApp() {
         onOpenPlayerHighlight={openPlayerHighlight}
         onFocusFriends={focusSquad}
         onOpenMessages={navigateToMessages}
+        squadNotifications={squadNotifications}
         unreadMessages={unreadMessages}
         isSignedIn={auth.isSignedIn}
         onOpenAuth={() => setShowAuth(true)}
@@ -7250,6 +7322,7 @@ export default function FitKidHooperApp() {
         onOpenWorkout={() => setWorkoutOpen(true)}
         showTourPrompt={showTourPrompt && !tourActive && !showOnboarding}
         onStartTour={startTour}
+        onOpenGuide={() => openGuide("tour")}
         onDismissTourPrompt={dismissTourPromptBanner}
         showNotificationPrompt={showNotificationPrompt && !tourActive && !showOnboarding}
         onEnableNotifications={enableNotificationsFromPrompt}

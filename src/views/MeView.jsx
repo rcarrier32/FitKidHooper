@@ -40,9 +40,7 @@ export default function MeView({
   ProgressStatsPanel,
   onOpenSettings,
   onOpenFeedback,
-  onShowHelp,
-  onOpenAppMap,
-  onReplayTour,
+  onOpenGuide,
   onViewHistory,
   onOpenSchedule,
   onViewReport,
@@ -86,13 +84,9 @@ export default function MeView({
           ⭐ Me
         </h1>
         <div style={{ display:"flex",gap:8 }}>
-          <button onClick={onOpenAppMap}
+          <button onClick={() => onOpenGuide?.("explore")}
             style={{ background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:8,color:"var(--fkh-text-muted)",fontSize:12,fontWeight:700,cursor:"pointer",padding:"5px 10px" }}>
-            🗺 Map
-          </button>
-          <button onClick={onShowHelp}
-            style={{ background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:8,color:"var(--fkh-text-muted)",fontSize:12,fontWeight:700,cursor:"pointer",padding:"5px 10px" }}>
-            ❓ Help
+            📖 Guide
           </button>
           <button onClick={onOpenSettings}
             style={{ background:`${P}14`,border:`1px solid ${P}30`,borderRadius:8,color:P,fontSize:12,fontWeight:700,cursor:"pointer",padding:"5px 10px" }}>

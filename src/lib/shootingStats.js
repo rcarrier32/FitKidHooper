@@ -1,8 +1,9 @@
 /**
- * Shooting accuracy from shot_log_v2 (entries: { type, location, made }).
- * Surfaces make % — not just raw makes — overall, this week, and by zone.
+ * Shooting accuracy from shot_log_v2 (entries: { type, location, made, style? }).
+ * Surfaces make % — not just raw makes — overall, this week, by zone and shot style.
  */
 import { getPeriodRange } from "./periodStats.js";
+import { SHOT_STYLES, normalizeShotStyle } from "./shotStyles.js";
 
 const ZONE_OF = {
   layup: "rim", rev_layup: "rim", block_bank: "rim",
@@ -27,9 +28,9 @@ const TYPE_LABEL = {
 
 function pct(m, a) { return a ? Math.round((100 * m) / a) : null; }
 
-/** { makes, attempts, pct, zones:{rim,mid,three,ft:{m,a,pct}} } for a date range. */
-export function computeShootingStats(shotLog, { start = null, end = null } = {}) {
+function tallyShots(shotLog, { start = null, end = null } = {}) {
   const zones = { rim: { m: 0, a: 0 }, mid: { m: 0, a: 0 }, three: { m: 0, a: 0 }, ft: { m: 0, a: 0 } };
+  const styles = Object.fromEntries(SHOT_STYLES.map(s => [s.id, { m: 0, a: 0 }]));
   let m = 0, a = 0;
   for (const [date, shots] of Object.entries(shotLog || {})) {
     if (start && date < start) continue;
@@ -39,10 +40,20 @@ export function computeShootingStats(shotLog, { start = null, end = null } = {})
       a += 1; if (made) m += 1;
       const z = ZONE_OF[s.type];
       if (z) { zones[z].a += 1; if (made) zones[z].m += 1; }
+      const styleId = normalizeShotStyle(s.style);
+      if (styleId && styles[styleId]) {
+        styles[styleId].a += 1; if (made) styles[styleId].m += 1;
+      }
     }
   }
   for (const k of Object.keys(zones)) zones[k].pct = pct(zones[k].m, zones[k].a);
-  return { makes: m, attempts: a, pct: pct(m, a), zones };
+  for (const s of SHOT_STYLES) styles[s.id].pct = pct(styles[s.id].m, styles[s.id].a);
+  return { makes: m, attempts: a, pct: pct(m, a), zones, styles };
+}
+
+/** { makes, attempts, pct, zones, styles } for a date range. */
+export function computeShootingStats(shotLog, { start = null, end = null } = {}) {
+  return tallyShots(shotLog, { start, end });
 }
 
 /** Per-spot accuracy (type + location), most-attempted first. For the drill-down. */
