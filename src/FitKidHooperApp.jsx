@@ -3,6 +3,7 @@ import HistoryView from "./components/HistoryView.jsx";
 import BadgesView from "./components/BadgesView.jsx";
 import AuthSheet from "./components/AuthSheet.jsx";
 import NotificationSettings from "./components/NotificationSettings.jsx";
+import OnboardingSheet from "./components/OnboardingSheet.jsx";
 import FeedbackCenter from "./components/FeedbackCenter.jsx";
 import { useAuth } from "./hooks/useAuth.js";
 import { useSquadNotifications } from "./hooks/useSquadNotifications.js";
@@ -41,6 +42,9 @@ import {
   consumeMessagesDeepLink,
   consumeFriendsDeepLink,
   scheduleMissionReminder,
+  dismissNotificationPrompt,
+  needsNotificationSubscription,
+  subscribeToPush,
 } from "./lib/notifications.js";
 import {
   readDailyWorkoutStore,
@@ -5367,16 +5371,13 @@ export default function FitKidHooperApp() {
   }, [auth.syncNow, auth.user?.id, reloadAthleteStateFromStorage, hydrateProfileIntoState, refreshSquadNotifications]);
   const [reportPeriod, setReportPeriod] = useState("30d");
   const [strDay, setStrDay] = useState(()=>localStorage.getItem('s_strday')||'Day 1');
-  const [onboardName, setOnboardName] = useState('');
-  const [onboardLast, setOnboardLast] = useState('');
-  const [onboardPlayLike, setOnboardPlayLike] = useState('');
-  const [onboardStep, setOnboardStep] = useState(0);
   const [showOnboarding, setShowOnboarding] = useState(()=>!localStorage.getItem('s_onboarded')&&settings.athleteName===DEFAULT.athleteName);
   const [tourActive, setTourActive] = useState(false);
   const [tourStep, setTourStep] = useState(0);
   const tourStepRef = useRef(0);
   tourStepRef.current = tourStep;
   const [showTourPrompt, setShowTourPrompt] = useState(() => shouldShowTourPrompt());
+  const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
   const [pushError, setPushError] = useState(null);
   const openSchedule = useCallback((returnView = "home", tab = "calendar") => {
@@ -5433,6 +5434,30 @@ export default function FitKidHooperApp() {
     dismissTourPrompt();
     setShowTourPrompt(false);
   }, []);
+
+  const dismissNotificationPromptBanner = useCallback(() => {
+    dismissNotificationPrompt();
+    setShowNotificationPrompt(false);
+  }, []);
+
+  const enableNotificationsFromPrompt = useCallback(async () => {
+    if (!auth.isSignedIn) return { ok: false, reason: "not_signed_in" };
+    const result = await subscribeToPush();
+    if (result.ok) setShowNotificationPrompt(false);
+    return result;
+  }, [auth.isSignedIn]);
+
+  useEffect(() => {
+    if (!auth.isSignedIn || tourActive || showOnboarding) {
+      setShowNotificationPrompt(false);
+      return undefined;
+    }
+    let cancelled = false;
+    needsNotificationSubscription().then(need => {
+      if (!cancelled) setShowNotificationPrompt(need);
+    });
+    return () => { cancelled = true; };
+  }, [auth.isSignedIn, tourActive, showOnboarding]);
 
   useEffect(() => {
     if (tourActive || showOnboarding) return;
@@ -6940,49 +6965,24 @@ export default function FitKidHooperApp() {
         onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
       {renderMissionOverlays()}
       {tourOverlay}
-      {showOnboarding&&(()=>{
-        const onbInput = { width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.07)",border:"1.5px solid #f9731640",borderRadius:10,padding:"12px",fontSize:16,color:"#fff",outline:"none",marginBottom:12 };
-        const onbBtn = { width:"100%",background:"#f97316",border:"none",borderRadius:12,padding:"14px",fontSize:15,fontWeight:800,color:"#000",cursor:"pointer" };
-        const finishOnboarding = () => {
-          const name = onboardName.trim() || 'Hooper';
-          setSettings(p=>({ ...p, athleteName:name, lastName:onboardLast.trim(),
-            favoritePlayLike: onboardPlayLike.trim() || p.favoritePlayLike }));
-          localStorage.setItem('s_onboarded','1');
-          track(ANALYTICS_EVENTS.ONBOARDING_COMPLETE, {});
-          setShowOnboarding(false);
-          startTour();
-        };
-        return (
-        <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.88)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:20 }}>
-          <div style={{ background:"#0d1627",borderRadius:20,padding:28,width:"100%",maxWidth:380,border:"1px solid #f9731640" }}>
-            {onboardStep===0 ? (
-              <>
-                <div style={{ fontSize:48,textAlign:"center",marginBottom:12 }}>🏀</div>
-                <h2 style={{ textAlign:"center",fontSize:22,fontWeight:800,color:"var(--fkh-text)",margin:"0 0 6px" }}>Welcome, hooper!</h2>
-                <p style={{ textAlign:"center",color:"#64748b",fontSize:13,marginBottom:18 }}>What's your name?</p>
-                <input type="text" value={onboardName} onChange={e=>setOnboardName(e.target.value)} placeholder="First name" autoFocus style={onbInput}/>
-                <input type="text" value={onboardLast} onChange={e=>setOnboardLast(e.target.value)} placeholder="Last name (optional)" style={onbInput}/>
-                <button onClick={()=>setOnboardStep(1)} style={onbBtn}>Next →</button>
-              </>
-            ) : (
-              <>
-                <div style={{ fontSize:42,textAlign:"center",marginBottom:10 }}>⭐</div>
-                <h2 style={{ textAlign:"center",fontSize:20,fontWeight:800,color:"var(--fkh-text)",margin:"0 0 6px" }}>Who do you play like?</h2>
-                <p style={{ textAlign:"center",color:"#64748b",fontSize:12,marginBottom:14 }}>We'll set up your training path. You can change it anytime.</p>
-                <input type="text" value={onboardPlayLike} onChange={e=>setOnboardPlayLike(e.target.value)} placeholder="e.g. Steph Curry" style={onbInput}/>
-                <div style={{ display:"flex",flexWrap:"wrap",gap:6,marginBottom:16 }}>
-                  {["Steph Curry","Allen Iverson","Kyrie Irving","Jalen Brunson","Vince Carter","Klay Thompson"].map(n=>(
-                    <button key={n} onClick={()=>setOnboardPlayLike(n)} style={{ padding:"6px 11px",borderRadius:999,fontSize:11,fontWeight:700,cursor:"pointer",border:`1px solid ${onboardPlayLike===n?"#f97316":"#ffffff22"}`,background:onboardPlayLike===n?"#f9731622":"transparent",color:onboardPlayLike===n?"#f97316":"#94a3b8" }}>{n}</button>
-                  ))}
-                </div>
-                <button onClick={finishOnboarding} style={onbBtn}>Let's Go! 🏀</button>
-                <button onClick={finishOnboarding} style={{ width:"100%",background:"transparent",border:"none",color:"#64748b",fontSize:11,fontWeight:700,cursor:"pointer",marginTop:8 }}>Skip for now</button>
-              </>
-            )}
-          </div>
-        </div>
-        );
-      })()}
+      {showOnboarding && (
+        <OnboardingSheet
+          P={P}
+          onComplete={({ settings: patch, finalize = true }) => {
+            setSettings(p => {
+              const next = { ...p, ...patch };
+              safePersistKey("s_settings", next, { force: true });
+              return next;
+            });
+            if (!finalize) return;
+            localStorage.setItem("s_onboarded", "1");
+            track(ANALYTICS_EVENTS.ONBOARDING_COMPLETE, {});
+            setShowOnboarding(false);
+            startTour();
+          }}
+          onAuthSuccess={applyCloudSync}
+        />
+      )}
       {showHelp&&<HelpSheet P={P} SF={SF} onClose={()=>setShowHelp(false)} onReplayTour={startTour} onOpenMap={()=>{ setShowHelp(false); setShowAppMap(true); }}/>}
       {showAppMap&&<AppMapSheet P={P} SF={SF} onClose={()=>setShowAppMap(false)} onNavigate={dest=>{
         setShowAppMap(false);
@@ -7134,6 +7134,9 @@ export default function FitKidHooperApp() {
         showTourPrompt={showTourPrompt && !tourActive && !showOnboarding}
         onStartTour={startTour}
         onDismissTourPrompt={dismissTourPromptBanner}
+        showNotificationPrompt={showNotificationPrompt && !tourActive && !showOnboarding}
+        onEnableNotifications={enableNotificationsFromPrompt}
+        onDismissNotificationPrompt={dismissNotificationPromptBanner}
         onOpenSchedule={() => openSchedule("home", "week")}
       />
 

@@ -311,6 +311,8 @@ export default function ProgramsView({
 
           {prog.weeks.map(week => {
             const isCurrent = enrollment && week.week === curWeekNum;
+            const isUnlocked = !enrollment || week.week <= curWeekNum;
+            const isFuture = enrollment && week.week > curWeekNum;
             const weekDone = week.sessions.every((_, si) => sessionDone(week.week, si));
             const weekPct = Math.round((week.sessions.filter((_, si) => sessionDone(week.week, si)).length / week.sessions.length) * 100);
             return (
@@ -338,7 +340,7 @@ export default function ProgramsView({
                   <span style={{ fontSize:11,color:weekDone?"#22c55e":isCurrent?prog.color:"#475569",fontWeight:700,flexShrink:0 }}>{weekPct}%</span>
                 </div>
 
-                {(isCurrent || !enrollment) && week.sessions.map((session, si) => {
+                {(isUnlocked || !enrollment) && week.sessions.map((session, si) => {
                   const sDone = enrollment && sessionDone(week.week, si);
                   return (
                     <div key={si} style={{ margin:"0 12px 10px",borderRadius:10,
@@ -383,6 +385,19 @@ export default function ProgramsView({
                     </div>
                   );
                 })}
+                {isFuture && (
+                  <div style={{ margin:"0 12px 12px", padding:"10px 12px", borderRadius:10,
+                    background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.06)" }}>
+                    <div style={{ fontSize:11, color:"#64748b", lineHeight:1.5 }}>
+                      🔒 Opens when you reach Week {week.week} on the calendar
+                      {enrollment?.startDate && (() => {
+                        const enrollStart = new Date(enrollment.startDate + "T00:00:00");
+                        enrollStart.setDate(enrollStart.getDate() + (week.week - 1) * 7);
+                        return ` (${enrollStart.toLocaleDateString("en-US", { month:"short", day:"numeric" })})`;
+                      })()}
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}

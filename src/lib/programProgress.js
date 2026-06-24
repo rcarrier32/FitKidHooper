@@ -267,6 +267,8 @@ export function rehydrateProgramProgressFromCompleted({
 
   const out = { ...programProgress };
   let changed = false;
+  /** Each completion date can only backfill one program slot (avoids week 1 reps filling week 2/3). */
+  const usedCompletionKeys = new Set();
 
   for (const prog of programs) {
     const enr = enrolledPrograms[prog.id];
@@ -295,11 +297,14 @@ export function rehydrateProgramProgressFromCompleted({
             if (!done || !key.endsWith(`-${exId}`)) continue;
             const d = key.split("-").slice(0, 3).join("-");
             if (d < enr.startDate) continue;
+            const completionKey = `${d}-${exId}`;
+            if (usedCompletionKeys.has(completionKey)) continue;
             const t = new Date(`${d}T12:00:00`).getTime();
-            if (!best || t > best.t) best = { d, t: Math.max(t, anchor) };
+            if (!best || t > best.t) best = { d, t: Math.max(t, anchor), completionKey };
           }
           if (!best) continue;
 
+          usedCompletionKeys.add(best.completionKey);
           if (!out[prog.id][slot]) out[prog.id][slot] = {};
           out[prog.id][slot][exId] = { d: best.d, t: best.t };
           changed = true;

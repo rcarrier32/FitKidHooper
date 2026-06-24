@@ -1,17 +1,23 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { unreadMessageCount } from "../lib/messagesApi.js";
+import { notifyNewMessage } from "../lib/notifications.js";
 
 /** Poll unread direct-message count while signed in (nav badges + headers). */
 export function useUnreadMessages(isSignedIn, userId) {
   const [count, setCount] = useState(0);
+  const prevCount = useRef(0);
 
   const refresh = useCallback(async () => {
     if (!isSignedIn || !userId) {
       setCount(0);
+      prevCount.current = 0;
       return;
     }
     const n = await unreadMessageCount();
-    setCount(typeof n === "number" && n > 0 ? n : 0);
+    const next = typeof n === "number" && n > 0 ? n : 0;
+    if (next > prevCount.current) notifyNewMessage();
+    prevCount.current = next;
+    setCount(next);
   }, [isSignedIn, userId]);
 
   useEffect(() => {

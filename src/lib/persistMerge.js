@@ -6,6 +6,26 @@ function isPlainObject(v) {
   return v != null && typeof v === "object" && !Array.isArray(v);
 }
 
+/** Program enrollments — always keep the earliest start (never roll an athlete back a week). */
+export function mergeEnrolledPrograms(local, remote) {
+  const out = { ...(remote || {}) };
+  for (const [id, localEnr] of Object.entries(local || {})) {
+    const remoteEnr = remote?.[id];
+    if (!remoteEnr) {
+      out[id] = localEnr;
+      continue;
+    }
+    if (!localEnr) continue;
+    const dates = [localEnr.startDate, remoteEnr.startDate].filter(Boolean).sort();
+    const startedAts = [localEnr.startedAt, remoteEnr.startedAt].filter(n => typeof n === "number");
+    out[id] = {
+      startDate: dates[0] || localEnr.startDate || remoteEnr.startDate,
+      startedAt: startedAts.length ? Math.min(...startedAts) : (localEnr.startedAt ?? remoteEnr.startedAt),
+    };
+  }
+  return out;
+}
+
 export function mergeSaveValue(local, remote) {
   if (local === undefined || local === null) return remote;
   if (remote === undefined || remote === null) return local;

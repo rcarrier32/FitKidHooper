@@ -7,6 +7,7 @@ import CountBadge from "../components/CountBadge.jsx";
 import FindDrillsSheet from "../components/FindDrillsSheet.jsx";
 import HomeCollapsibleSection from "../components/HomeCollapsibleSection.jsx";
 import TourPromptBanner from "../components/TourPromptBanner.jsx";
+import NotificationPromptBanner from "../components/NotificationPromptBanner.jsx";
 import DayPlanPanel from "../components/DayPlanPanel.jsx";
 import { isHighImpactDay } from "../lib/warmup.js";
 import { computeGrowth } from "../lib/growth.js";
@@ -108,6 +109,9 @@ export default function TodayView({
   showTourPrompt,
   onStartTour,
   onDismissTourPrompt,
+  showNotificationPrompt,
+  onEnableNotifications,
+  onDismissNotificationPrompt,
   onOpenSchedule,
 }) {
   const homeLbl = { fontFamily:"'DM Mono',monospace", fontSize:12, letterSpacing:"0.13em", color:P, fontWeight:800, marginBottom:10, textTransform:"uppercase" };
@@ -177,6 +181,14 @@ export default function TodayView({
 
       {showTourPrompt && (
         <TourPromptBanner P={P} onStartTour={onStartTour} onDismiss={onDismissTourPrompt} />
+      )}
+
+      {showNotificationPrompt && (
+        <NotificationPromptBanner
+          P={P}
+          onEnable={onEnableNotifications}
+          onDismiss={onDismissNotificationPrompt}
+        />
       )}
 
       {unread > 0 && (

@@ -44,7 +44,7 @@ import {
   stripAvatarForCloud,
 } from "./avatarStorage.js";
 import { mergeUserSettings } from "./settingsMerge.js";
-import { mergeSaveValue } from "./persistMerge.js";
+import { mergeSaveValue, mergeEnrolledPrograms } from "./persistMerge.js";
 import { safePersistKey, wouldRegressPayload, snapshotAthleteBackup } from "./dataSafety.js";
 
 export { mergeSaveValue };
@@ -73,6 +73,8 @@ export function importCanonicalSave(data, { mergeSettings = true } = {}) {
     if (data[k] == null) continue;
     const val = k === "s_settings" && mergeSettings
       ? mergeUserSettings(data[k], existing[k] || {})
+      : k === "fkh-programs"
+      ? mergeEnrolledPrograms(existing[k], data[k])
       : mergeSaveValue(existing[k], data[k]);
     safePersistKey(k, val, { force: true });
   }
@@ -141,6 +143,7 @@ export function mergeCanonicalPayloads(localPayload, cloudPayload) {
   const keys = new Set([...CANONICAL_SAVE_KEYS, ...Object.keys(local), ...Object.keys(cloud)]);
   for (const k of keys) {
     if (k === "s_settings") out[k] = mergeSettings(local[k], cloud[k]);
+    else if (k === "fkh-programs") out[k] = mergeEnrolledPrograms(local[k], cloud[k]);
     else out[k] = mergeValue(local[k], cloud[k]);
   }
   return out;
@@ -177,6 +180,8 @@ export function writeCanonicalPayload(payload, { force = false } = {}) {
     if (payload[k] == null) continue;
     const merged = k === "s_settings"
       ? mergeSettings(readLocalSettingsForMerge(), payload[k])
+      : k === "fkh-programs"
+      ? mergeEnrolledPrograms(readRawSaveValue(k), payload[k])
       : mergeSaveValue(readRawSaveValue(k), payload[k]);
     writeRawSaveValue(k, merged, { force: true });
   }

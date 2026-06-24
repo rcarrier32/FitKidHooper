@@ -3,6 +3,7 @@ import { getSupabaseClient } from "./supabaseClient.js";
 
 const NOTIFY_PREF_KEY = "fkh-notify-mission";
 const NOTIFY_PROMPT_KEY = "fkh-notify-prompted";
+const NOTIFY_PROMPT_DISMISS_KEY = "fkh-notify-prompt-dismissed";
 const PREFS_KEY = "fkh-notify-prefs";
 
 // Public VAPID key (safe to ship). Private key is a Supabase secret used by the
@@ -20,6 +21,30 @@ export const NOTIFICATION_CATEGORIES = [
   { key: "challenges",     label: "Challenges",       desc: "New challenges and results" },
   { key: "weeklyRecap",    label: "Weekly recap",     desc: "Your weekly training summary" },
 ];
+
+export function dismissNotificationPrompt() {
+  try { localStorage.setItem(NOTIFY_PROMPT_DISMISS_KEY, "1"); } catch {}
+}
+
+/** Signed-in athletes who haven't enabled push on this device (and didn't dismiss the banner). */
+export function shouldShowNotificationPrompt() {
+  try {
+    if (localStorage.getItem(NOTIFY_PROMPT_DISMISS_KEY)) return false;
+    if (!localStorage.getItem("s_onboarded")) return false;
+    if (!isPushSupported()) return false;
+    if (canUseNotifications() && Notification.permission === "denied") return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** True when the Today banner should offer to turn on notifications. */
+export async function needsNotificationSubscription() {
+  if (!shouldShowNotificationPrompt()) return false;
+  const sub = await getPushSubscription();
+  return !sub;
+}
 
 export function getNotifyPrefs() {
   let stored = {};
@@ -130,6 +155,22 @@ export async function requestNotificationPermission() {
   const result = await Notification.requestPermission();
   if (result === "granted") setNotificationPref(true);
   return result;
+}
+
+/** In-app alert when a new message arrives (backup when push/SW is stale). */
+export function notifyNewMessage({ preview } = {}) {
+  if (!canUseNotifications() || Notification.permission !== "granted") return false;
+  if (!getNotifyPrefs().messages) return false;
+  try {
+    new Notification("💬 New message", {
+      body: preview ? String(preview).slice(0, 80) : "A friend sent you a message",
+      tag: "fkh-message",
+      data: { url: `${import.meta.env.BASE_URL}?messages=1` },
+    });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Show a local notification nudging back to today's mission. */
