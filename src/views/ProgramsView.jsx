@@ -24,6 +24,7 @@ import {
 import { generateCustomMissionWorkout, BUILD_FOCUS_OPTIONS, BUILD_INTENSITY_OPTIONS } from "../lib/missionGenerator.js";
 import { safePersistKey } from "../lib/dataSafety.js";
 import { buildTrainingDayPlan } from "../lib/trainingDayPlan.js";
+import GuideNavButton from "../components/GuideNavButton.jsx";
 
 const todayKey = () => new Date().toLocaleDateString("en-CA");
 
@@ -68,6 +69,7 @@ export default function ProgramsView({
   detailSheet,
   renderBottomNav,
   setShowSettings,
+  onOpenGuide,
   isFav,
   toggleFav,
   openDetail,
@@ -505,7 +507,10 @@ export default function ProgramsView({
             <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:`${P}70`,textTransform:"uppercase",marginBottom:4 }}>Training System</div>
             <h1 style={{ fontSize:22,fontWeight:800,color:"var(--fkh-text)",margin:0 }}>Programs 📋</h1>
           </div>
-          <button onClick={() => setShowSettings(true)} style={{ padding:"8px 10px",borderRadius:10,border:`1px solid ${bd}`,background:SF,color:"#64748b",fontSize:14,cursor:"pointer" }}>⚙️</button>
+          <div style={{ display:"flex",gap:8,alignItems:"center" }}>
+            <button onClick={() => setShowSettings(true)} style={{ padding:"8px 10px",borderRadius:10,border:`1px solid ${bd}`,background:SF,color:"#64748b",fontSize:14,cursor:"pointer" }}>⚙️</button>
+            {onOpenGuide && <GuideNavButton onClick={() => onOpenGuide("explore")} />}
+          </div>
         </div>
         <p style={{ fontSize:12,color:"#64748b",margin:"8px 0 12px",lineHeight:1.5 }}>
           Plans, drills, quick workouts, and custom sessions — all in one place.

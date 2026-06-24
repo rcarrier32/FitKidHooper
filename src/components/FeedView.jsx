@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   fetchFriendsFeed, fetchFeedReactions, toggleReaction, reactionKey, relativeTime, REACTIONS,
   fetchFeedComments, postFeedComment,
@@ -27,6 +27,15 @@ function describe(item) {
   return { emoji: meta?.emoji || "⭐", verb: "reached", label: meta?.name || "a new rank" };
 }
 
+function summarizeReactions(counts) {
+  const active = REACTIONS
+    .map(r => ({ ...r, count: counts[r.id] || 0 }))
+    .filter(r => r.count > 0)
+    .sort((a, b) => b.count - a.count);
+  const total = active.reduce((s, r) => s + r.count, 0);
+  return { active, total, top: active.slice(0, 3) };
+}
+
 function FriendName({ item, P, onViewFriend }) {
   const name = item.isMe ? "You" : item.name;
   if (item.isMe || !onViewFriend) {
@@ -49,11 +58,188 @@ function FriendName({ item, P, onViewFriend }) {
   );
 }
 
+const actionBtn = {
+  flex: 1,
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 5,
+  padding: "6px 4px",
+  border: "none",
+  background: "transparent",
+  cursor: "pointer",
+  fontSize: 11,
+  fontWeight: 700,
+  color: "#64748b",
+};
+
+/** Facebook/IG-style summary + single action bar + one expandable engage panel. */
+function FeedEngagement({
+  item, keyId, reactions, comments, openKey, setOpenKey, draft, setDraft,
+  react, submitComment, P, bd, onViewFriend,
+}) {
+  const inputRef = useRef(null);
+  const r = reactions[keyId] || { counts: {}, mine: new Set() };
+  const cmts = comments[keyId] || [];
+  const isOpen = openKey === keyId;
+  const { total, top } = summarizeReactions(r.counts);
+  const mineList = REACTIONS.filter(x => r.mine.has(x.id));
+  const reactLabel = mineList.length ? mineList.map(x => x.emoji).join("") : "React";
+
+  const open = (focusComment = false) => {
+    setOpenKey(keyId);
+    if (focusComment) {
+      requestAnimationFrame(() => inputRef.current?.focus());
+    }
+  };
+
+  return (
+    <div style={{ marginTop: 6 }}>
+      {(total > 0 || cmts.length > 0) && (
+        <button
+          type="button"
+          onClick={() => setOpenKey(isOpen ? null : keyId)}
+          style={{
+            display: "flex", alignItems: "center", gap: 6, width: "100%",
+            padding: "2px 0 4px", margin: 0, border: "none", background: "transparent",
+            cursor: "pointer", textAlign: "left",
+          }}
+        >
+          {total > 0 && (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+              <span style={{
+                display: "inline-flex", alignItems: "center",
+                padding: "1px 6px 1px 4px", borderRadius: 999,
+                background: "rgba(255,255,255,0.07)", border: `1px solid ${bd}`,
+              }}>
+                {top.map((rx, i) => (
+                  <span key={rx.id} style={{ fontSize: 11, marginLeft: i ? -3 : 0 }}>{rx.emoji}</span>
+                ))}
+              </span>
+              <span style={{ fontSize: 11, color: "var(--fkh-text-muted)", fontWeight: 600 }}>{total}</span>
+            </span>
+          )}
+          {total > 0 && cmts.length > 0 && (
+            <span style={{ fontSize: 10, color: "#475569" }}>·</span>
+          )}
+          {cmts.length > 0 && (
+            <span style={{ fontSize: 11, color: "var(--fkh-text-muted)", fontWeight: 600 }}>
+              {cmts.length} {cmts.length === 1 ? "comment" : "comments"}
+            </span>
+          )}
+        </button>
+      )}
+
+      <div style={{
+        display: "flex", borderTop: `1px solid ${bd}`, marginTop: total > 0 || cmts.length > 0 ? 2 : 0,
+      }}>
+        <button type="button" onClick={() => (isOpen ? setOpenKey(null) : open(false))} style={{
+          ...actionBtn,
+          color: isOpen || mineList.length ? P : "#64748b",
+        }}>
+          <span style={{ fontSize: 13 }}>{reactLabel === "React" ? "👏" : reactLabel}</span>
+          <span>React{total > 0 ? ` · ${total}` : ""}</span>
+        </button>
+        <button type="button" onClick={() => (isOpen ? setOpenKey(null) : open(true))} style={{
+          ...actionBtn,
+          color: isOpen ? P : "#64748b",
+        }}>
+          <span style={{ fontSize: 13 }}>💬</span>
+          <span>Comment{cmts.length > 0 ? ` · ${cmts.length}` : ""}</span>
+        </button>
+      </div>
+
+      {isOpen && (
+        <div style={{
+          marginTop: 8, padding: "10px 10px 8px", borderRadius: 10,
+          background: "rgba(255,255,255,0.04)", border: `1px solid ${bd}`,
+        }}>
+          <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: cmts.length || draft ? 10 : 0 }}>
+            {REACTIONS.map(({ id, emoji }) => {
+              const count = r.counts[id] || 0;
+              const mine = r.mine.has(id);
+              return (
+                <button key={id} type="button" onClick={() => react(item, id)} title={emoji} style={{
+                  position: "relative",
+                  width: 36, height: 36, borderRadius: 999, cursor: "pointer",
+                  border: `1px solid ${mine ? P : bd}`,
+                  background: mine ? `${P}22` : "transparent",
+                  fontSize: 18, lineHeight: 1,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  {emoji}
+                  {count > 0 && (
+                    <span style={{
+                      position: "absolute", top: -4, right: -4,
+                      minWidth: 14, height: 14, padding: "0 3px", borderRadius: 999,
+                      background: P, color: "#000", fontSize: 9, fontWeight: 800,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      {count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {cmts.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
+              {cmts.map(c => (
+                <div key={c.id} style={{ fontSize: 12, lineHeight: 1.45 }}>
+                  {c.isMe ? (
+                    <span style={{ fontWeight: 700, color: P }}>You</span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => onViewFriend?.(c.author_id)}
+                      style={{
+                        background: "none", border: "none", padding: 0, margin: 0,
+                        font: "inherit", fontWeight: 700, color: "var(--fkh-text)",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {c.authorName}
+                    </button>
+                  )}
+                  <span style={{ color: "var(--fkh-text-muted)" }}> {renderBody(c.body, P)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 6 }}>
+            <input
+              ref={inputRef}
+              value={draft}
+              onChange={e => setDraft(e.target.value.slice(0, 280))}
+              onKeyDown={e => { if (e.key === "Enter") submitComment(item); }}
+              placeholder="Write a comment… @username"
+              maxLength={280}
+              style={{
+                flex: 1, padding: "7px 10px", borderRadius: 8, border: `1px solid ${bd}`,
+                background: "rgba(255,255,255,0.05)", color: "var(--fkh-text)", fontSize: 12,
+              }}
+            />
+            <button type="button" onClick={() => submitComment(item)} disabled={!draft.trim()} style={{
+              padding: "7px 12px", borderRadius: 8, border: "none",
+              background: draft.trim() ? P : `${P}55`, color: "#000",
+              fontSize: 11, fontWeight: 800, cursor: draft.trim() ? "pointer" : "not-allowed",
+            }}>
+              Post
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function FeedView({ P = "#f97316", SF, bd, onViewFriend }) {
   const [rows, setRows] = useState(null); // null = loading
   const [reactions, setReactions] = useState({}); // key -> { counts, mine:Set }
   const [comments, setComments] = useState({}); // key -> [comment]
-  const [openKey, setOpenKey] = useState(null);  // which item's comments are expanded
+  const [openKey, setOpenKey] = useState(null);
   const [draft, setDraft] = useState("");
 
   const loadReactions = useCallback(() => {
@@ -84,7 +270,6 @@ export default function FeedView({ P = "#f97316", SF, bd, onViewFriend }) {
     }
   }, [draft, loadComments]);
 
-  // Optimistic toggle: update local counts immediately, then persist.
   const react = useCallback((item, rid) => {
     const key = reactionKey(item.athlete_id, item.achievement_id);
     let hadIt = false;
@@ -116,109 +301,49 @@ export default function FeedView({ P = "#f97316", SF, bd, onViewFriend }) {
       {rows.map((item, i) => {
         const d = describe(item);
         const key = reactionKey(item.athlete_id, item.achievement_id);
-        const r = reactions[key] || { counts: {}, mine: new Set() };
         const viewProfile = !item.isMe && onViewFriend ? () => onViewFriend(item.athlete_id) : null;
         return (
           <div key={`${key}-${i}`} style={{
-            padding: "11px 14px", borderRadius: 12,
+            padding: "10px 12px", borderRadius: 12,
             background: item.isMe ? `${P}12` : SF, border: `1px solid ${item.isMe ? `${P}33` : bd}`,
           }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
               <FriendAvatar
                 profile={item.profile}
                 displayName={item.name}
-                size={40}
+                size={36}
                 P={P}
                 onPress={viewProfile}
               />
-              <span style={{ fontSize: 20, flexShrink: 0 }}>{d.emoji}</span>
-              <div style={{ flex: 1, minWidth: 0, fontSize: 13, color: "var(--fkh-text)", lineHeight: 1.4 }}>
-                <FriendName item={item} P={P} onViewFriend={onViewFriend} />{" "}
-                <span style={{ color: "var(--fkh-text-muted)" }}>{d.verb}</span>{" "}
-                <span style={{ fontWeight: 700 }}>{d.label}</span>
-              </div>
-              <span style={{ fontSize: 10, color: "#475569", flexShrink: 0 }}>{relativeTime(item.earned_at)}</span>
-            </div>
-            <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap", paddingLeft: 50 }}>
-              {REACTIONS.map(({ id, emoji }) => {
-                const count = r.counts[id] || 0;
-                const mine = r.mine.has(id);
-                return (
-                  <button key={id} onClick={() => react(item, id)} style={{
-                    display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 9px", borderRadius: 999,
-                    cursor: "pointer", fontSize: 12, fontWeight: 700,
-                    border: `1px solid ${mine ? P : bd}`,
-                    background: mine ? `${P}1c` : "transparent",
-                    color: mine ? P : "#64748b",
-                  }}>
-                    <span>{emoji}</span>{count > 0 && <span style={{ fontSize: 11 }}>{count}</span>}
-                  </button>
-                );
-              })}
-            </div>
-            {(() => {
-              const cmts = comments[key] || [];
-              const isOpen = openKey === key;
-              return (
-                <div style={{ marginTop: 8, paddingLeft: 50 }}>
-                  <button onClick={() => { setOpenKey(isOpen ? null : key); setDraft(""); }} style={{
-                    background: "transparent", border: "none", cursor: "pointer",
-                    color: isOpen ? P : "#64748b", fontSize: 11, fontWeight: 700, padding: 0,
-                  }}>
-                    💬 {cmts.length > 0 ? `${cmts.length} comment${cmts.length > 1 ? "s" : ""}` : "Comment"}
-                  </button>
-                  {isOpen && (
-                    <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
-                      {cmts.map(c => (
-                        <div key={c.id} style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-                          <FriendAvatar
-                            profile={c.authorProfile}
-                            displayName={c.authorName}
-                            size={28}
-                            P={P}
-                            onPress={!c.isMe && onViewFriend ? () => onViewFriend(c.author_id) : null}
-                          />
-                          <div style={{ flex: 1, minWidth: 0, fontSize: 12, lineHeight: 1.45 }}>
-                            {c.isMe ? (
-                              <span style={{ fontWeight: 700, color: P }}>You</span>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => onViewFriend?.(c.author_id)}
-                                style={{
-                                  background: "none", border: "none", padding: 0, margin: 0,
-                                  font: "inherit", fontWeight: 700, color: "var(--fkh-text)",
-                                  cursor: "pointer", textDecoration: "underline",
-                                }}
-                              >
-                                {c.authorName}
-                              </button>
-                            )}{" "}
-                            <span style={{ color: "var(--fkh-text-muted)" }}>{renderBody(c.body, P)}</span>
-                          </div>
-                        </div>
-                      ))}
-                      <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
-                        <input
-                          value={draft}
-                          onChange={e => setDraft(e.target.value.slice(0, 280))}
-                          onKeyDown={e => { if (e.key === "Enter") submitComment(item); }}
-                          placeholder="Add a comment… use @username"
-                          maxLength={280}
-                          style={{ flex: 1, padding: "7px 10px", borderRadius: 8, border: `1px solid ${bd}`,
-                            background: "rgba(255,255,255,0.05)", color: "var(--fkh-text)", fontSize: 12 }}
-                        />
-                        <button onClick={() => submitComment(item)} disabled={!draft.trim()} style={{
-                          padding: "7px 12px", borderRadius: 8, border: "none",
-                          background: draft.trim() ? P : `${P}55`, color: "#000",
-                          fontSize: 11, fontWeight: 800, cursor: draft.trim() ? "pointer" : "not-allowed",
-                        }}>Post</button>
-                      </div>
-                    </div>
-                  )}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 6 }}>
+                  <span style={{ fontSize: 17, flexShrink: 0, lineHeight: 1.35 }}>{d.emoji}</span>
+                  <div style={{ flex: 1, minWidth: 0, fontSize: 13, color: "var(--fkh-text)", lineHeight: 1.4 }}>
+                    <FriendName item={item} P={P} onViewFriend={onViewFriend} />{" "}
+                    <span style={{ color: "var(--fkh-text-muted)" }}>{d.verb}</span>{" "}
+                    <span style={{ fontWeight: 700 }}>{d.label}</span>
+                  </div>
+                  <span style={{ fontSize: 10, color: "#475569", flexShrink: 0, paddingTop: 2 }}>
+                    {relativeTime(item.earned_at)}
+                  </span>
                 </div>
-              );
-            })()}
+                <FeedEngagement
+                  item={item}
+                  keyId={key}
+                  reactions={reactions}
+                  comments={comments}
+                  openKey={openKey}
+                  setOpenKey={(k) => { setOpenKey(k); if (!k) setDraft(""); }}
+                  draft={draft}
+                  setDraft={setDraft}
+                  react={react}
+                  submitComment={submitComment}
+                  P={P}
+                  bd={bd}
+                  onViewFriend={onViewFriend}
+                />
+              </div>
+            </div>
           </div>
         );
       })}

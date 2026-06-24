@@ -1,17 +1,18 @@
 /**
  * Bump RELEASE_ID when shipping user-visible changes — drives the in-app "What's new" sheet.
  */
-export const RELEASE_ID = "2025.06.2";
+export const RELEASE_ID = "2025.06.4";
 
 export const WHATS_NEW = {
   id: RELEASE_ID,
-  headline: "June update",
+  headline: "June update — Step Back legends & a tighter Squad feed",
   items: [
-    { emoji: "🔍", text: "Search NBA players as you type — tap the magnifying glass to browse the full list" },
-    { emoji: "🗺", text: "Help & App Map on every tab — find drills, stats, and settings faster" },
-    { emoji: "📊", text: "Training History keeps the bottom nav so you never feel lost" },
-    { emoji: "💬", text: "Send feedback from Today, Me, or Settings — bugs and ideas go straight to the team" },
-    { emoji: "☁️", text: "Stay signed in across app updates — your progress syncs when you're logged in" },
+    { emoji: "↩️", text: "New Step-Back legend path — Harden, Luka, Dame — plus a 3-level drill chain and Step Back Legends program" },
+    { emoji: "👥", text: "Squad feed is slimmer — reaction counts, one React | Comment bar, and a single panel for emoji + comments" },
+    { emoji: "📖", text: "Guide on every tab — tour, explore the app, and how-to tips in one place" },
+    { emoji: "🏀", text: "Log shots by type — Stationary, Catch & Shoot, Pull-Up, Step Back — profile shows your breakdown" },
+    { emoji: "⭐", text: "Legend paths track signature shot makes — step-backs and pull-ups count toward your rank" },
+    { emoji: "🎯", text: "Weekly shot challenges: Catch & Shoot, Pull-Up, and Step Back weeks" },
   ],
 };
 

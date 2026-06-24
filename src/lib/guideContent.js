@@ -85,7 +85,7 @@ export const GUIDE_SECTIONS = [
       { label: "Pick who you play like", to: "playlike" },
       { label: "Earn titles & card frames" },
     ],
-    howTo: "On Challenges, scroll to Train Like Legends. Legend names link to real highlights. Climb ranks with reps and signature-move drills — each path collapses so nothing gets buried.",
+    howTo: "On Challenges, scroll to Train Like Legends. Legend names link to real highlights. Climb ranks with reps, signature drills, and logged shot types (Catch & Shoot, Pull-Up, Step Back) — each path collapses so nothing gets buried.",
   },
   {
     key: "boards",

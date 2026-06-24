@@ -1,5 +1,6 @@
 import BoardView from "../components/BoardView.jsx";
 import CountBadge from "../components/CountBadge.jsx";
+import GuideNavButton from "../components/GuideNavButton.jsx";
 
 export default function SquadView({
   settings,
@@ -30,6 +31,7 @@ export default function SquadView({
   onUnreadRefresh,
   openMessagesInbox = false,
   onMessagesInboxOpened,
+  onOpenGuide,
   shellOverlays,
   renderBottomNav,
 }) {
@@ -42,12 +44,15 @@ export default function SquadView({
           <span>👥 Squad</span>
           {(squadNotifications > 0) && <CountBadge count={squadNotifications} P={P} />}
         </h1>
-        {!isSignedIn && (
+        <div style={{ display:"flex",alignItems:"center",gap:8 }}>
+          {onOpenGuide && <GuideNavButton compact onClick={() => onOpenGuide("explore")} />}
+          {!isSignedIn && (
           <button type="button" onClick={onOpenAuth}
             style={{ padding:"6px 12px",borderRadius:8,border:`1px solid ${P}44`,background:`${P}14`,color:P,fontSize:11,fontWeight:700,cursor:"pointer" }}>
             Sign in
           </button>
         )}
+        </div>
       </div>
 
       {!isSignedIn && (

@@ -1,7 +1,7 @@
 /**
- * Path stage signature drills — required move reps that count toward the same journey.
- * Each legend rung lists specific exercises; all mins must be met to unlock the rank.
+ * Path stage signature drills + logged shot types — required reps for each legend rung.
  */
+import { getShotStyle } from "./shotStyles.js";
 
 export function computeExCounts(completed) {
   const counts = {};
@@ -14,18 +14,32 @@ export function computeExCounts(completed) {
 }
 
 export function getSignatureProgress(stage, ctx) {
-  const drills = stage?.signatureDrills;
-  if (!drills?.length) return [];
-  return drills.map(({ exId, min }) => {
+  const items = [];
+  for (const { exId, min } of stage?.signatureDrills || []) {
     const current = ctx.exCounts?.[exId] || 0;
-    return {
+    items.push({
+      kind: "drill",
       exId,
       min,
       current,
       pct: min > 0 ? Math.min(100, Math.round((current / min) * 100)) : 100,
       met: current >= min,
-    };
-  });
+    });
+  }
+  for (const { style, min } of stage?.signatureShots || []) {
+    const current = ctx.styleMakes?.[style] || 0;
+    const label = getShotStyle(style).label;
+    items.push({
+      kind: "shot",
+      style,
+      label,
+      min,
+      current,
+      pct: min > 0 ? Math.min(100, Math.round((current / min) * 100)) : 100,
+      met: current >= min,
+    });
+  }
+  return items;
 }
 
 export function allSignaturesMet(stage, ctx) {
@@ -39,14 +53,17 @@ export function signatureStagePct(stage, ctx) {
   return Math.min(...prog.map(s => s.pct));
 }
 
-/** One-line summary for Progress Rail (worst incomplete signature drill). */
+/** One-line summary for Progress Rail (worst incomplete signature goal). */
 export function formatSignatureSummary(signatureProgress, nameForExId) {
   if (!signatureProgress?.length) return "";
   const pending = signatureProgress.filter(s => !s.met);
-  if (!pending.length) return "Signature drills ✓";
+  if (!pending.length) return "Signature goals ✓";
   const first = pending[0];
+  const more = pending.length > 1 ? ` · +${pending.length - 1} more` : "";
+  if (first.kind === "shot") {
+    return `${first.label} ${first.current}/${first.min} makes${more}`;
+  }
   const name = nameForExId?.(first.exId) || first.exId.replace(/-/g, " ");
-  const more = pending.length > 1 ? ` · +${pending.length - 1} move${pending.length > 2 ? "s" : ""}` : "";
   return `${name} ${first.current}/${first.min}${more}`;
 }
 

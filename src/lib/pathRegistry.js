@@ -130,6 +130,41 @@ export const FAVORITE_PLAYER_REGISTRY = [
     categories: ["deceleration", "athletic"],
     label: "Lockdown defense",
   },
+  {
+    keys: ["harden", "james harden"],
+    primaryPath: "stepback",
+    programs: ["step-back-legends", "become-shooter"],
+    categories: ["shooting_lab", "shootingdrills"],
+    label: "Step-back separation",
+  },
+  {
+    keys: ["luka", "doncic", "dončić"],
+    primaryPath: "stepback",
+    programs: ["step-back-legends", "become-shooter"],
+    categories: ["shooting_lab", "shootingdrills", "handles"],
+    label: "Drive-to-step-back",
+  },
+  {
+    keys: ["lillard", "dame", "damian"],
+    primaryPath: "stepback",
+    programs: ["step-back-legends", "become-shooter"],
+    categories: ["shooting_lab", "shootingdrills"],
+    label: "Logo-range step-back",
+  },
+  {
+    keys: ["derozan", "demar", "de rozan"],
+    primaryPath: "midrange",
+    programs: ["become-shooter", "step-back-legends"],
+    categories: ["shooting_lab", "shootingdrills"],
+    label: "Mid-range step-back",
+  },
+  {
+    keys: ["dirk", "nowitzki"],
+    primaryPath: "stepback",
+    programs: ["step-back-legends", "become-shooter"],
+    categories: ["shooting_lab", "shootingdrills"],
+    label: "One-leg balance shot",
+  },
 ];
 
 export function favoritePlayerQuery(settings) {

@@ -12,6 +12,7 @@ export default function PathStageTraining({
   compact = false,
   onOpenExercise,
   onOpenPlayerHighlight,
+  onOpenShots,
 }) {
   if (!stage) return null;
   const hasSig = signatureProgress.length > 0;
@@ -87,19 +88,21 @@ export default function PathStageTraining({
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {signatureProgress.map(sig => {
-              const name = nameFor(sig.exId);
+              const isShot = sig.kind === "shot";
+              const name = isShot ? `${sig.label} makes` : nameFor(sig.exId);
               const done = sig.met;
+              const key = isShot ? `shot-${sig.style}` : sig.exId;
               return (
                 <button
-                  key={sig.exId}
+                  key={key}
                   type="button"
-                  onClick={() => onOpenExercise?.(sig.exId)}
+                  onClick={() => (isShot ? onOpenShots?.() : onOpenExercise?.(sig.exId))}
                   style={{
                     display: "flex", alignItems: "center", gap: 8, width: "100%",
                     textAlign: "left", padding: "8px 10px", borderRadius: 10,
                     border: `1px solid ${done ? "#22c55e44" : `${P}33`}`,
                     background: done ? "#22c55e12" : "rgba(255,255,255,0.04)",
-                    cursor: onOpenExercise ? "pointer" : "default",
+                    cursor: (isShot ? onOpenShots : onOpenExercise) ? "pointer" : "default",
                   }}
                 >
                   <span style={{ fontSize: 12, color: done ? "#22c55e" : P, fontWeight: 800, width: 28 }}>
@@ -110,7 +113,7 @@ export default function PathStageTraining({
                     color: done ? "#94a3b8" : "var(--fkh-text)",
                     textDecoration: done ? "line-through" : "none",
                   }}>
-                    {name}
+                    {isShot ? `🏀 ${name}` : name}
                   </span>
                 </button>
               );

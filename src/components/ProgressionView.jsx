@@ -149,6 +149,7 @@ export default function ProgressionView({
   allExercises = {},
   onOpenExercise,
   onOpenPlayerHighlight,
+  onOpenShots,
 }) {
   const trophies = Object.entries(ledger || {})
     .filter(([, e]) => e.kind === "recognition")
@@ -332,6 +333,7 @@ export default function ProgressionView({
                     P={P}
                     onOpenExercise={onOpenExercise}
                     onOpenPlayerHighlight={onOpenPlayerHighlight}
+                    onOpenShots={onOpenShots}
                   />
                 )}
               </>
@@ -378,6 +380,7 @@ export default function ProgressionView({
                 P={P}
                 onOpenExercise={onOpenExercise}
                 onOpenPlayerHighlight={onOpenPlayerHighlight}
+                onOpenShots={onOpenShots}
               />
             )}
             {info.next?.unlockNote && (

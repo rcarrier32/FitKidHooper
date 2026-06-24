@@ -43,13 +43,23 @@ export default function TourStepPreview({ stepId, P = "#f97316" }) {
   if (stepId === "shots") {
     return (
       <div style={{ padding: "4px 2px 0" }}>
+        <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 6 }}>
+          {["Stat", "C&S", "Pull", "Step"].map((l, i) => (
+            <div key={l} style={{
+              ...box, padding: "4px 7px", fontSize: 8, fontWeight: 800,
+              color: i === 1 ? P : "#64748b",
+              borderColor: i === 1 ? `${P}55` : "rgba(255,255,255,0.1)",
+              background: i === 1 ? `${P}14` : "rgba(255,255,255,0.04)",
+            }}>{l}</div>
+          ))}
+        </div>
         <div style={{ ...box, padding: 10, marginBottom: 6, textAlign: "center" }}>
           <div style={{ fontSize: 28, lineHeight: 1 }}>🏀</div>
-          <div style={{ fontSize: 9, color: "#64748b", marginTop: 4 }}>Tap court zones · log makes</div>
+          <div style={{ fontSize: 9, color: "#64748b", marginTop: 4 }}>Pick type → tap zone → log makes</div>
         </div>
         <div style={{ display: "flex", gap: 6 }}>
-          <div style={{ ...box, flex: 1, padding: "6px 8px", fontSize: 9, color: "#94a3b8" }}>📅 Today</div>
-          <div style={{ ...box, flex: 1, padding: "6px 8px", fontSize: 9, color: P, fontWeight: 700 }}>🎯 Weekly goal</div>
+          <div style={{ ...box, flex: 1, padding: "6px 8px", fontSize: 9, color: "#94a3b8" }}>Week goal</div>
+          <div style={{ ...box, flex: 1, padding: "6px 8px", fontSize: 9, color: P, fontWeight: 700 }}>Auto %</div>
         </div>
       </div>
     );

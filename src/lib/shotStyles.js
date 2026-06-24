@@ -34,3 +34,16 @@ export function normalizeShotStyle(raw) {
   if (raw && SHOT_STYLES.some(s => s.id === raw)) return raw;
   return null;
 }
+
+/** Made shots grouped by creation style (for legend path gates). */
+export function computeShotStyleMakes(shotLog) {
+  const counts = Object.fromEntries(SHOT_STYLES.map(s => [s.id, 0]));
+  for (const shots of Object.values(shotLog || {})) {
+    for (const s of shots) {
+      if (s.made === false) continue;
+      const style = normalizeShotStyle(s.style);
+      if (style) counts[style]++;
+    }
+  }
+  return counts;
+}

@@ -80,6 +80,14 @@ export const PROGRESSION_CHAINS = [
       { exId:"defensive-recovery",    unlocksAt:5 },
     ]
   },
+  {
+    id:"step-back-mastery", name:"Step-Back Mastery", emoji:"↩️", cat:"shootingdrills",
+    steps:[
+      { exId:"sb-hop-shoot",     unlocksAt:3 },
+      { exId:"sb-dribble-step",  unlocksAt:3 },
+      { exId:"sb-drive-step",    unlocksAt:5 },
+    ]
+  },
 ];
 
 export function getCompletionCount(exId, completed) {

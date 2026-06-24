@@ -140,6 +140,8 @@ export default function TodayView({
   const mission = todayMission;
   const claimed = missionClaimed;
   const unread = Number(unreadMessages) || 0;
+  const squadTotal = Number(squadNotifications) || 0;
+  const hasSquadActivity = squadTotal > 0;
 
   const todayPlan = useMemo(
     () => buildTrainingDayPlan(today, schedule, programs, enrolledPrograms, programProgress, workouts),
@@ -201,7 +203,7 @@ export default function TodayView({
         />
       )}
 
-      {unread > 0 && (
+      {hasSquadActivity && (
         <button
           type="button"
           onClick={onOpenMessages || onFocusFriends}
@@ -219,14 +221,20 @@ export default function TodayView({
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 20 }}>💬</span>
+            <span style={{ fontSize: 20 }}>{unread > 0 ? "💬" : "👥"}</span>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 14, fontWeight: 800, color: "var(--fkh-text)" }}>
-                {unread === 1 ? "New message waiting for you" : `${unread} new messages waiting for you`}
+                {squadTotal === 1
+                  ? "1 update in Squad"
+                  : `${squadTotal} updates in Squad`}
               </div>
-              <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 3 }}>Tap to open Messages</div>
+              <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 3 }}>
+                {unread > 0 && squadTotal === unread
+                  ? "Tap to open Messages"
+                  : "Messages, requests, feed, or challenges — tap to check Squad"}
+              </div>
             </div>
-            <CountBadge count={unread} P={P} />
+            <CountBadge count={squadTotal} P={P} />
           </div>
         </button>
       )}
@@ -545,7 +553,7 @@ export default function TodayView({
         <FriendsTeaser
           P={P}
           onOpenFriends={onOpenMessages || onFocusFriends}
-          squadNotifications={squadNotifications}
+          squadNotifications={squadTotal}
           unreadMessages={unread}
           isSignedIn={isSignedIn}
           onSignIn={onOpenAuth}

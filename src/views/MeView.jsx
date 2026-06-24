@@ -55,6 +55,7 @@ export default function MeView({
   onLogHeight,
   onOpenPlayerHighlight,
   onOpenExercise,
+  onOpenShots,
   onOpenSquad,
   renderBottomNav,
   squadNotifications = 0,
@@ -185,6 +186,7 @@ export default function MeView({
           allExercises={allExercises}
           onOpenExercise={onOpenExercise}
           onOpenPlayerHighlight={onOpenPlayerHighlight}
+          onOpenShots={onOpenShots}
         />
       )}
 

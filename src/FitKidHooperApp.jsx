@@ -7,7 +7,8 @@ import OnboardingSheet from "./components/OnboardingSheet.jsx";
 import FeedbackCenter from "./components/FeedbackCenter.jsx";
 import { useAuth } from "./hooks/useAuth.js";
 import { useSquadNotifications } from "./hooks/useSquadNotifications.js";
-import CountBadge from "./components/CountBadge.jsx";
+import GuideNavButton from "./components/GuideNavButton.jsx";
+import { computeShotStyleMakes } from "./lib/shotStyles.js";
 import { getAgeGroup, getAgeGroupLabel } from "./lib/periodStats.js";
 import { exportCanonicalSave, importCanonicalSave } from "./lib/canonicalSave.js";
 import { recoverFromSyncBackupIfNeeded } from "./lib/syncBackup.js";
@@ -1127,11 +1128,35 @@ const W_SHOOTING_DRILLS = [
     cues:["Hop is SMALL — 2 inches off the ground, not a jump","Both feet land at the exact same time — simultaneous, not one then the other","Knees load on the landing — use that energy straight into the shot","Catch the ball before you land — hands ready in the air"],
     trainer:"HoopsKing", videoId:"uxkg9NJfBFo", videoTitle:"1-2 Step vs. Hop Step Shooting Footwork" },
 
+  { id:"sb-hop-shoot",    name:"Hop Back Balance Shot",       tag:"Foundation",      difficulty:"beginner",     ageRange:[9,14],  funScore:7,  estimatedDuration:120,
+    sets:"3×8 each foot", rest:"30 s",
+    transferTags:["balance","step-back","shot-creation"],
+    progressionTrack:"Step-Back Level 1 — Hop & Land",
+    desc:"Start on one foot. Hop straight backward, stick the landing on that same foot, pause one beat, then shoot. This is Level 1 of the Step Back Legends chain — balance and landing before you ever add a dribble.",
+    cues:["Start on your shooting-side foot — knee soft, chest tall","Hop straight back — small hop, not a leap away from the basket","Stick the landing on the ball of your foot before you rise","Shoot only after you're balanced — no falling backward"],
+    trainer:"ShotMechanics", videoId:"RD0tviQ3dh4", videoTitle:"One Foot Balance Shooting Drill" },
+
+  { id:"sb-dribble-step", name:"Dribble Step-Back",           tag:"Intermediate",    difficulty:"intermediate", ageRange:[10,14], funScore:8,  estimatedDuration:120,
+    sets:"3×8 each side", rest:"30 s",
+    transferTags:["step-back","shot-creation","separation"],
+    progressionTrack:"Step-Back Level 2 — Dribble Separation",
+    desc:"Level 2: one hard dribble with your left hand, push off your right foot into a step-back jumper (train the mirror pattern on the other side too). The Harden/Luka pattern — sell the drive, create space, rise clean.",
+    cues:["One hard dribble — low and tight, not a carry","Left-hand version: left dribble, right-foot push into the step-back","Land with knees bent — balanced, not leaning back","Eyes on the rim through the whole move"],
+    trainer:"Jr. NBA", videoId:"fFL-PugpRS8", videoTitle:"Elena Delle Donne Teaches the Step-Back" },
+
+  { id:"sb-drive-step",   name:"Drive-to Step-Back",          tag:"Advanced",        difficulty:"advanced",     ageRange:[11,14], funScore:9,  estimatedDuration:120,
+    sets:"3×8 each side", rest:"45 s",
+    transferTags:["step-back","shot-creation","separation"],
+    progressionTrack:"Step-Back Level 3 — Game Speed",
+    desc:"Level 3: attack the paint at game speed with one or two dribbles, then snap into a step-back when the defender cuts you off. Full shot-creation — the move you use when the lane closes.",
+    cues:["First dribble must threaten the rim — sell the drive","When they cut you off, push back on the dribble-side foot","Gather high — ball protected on the step-back","Same balance and release as Levels 1 and 2"],
+    trainer:"ILoveBasketballTV", videoId:"eE2Vp10Sqko", videoTitle:"How to Shoot a Step Back Jumper — ILoveBasketballTV" },
+
   { id:"sh-single-leg",   name:"Single Leg Hop & Step Back", tag:"Advanced",        difficulty:"intermediate", ageRange:[10,14], funScore:7,  estimatedDuration:120,
     sets:"3x10 each leg", rest:"30 s",
     transferTags:["balance","off-dribble","step-back"],
     progressionTrack:"Step 3 — Game-Speed Shooting",
-    desc:"Step back on one leg as if creating space off the dribble — land balanced on that single foot, hold the balance briefly, then shoot from the one-legged support position. Builds the stability needed for real step-back jumpers. Elite guards shoot off one leg constantly; this drill builds that foundation.",
+    desc:"Advanced balance work after the Step-Back Level 1 hop drill — step back on one leg, land balanced, hold briefly, then shoot from a single-leg support. Builds elite one-leg stability for contested step-backs.",
     cues:["Step back far enough to feel the balance challenge — not a tiny step","Land on the ball of the foot — not the heel — and absorb the landing","Hold the single-leg balance for a full beat before shooting — no rushing","Eyes on the rim the entire time — not watching your feet"],
     trainer:"ShotMechanics", videoId:"RD0tviQ3dh4", videoTitle:"One Foot Balance Shooting Drill" },
 
@@ -1795,6 +1820,9 @@ const EXERCISE_META = {
   "sh-beat-pro":         { difficulty:"intermediate", impactLevel:"low",    intensityLevel:"medium", movementType:"skill",        bodyFocus:["hands","wrists","feet","mind"],    basketballTransfer:["competition","pressure-shooting","shooting"],  equipment:"basketball",   spaceRequired:"large",      ageRange:[10,14], estimatedDuration:300, funScore:10, workoutRole:["main","finisher"],progressionTrack:"Step 3 — Game-Speed Shooting" },
   "sh-knee-roll":        { difficulty:"beginner",     impactLevel:"low",    intensityLevel:"low",    movementType:"skill",        bodyFocus:["hands","wrists","fingers"],        basketballTransfer:["mechanics","wrist","muscle-memory"],           equipment:"basketball",   spaceRequired:"small",      ageRange:[9,14],  estimatedDuration:120, funScore:6,  workoutRole:["warmup","main"],  progressionTrack:"Step 1 — Shooting Foundation" },
   "sh-hop-shot":         { difficulty:"beginner",     impactLevel:"low",    intensityLevel:"low",    movementType:"skill",        bodyFocus:["legs","feet","hands"],             basketballTransfer:["footwork","rhythm","catch-and-shoot"],         equipment:"basketball",   spaceRequired:"medium",     ageRange:[9,14],  estimatedDuration:120, funScore:7,  workoutRole:["main"],          progressionTrack:"Step 1 — Shooting Foundation" },
+  "sb-hop-shoot":        { difficulty:"beginner",     impactLevel:"low",    intensityLevel:"low",    movementType:"skill",        bodyFocus:["legs","core","feet"],              basketballTransfer:["balance","step-back","shot-creation"],          equipment:"basketball",   spaceRequired:"medium",     ageRange:[9,14],  estimatedDuration:120, funScore:7,  workoutRole:["main"],          progressionTrack:"Step-Back Level 1 — Hop & Land" },
+  "sb-dribble-step":     { difficulty:"intermediate", impactLevel:"low",    intensityLevel:"medium", movementType:"skill",        bodyFocus:["legs","feet","hands"],             basketballTransfer:["step-back","shot-creation","separation"],       equipment:"basketball",   spaceRequired:"medium",     ageRange:[10,14], estimatedDuration:120, funScore:8,  workoutRole:["main"],          progressionTrack:"Step-Back Level 2 — Dribble Separation" },
+  "sb-drive-step":       { difficulty:"advanced",     impactLevel:"low",    intensityLevel:"medium", movementType:"skill",        bodyFocus:["legs","feet","hands","mind"],      basketballTransfer:["step-back","shot-creation","separation"],       equipment:"basketball",   spaceRequired:"medium",     ageRange:[11,14], estimatedDuration:120, funScore:9,  workoutRole:["main"],          progressionTrack:"Step-Back Level 3 — Game Speed" },
   "sh-single-leg":       { difficulty:"intermediate", impactLevel:"low",    intensityLevel:"medium", movementType:"skill",        bodyFocus:["legs","core","feet"],              basketballTransfer:["balance","off-dribble","step-back"],           equipment:"basketball",   spaceRequired:"medium",     ageRange:[10,14], estimatedDuration:120, funScore:7,  workoutRole:["main"],          progressionTrack:"Step 3 — Game-Speed Shooting" },
   "sh-jab-reset":        { difficulty:"intermediate", impactLevel:"low",    intensityLevel:"medium", movementType:"skill",        bodyFocus:["legs","feet","hands","mind"],      basketballTransfer:["shot-creation","footwork","decision-making"],  equipment:"basketball",   spaceRequired:"medium",     ageRange:[10,14], estimatedDuration:120, funScore:9,  workoutRole:["main"],          progressionTrack:"Step 3 — Game-Speed Shooting" },
 
@@ -2250,6 +2278,26 @@ const PROGRAMS = [
   },
 
   {
+    id:"step-back-legends", name:"Step Back Legends", emoji:"↩️", color:"#7c3aed",
+    badgeId:"pgm-step-back-legends", duration:2, daysPerWeek:3, ageRange:[10,17],
+    desc:"Three levels — hop balance, dribble separation, drive-and-step — built for the Step-Back legend path.",
+    weeks:[
+      { week:1, goal:"Levels 1 & 2 — hop back on one foot, then dribble step-back separation.",
+        sessions:[
+          { day:"Session 1", focus:"Level 1 — Hop & Land",     exercises:["sb-hop-shoot","sh-form","sh-one-hand"] },
+          { day:"Session 2", focus:"Level 2 — Dribble Step",   exercises:["sb-dribble-step","sb-hop-shoot","slab-elbow"] },
+          { day:"Session 3", focus:"Combine L1 + L2",            exercises:["sb-hop-shoot","sb-dribble-step","sh-beat-pro"] },
+        ]},
+      { week:2, goal:"Level 3 — game-speed drive into step-back, then run the full chain.",
+        sessions:[
+          { day:"Session 1", focus:"Level 3 — Drive & Step",   exercises:["sb-drive-step","sb-dribble-step","sh-jab-reset"] },
+          { day:"Session 2", focus:"Full 3-Level Chain",       exercises:["sb-hop-shoot","sb-dribble-step","sb-drive-step"] },
+          { day:"Session 3", focus:"Compete & Log",            exercises:["sb-drive-step","sh-beat-pro","slab-step-back"] },
+        ]},
+    ],
+  },
+
+  {
     id:"become-shooter", name:"Become a Shooter", emoji:"🎯", color:"#8b5cf6",
     badgeId:"pgm-become-shooter", duration:4, daysPerWeek:3, ageRange:[9,17],
     desc:"Fix your mechanics, build shot consistency, and earn the reputation as the player who never misses.",
@@ -2274,9 +2322,9 @@ const PROGRAMS = [
         ]},
       { week:4, goal:"Separation shots, corner threes, and step-backs — the complete shooting game.",
         sessions:[
-          { day:"Session 1", focus:"Range Extension",        exercises:["slab-corner-3","slab-step-back","sh-spot"] },
-          { day:"Session 2", focus:"Step Back",              exercises:["slab-step-back","sh-single-leg","sh-jab-reset"] },
-          { day:"Session 3", focus:"Compete",                exercises:["sh-beat-pro","slab-corner-3","slab-step-back"] },
+          { day:"Session 1", focus:"Range Extension",        exercises:["slab-corner-3","sb-drive-step","sh-spot"] },
+          { day:"Session 2", focus:"Step Back Legends",    exercises:["sb-hop-shoot","sb-dribble-step","sb-drive-step"] },
+          { day:"Session 3", focus:"Compete",                exercises:["sh-beat-pro","slab-corner-3","sb-drive-step"] },
         ]},
     ],
   },
@@ -3037,7 +3085,7 @@ function CourtMap({ priColor, onZoneSelect, lastShot }) {
 }
 
 /* ═══════════════════════ SHOT TRACKER ═══════════════════════ */
-function ShotTracker({ P, S, BG, athleteName, settings }) {
+function ShotTracker({ P, S, BG, athleteName, settings, onLogChange, onOpenGuide }) {
   const [log, setLog] = useState(()=>{ try{return JSON.parse(localStorage.getItem("shot_log_v2")||"{}")}catch{return{}} });
   const [view, setView] = useState("log");
   const [activeType, setActiveType] = useState(null);
@@ -3056,7 +3104,7 @@ function ShotTracker({ P, S, BG, athleteName, settings }) {
   const [goalPeriod, setGoalPeriod] = useState(() => getShotGoalPeriod());
   const [editingGoal, setEditingGoal] = useState(false);
 
-  const save = nl => { setLog(nl); try{localStorage.setItem("shot_log_v2",JSON.stringify(nl))}catch{} };
+  const save = nl => { setLog(nl); try{localStorage.setItem("shot_log_v2",JSON.stringify(nl))}catch{}; onLogChange?.(); };
 
   const saveGoal = g => {
     const v = Math.max(1, parseInt(g, 10) || 100);
@@ -3185,13 +3233,16 @@ function ShotTracker({ P, S, BG, athleteName, settings }) {
         <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.2em",color:"#334155",marginBottom:5 }}>SHOT TRACKER</div>
         <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-end" }}>
           <h2 style={{ fontSize:24,fontWeight:800,margin:0,letterSpacing:"-0.02em" }}>{athleteName}'s <span style={{ color:P }}>Shots</span></h2>
-          <div style={{ display:"flex",gap:14 }}>
+          <div style={{ display:"flex",alignItems:"flex-end",gap:10 }}>
+            {onOpenGuide && <GuideNavButton compact onClick={onOpenGuide} />}
+            <div style={{ display:"flex",gap:14 }}>
             {[[todayMade,"TODAY",P],[`${todayPct}%`,"FG%",S],[streak,"STREAK","#34d399"]].map(([n,l,c])=>(
               <div key={l} style={{ textAlign:"right" }}>
                 <div style={{ fontSize:22,fontWeight:800,color:c,fontFamily:"'DM Mono',monospace",lineHeight:1 }}>{n}</div>
                 <div style={{ fontSize:8,color:"#334155",letterSpacing:"0.06em" }}>{l}</div>
               </div>
             ))}
+            </div>
           </div>
         </div>
       </div>
@@ -5365,6 +5416,7 @@ export default function FitKidHooperApp() {
   const [showWhatsNew, setShowWhatsNew] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   const [guideMode, setGuideMode] = useState("explore");
+  const [shotLogTick, setShotLogTick] = useState(0);
   const [view, setView] = useState("home");
   const [prevView, setPrevView] = useState("home");
   const [activeCat, setActiveCat] = useState(null);
@@ -6088,11 +6140,9 @@ export default function FitKidHooperApp() {
 
   // Shared progression context — drives both the grant ledger and the journey UI.
   const progressCtx = useMemo(()=>{
-    let makes = 0;
-    try {
-      const sl = JSON.parse(localStorage.getItem("shot_log_v2")||"{}");
-      makes = Object.values(sl).flatMap(v=>v).filter(s=>s.made!==false).length;
-    } catch {}
+    let sl = {};
+    try { sl = JSON.parse(localStorage.getItem("shot_log_v2")||"{}"); } catch {}
+    const makes = Object.values(sl).flatMap(v=>v).filter(s=>s.made!==false).length;
     // streak gates only use the 7/14/30 thresholds, which the streak badges encode exactly.
     const maxStreak = earnedBadges.includes("streak-30") ? 30
       : earnedBadges.includes("streak-14") ? 14
@@ -6104,8 +6154,9 @@ export default function FitKidHooperApp() {
       maxStreak,
       catCounts: computeCatCounts(completed, getExerciseCategory),
       exCounts: computeExCounts(completed),
+      styleMakes: computeShotStyleMakes(sl),
     };
-  },[earnedBadges, completed, getExerciseCategory, ledger]);
+  },[earnedBadges, completed, getExerciseCategory, ledger, shotLogTick]);
 
   const tracksComplete = useMemo(
     () => PATHS.filter(t => trackStageProgress(t, progressCtx).reached >= t.stages.length).length,
@@ -6481,6 +6532,7 @@ export default function FitKidHooperApp() {
         detailSheet={programDetailSheet}
         renderBottomNav={renderBottomNav}
         setShowSettings={setShowSettings}
+        onOpenGuide={() => openGuide("explore")}
         isFav={isFav}
         toggleFav={toggleFav}
         openDetail={openDetail}
@@ -6522,6 +6574,7 @@ export default function FitKidHooperApp() {
         squadNotifications={squadNotifications}
         onSquadTabSeen={markSquadTabSeen}
         onUnreadRefresh={refreshSquadNotifications}
+        onOpenGuide={() => openGuide("explore")}
         openMessagesInbox={openMessagesInbox}
         onMessagesInboxOpened={() => setOpenMessagesInbox(false)}
         shellOverlays={shellOverlays}
@@ -6534,7 +6587,9 @@ export default function FitKidHooperApp() {
   if (view==="shots") return (
     <div style={{ background:BG,minHeight:"100vh",maxWidth:680,margin:"0 auto" }}>
       {shellOverlays}
-      <ShotTracker P={P} S={S} BG={BG} athleteName={settings.athleteName} settings={settings}/>
+      <ShotTracker P={P} S={S} BG={BG} athleteName={settings.athleteName} settings={settings}
+        onLogChange={() => setShotLogTick(t => t + 1)}
+        onOpenGuide={() => openGuide("explore")} />
       {renderBottomNav()}
     </div>
   );
@@ -6595,6 +6650,7 @@ export default function FitKidHooperApp() {
           if (ex) openDetail({ ...ex, meta: EXERCISE_META[exId] || {} }, []);
         }}
         onOpenSquad={focusSquad}
+        onOpenShots={() => setView("shots")}
         renderBottomNav={renderBottomNav}
         squadNotifications={squadNotifications}
       />
@@ -6638,6 +6694,7 @@ export default function FitKidHooperApp() {
             onAddFriends={focusSquad}
         focusFriendsTick={friendsFocusTick}
         onPushSuccess={() => setPushError(null)}
+        onOpenGuide={() => openGuide("explore")}
         shellOverlays={shellOverlays}
         renderBottomNav={renderBottomNav}
         progressCtx={progressCtx}
@@ -6656,6 +6713,7 @@ export default function FitKidHooperApp() {
             onUnequipSlot={handleUnequipSlot}
             allExercises={ALL_EXERCISES}
             onOpenExercise={exId => { const ex = ALL_EXERCISES[exId]; if (ex) openDetail({ ...ex, meta: EXERCISE_META[exId] || {} }, []); }}
+            onOpenShots={() => setView("shots")}
             onOpenPlayerHighlight={openPlayerHighlight}
           />
         }
