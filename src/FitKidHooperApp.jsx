@@ -10,6 +10,7 @@ import { useSquadNotifications } from "./hooks/useSquadNotifications.js";
 import GuideNavButton from "./components/GuideNavButton.jsx";
 import ShotTrackerErrorBoundary from "./components/ShotTrackerErrorBoundary.jsx";
 import ViewErrorBoundary from "./components/ViewErrorBoundary.jsx";
+import CountBadge from "./components/CountBadge.jsx";
 import { readShotLog, normalizeShotLog, writeShotLog, countShotMakes } from "./lib/shotLog.js";
 import { computeShotStyleMakes, SHOT_STYLES, getShotStyle, getLastShotStyle, setLastShotStyle } from "./lib/shotStyles.js";
 import { getAgeGroup, getAgeGroupLabel } from "./lib/periodStats.js";
