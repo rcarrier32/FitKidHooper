@@ -1,11 +1,21 @@
 /* Web push handlers, imported into the Workbox-generated service worker
    (vite.config.js → workbox.importScripts). Shows the notification and focuses
-   the app on click. */
-function fkhAsset(path) {
+   the installed PWA on click, then routes inside the app (messages, etc.). */
+
+function resolveNotificationUrl(raw) {
   try {
-    return new URL(path, self.registration.scope).href;
+    return new URL(raw || ".", self.registration.scope).href;
   } catch {
-    return "/FitKidHooper/" + path.replace(/^\//, "");
+    try { return self.registration.scope; } catch { return "/FitKidHooper/"; }
+  }
+}
+
+function targetPathFromUrl(url) {
+  try {
+    const u = new URL(url);
+    return u.pathname + u.search + u.hash;
+  } catch {
+    return url;
   }
 }
 
@@ -14,7 +24,7 @@ self.addEventListener("push", (event) => {
   try { data = event.data ? event.data.json() : {}; }
   catch { data = { body: event.data && event.data.text() }; }
 
-  const icon = data.icon || fkhAsset("pwa-192.png");
+  const icon = data.icon || resolveNotificationUrl("pwa-192.png");
   const title = data.title || "🏀 Fit Kid Hooper";
   const options = {
     body: data.body || "",
@@ -22,22 +32,30 @@ self.addEventListener("push", (event) => {
     // Android badge must be a small monochrome silhouette — a color PNG shows as a white box.
     tag: data.tag || "fkh",
     renotify: !!data.tag,
-    data: { url: data.url || fkhAsset("") },
+    data: { url: resolveNotificationUrl(data.url || "") },
   };
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = (event.notification.data && event.notification.data.url) || fkhAsset("");
+  const targetUrl = resolveNotificationUrl(event.notification.data?.url);
+  const targetPath = targetPathFromUrl(targetUrl);
+
   event.waitUntil((async () => {
-    const all = await clients.matchAll({ type: "window", includeUncontrolled: true });
-    for (const c of all) {
-      if (c.url.includes("/FitKidHooper/") && "focus" in c) {
-        try { await c.navigate(url); } catch { /* cross-origin guard */ }
-        return c.focus();
-      }
+    const scope = self.registration.scope;
+    const allClients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+
+    // Prefer an existing app window (installed PWA or open tab) in our scope.
+    for (const client of allClients) {
+      if (!client.url.startsWith(scope)) continue;
+      try {
+        client.postMessage({ type: "FKH_NAV", url: targetPath });
+        if ("focus" in client) return client.focus();
+      } catch { /* try next client */ }
     }
-    if (clients.openWindow) return clients.openWindow(url);
+
+    // Cold start — open the scoped app URL so the PWA shell loads with deep-link params.
+    if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
   })());
 });

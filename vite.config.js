@@ -17,6 +17,8 @@ export default defineConfig({
         background_color: '#060b14',
         display: 'standalone',
         orientation: 'portrait',
+        scope: '/FitKidHooper/',
+        id: '/FitKidHooper/',
         start_url: '/FitKidHooper/',
         icons: [
           {

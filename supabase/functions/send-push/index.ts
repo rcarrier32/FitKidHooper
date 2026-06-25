@@ -8,6 +8,14 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 const VAPID_PUBLIC = "BKTyb_hHdQoeCzVSQ6DuBqolJMNKBdMh3hjY73gevAl-qwwyVTWy6bVnHuQP2tx6LaYiefRmz02vtHxSiu0As8w";
 const VAPID_PRIVATE = "GtWmgmxTkyRDZBUVk3MEgKCavg-1Jt5i1HKTQQlDHfQ";
 const PUSH_SECRET = "fkh_push_9Qx2Re7Yk3Lm8Wp4Zb6Td0Vn5Hs1Ac";
+const APP_ORIGIN = "https://rcarrier32.github.io";
+
+function toAbsoluteAppUrl(url?: string | null): string {
+  const fallback = `${APP_ORIGIN}/FitKidHooper/?mission=1`;
+  if (!url) return fallback;
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  return APP_ORIGIN + (url.startsWith("/") ? url : `/FitKidHooper/${url.replace(/^\//, "")}`);
+}
 
 webpush.setVapidDetails("mailto:rcarrier32@gmail.com", VAPID_PUBLIC, VAPID_PRIVATE);
 
@@ -51,7 +59,7 @@ Deno.serve(async (req) => {
   const msg = JSON.stringify({
     title: title || "🏀 Time to train",
     body: body || "Your daily mission is waiting — go get a rep in!",
-    url: url || "/FitKidHooper/?mission=1",
+    url: toAbsoluteAppUrl(url),
     icon: iconUrl,
     tag: category,
   });

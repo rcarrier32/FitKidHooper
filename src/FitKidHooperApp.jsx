@@ -47,6 +47,7 @@ import {
   consumeInviteDeepLink,
   consumeMissionDeepLink,
   consumeNavigationDeepLink,
+  listenForNotificationNavigation,
   scheduleMissionReminder,
   dismissNotificationPrompt,
   needsNotificationSubscription,
@@ -6476,6 +6477,17 @@ export default function FitKidHooperApp() {
     if (navDeepLink.openFriends) setFriendsFocusTick(t => t + 1);
     setNavDeepLink(null);
   }, [navDeepLink]);
+
+  useEffect(() => listenForNotificationNavigation(setNavDeepLink), []);
+
+  useEffect(() => {
+    const onShow = () => {
+      const link = consumeNavigationDeepLink();
+      if (link) setNavDeepLink(link);
+    };
+    window.addEventListener("pageshow", onShow);
+    return () => window.removeEventListener("pageshow", onShow);
+  }, []);
 
   useEffect(() => {
     if (!auth.isSignedIn || auth.loading) return;

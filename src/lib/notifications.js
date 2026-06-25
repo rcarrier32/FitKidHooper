@@ -175,7 +175,7 @@ export function notifyNewMessage({ preview } = {}) {
       body: preview ? String(preview).slice(0, 80) : "A friend sent you a message",
       icon: notificationIconUrl(),
       tag: "fkh-message",
-      data: { url: `${import.meta.env.BASE_URL}?messages=1` },
+      data: { url: buildAppUrl("messages=1") },
     });
     return true;
   } catch {
@@ -197,7 +197,7 @@ export function notifyMissionReminder({ athleteName, missionTitle } = {}) {
       body,
       icon: notificationIconUrl(),
       tag: "fkh-mission",
-      data: { url: `${import.meta.env.BASE_URL}?mission=1` },
+      data: { url: buildAppUrl("mission=1") },
     });
     return true;
   } catch {
@@ -233,13 +233,39 @@ export function consumeInviteDeepLink() {
   return null;
 }
 
+/** Build an absolute in-app URL for push / notification deep links. */
+export function buildAppUrl(query = "") {
+  const q = query ? (query.startsWith("?") ? query : `?${query}`) : "";
+  const base = typeof window !== "undefined"
+    ? (window.location.origin + import.meta.env.BASE_URL)
+    : "https://rcarrier32.github.io/FitKidHooper/";
+  try {
+    return new URL(q || ".", base).href;
+  } catch {
+    const root = base.endsWith("/") ? base : `${base}/`;
+    return q ? `${root}${q.replace(/^\?/, "")}` : root;
+  }
+}
+
+function searchParamsFromInput(input) {
+  if (input == null || input === "") return null;
+  const s = String(input);
+  try {
+    if (s.includes("://") || s.startsWith("/")) {
+      const origin = typeof window !== "undefined" ? window.location.origin : "https://rcarrier32.github.io";
+      return new URL(s, origin).searchParams;
+    }
+  } catch { /* fall through */ }
+  return new URLSearchParams(s.startsWith("?") ? s.slice(1) : s);
+}
+
 /**
- * Consume ?view=, ?messages=, ?friends= navigation deep links (push / SQL).
+ * Parse ?view=, ?messages=, ?friends= navigation deep links (push / notification).
  * Returns { tab, openMessages?, openFriends? } or null.
  */
-export function consumeNavigationDeepLink() {
-  if (typeof window === "undefined") return null;
-  const params = new URLSearchParams(window.location.search);
+export function parseNavigationDeepLink(input) {
+  const params = searchParamsFromInput(input);
+  if (!params) return null;
   const view = params.get("view");
   const messages = params.get("messages") === "1";
   const friends = params.get("friends") === "1";
@@ -258,15 +284,43 @@ export function consumeNavigationDeepLink() {
   else if (friends) { tab = "squad"; openFriends = true; }
 
   if (!tab) return null;
+  return { tab, openMessages, openFriends };
+}
 
+function stripNavigationParamsFromLocation() {
+  const params = new URLSearchParams(window.location.search);
+  const view = params.get("view");
+  const messages = params.get("messages") === "1";
+  const friends = params.get("friends") === "1";
+  if (!view && !messages && !friends) return;
   if (view) params.delete("view");
   if (messages) params.delete("messages");
   if (friends) params.delete("friends");
   const qs = params.toString();
   const path = window.location.pathname + (qs ? `?${qs}` : "");
   window.history.replaceState({}, "", path);
+}
 
-  return { tab, openMessages, openFriends };
+/** Consume navigation params from the current URL (cold start / openWindow). */
+export function consumeNavigationDeepLink() {
+  if (typeof window === "undefined") return null;
+  const link = parseNavigationDeepLink(window.location.search);
+  if (!link) return null;
+  stripNavigationParamsFromLocation();
+  return link;
+}
+
+/** Listen for notification-click routing from the service worker. */
+export function listenForNotificationNavigation(onNavigate) {
+  if (typeof window === "undefined" || !("serviceWorker" in navigator)) return () => {};
+  const onMsg = (event) => {
+    const data = event.data;
+    if (!data || data.type !== "FKH_NAV") return;
+    const link = parseNavigationDeepLink(data.url || data.search || "");
+    if (link) onNavigate(link);
+  };
+  navigator.serviceWorker.addEventListener("message", onMsg);
+  return () => navigator.serviceWorker.removeEventListener("message", onMsg);
 }
 
 /** Schedule a one-shot evening reminder if mission incomplete (call once per session). */
