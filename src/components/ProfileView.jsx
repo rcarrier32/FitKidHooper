@@ -11,7 +11,7 @@ function isBirthday(dob) {
 export default function ProfileView({
   settings, totalXP, currentLevel, earnedBadges,
   totalBadges, tracksComplete, totalTracks,
-  P, onOpenSettings, onOpenFeedback, onViewBadges, onViewLeaderboard, onPushStats, pushBusy, pushError,
+  P, onViewBadges, onViewLeaderboard, onPushStats, pushBusy, pushError,
 }) {
   return (
     <div style={{ padding:"0 20px 100px" }}>
@@ -72,19 +72,6 @@ export default function ProfileView({
           </div>
         </div>
       </button>
-
-      <div style={{ marginTop:24,textAlign:"center" }}>
-        {onOpenFeedback && (
-          <button type="button" onClick={onOpenFeedback}
-            style={{ display:"block",width:"100%",marginBottom:10,padding:"10px 16px",borderRadius:12,fontSize:12,fontWeight:700,cursor:"pointer",
-              background:"transparent",border:"none",color:"#64748b" }}>
-            💬 Send feedback (bug or idea)
-          </button>
-        )}
-        <div style={{ fontSize:11, color:"#475569" }}>
-          Training History & Calendar are in <b style={{ color:P }}>⭐ Me → Stats</b>
-        </div>
-      </div>
     </div>
   );
 }

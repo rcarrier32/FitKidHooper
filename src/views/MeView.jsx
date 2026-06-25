@@ -1,9 +1,9 @@
 import ProfileView from "../components/ProfileView.jsx";
 import ProgressionView from "../components/ProgressionView.jsx";
+import SettingsSheet from "../components/SettingsSheet.jsx";
 import HomeCollapsibleSection from "../components/HomeCollapsibleSection.jsx";
 import ShootingCard from "../components/ShootingCard.jsx";
 import GrowthCard from "../components/GrowthCard.jsx";
-import CountBadge from "../components/CountBadge.jsx";
 import { getStreak, getTrainingDays } from "../lib/progressStats.js";
 
 export default function MeView({
@@ -38,9 +38,17 @@ export default function MeView({
   shellOverlays,
   BadgesView,
   ProgressStatsPanel,
-  onOpenSettings,
-  onOpenFeedback,
+  setSettings,
   onOpenGuide,
+  onOpenFeedback,
+  onOpenWhatsNew,
+  onOpenAuth,
+  onCloudSync,
+  cloudSyncStatus,
+  cloudSyncDetail,
+  onLogout,
+  isSignedIn,
+  signedInUsername,
   onViewHistory,
   onOpenSchedule,
   onViewReport,
@@ -56,15 +64,14 @@ export default function MeView({
   onOpenPlayerHighlight,
   onOpenExercise,
   onOpenShots,
-  onOpenSquad,
   renderBottomNav,
-  squadNotifications = 0,
 }) {
   const subTabs = [
     { id:"overview", label:"Overview" },
     { id:"skills",   label:"Skills" },
     { id:"locker",   label:"🏅 Badges" },
     { id:"stats",    label:"Stats" },
+    { id:"settings", label:"⚙ Settings" },
   ];
   const statTile = (label, value) => (
     <div style={{ flex:1,minWidth:120,background:SF,border:`1px solid ${bd}`,borderRadius:14,padding:"12px 14px" }}>
@@ -88,10 +95,6 @@ export default function MeView({
           <button onClick={() => onOpenGuide?.("explore")}
             style={{ background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:8,color:"var(--fkh-text-muted)",fontSize:12,fontWeight:700,cursor:"pointer",padding:"5px 10px" }}>
             📖 Guide
-          </button>
-          <button onClick={onOpenSettings}
-            style={{ background:`${P}14`,border:`1px solid ${P}30`,borderRadius:8,color:P,fontSize:12,fontWeight:700,cursor:"pointer",padding:"5px 10px" }}>
-            ⚙ Settings
           </button>
         </div>
       </div>
@@ -120,29 +123,12 @@ export default function MeView({
           tracksComplete={tracksComplete}
           totalTracks={totalTracks}
           P={P}
-          onOpenSettings={onOpenSettings}
-          onOpenFeedback={onOpenFeedback}
           onViewBadges={() => setProgressTab("locker")}
           onViewLeaderboard={onViewLeaderboard}
           onPushStats={onPushStats}
           pushBusy={pushBusy}
           pushError={pushError}
         />
-      )}
-
-      {progressTab === "overview" && onOpenSquad && (
-        <div style={{ padding:"0 18px 12px" }}>
-          <button type="button" onClick={onOpenSquad}
-            style={{ width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,
-              padding:"12px 14px",borderRadius:14,border:`1px solid ${squadNotifications > 0 ? P : `${P}33`}`,
-              background:squadNotifications > 0 ? `${P}14` : `${P}0c`,cursor:"pointer",textAlign:"left" }}>
-            <div>
-              <div style={{ fontSize:13,fontWeight:800,color:"var(--fkh-text)" }}>👥 Squad</div>
-              <div style={{ fontSize:11,color:"#94a3b8",marginTop:3 }}>Friends, messages, and team challenges</div>
-            </div>
-            {squadNotifications > 0 && <CountBadge count={squadNotifications} P={P} />}
-          </button>
-        </div>
       )}
 
       {progressTab === "locker" && (
@@ -170,7 +156,7 @@ export default function MeView({
         </div>
       )}
 
-      {progressTab !== "stats" && progressTab !== "overview" && (
+      {(progressTab === "skills" || progressTab === "locker") && (
         <ProgressionView
           tab={progressTab}
           settings={settings}
@@ -187,6 +173,24 @@ export default function MeView({
           onOpenExercise={onOpenExercise}
           onOpenPlayerHighlight={onOpenPlayerHighlight}
           onOpenShots={onOpenShots}
+        />
+      )}
+
+      {progressTab === "settings" && (
+        <SettingsSheet
+          embedded
+          settings={settings}
+          setSettings={setSettings}
+          onOpenFeedback={onOpenFeedback}
+          onOpenWhatsNew={onOpenWhatsNew}
+          onOpenAuth={onOpenAuth}
+          onOpenGuide={() => onOpenGuide?.("tour")}
+          isSignedIn={isSignedIn}
+          signedInUsername={signedInUsername}
+          onCloudSync={onCloudSync}
+          cloudSyncStatus={cloudSyncStatus}
+          cloudSyncDetail={cloudSyncDetail}
+          onLogout={onLogout}
         />
       )}
 

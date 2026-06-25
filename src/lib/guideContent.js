@@ -113,10 +113,11 @@ export const GUIDE_SECTIONS = [
       { label: "XP & levels — Rookie to Elite Hooper" },
       { label: "Badges — locked ones show how to earn", to: "badges" },
       { label: "Stats, training history & calendar", to: "stats" },
+      { label: "Profile, colors, account & backup", to: "settings" },
       { label: "Growth tracker & shooting %", to: "stats" },
     ],
-    howTo: "Training and making shots earns XP and levels you up. Badges tab — locked badges show exactly what to do to earn them. Stats — streaks, monthly drill log, and links to Training History & Calendar.",
-    tourBody: "Your profile, XP, badges, and stats. Settings lives here too. Now go get buckets!",
+    howTo: "Overview — your card and challenges sync. Badges — locked badges show how to earn them. Stats — streaks, shooting %, history & calendar. Settings tab — profile, colors, notifications, sign-in, and backup.",
+    tourBody: "Your profile, XP, badges, stats, and Settings — all under Me. Now go get buckets!",
   },
   {
     key: "notifications",
@@ -128,7 +129,7 @@ export const GUIDE_SECTIONS = [
       { label: "Messages, daily mission, streak & friend activity" },
       { label: "All types on by default — turn off any in Settings" },
     ],
-    howTo: "Settings → Notifications — push alerts are on by default. Uncheck any category you don't want (messages, daily mission, friend activity, and more). On iPhone, add to Home Screen first for push to work.",
+    howTo: "Me → Settings tab → Notifications — push alerts are on by default. Uncheck any category you don't want. On iPhone, add to Home Screen first for push to work.",
   },
   {
     key: "account",
@@ -165,7 +166,7 @@ export const GUIDE_TIPS = [
   { e: "🔍", d: "Search exercises and programs from the Programs tab search bar — crossover, Mikan, plank, and more." },
   { e: "🛠", d: "Programs → Build — pick drills for one day or map out a full week and save your custom plan." },
   { e: "📲", d: "Add to home screen via Settings → Install. On iPhone: Safari Share → Add to Home Screen (needed for notifications)." },
-  { e: "🐛", d: "Something not working? Me → Send feedback — pick Bug or Feature idea and leave a short note." },
+  { e: "🐛", d: "Something not working? Me → Settings → Feedback Center — pick Bug or Feature idea and leave a short note." },
 ];
 
 /** Tour steps derived from main nav sections — bodies stay in sync with Guide. */

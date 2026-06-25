@@ -9,6 +9,7 @@ import { useAuth } from "./hooks/useAuth.js";
 import { useSquadNotifications } from "./hooks/useSquadNotifications.js";
 import GuideNavButton from "./components/GuideNavButton.jsx";
 import ShotTrackerErrorBoundary from "./components/ShotTrackerErrorBoundary.jsx";
+import ViewErrorBoundary from "./components/ViewErrorBoundary.jsx";
 import { readShotLog, normalizeShotLog, writeShotLog, countShotMakes } from "./lib/shotLog.js";
 import { computeShotStyleMakes, SHOT_STYLES, getShotStyle, getLastShotStyle, setLastShotStyle } from "./lib/shotStyles.js";
 import { getAgeGroup, getAgeGroupLabel } from "./lib/periodStats.js";
@@ -5792,9 +5793,19 @@ export default function FitKidHooperApp() {
   }, [settings.avatar]);
   useEffect(()=>{
     const bgColor = bg(settings);
+    const bgL = settings.bgLight ?? 8;
+    const textL = settings.textLight ?? 94;
+    const textHue = settings.textHue ?? 210;
+    const textSat = settings.textSat ?? 25;
+    const safeText = Math.abs(textL - bgL) < 28
+      ? hsl(textHue, textSat, bgL < 50 ? 92 : 14)
+      : textPri(settings);
+    const safeMuted = Math.abs(textL - bgL) < 28
+      ? hsl(textHue, Math.max(textSat - 10, 0), bgL < 50 ? 62 : 38)
+      : textMuted(settings);
     document.documentElement.style.setProperty("--fkh-bg", bgColor);
-    document.documentElement.style.setProperty("--fkh-text", textPri(settings));
-    document.documentElement.style.setProperty("--fkh-text-muted", textMuted(settings));
+    document.documentElement.style.setProperty("--fkh-text", safeText);
+    document.documentElement.style.setProperty("--fkh-text-muted", safeMuted);
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute("content", bgColor);
   }, [settings.bgHue, settings.bgSat, settings.bgLight, settings.textHue, settings.textSat, settings.textLight]);
@@ -6008,6 +6019,12 @@ export default function FitKidHooperApp() {
     [todaysWorkout, completed, today]
   );
 
+  const openSettingsTab = useCallback(() => {
+    setShowSettings(false);
+    setView("progress");
+    setProgressTab("settings");
+  }, []);
+
   const openFeedback = useCallback(() => {
     setShowSettings(false);
     setShowGuide(false);
@@ -6077,13 +6094,13 @@ export default function FitKidHooperApp() {
       case "stats": setView("progress"); setProgressTab("stats"); break;
       case "history": setPrevView("progress"); setView("history"); break;
       case "playlike": setShowPlayLikePicker(true); break;
-      case "settings": setShowSettings(true); break;
+      case "settings": openSettingsTab(); break;
       case "account": setShowAuth(true); break;
       case "guide": openGuide("explore"); break;
       case "whatsnew": openWhatsNew(); break;
       default: break;
     }
-  }, [openGuide, openWhatsNew]);
+  }, [openGuide, openWhatsNew, openSettingsTab]);
 
   const guideSheet = showGuide ? (
     <GuideSheet P={P} SF={SF} initialMode={guideMode} onClose={() => setShowGuide(false)}
@@ -6366,15 +6383,16 @@ export default function FitKidHooperApp() {
     return () => { cancelled = true; };
   }, [auth.isSignedIn, applyCloudSync]);
 
-  // Normalize legacy profile fields when Settings opens.
+  // Normalize legacy profile fields when Settings opens (tab or legacy sheet).
   useEffect(() => {
-    if (!showSettings) return;
+    const settingsOpen = showSettings || (view === "progress" && progressTab === "settings");
+    if (!settingsOpen) return;
     setSettings(prev => {
       const next = withStoredAvatar(migrateThemeSettings(normalizeProfileFields(prev)));
       return JSON.stringify(next) === JSON.stringify(prev) ? prev : next;
     });
     if (auth.isSignedIn && auth.user?.id) hydrateProfileIntoState(auth.user.id).catch(() => {});
-  }, [showSettings, auth.isSignedIn, auth.user?.id, hydrateProfileIntoState]);
+  }, [showSettings, view, progressTab, auth.isSignedIn, auth.user?.id, hydrateProfileIntoState]);
 
   // Auto-sync the leaderboard on app open / sign-in (not just when Boards is
   // opened). Self-throttled to ~30 min, so it's cheap to fire here.
@@ -6577,7 +6595,7 @@ export default function FitKidHooperApp() {
         shellOverlays={shellOverlays}
         detailSheet={programDetailSheet}
         renderBottomNav={renderBottomNav}
-        setShowSettings={setShowSettings}
+        setShowSettings={openSettingsTab}
         onOpenGuide={() => openGuide("explore")}
         isFav={isFav}
         toggleFav={toggleFav}
@@ -6677,9 +6695,17 @@ export default function FitKidHooperApp() {
         shellOverlays={shellOverlays}
         BadgesView={BadgesView}
         ProgressStatsPanel={ProgressStatsPanel}
-        onOpenSettings={() => setShowSettings(true)}
-        onOpenFeedback={openFeedback}
         onOpenGuide={() => openGuide("explore")}
+        setSettings={setSettings}
+        onOpenFeedback={openFeedback}
+        onOpenWhatsNew={openWhatsNew}
+        onOpenAuth={() => setShowAuth(true)}
+        onCloudSync={applyCloudSync}
+        cloudSyncStatus={auth.syncStatus}
+        cloudSyncDetail={auth.syncDetail}
+        onLogout={async () => { await auth.logout(); }}
+        isSignedIn={auth.isSignedIn}
+        signedInUsername={auth.username}
         onViewHistory={() => { setPrevView("progress"); setView("history"); }}
         onOpenSchedule={() => openSchedule("progress", "calendar")}
         onViewReport={() => { setPrevView("progress"); setView("report"); }}
@@ -6697,10 +6723,8 @@ export default function FitKidHooperApp() {
           const ex = ALL_EXERCISES[exId];
           if (ex) openDetail({ ...ex, meta: EXERCISE_META[exId] || {} }, []);
         }}
-        onOpenSquad={focusSquad}
         onOpenShots={() => setView("shots")}
         renderBottomNav={renderBottomNav}
-        squadNotifications={squadNotifications}
       />
     );
   }
@@ -6783,7 +6807,7 @@ export default function FitKidHooperApp() {
         <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 16px",borderBottom:`2px solid ${color}40`,position:"sticky",top:0,background:NV,backdropFilter:"blur(10px)",zIndex:10 }}>
           <button onClick={()=>setView(prevView)} style={{ background:`${color}14`,border:`1px solid ${color}30`,borderRadius:8,color,fontSize:12,fontWeight:700,cursor:"pointer",padding:"5px 10px",letterSpacing:"0.02em" }}>← Back</button>
           <span style={{ fontSize:15,fontWeight:800,color,letterSpacing:"-0.01em" }}>{CATS[activeCat].emoji} {CATS[activeCat].label}</span>
-          <button onClick={()=>setShowSettings(true)} style={{ background:`${color}14`,border:`1px solid ${color}30`,borderRadius:8,color,fontSize:16,cursor:"pointer",padding:"5px 8px" }}>⚙</button>
+          <button onClick={openSettingsTab} style={{ background:`${color}14`,border:`1px solid ${color}30`,borderRadius:8,color,fontSize:16,cursor:"pointer",padding:"5px 8px" }}>⚙</button>
         </div>
 
         {/* Strength day picker */}
@@ -6874,7 +6898,7 @@ export default function FitKidHooperApp() {
               <h1 style={{ fontSize:22,fontWeight:800,color:"var(--fkh-text)",margin:0 }}>📈 Progress Report</h1>
               <p style={{ fontSize:12,color:"#64748b",margin:"4px 0 0" }}>{settings.athleteName} · {periodLabel}</p>
             </div>
-            <button onClick={()=>setShowSettings(true)} style={{ padding:"8px 10px",borderRadius:10,border:`1px solid ${bd}`,background:SF,color:"#64748b",fontSize:14,cursor:"pointer" }}>⚙️</button>
+            <button onClick={openSettingsTab} style={{ padding:"8px 10px",borderRadius:10,border:`1px solid ${bd}`,background:SF,color:"#64748b",fontSize:14,cursor:"pointer" }}>⚙️</button>
           </div>
           {/* Period selector */}
           <div style={{ display:"flex",gap:6,marginTop:10 }}>
@@ -7360,7 +7384,14 @@ export default function FitKidHooperApp() {
         </div>
       )}
 
-            <TodayView
+      <ViewErrorBoundary
+        label="Today"
+        title="Today couldn't load"
+        message="Something broke on the home screen. Tap try again — if it keeps happening, open Me → Settings and export a backup."
+        P={P}
+        onRetry={() => setShotLogTick(t => t + 1)}
+      >
+        <TodayView
         settings={settings}
         P={P}
         S={S}
@@ -7437,7 +7468,7 @@ export default function FitKidHooperApp() {
         focusMissionSection={homeMissionFocus}
         onMissionFocusHandled={() => setHomeMissionFocus(false)}
       />
-
+      </ViewErrorBoundary>
 
       {renderBottomNav()}
     </div>

@@ -144,7 +144,7 @@ function isInstallIOS() {
 }
 
 /* ═══════════════════════ SETTINGS SHEET ═══════════════════════ */
-function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenWhatsNew, onOpenAuth, onOpenGuide, isSignedIn, signedInUsername, onCloudSync, cloudSyncStatus, cloudSyncDetail, onLogout }) {
+function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenWhatsNew, onOpenAuth, onOpenGuide, isSignedIn, signedInUsername, onCloudSync, cloudSyncStatus, cloudSyncDetail, onLogout, embedded = false }) {
   const [tab, setTab] = useState("accent");
   const [showAdvancedColors, setShowAdvancedColors] = useState(false);
   const [guardrailNote, setGuardrailNote] = useState(null);
@@ -171,12 +171,13 @@ function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenW
     if (outcome === 'accepted') localStorage.setItem('fkh-install-dismissed', '1');
   };
 
-  // Escape key closes the sheet
+  // Escape key closes the sheet (modal only)
   useEffect(() => {
+    if (embedded || !onClose) return undefined;
     const handler = e => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [onClose]);
+  }, [onClose, embedded]);
 
   const exportData = () => {
     const data = exportCanonicalSave();
@@ -239,16 +240,32 @@ function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenW
       const p = hexToHsl(sRGBHex); if (p) setHSL(p.h, p.s, clampL(p.l)); } catch {}
   };
 
-  return (
-    <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.82)",zIndex:300,display:"flex",alignItems:"flex-end",justifyContent:"center",backdropFilter:"blur(6px)" }}>
-      <div style={{ background:SURF,borderRadius:"22px 22px 0 0",width:"100%",maxWidth:680,maxHeight:"90vh",overflowY:"auto",paddingBottom:28 }}>
-        <div style={{ display:"flex",justifyContent:"center",paddingTop:10,marginBottom:4 }}>
-          <div style={{ width:40,height:4,borderRadius:99,background:"rgba(255,255,255,0.12)" }}/>
-        </div>
-        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 20px 14px",borderBottom:"1px solid rgba(255,255,255,0.07)",position:"sticky",top:0,background:SURF,zIndex:10 }}>
+  const inner = (
+      <div style={{
+        background: SURF,
+        borderRadius: embedded ? 0 : "22px 22px 0 0",
+        width: "100%",
+        maxWidth: embedded ? "none" : 680,
+        maxHeight: embedded ? "none" : "90vh",
+        overflowY: embedded ? "visible" : "auto",
+        paddingBottom: embedded ? 8 : 28,
+      }}>
+        {!embedded && (
+          <div style={{ display:"flex",justifyContent:"center",paddingTop:10,marginBottom:4 }}>
+            <div style={{ width:40,height:4,borderRadius:99,background:"rgba(255,255,255,0.12)" }}/>
+          </div>
+        )}
+        <div style={{
+          display:"flex",justifyContent:"space-between",alignItems:"center",
+          padding: embedded ? "4px 18px 14px" : "10px 20px 14px",
+          borderBottom:"1px solid rgba(255,255,255,0.07)",
+          position: embedded ? "static" : "sticky", top:0, background:SURF, zIndex:10,
+        }}>
           <span style={{ fontSize:16,fontWeight:700,color:"var(--fkh-text)" }}>Customize Your App</span>
-          <button onClick={onClose} aria-label="Close Settings"
-            style={{ background:"none",border:"none",color:"#64748b",fontSize:22,cursor:"pointer",padding:"6px 10px",borderRadius:8,lineHeight:1 }}>✕</button>
+          {!embedded && onClose && (
+            <button onClick={onClose} aria-label="Close Settings"
+              style={{ background:"none",border:"none",color:"#64748b",fontSize:22,cursor:"pointer",padding:"6px 10px",borderRadius:8,lineHeight:1 }}>✕</button>
+          )}
         </div>
 
         {/* Profile */}
@@ -660,10 +677,21 @@ function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenW
             </button>
           </div>
         </div>
-        <button onClick={onClose} style={{ margin:"0 20px",display:"block",width:"calc(100% - 40px)",padding:"14px",borderRadius:14,border:"none",background:pri(settings),fontSize:15,fontWeight:800,color:"#000",cursor:"pointer" }}>
-          Save & Apply ✓
-        </button>
+        {!embedded && onClose && (
+          <button onClick={onClose} style={{ margin:"0 20px",display:"block",width:"calc(100% - 40px)",padding:"14px",borderRadius:14,border:"none",background:pri(settings),fontSize:15,fontWeight:800,color:"#000",cursor:"pointer" }}>
+            Save & Apply ✓
+          </button>
+        )}
       </div>
+  );
+
+  if (embedded) {
+    return <div style={{ padding:"0 0 8px" }}>{inner}</div>;
+  }
+
+  return (
+    <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.82)",zIndex:300,display:"flex",alignItems:"flex-end",justifyContent:"center",backdropFilter:"blur(6px)" }}>
+      {inner}
     </div>
   );
 }
