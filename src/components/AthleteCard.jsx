@@ -1,3 +1,4 @@
+import { readStoredAvatar } from "../lib/avatarStorage.js";
 import { getPositionLabel, getPositionEmoji, primaryFavorite, fullName } from "../lib/identity.js";
 import { getAchievementMeta } from "../lib/achievements.js";
 
@@ -18,6 +19,7 @@ export default function AthleteCard({
   const frameC = frame?.color || null;
   const allTime = settings.favoriteAllTime?.trim() || primaryFavorite(settings);
   const playLike = settings.favoritePlayLike?.trim();
+  const avatarUrl = readStoredAvatar();
 
   const cardStyle = {
     background: frameC ? `linear-gradient(135deg, ${frameC}1f 0%, ${P}0c 70%)` : `${P}0c`,
@@ -41,8 +43,8 @@ export default function AthleteCard({
         overflow: "hidden", flexShrink: 0,
         display: "flex", alignItems: "center", justifyContent: "center",
       }}>
-        {settings.avatar
-          ? <img src={settings.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        {avatarUrl
+          ? <img src={avatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           : <span style={{ fontSize: isCompact ? 20 : 28 }}>👤</span>}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>

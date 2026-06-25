@@ -15,7 +15,7 @@ import { computeShotStyleMakes, SHOT_STYLES, getShotStyle, getLastShotStyle, set
 import { getAgeGroup, getAgeGroupLabel } from "./lib/periodStats.js";
 import { exportCanonicalSave, importCanonicalSave } from "./lib/canonicalSave.js";
 import { recoverFromSyncBackupIfNeeded } from "./lib/syncBackup.js";
-import { withStoredAvatar, writeStoredAvatar, readStoredAvatar, stripAvatarForCloud } from "./lib/avatarStorage.js";
+import { writeStoredAvatar, readStoredAvatar, stripAvatarForCloud, migrateAvatarOutOfSettings } from "./lib/avatarStorage.js";
 import { safePersistKey } from "./lib/dataSafety.js";
 import { readStoredObject, parseStoredObject, repairStoredObjectKeys, asRecord } from "./lib/storageParse.js";
 import { mergeUserSettings } from "./lib/settingsMerge.js";
@@ -5341,6 +5341,10 @@ const MIGRATIONS = [
   () => {
     repairStoredObjectKeys();
   },
+  // ── v9 → v10: move avatar out of s_settings (memory / crash fix on Android) ──
+  () => {
+    migrateAvatarOutOfSettings();
+  },
 ];
 
 const DATA_VERSION = MIGRATIONS.length; // keep in lock-step automatically
@@ -5452,14 +5456,19 @@ checkIdStability();
 
 function loadSettingsFromStorage(defaults) {
   try {
+    migrateAvatarOutOfSettings();
     const raw = readStoredObject("s_settings");
+    if (raw.avatar) {
+      writeStoredAvatar(raw.avatar);
+      delete raw.avatar;
+    }
     if (raw.athleteAge && !raw.dateOfBirth) {
       const year = new Date().getFullYear() - Number(raw.athleteAge);
       raw.dateOfBirth = `${year}-06-15`;
     }
     delete raw.athleteAge;
     const merged = mergeUserSettings(raw, {});
-    return withStoredAvatar(migrateIdentitySettings(migrateThemeSettings({ ...defaults, ...merged })));
+    return migrateIdentitySettings(migrateThemeSettings({ ...defaults, ...merged }));
   } catch {
     return { ...defaults };
   }
@@ -5513,6 +5522,9 @@ export default function FitKidHooperApp() {
   const [templateScrolledEnd, setTemplateScrolledEnd] = useState(false);
   const [friendsFocusTick, setFriendsFocusTick] = useState(0);
   const [playerHighlight, setPlayerHighlight] = useState(null);
+  const [avatarRevision, setAvatarRevision] = useState(0);
+  const avatarUrl = useMemo(() => readStoredAvatar(), [avatarRevision]);
+  const bumpAvatar = useCallback(() => setAvatarRevision(v => v + 1), []);
 
   const openPlayerHighlight = useCallback(({ videoId, title }) => {
     setPlayerHighlight({ videoId, title });
@@ -5587,9 +5599,9 @@ export default function FitKidHooperApp() {
     }
     const patch = await fetchAthleteProfilePatch(userId);
     setSettings(prev => {
-      const next = withStoredAvatar(migrateThemeSettings(
+      const next = migrateThemeSettings(
         mergeProfilePatch(normalizeProfileFields(prev), patch)
-      ));
+      );
       persistHydratedSettings(next, prev);
       return JSON.stringify(prev) === JSON.stringify(next) ? prev : next;
     });
@@ -5789,10 +5801,14 @@ export default function FitKidHooperApp() {
   };
   const trainingWeek = calcWeek(settings.startDate);
 
-  useEffect(() => {
-    if (settings.avatar) writeStoredAvatar(settings.avatar);
-    safePersistKey("s_settings", stripAvatarForCloud(settings));
+  const settingsPersistKey = useMemo(() => {
+    try { return JSON.stringify(stripAvatarForCloud(settings)); } catch { return ""; }
   }, [settings]);
+
+  useEffect(() => {
+    if (!settingsPersistKey) return;
+    safePersistKey("s_settings", JSON.parse(settingsPersistKey));
+  }, [settingsPersistKey]);
 
   const avatarSyncRef = useRef(null);
   useEffect(() => {
@@ -5800,14 +5816,14 @@ export default function FitKidHooperApp() {
     (async () => {
       const athleteId = await getEffectiveAthleteId();
       if (cancelled || !athleteId) return;
-      const localAvatar = settings.avatar || readStoredAvatar();
+      const localAvatar = readStoredAvatar();
       if (!localAvatar) return;
       if (avatarSyncRef.current === localAvatar) return;
       avatarSyncRef.current = localAvatar;
       await syncAvatarToCloud(localAvatar, athleteId);
     })();
     return () => { cancelled = true; };
-  }, [settings.avatar]);
+  }, [avatarRevision]);
   useEffect(()=>{
     const bgColor = bg(settings);
     const bgL = Number(settings.bgLight);
@@ -6065,6 +6081,8 @@ export default function FitKidHooperApp() {
 
   const settingsSheet = showSettings ? (
     <SettingsSheet settings={settings} setSettings={setSettings} onClose={() => setShowSettings(false)} onOpenFeedback={openFeedback}
+      avatarUrl={avatarUrl}
+      onAvatarChange={bumpAvatar}
       onOpenWhatsNew={openWhatsNew}
       onOpenAuth={() => { setShowSettings(false); setShowAuth(true); }}
       onOpenGuide={() => { setShowSettings(false); openGuide("tour"); }}
@@ -6429,11 +6447,14 @@ export default function FitKidHooperApp() {
   useEffect(() => {
     if (!auth.isSignedIn) return;
     let cancelled = false;
-    (async () => {
-      await applyCloudSync();
+    const timer = window.setTimeout(async () => {
       if (cancelled) return;
-    })();
-    return () => { cancelled = true; };
+      await applyCloudSync();
+    }, 2500);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
   }, [auth.isSignedIn, applyCloudSync]);
 
   // Normalize legacy profile fields when Settings opens (tab or legacy sheet).
@@ -6442,7 +6463,7 @@ export default function FitKidHooperApp() {
     if (!settingsOpen) return;
     try {
       setSettings(prev => {
-        const next = withStoredAvatar(migrateThemeSettings(normalizeProfileFields(prev)));
+        const next = migrateThemeSettings(normalizeProfileFields(prev));
         return JSON.stringify(next) === JSON.stringify(prev) ? prev : next;
       });
     } catch (e) {
@@ -6761,6 +6782,8 @@ export default function FitKidHooperApp() {
         cloudSyncStatus={auth.syncStatus}
         cloudSyncDetail={auth.syncDetail}
         onLogout={async () => { await auth.logout(); }}
+        avatarUrl={avatarUrl}
+        onAvatarChange={bumpAvatar}
         isSignedIn={auth.isSignedIn}
         signedInUsername={auth.username}
         onViewHistory={() => { setPrevView("progress"); setView("history"); }}
@@ -7387,7 +7410,7 @@ export default function FitKidHooperApp() {
           <div style={{ position:"relative",width:56,height:56,flexShrink:0 }}>
             <div onClick={()=>{ setView("progress"); setProgressTab("overview"); }}
               style={{ width:56,height:56,borderRadius:"50%",background:`${P}18`,border:`3px solid ${P}`,overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer" }}>
-              {settings.avatar?<img src={settings.avatar} alt="" style={{ width:"100%",height:"100%",objectFit:"cover" }}/>:<span style={{ fontSize:24 }}>👤</span>}
+              {avatarUrl ? <img src={avatarUrl} alt="" style={{ width:"100%",height:"100%",objectFit:"cover" }}/> : <span style={{ fontSize:24 }}>👤</span>}
             </div>
           </div>
         </div>

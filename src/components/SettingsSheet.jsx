@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { readStoredAvatar, writeStoredAvatar } from "../lib/avatarStorage.js";
 import NotificationSettings from "./NotificationSettings.jsx";
 import { getAgeGroup, getAgeGroupLabel, calcAge } from "../lib/periodStats.js";
 import { exportCanonicalSave, importCanonicalSave } from "../lib/canonicalSave.js";
@@ -144,7 +145,7 @@ function isInstallIOS() {
 }
 
 /* ═══════════════════════ SETTINGS SHEET ═══════════════════════ */
-function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenWhatsNew, onOpenAuth, onOpenGuide, isSignedIn, signedInUsername, onCloudSync, cloudSyncStatus, cloudSyncDetail, onLogout, embedded = false }) {
+function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenWhatsNew, onOpenAuth, onOpenGuide, isSignedIn, signedInUsername, onCloudSync, cloudSyncStatus, cloudSyncDetail, onLogout, embedded = false, avatarUrl, onAvatarChange }) {
   const [tab, setTab] = useState("accent");
   const [showAdvancedColors, setShowAdvancedColors] = useState(false);
   const [guardrailNote, setGuardrailNote] = useState(null);
@@ -273,13 +274,16 @@ function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenW
           <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:"#334155",marginBottom:12,textTransform:"uppercase" }}>Athlete Profile</div>
           <div style={{ display:"flex",gap:16,alignItems:"center",marginBottom:16 }}>
             <div onClick={()=>fileRef.current?.click()} style={{ width:72,height:72,borderRadius:"50%",background:`${P}18`,border:`3px solid ${P}`,overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0 }}>
-              {settings.avatar ? <img src={settings.avatar} alt="" style={{ width:"100%",height:"100%",objectFit:"cover" }}/> : <span style={{ fontSize:30 }}>👤</span>}
+              {(avatarUrl || readStoredAvatar()) ? <img src={avatarUrl || readStoredAvatar()} alt="" style={{ width:"100%",height:"100%",objectFit:"cover" }}/> : <span style={{ fontSize:30 }}>👤</span>}
             </div>
             <div style={{ flex:1 }}>
               <input ref={fileRef} type="file" accept="image/*" style={{ display:"none" }} onChange={e => {
                 const f = e.target.files?.[0]; if (!f) return;
                 const reader = new FileReader();
-                reader.onload = ev => setSettings(p => ({...p, avatar:ev.target.result}));
+                reader.onload = ev => {
+                  writeStoredAvatar(ev.target.result);
+                  onAvatarChange?.();
+                };
                 reader.readAsDataURL(f);
               }}/>
               <button onClick={()=>fileRef.current?.click()} style={{ display:"block",padding:"8px 14px",borderRadius:10,border:`1.5px solid ${P}`,background:"transparent",fontSize:12,fontWeight:600,cursor:"pointer",color:P,marginBottom:8 }}>

@@ -10,10 +10,8 @@ export default function UpdateBanner() {
   const { needRefresh: [needRefresh], updateServiceWorker } = useRegisterSW({
     onRegistered(registration) {
       if (!registration) return
+      registration.update()
       setInterval(() => registration.update(), 5 * 60 * 1000)
-    },
-    onNeedRefresh() {
-      updateServiceWorker(true)
     },
   })
 

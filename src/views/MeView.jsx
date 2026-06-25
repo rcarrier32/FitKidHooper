@@ -48,6 +48,8 @@ export default function MeView({
   cloudSyncStatus,
   cloudSyncDetail,
   onLogout,
+  avatarUrl,
+  onAvatarChange,
   isSignedIn,
   signedInUsername,
   onViewHistory,
@@ -198,6 +200,8 @@ export default function MeView({
             cloudSyncStatus={cloudSyncStatus}
             cloudSyncDetail={cloudSyncDetail}
             onLogout={onLogout}
+            avatarUrl={avatarUrl}
+            onAvatarChange={onAvatarChange}
           />
         </ViewErrorBoundary>
       )}

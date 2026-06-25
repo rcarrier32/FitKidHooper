@@ -1,23 +1,52 @@
 /** Profile photo — kept outside cloud sync payload (base64 is too large). */
 export const AVATAR_STORAGE_KEY = "fkh-avatar";
+const MAX_AVATAR_CHARS = 400_000;
+
+function trimOversizedAvatar(dataUrl) {
+  if (typeof dataUrl !== "string" || !dataUrl) return null;
+  if (dataUrl.length <= MAX_AVATAR_CHARS) return dataUrl;
+  try { localStorage.removeItem(AVATAR_STORAGE_KEY); } catch {}
+  return null;
+}
 
 export function readStoredAvatar() {
   try {
     const raw = localStorage.getItem(AVATAR_STORAGE_KEY);
-    if (raw) return raw;
+    if (raw) return trimOversizedAvatar(raw);
   } catch {}
   try {
     const s = JSON.parse(localStorage.getItem("s_settings") || "{}");
-    return s.avatar || null;
+    const fromSettings = trimOversizedAvatar(s.avatar);
+    if (fromSettings) {
+      writeStoredAvatar(fromSettings);
+      delete s.avatar;
+      localStorage.setItem("s_settings", JSON.stringify(s));
+      return fromSettings;
+    }
   } catch {}
   return null;
 }
 
 export function writeStoredAvatar(dataUrl) {
-  if (!dataUrl) return;
+  const trimmed = trimOversizedAvatar(dataUrl);
+  if (!trimmed) return;
   try {
-    localStorage.setItem(AVATAR_STORAGE_KEY, dataUrl);
+    localStorage.setItem(AVATAR_STORAGE_KEY, trimmed);
   } catch {}
+}
+
+/** Move legacy avatar out of s_settings — keeps React state small on low-memory tablets. */
+export function migrateAvatarOutOfSettings() {
+  try {
+    const s = JSON.parse(localStorage.getItem("s_settings") || "{}");
+    if (!s.avatar) return false;
+    writeStoredAvatar(s.avatar);
+    delete s.avatar;
+    localStorage.setItem("s_settings", JSON.stringify(s));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Explicit removal only — never call writeStoredAvatar(null). */
