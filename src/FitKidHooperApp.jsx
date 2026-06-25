@@ -43,6 +43,7 @@ import {
 } from "./lib/achievementsApi.js";
 import { getStreak, getTrainingDays, getWeekShotGoal, getMonthShotGoal, setWeekShotGoal, setMonthShotGoal, getShotGoalPeriod, setShotGoalPeriod, getWeekMakesFromLog, getMonthMakesFromLog, daysLeftInWeek, daysLeftInMonth } from "./lib/progressStats.js";
 import { computeShootingStats, computeSpotStats, computeLocationStats, computeZoneTypeStats } from "./lib/shootingStats.js";
+import { resolveDailyAction, pickChallengeNudge } from "./lib/dailyAction.js";
 import { withSessionWarmup, categoriesFromExercises, isWarmupExercise } from "./lib/sessionWarmup.js";
 import {
   consumeInviteDeepLink,
