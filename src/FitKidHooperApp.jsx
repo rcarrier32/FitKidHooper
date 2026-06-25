@@ -5793,15 +5793,19 @@ export default function FitKidHooperApp() {
   }, [settings.avatar]);
   useEffect(()=>{
     const bgColor = bg(settings);
-    const bgL = settings.bgLight ?? 8;
-    const textL = settings.textLight ?? 94;
-    const textHue = settings.textHue ?? 210;
-    const textSat = settings.textSat ?? 25;
-    const safeText = Math.abs(textL - bgL) < 28
-      ? hsl(textHue, textSat, bgL < 50 ? 92 : 14)
+    const bgL = Number(settings.bgLight);
+    const textL = Number(settings.textLight);
+    const textHue = Number(settings.textHue);
+    const textSat = Number(settings.textSat);
+    const safeBgL = Number.isFinite(bgL) ? bgL : 8;
+    const safeTextL = Number.isFinite(textL) ? textL : 94;
+    const safeTextHue = Number.isFinite(textHue) ? textHue : 210;
+    const safeTextSat = Number.isFinite(textSat) ? textSat : 25;
+    const safeText = Math.abs(safeTextL - safeBgL) < 28
+      ? hsl(safeTextHue, safeTextSat, safeBgL < 50 ? 92 : 14)
       : textPri(settings);
-    const safeMuted = Math.abs(textL - bgL) < 28
-      ? hsl(textHue, Math.max(textSat - 10, 0), bgL < 50 ? 62 : 38)
+    const safeMuted = Math.abs(safeTextL - safeBgL) < 28
+      ? hsl(safeTextHue, Math.max(safeTextSat - 10, 0), safeBgL < 50 ? 62 : 38)
       : textMuted(settings);
     document.documentElement.style.setProperty("--fkh-bg", bgColor);
     document.documentElement.style.setProperty("--fkh-text", safeText);
@@ -6204,21 +6208,33 @@ export default function FitKidHooperApp() {
 
   // Shared progression context — drives both the grant ledger and the journey UI.
   const progressCtx = useMemo(()=>{
-    const sl = readShotLog();
-    const makes = countShotMakes(sl);
-    // streak gates only use the 7/14/30 thresholds, which the streak badges encode exactly.
-    const maxStreak = earnedBadges.includes("streak-30") ? 30
-      : earnedBadges.includes("streak-14") ? 14
-      : earnedBadges.includes("streak-7") ? 7 : 0;
-    return {
-      earnedBadgeIds: new Set(earnedBadges),
-      ledgerIds: new Set(Object.keys(ledger)),
-      makes,
-      maxStreak,
-      catCounts: computeCatCounts(completed, getExerciseCategory),
-      exCounts: computeExCounts(completed),
-      styleMakes: computeShotStyleMakes(sl),
-    };
+    try {
+      const sl = readShotLog();
+      const makes = countShotMakes(sl);
+      const maxStreak = earnedBadges.includes("streak-30") ? 30
+        : earnedBadges.includes("streak-14") ? 14
+        : earnedBadges.includes("streak-7") ? 7 : 0;
+      return {
+        earnedBadgeIds: new Set(earnedBadges),
+        ledgerIds: new Set(Object.keys(ledger)),
+        makes,
+        maxStreak,
+        catCounts: computeCatCounts(completed, getExerciseCategory),
+        exCounts: computeExCounts(completed),
+        styleMakes: computeShotStyleMakes(sl),
+      };
+    } catch (e) {
+      console.error("[fkh] progress context failed", e);
+      return {
+        earnedBadgeIds: new Set(earnedBadges),
+        ledgerIds: new Set(),
+        makes: 0,
+        maxStreak: 0,
+        catCounts: {},
+        exCounts: {},
+        styleMakes: {},
+      };
+    }
   },[earnedBadges, completed, getExerciseCategory, ledger, shotLogTick]);
 
   const tracksComplete = useMemo(
@@ -6287,9 +6303,26 @@ export default function FitKidHooperApp() {
   },[]);
 
   /* Daily Mission ─────────────────────────────────────────────── */
-  const todayMission = useMemo(()=>
-    generateDailyMission(today, settings, completed, enrolledPrograms, programProgress),
-  [today, settings, completed, enrolledPrograms, programProgress]);
+  const todayMission = useMemo(() => {
+    try {
+      return generateDailyMission(today, settings, completed, enrolledPrograms, programProgress);
+    } catch (e) {
+      console.error("[fkh] daily mission generation failed", e);
+      return {
+        date: today,
+        title: "Daily Training",
+        tasks: [{
+          id: "task-fallback",
+          type: "category",
+          label: "Complete 3 drills from Programs",
+          exercises: [],
+          target: 3,
+          required: true,
+        }],
+        bonusXP: 50,
+      };
+    }
+  }, [today, settings, completed, enrolledPrograms, programProgress]);
 
   const missionClaimed = !!missionLog[today]?.claimed;
 
@@ -6387,10 +6420,14 @@ export default function FitKidHooperApp() {
   useEffect(() => {
     const settingsOpen = showSettings || (view === "progress" && progressTab === "settings");
     if (!settingsOpen) return;
-    setSettings(prev => {
-      const next = withStoredAvatar(migrateThemeSettings(normalizeProfileFields(prev)));
-      return JSON.stringify(next) === JSON.stringify(prev) ? prev : next;
-    });
+    try {
+      setSettings(prev => {
+        const next = withStoredAvatar(migrateThemeSettings(normalizeProfileFields(prev)));
+        return JSON.stringify(next) === JSON.stringify(prev) ? prev : next;
+      });
+    } catch (e) {
+      console.error("[fkh] settings normalize failed", e);
+    }
     if (auth.isSignedIn && auth.user?.id) hydrateProfileIntoState(auth.user.id).catch(() => {});
   }, [showSettings, view, progressTab, auth.isSignedIn, auth.user?.id, hydrateProfileIntoState]);
 

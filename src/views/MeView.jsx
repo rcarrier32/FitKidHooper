@@ -1,6 +1,7 @@
 import ProfileView from "../components/ProfileView.jsx";
 import ProgressionView from "../components/ProgressionView.jsx";
 import SettingsSheet from "../components/SettingsSheet.jsx";
+import ViewErrorBoundary from "../components/ViewErrorBoundary.jsx";
 import HomeCollapsibleSection from "../components/HomeCollapsibleSection.jsx";
 import ShootingCard from "../components/ShootingCard.jsx";
 import GrowthCard from "../components/GrowthCard.jsx";
@@ -177,21 +178,28 @@ export default function MeView({
       )}
 
       {progressTab === "settings" && (
-        <SettingsSheet
-          embedded
-          settings={settings}
-          setSettings={setSettings}
-          onOpenFeedback={onOpenFeedback}
-          onOpenWhatsNew={onOpenWhatsNew}
-          onOpenAuth={onOpenAuth}
-          onOpenGuide={() => onOpenGuide?.("tour")}
-          isSignedIn={isSignedIn}
-          signedInUsername={signedInUsername}
-          onCloudSync={onCloudSync}
-          cloudSyncStatus={cloudSyncStatus}
-          cloudSyncDetail={cloudSyncDetail}
-          onLogout={onLogout}
-        />
+        <ViewErrorBoundary
+          label="Settings"
+          title="Settings couldn't load"
+          message="Profile and theme settings hit a bug. Try again or clear cache — your training log is safe."
+          P={P}
+        >
+          <SettingsSheet
+            embedded
+            settings={settings}
+            setSettings={setSettings}
+            onOpenFeedback={onOpenFeedback}
+            onOpenWhatsNew={onOpenWhatsNew}
+            onOpenAuth={onOpenAuth}
+            onOpenGuide={() => onOpenGuide?.("tour")}
+            isSignedIn={isSignedIn}
+            signedInUsername={signedInUsername}
+            onCloudSync={onCloudSync}
+            cloudSyncStatus={cloudSyncStatus}
+            cloudSyncDetail={cloudSyncDetail}
+            onLogout={onLogout}
+          />
+        </ViewErrorBoundary>
       )}
 
       {progressTab === "stats" && (
