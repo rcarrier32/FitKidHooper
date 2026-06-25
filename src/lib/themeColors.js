@@ -1,11 +1,14 @@
 /** Runtime HSL/hex helpers for themed UI surfaces. */
 
+const fin = (n, fallback) => (Number.isFinite(Number(n)) ? Number(n) : fallback);
+
 export const hsl = (h, s, l) => {
-  const _s = s / 100;
-  const _l = l / 100;
+  const _h = fin(h, 0);
+  const _s = fin(s, 0) / 100;
+  const _l = fin(l, 50) / 100;
   const a = _s * Math.min(_l, 1 - _l);
   const f = n => {
-    const k = (n + h / 30) % 12;
+    const k = (n + _h / 30) % 12;
     const c = _l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
     return Math.round(255 * c).toString(16).padStart(2, "0");
   };

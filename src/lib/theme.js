@@ -207,9 +207,51 @@ export function brightnessMaxForTab(tab) {
   return 75;
 }
 
+/** Default FKH theme — used to detect custom colors during cloud merge. */
+export const DEFAULT_THEME = {
+  primaryHue: 38, primarySat: 92, primaryLight: 55,
+  secondaryHue: 245, secondarySat: 80, secondaryLight: 60,
+  bgHue: 222, bgSat: 47, bgLight: 10,
+  surfaceHue: 222, surfaceSat: 37, surfaceLight: 15,
+  buttonHue: 222, buttonSat: 38, buttonLight: 20,
+  textHue: 210, textSat: 25, textLight: 94,
+  accentHue: 158, accentSat: 85, accentLight: 50,
+  customSecondary: false,
+};
+
+const THEME_NUM_KEYS = [
+  "primaryHue", "primarySat", "primaryLight",
+  "secondaryHue", "secondarySat", "secondaryLight",
+  "bgHue", "bgSat", "bgLight",
+  "surfaceHue", "surfaceSat", "surfaceLight",
+  "buttonHue", "buttonSat", "buttonLight",
+  "textHue", "textSat", "textLight",
+  "accentHue", "accentSat", "accentLight",
+];
+
+function clampThemeNumber(key, value, fallback) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  if (key.endsWith("Hue")) return ((Math.round(n) % 360) + 360) % 360;
+  if (key.endsWith("Sat")) return Math.max(0, Math.min(100, Math.round(n)));
+  if (key.endsWith("Light")) return Math.max(0, Math.min(100, Math.round(n)));
+  return n;
+}
+
+/** Coerce NaN / out-of-range theme sliders so render never produces invalid colors. */
+export function sanitizeThemeNumbers(raw) {
+  const s = { ...(raw || {}) };
+  for (const key of THEME_NUM_KEYS) {
+    if (s[key] === undefined) continue;
+    const fallback = DEFAULT_THEME[key];
+    s[key] = clampThemeNumber(key, s[key], fallback);
+  }
+  return s;
+}
+
 /** Fill missing surface/text/button fields from legacy settings. */
 export function migrateThemeSettings(raw) {
-  const s = { ...raw };
+  const s = sanitizeThemeNumbers({ ...raw });
   if (s.surfaceHue === undefined) {
     s.surfaceHue = s.bgHue ?? 222;
     s.surfaceSat = Math.max((s.bgSat ?? 47) - 10, 0);
@@ -251,18 +293,6 @@ export function applyThemePreset(preset) {
     themePresetId: preset.id,
   });
 }
-
-/** Default FKH theme — used to detect custom colors during cloud merge. */
-export const DEFAULT_THEME = {
-  primaryHue: 38, primarySat: 92, primaryLight: 55,
-  secondaryHue: 245, secondarySat: 80, secondaryLight: 60,
-  bgHue: 222, bgSat: 47, bgLight: 10,
-  surfaceHue: 222, surfaceSat: 37, surfaceLight: 15,
-  buttonHue: 222, buttonSat: 38, buttonLight: 20,
-  textHue: 210, textSat: 25, textLight: 94,
-  accentHue: 158, accentSat: 85, accentLight: 50,
-  customSecondary: false,
-};
 
 export const THEME_SETTING_KEYS = [
   ...Object.keys(DEFAULT_THEME),

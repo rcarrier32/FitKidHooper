@@ -17,6 +17,7 @@ import { exportCanonicalSave, importCanonicalSave } from "./lib/canonicalSave.js
 import { recoverFromSyncBackupIfNeeded } from "./lib/syncBackup.js";
 import { withStoredAvatar, writeStoredAvatar, readStoredAvatar, stripAvatarForCloud } from "./lib/avatarStorage.js";
 import { safePersistKey } from "./lib/dataSafety.js";
+import { readStoredObject, parseStoredObject, repairStoredObjectKeys } from "./lib/storageParse.js";
 import { mergeUserSettings } from "./lib/settingsMerge.js";
 import { persistHydratedSettings, normalizeProfileFields, fetchAthleteProfilePatch, mergeProfilePatch } from "./lib/profileHydrate.js";
 import { syncAvatarToCloud, restoreLocalAvatarFromCloud } from "./lib/avatarCloud.js";
@@ -2026,12 +2027,7 @@ function computeXP(completed, programProgress={}, missionLog={}) {
   }
 
   // Shot XP — minimal contribution (1 XP per 50 makes)
-  // Shot volume is tracked separately via Shooting Progression badges
-  try {
-    const sl = JSON.parse(localStorage.getItem("shot_log_v2")||"{}");
-    const makes = Object.values(sl).flatMap(v=>v).filter(s=>s.made!==false).length;
-    shotXP = Math.floor(makes/50);
-  } catch {}
+  shotXP = Math.floor(countShotMakes(readShotLog()) / 50);
 
   // Badge XP (50 per earned badge) — rewards meaningful milestones
   const earnedIds = getEarnedBadges(completed, programProgress, PROGRAMS);
@@ -5319,10 +5315,13 @@ const MIGRATIONS = [
   // ── v6 → v7: normalize shot_log_v2 (fixes Shots tab white-screen) ──
   () => {
     try {
-      const raw = JSON.parse(localStorage.getItem("shot_log_v2") || "{}");
-      const normalized = normalizeShotLog(raw);
+      const normalized = normalizeShotLog(readStoredObject("shot_log_v2"));
       localStorage.setItem("shot_log_v2", JSON.stringify(normalized));
     } catch { /* ignore */ }
+  },
+  // ── v7 → v8: repair null / array poison in object-shaped localStorage keys ──
+  () => {
+    repairStoredObjectKeys();
   },
 ];
 
@@ -5331,9 +5330,9 @@ const DATA_VERSION = MIGRATIONS.length; // keep in lock-step automatically
 /** Rebuild fkh-program-progress from s_done when session marks were lost. */
 function persistProgramProgressRecovery() {
   try {
-    const enrolled = JSON.parse(localStorage.getItem("fkh-programs") || "{}");
-    const progress = JSON.parse(localStorage.getItem("fkh-program-progress") || "{}");
-    const completed = JSON.parse(localStorage.getItem("s_done") || "{}");
+    const enrolled = readStoredObject("fkh-programs");
+    const progress = readStoredObject("fkh-program-progress");
+    const completed = readStoredObject("s_done");
     const next = rehydrateProgramProgressFromCompleted({
       programs: PROGRAMS,
       enrolledPrograms: enrolled,
@@ -5434,7 +5433,7 @@ checkIdStability();
 
 function loadSettingsFromStorage(defaults) {
   try {
-    const raw = JSON.parse(localStorage.getItem("s_settings") || "{}");
+    const raw = readStoredObject("s_settings");
     if (raw.athleteAge && !raw.dateOfBirth) {
       const year = new Date().getFullYear() - Number(raw.athleteAge);
       raw.dateOfBirth = `${year}-06-15`;
@@ -5483,7 +5482,7 @@ export default function FitKidHooperApp() {
   const [progressTab, setProgressTab] = useState("overview");
   const [programSegment, setProgramSegment] = useState(() => {
     try {
-      return Object.keys(JSON.parse(localStorage.getItem("fkh-programs") || "{}")).length ? "myPlan" : "forYou";
+      return Object.keys(readStoredObject("fkh-programs")).length ? "myPlan" : "forYou";
     } catch { return "forYou"; }
   });
   const [programsHubSection, setProgramsHubSection] = useState("plans");
@@ -5530,34 +5529,32 @@ export default function FitKidHooperApp() {
     setProgramsHubSection(section);
     setView("programs");
   }, []);
-  const [badgeDates, setBadgeDates] = useState(()=>{
-    try{return JSON.parse(localStorage.getItem("fkh-badge-dates")||"{}");}catch{return {};}
-  });
+  const [badgeDates, setBadgeDates] = useState(() => readStoredObject("fkh-badge-dates"));
   const [lastEarnedBadge, setLastEarnedBadge] = useState(null);
-  const [completed, setCompleted] = useState(()=>{ try{return JSON.parse(localStorage.getItem("s_done")||"{}")}catch{return{}} });
-  const [programProgress, setProgramProgress] = useState(()=>{ try{return JSON.parse(localStorage.getItem("fkh-program-progress")||"{}")}catch{return{}} });
-  const [setLog, setSetLog] = useState(()=>{ try{return JSON.parse(localStorage.getItem("fkh-set-log")||"{}")}catch{return{}} });
-  const [maxRepsMap, setMaxRepsMap] = useState(()=>{ try{return JSON.parse(localStorage.getItem("fkh-max-reps")||"{}")}catch{return{}} });
-  const [bilateralPrefs, setBilateralPrefs] = useState(()=>{ try{return JSON.parse(localStorage.getItem("fkh-bilateral-prefs")||"{}")}catch{return{}} });
+  const [completed, setCompleted] = useState(() => readStoredObject("s_done"));
+  const [programProgress, setProgramProgress] = useState(() => readStoredObject("fkh-program-progress"));
+  const [setLog, setSetLog] = useState(() => readStoredObject("fkh-set-log"));
+  const [maxRepsMap, setMaxRepsMap] = useState(() => readStoredObject("fkh-max-reps"));
+  const [bilateralPrefs, setBilateralPrefs] = useState(() => readStoredObject("fkh-bilateral-prefs"));
   const [detailContext, setDetailContext] = useState(null);
-  const [enrolledPrograms, setEnrolledPrograms] = useState(()=>{ try{return JSON.parse(localStorage.getItem("fkh-programs")||"{}")}catch{return{}} });
+  const [enrolledPrograms, setEnrolledPrograms] = useState(() => readStoredObject("fkh-programs"));
   const [selectedProgram, setSelectedProgram] = useState(null); // programId string when drill-in open
-  const [missionLog, setMissionLog] = useState(()=>{ try{return JSON.parse(localStorage.getItem("fkh-missions")||"{}")}catch{return{}} });
+  const [missionLog, setMissionLog] = useState(() => readStoredObject("fkh-missions"));
   const [missionCelebration, setMissionCelebration] = useState(null);
   const [missionTaskToast, setMissionTaskToast] = useState(null);
   const celebratedMissionTasksRef = useRef(new Set());
-  const [favorites, setFavorites] = useState(()=>{ try{return JSON.parse(localStorage.getItem("fkh-favs")||'{"exercises":{},"workouts":{},"programs":{}}')}catch{return{exercises:{},workouts:{},programs:{}}} });
+  const [favorites, setFavorites] = useState(() => readStoredObject("fkh-favs", { exercises: {}, workouts: {}, programs: {} }));
   const reloadAthleteStateFromStorage = useCallback(() => {
     persistProgramProgressRecovery();
     setSettings(loadSettingsFromStorage(DEFAULT));
-    try { setCompleted(JSON.parse(localStorage.getItem("s_done") || "{}")); } catch {}
-    try { setProgramProgress(JSON.parse(localStorage.getItem("fkh-program-progress") || "{}")); } catch {}
-    try { setEnrolledPrograms(JSON.parse(localStorage.getItem("fkh-programs") || "{}")); } catch {}
-    try { setMissionLog(JSON.parse(localStorage.getItem("fkh-missions") || "{}")); } catch {}
-    try { setFavorites(JSON.parse(localStorage.getItem("fkh-favs") || '{"exercises":{},"workouts":{},"programs":{}}')); } catch {}
-    try { setSetLog(JSON.parse(localStorage.getItem("fkh-set-log") || "{}")); } catch {}
-    try { setMaxRepsMap(JSON.parse(localStorage.getItem("fkh-max-reps") || "{}")); } catch {}
-    try { setBadgeDates(JSON.parse(localStorage.getItem("fkh-badge-dates") || "{}")); } catch {}
+    setCompleted(readStoredObject("s_done"));
+    setProgramProgress(readStoredObject("fkh-program-progress"));
+    setEnrolledPrograms(readStoredObject("fkh-programs"));
+    setMissionLog(readStoredObject("fkh-missions"));
+    setFavorites(readStoredObject("fkh-favs", { exercises: {}, workouts: {}, programs: {} }));
+    setSetLog(readStoredObject("fkh-set-log"));
+    setMaxRepsMap(readStoredObject("fkh-max-reps"));
+    setBadgeDates(readStoredObject("fkh-badge-dates"));
     setStrDay(localStorage.getItem("s_strday") || "Day 1");
     setLedger(readLocalLedger());
     setBenchmarkPBs(readLocalPBs());
@@ -6163,8 +6160,8 @@ export default function FitKidHooperApp() {
   [settings, completed, coachBasisTemplate, defaultTmpl]);
 
   /* XP / Level / Badges ──────────────────────────────────── */
-  const xpData       = useMemo(()=>computeXP(completed, programProgress, missionLog),[completed, programProgress, missionLog]);
-  const currentLevel = useMemo(()=>getLevel(xpData.total),[xpData.total]);
+  const xpData = useMemo(() => computeXP(completed, programProgress, missionLog), [completed, programProgress, missionLog]);
+  const currentLevel = useMemo(() => getLevel(xpData.total), [xpData.total]);
   const prevLevelRankRef = useRef(currentLevel.rank);
   useEffect(() => {
     if (currentLevel.rank > prevLevelRankRef.current) {
@@ -6176,7 +6173,7 @@ export default function FitKidHooperApp() {
     }
     prevLevelRankRef.current = currentLevel.rank;
   }, [currentLevel, xpData.total]);
-  const earnedBadges = useMemo(()=>getEarnedBadges(completed, programProgress, PROGRAMS),[completed, programProgress]);
+  const earnedBadges = useMemo(() => getEarnedBadges(completed, programProgress, PROGRAMS), [completed, programProgress]);
   const personalChallenges = useMemo(() => buildPersonalChallenges(completed, WORKOUTS), [completed]);
   const recommendedProgramIds = useMemo(() => recommendProgramsForFavorite(settings), [settings]);
   const totalBadges = BADGES_DEF.length;
@@ -6246,19 +6243,22 @@ export default function FitKidHooperApp() {
   // journey milestones/titles/cosmetics, syncs to the cloud ledger, and celebrates
   // newly reached ranks with the same confetti moment as badges.
   useEffect(()=>{
-    const earnedAll = new Set([...earnedBadges, ...evaluateEarned(progressCtx)]);
-    const owned = ledgerIdSet(readLocalLedger());
-    const entries = grantEntries(earnedAll, owned, {});
-    if (!entries.length) return;
-    mergeIntoLocalLedger(entries);
-    setLedger(readLocalLedger());
-    pushLedgerEntries(entries).catch(()=>{});
-    // Celebrate the milestone rungs (titles/cosmetics ride along with each rung).
-    const milestoneDefs = entries
-      .filter(e => e.kind === "milestone")
-      .map(e => { const m = getAchievementMeta(e.achievement_id); return m && { id: m.id, name: m.name, emoji: m.emoji, color: m.color, desc: m.flavor, kind: "milestone", conquest: m.conquest, inspo: m.inspo }; })
-      .filter(Boolean);
-    if (milestoneDefs.length) setCelebrationQueue(q=>[...q, ...milestoneDefs]);
+    try {
+      const earnedAll = new Set([...earnedBadges, ...evaluateEarned(progressCtx)]);
+      const owned = ledgerIdSet(readLocalLedger());
+      const entries = grantEntries(earnedAll, owned, {});
+      if (!entries.length) return;
+      mergeIntoLocalLedger(entries);
+      setLedger(readLocalLedger());
+      pushLedgerEntries(entries).catch(()=>{});
+      const milestoneDefs = entries
+        .filter(e => e.kind === "milestone")
+        .map(e => { const m = getAchievementMeta(e.achievement_id); return m && { id: m.id, name: m.name, emoji: m.emoji, color: m.color, desc: m.flavor, kind: "milestone", conquest: m.conquest, inspo: m.inspo }; })
+        .filter(Boolean);
+      if (milestoneDefs.length) setCelebrationQueue(q=>[...q, ...milestoneDefs]);
+    } catch (e) {
+      console.error("[fkh] ledger grant failed", e);
+    }
   },[progressCtx, earnedBadges]);
 
   // On open: claim any challenge rewards earned (server-validated, immediate),

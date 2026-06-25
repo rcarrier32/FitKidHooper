@@ -1,5 +1,7 @@
 import { computeProgramProgress, countProgramSessionsDone } from "./programProgress.js";
 import { PROGRESSION_CHAINS, getChainStatus } from "./progressionChains.js";
+import { countShotMakes, readShotLog } from "./shotLog.js";
+import { parseStoredObject } from "./storageParse.js";
 
 export const BADGE_CATS = {
   progression: { label:"Progression Tracks", emoji:"📈" },
@@ -51,18 +53,20 @@ const CHAIN_BADGE_MAP = {
 };
 
 export function getEarnedBadges(completed, programProgress = {}, programs = []) {
+  const done = parseStoredObject(completed, {});
+  const progress = parseStoredObject(programProgress, {});
   const earned = new Set();
 
   for (const [badgeId, chainId] of Object.entries(CHAIN_BADGE_MAP)) {
     const chain = PROGRESSION_CHAINS.find(c => c.id === chainId);
     if (chain) {
-      const { progress, total } = getChainStatus(chain, completed);
-      if (progress === total) earned.add(badgeId);
+      const { progress: chainProgress, total } = getChainStatus(chain, done);
+      if (chainProgress === total) earned.add(badgeId);
     }
   }
 
   const days = [...new Set(
-    Object.keys(completed).filter(k => completed[k])
+    Object.keys(done).filter(k => done[k])
       .map(k => k.split("-").slice(0, 3).join("-"))
   )].sort();
   let maxStreak = 0, st = 0;
@@ -80,8 +84,7 @@ export function getEarnedBadges(completed, programProgress = {}, programs = []) 
   if (maxStreak >= 30) earned.add("streak-30");
 
   try {
-    const sl = JSON.parse(localStorage.getItem("shot_log_v2") || "{}");
-    const makes = Object.values(sl).flatMap(v => v).filter(s => s.made !== false).length;
+    const makes = countShotMakes(readShotLog());
     if (makes >= 100)   earned.add("shots-100");
     if (makes >= 1000)  earned.add("shots-1k");
     if (makes >= 2500)  earned.add("shots-2500");
@@ -90,7 +93,7 @@ export function getEarnedBadges(completed, programProgress = {}, programs = []) 
   } catch {}
 
   const workoutDays = new Set(
-    Object.keys(completed).filter(k => completed[k])
+    Object.keys(done).filter(k => done[k])
       .map(k => k.split("-").slice(0, 3).join("-"))
   ).size;
   if (workoutDays >= 1)   earned.add("workouts-1");
@@ -100,15 +103,17 @@ export function getEarnedBadges(completed, programProgress = {}, programs = []) 
   if (workoutDays >= 100) earned.add("workouts-100");
 
   for (const prog of programs) {
-    if (computeProgramProgress(prog, programProgress) >= 1) earned.add(prog.badgeId);
+    if (computeProgramProgress(prog, progress) >= 1) earned.add(prog.badgeId);
   }
 
   return [...earned];
 }
 
 export function getBadgeProgress(badge, completed, programProgress = {}, programs = []) {
+  const done = parseStoredObject(completed, {});
+  const progress = parseStoredObject(programProgress, {});
   const days = [...new Set(
-    Object.keys(completed).filter(k => completed[k]).map(k => k.split("-").slice(0, 3).join("-"))
+    Object.keys(done).filter(k => done[k]).map(k => k.split("-").slice(0, 3).join("-"))
   )];
   const workoutDays = days.length;
   let streak = 0; const dw = new Date();
@@ -117,7 +122,7 @@ export function getBadgeProgress(badge, completed, programProgress = {}, program
     if (days.includes(k)) { streak++; dw.setDate(dw.getDate() - 1); } else break;
   }
   let makes = 0;
-  try { const sl = JSON.parse(localStorage.getItem("shot_log_v2") || "{}"); makes = Object.values(sl).flatMap(v => v).filter(s => s.made !== false).length; } catch {}
+  try { makes = countShotMakes(readShotLog()); } catch {}
   const MAP = {
     "workouts-1":{cur:workoutDays,target:1},"workouts-10":{cur:workoutDays,target:10},
     "workouts-25":{cur:workoutDays,target:25},"workouts-50":{cur:workoutDays,target:50},
@@ -132,7 +137,7 @@ export function getBadgeProgress(badge, completed, programProgress = {}, program
   const prog = programs.find(p => p.badgeId === badge.id);
   if (prog) {
     const totalSessions = prog.weeks.reduce((s, w) => s + w.sessions.length, 0);
-    const doneSessions = countProgramSessionsDone(prog, programProgress);
+    const doneSessions = countProgramSessionsDone(prog, progress);
     return { cur: doneSessions, target: totalSessions };
   }
   return { cur:0, target:1 };

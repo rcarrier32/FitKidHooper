@@ -1,5 +1,8 @@
 /** Personal weekly challenges — local progress tracked from completed drills + shots. */
 
+import { readShotLog } from "./shotLog.js";
+import { parseStoredObject } from "./storageParse.js";
+
 export const CHALLENGES_DEF = [
   { id:"streak-3",   emoji:"🔥", name:"3-Day Streak",    type:"streak",    target:3,  desc:"Train 3 days in a row",              reward:"On Fire 🔥" },
   { id:"streak-7",   emoji:"💪", name:"Week Warrior",    type:"streak",    target:7,  desc:"Train all 7 days this week",         reward:"Week Warrior 💪" },
@@ -22,6 +25,7 @@ export function challengeWeekStart() {
 
 /** @param {Record<string, Array<{ id: string }>>} [workouts] category → drill list */
 export function getChallengeProgress(def, completed, workouts = {}) {
+  const done = parseStoredObject(completed, {});
   const today = new Date().toLocaleDateString("en-CA");
   const ws = challengeWeekStart();
   if (def.type === "streak") {
@@ -29,7 +33,7 @@ export function getChallengeProgress(def, completed, workouts = {}) {
     const d = new Date();
     for (let i = 0; i < 14; i++) {
       const k = d.toLocaleDateString("en-CA");
-      if (Object.keys(completed).some(c => c.startsWith(k) && completed[c])) {
+      if (Object.keys(done).some(c => c.startsWith(k) && done[c])) {
         streak++;
         d.setDate(d.getDate() - 1);
       } else break;
@@ -38,28 +42,26 @@ export function getChallengeProgress(def, completed, workouts = {}) {
   }
   if (def.type === "cat_week") {
     const ids = new Set((workouts[def.cat] || []).map(e => e.id));
-    const cur = Object.keys(completed).filter(k => {
+    const cur = Object.keys(done).filter(k => {
       const dateStr = k.split("-").slice(0, 3).join("-");
       if (dateStr < ws) return false;
-      return completed[k] && ids.has(k.split("-").slice(3).join("-"));
+      return done[k] && ids.has(k.split("-").slice(3).join("-"));
     }).length;
     return { cur, target: def.target };
   }
   if (def.type === "shots_week") {
-    let sl;
-    try { sl = JSON.parse(localStorage.getItem("shot_log_v2") || "{}"); } catch { sl = {}; }
+    const sl = readShotLog();
     const cur = Object.keys(sl).filter(k => k >= ws).flatMap(k => sl[k] || []).filter(s => s.made !== false).length;
     return { cur, target: def.target };
   }
   if (def.type === "shot_style_week") {
-    let sl;
-    try { sl = JSON.parse(localStorage.getItem("shot_log_v2") || "{}"); } catch { sl = {}; }
+    const sl = readShotLog();
     const cur = Object.keys(sl).filter(k => k >= ws).flatMap(k => sl[k] || [])
       .filter(s => s.made !== false && s.style === def.style).length;
     return { cur, target: def.target };
   }
   if (def.type === "day_count") {
-    const cur = Object.keys(completed).filter(k => k.startsWith(today) && completed[k]).length;
+    const cur = Object.keys(done).filter(k => k.startsWith(today) && done[k]).length;
     return { cur, target: def.target };
   }
   return { cur: 0, target: def.target };

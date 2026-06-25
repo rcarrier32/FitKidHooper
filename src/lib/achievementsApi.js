@@ -7,16 +7,13 @@
  */
 import { getSupabaseClient, isSupabaseConfigured } from "./supabaseClient.js";
 import { getEffectiveAthleteId } from "./auth.js";
+import { parseStoredObject, readStoredObject } from "./storageParse.js";
 
 const LEDGER_KEY = "fkh-achievements";
 
 /** Local ledger cache: { [achievement_id]: { kind, family, earned_at, context } }. */
 export function readLocalLedger() {
-  try {
-    return JSON.parse(localStorage.getItem(LEDGER_KEY) || "{}");
-  } catch {
-    return {};
-  }
+  return readStoredObject(LEDGER_KEY);
 }
 
 export function writeLocalLedger(ledger) {

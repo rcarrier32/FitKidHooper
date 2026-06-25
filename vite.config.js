@@ -35,7 +35,7 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,json}'],
         clientsClaim: true,
-        skipWaiting: false,
+        skipWaiting: true,
         navigateFallback: 'index.html',
         // Web push handlers (push + notificationclick) folded into the SW.
         importScripts: ['push-sw.js'],
