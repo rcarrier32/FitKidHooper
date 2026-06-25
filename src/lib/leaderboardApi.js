@@ -7,6 +7,7 @@ import { getStreak, getAllTrainingDayCount } from "./progressStats.js";
 import { readLocalPBs } from "./benchmarksApi.js";
 import { computeCatCounts } from "./achievements.js";
 import { computeExCounts } from "./pathSignatures.js";
+import { computeAllPeriodStats, getAgeGroup } from "./periodStats.js";
 
 const LAST_PUSH_KEY = "fkh-last-push";
 const PUSH_DISMISS_KEY = "fkh-push-prompt-dismissed-until";

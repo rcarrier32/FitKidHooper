@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { readStoredAvatar, writeStoredAvatar } from "../lib/avatarStorage.js";
+import { readStoredAvatar } from "../lib/avatarStorage.js";
+import { saveAvatarLocally } from "../lib/avatarCloud.js";
 import NotificationSettings from "./NotificationSettings.jsx";
 import { getAgeGroup, getAgeGroupLabel, calcAge } from "../lib/periodStats.js";
 import { exportCanonicalSave, importCanonicalSave } from "../lib/canonicalSave.js";
@@ -149,6 +150,8 @@ function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenW
   const [tab, setTab] = useState("accent");
   const [showAdvancedColors, setShowAdvancedColors] = useState(false);
   const [guardrailNote, setGuardrailNote] = useState(null);
+  const [avatarSaveNote, setAvatarSaveNote] = useState(null);
+  const [avatarSaving, setAvatarSaving] = useState(false);
   const [installPrompt, setInstallPrompt] = useState(() => window._installPrompt || null);
   const fileRef = useRef(null);
   const importRef = useRef(null);
@@ -277,18 +280,34 @@ function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenW
               {(avatarUrl || readStoredAvatar()) ? <img src={avatarUrl || readStoredAvatar()} alt="" style={{ width:"100%",height:"100%",objectFit:"cover" }}/> : <span style={{ fontSize:30 }}>👤</span>}
             </div>
             <div style={{ flex:1 }}>
-              <input ref={fileRef} type="file" accept="image/*" style={{ display:"none" }} onChange={e => {
+              <input ref={fileRef} type="file" accept="image/*" style={{ display:"none" }} onChange={async e => {
                 const f = e.target.files?.[0]; if (!f) return;
+                e.target.value = "";
+                setAvatarSaving(true);
+                setAvatarSaveNote(null);
                 const reader = new FileReader();
-                reader.onload = ev => {
-                  writeStoredAvatar(ev.target.result);
-                  onAvatarChange?.();
+                reader.onload = async ev => {
+                  const result = await saveAvatarLocally(ev.target.result);
+                  setAvatarSaving(false);
+                  if (result.ok) {
+                    setAvatarSaveNote("Photo saved ✓");
+                    onAvatarChange?.();
+                  } else {
+                    setAvatarSaveNote("Couldn't save photo — try a smaller picture");
+                  }
+                };
+                reader.onerror = () => {
+                  setAvatarSaving(false);
+                  setAvatarSaveNote("Couldn't read that photo");
                 };
                 reader.readAsDataURL(f);
               }}/>
-              <button onClick={()=>fileRef.current?.click()} style={{ display:"block",padding:"8px 14px",borderRadius:10,border:`1.5px solid ${P}`,background:"transparent",fontSize:12,fontWeight:600,cursor:"pointer",color:P,marginBottom:8 }}>
-                📷 Choose Photo
+              <button onClick={()=>fileRef.current?.click()} disabled={avatarSaving} style={{ display:"block",padding:"8px 14px",borderRadius:10,border:`1.5px solid ${P}`,background:"transparent",fontSize:12,fontWeight:600,cursor:avatarSaving?"wait":"pointer",color:P,marginBottom:8,opacity:avatarSaving?0.7:1 }}>
+                {avatarSaving ? "Saving photo…" : "📷 Choose Photo"}
               </button>
+              {avatarSaveNote && (
+                <div style={{ fontSize:11,color:avatarSaveNote.includes("✓")?P:"#f87171",marginBottom:8 }}>{avatarSaveNote}</div>
+              )}
               <input value={settings.athleteName} onChange={e=>setSettings(p=>({...p,athleteName:e.target.value}))}
                 placeholder="First name"
                 style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.05)",border:`1.5px solid ${P}44`,borderRadius:10,padding:"8px 12px",fontSize:14,fontWeight:700,color:P,outline:"none",marginBottom:8 }}/>
@@ -685,6 +704,11 @@ function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenW
           <button onClick={onClose} style={{ margin:"0 20px",display:"block",width:"calc(100% - 40px)",padding:"14px",borderRadius:14,border:"none",background:pri(settings),fontSize:15,fontWeight:800,color:"#000",cursor:"pointer" }}>
             Save & Apply ✓
           </button>
+        )}
+        {embedded && (
+          <div style={{ margin:"8px 20px 0",padding:"12px 14px",borderRadius:12,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",fontSize:12,color:"#64748b",textAlign:"center" }}>
+            Profile changes save automatically ✓
+          </div>
         )}
       </div>
   );

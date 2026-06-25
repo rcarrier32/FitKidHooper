@@ -4,6 +4,7 @@ import BadgesView from "./components/BadgesView.jsx";
 import AuthSheet from "./components/AuthSheet.jsx";
 import NotificationSettings from "./components/NotificationSettings.jsx";
 import OnboardingSheet from "./components/OnboardingSheet.jsx";
+import PlayLikePickerSheet from "./components/PlayLikePickerSheet.jsx";
 import FeedbackCenter from "./components/FeedbackCenter.jsx";
 import { useAuth } from "./hooks/useAuth.js";
 import { useSquadNotifications } from "./hooks/useSquadNotifications.js";
@@ -21,8 +22,9 @@ import { safePersistKey } from "./lib/dataSafety.js";
 import { readStoredObject, parseStoredObject, repairStoredObjectKeys, asRecord, readStoredArray } from "./lib/storageParse.js";
 import { mergeUserSettings } from "./lib/settingsMerge.js";
 import { persistHydratedSettings, normalizeProfileFields, fetchAthleteProfilePatch, mergeProfilePatch } from "./lib/profileHydrate.js";
-import { syncAvatarToCloud, restoreLocalAvatarFromCloud } from "./lib/avatarCloud.js";
+import { syncAvatarToCloud, restoreLocalAvatarFromCloud, saveAvatarLocally } from "./lib/avatarCloud.js";
 import { getEffectiveAthleteId, hasStoredAuthSession } from "./lib/auth.js";
+import { migrateIdentitySettings } from "./lib/identity.js";
 import { getSupabaseClient } from "./lib/supabaseClient.js";
 import { CATS, CAT_DOT_COLORS } from "./lib/categories.js";
 import { BADGES_DEF, BADGE_CATS, getEarnedBadges, getBadgeProgress } from "./lib/badges.js";
@@ -5552,6 +5554,17 @@ export default function FitKidHooperApp() {
   const [avatarRevision, setAvatarRevision] = useState(0);
   const avatarUrl = useMemo(() => readStoredAvatar(), [avatarRevision]);
   const bumpAvatar = useCallback(() => setAvatarRevision(v => v + 1), []);
+
+  useEffect(() => {
+    migrateAvatarOutOfSettings();
+    (async () => {
+      const av = readStoredAvatar();
+      if (av && av.length > 120_000) {
+        const saved = await saveAvatarLocally(av);
+        if (saved.ok) bumpAvatar();
+      }
+    })();
+  }, [bumpAvatar]);
 
   const openPlayerHighlight = useCallback(({ videoId, title }) => {
     setPlayerHighlight({ videoId, title });

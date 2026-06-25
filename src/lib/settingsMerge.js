@@ -2,7 +2,6 @@ import {
   extractThemeFields,
   isDefaultTheme,
 } from "./theme.js";
-import { readStoredAvatar } from "./avatarStorage.js";
 
 const DEFAULT_ATHLETE_NAME = "Champ";
 
@@ -105,8 +104,7 @@ export function mergeUserSettings(local, cloud) {
     merged.activeTitle = l.activeTitle ?? c.activeTitle ?? null;
     merged.workoutTimers = l.workoutTimers ?? c.workoutTimers ?? true;
     merged.leaderboardSharing = l.leaderboardSharing ?? c.leaderboardSharing ?? true;
-    const avatar = l.avatar || c.avatar || readStoredAvatar() || null;
-    if (avatar) merged.avatar = avatar;
+    delete merged.avatar;
     if (merged._avatarLocal) delete merged._avatarLocal;
     return merged;
   }
@@ -136,8 +134,7 @@ export function mergeUserSettings(local, cloud) {
   merged.workoutTimers = l.workoutTimers ?? c.workoutTimers ?? true;
   merged.leaderboardSharing = l.leaderboardSharing ?? c.leaderboardSharing ?? true;
 
-  const avatar = l.avatar || c.avatar || readStoredAvatar() || null;
-  if (avatar) merged.avatar = avatar;
+  delete merged.avatar;
   if (merged._avatarLocal) delete merged._avatarLocal;
 
   return merged;

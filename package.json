@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "npm run verify:imports && vite build",
     "lint": "eslint .",
+    "verify:imports": "node scripts/verify-imports.mjs",
     "preview": "vite preview",
     "verify:supabase": "node scripts/verify-supabase.mjs",
     "verify:paths": "node scripts/verify-path-gates.mjs",

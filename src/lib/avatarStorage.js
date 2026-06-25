@@ -20,10 +20,13 @@ export function readStoredAvatar() {
 
 export function writeStoredAvatar(dataUrl) {
   const trimmed = trimOversizedAvatar(dataUrl);
-  if (!trimmed) return;
+  if (!trimmed) return false;
   try {
     localStorage.setItem(AVATAR_STORAGE_KEY, trimmed);
-  } catch {}
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Move legacy avatar out of s_settings — keeps React state small on low-memory tablets. */

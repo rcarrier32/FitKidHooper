@@ -43,6 +43,37 @@ export function writeCachedAvatarUrl(url) {
   } catch {}
 }
 
+/** Resize a data URL to a JPEG data URL suitable for localStorage + cloud. */
+export async function compressAvatarDataUrl(dataUrl, maxPx = MAX_PX) {
+  const blob = await avatarDataUrlToBlob(dataUrl, maxPx);
+  const out = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+  if (typeof out !== "string" || !out.startsWith("data:")) {
+    throw new Error("Could not compress avatar");
+  }
+  return out;
+}
+
+/** Compress if needed, write to fkh-avatar, return whether it stuck. */
+export async function saveAvatarLocally(dataUrl) {
+  if (typeof dataUrl !== "string" || !dataUrl.startsWith("data:")) {
+    return { ok: false, error: "invalid_image" };
+  }
+  try {
+    let stored = dataUrl;
+    if (stored.length > 120_000) stored = await compressAvatarDataUrl(stored);
+    if (stored.length > 120_000) stored = await compressAvatarDataUrl(dataUrl, 128);
+    if (!writeStoredAvatar(stored)) return { ok: false, error: "storage_full" };
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message || "compress_failed" };
+  }
+}
+
 /** Upload local avatar to Supabase Storage and set athlete_profiles.avatar_url. */
 export async function syncAvatarToCloud(dataUrl, athleteIdIn) {
   if (!dataUrl || !isSupabaseConfigured()) return { ok: false, reason: "no_data" };
@@ -132,9 +163,10 @@ export async function restoreLocalAvatarFromCloud(athleteIdIn) {
     if (typeof dataUrl !== "string" || !dataUrl.startsWith("data:")) {
       return { ok: false, reason: "convert_failed" };
     }
-    writeStoredAvatar(dataUrl);
+    const saved = await saveAvatarLocally(dataUrl);
+    if (!saved.ok) return { ok: false, reason: saved.error || "storage_failed" };
     writeCachedAvatarUrl(avatarUrl);
-    return { ok: true, dataUrl };
+    return { ok: true, dataUrl: readStoredAvatar() };
   } catch {
     return { ok: false, reason: "fetch_failed" };
   }
