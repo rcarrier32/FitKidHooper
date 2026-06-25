@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from "react";
-import WarmUpCard from "../components/WarmUpCard.jsx";
 import ProgressRail from "../components/ProgressRail.jsx";
 import ChallengeStrip from "../components/ChallengeStrip.jsx";
 import FriendsTeaser from "../components/FriendsTeaser.jsx";
@@ -9,9 +8,8 @@ import HomeCollapsibleSection from "../components/HomeCollapsibleSection.jsx";
 import TourPromptBanner from "../components/TourPromptBanner.jsx";
 import NotificationPromptBanner from "../components/NotificationPromptBanner.jsx";
 import DayPlanPanel from "../components/DayPlanPanel.jsx";
-import { isHighImpactDay } from "../lib/warmup.js";
-import { computeGrowth } from "../lib/growth.js";
 import { buildTrainingDayPlan } from "../lib/trainingDayPlan.js";
+import { withSessionWarmup, categoriesFromExercises } from "../lib/sessionWarmup.js";
 
 const hsl = (h, s, l) => `hsl(${h},${s}%,${l}%)`;
 const pri = s => hsl(s.primaryHue ?? 38, s.primarySat ?? 92, s.primaryLight ?? 55);
@@ -152,17 +150,24 @@ export default function TodayView({
     || (todayPlan.customSessions?.length || 0) > 0;
 
   const startExerciseList = (exercises) => {
-    const list = (exercises || []).map(e => ({ ...e, meta: e.meta || exerciseMeta[e.id] || {} }));
+    const list = withSessionWarmup(
+      (exercises || []).map(e => ({ ...e, meta: e.meta || exerciseMeta[e.id] || {} })),
+      workouts,
+      exerciseMeta,
+    );
     if (list[0]) openDetail(list[0], list);
   };
 
   const startProgramSession = (task) => {
     if (!task?.exercises?.length || task.programId == null) return;
     const ctx = { programId: task.programId, week: task.week, sessionIdx: task.sessionIdx };
-    const list = task.exercises
+    const base = task.exercises
       .map(id => allExercises[id])
       .filter(Boolean)
       .map(e => ({ ...e, meta: e.meta || exerciseMeta[e.id] || {} }));
+    const list = withSessionWarmup(base, workouts, exerciseMeta, {
+      categories: categoriesFromExercises(base, allExercises),
+    });
     if (list[0]) openDetail(list[0], list, ctx);
   };
 
@@ -170,10 +175,13 @@ export default function TodayView({
     const ctx = task.programId != null
       ? { programId: task.programId, week: task.week, sessionIdx: task.sessionIdx }
       : null;
-    const list = task.exercises
+    const base = task.exercises
       .map(id => allExercises[id])
       .filter(Boolean)
       .map(e => ({ ...e, meta: e.meta || exerciseMeta[e.id] || {} }));
+    const list = withSessionWarmup(base, workouts, exerciseMeta, {
+      categories: categoriesFromExercises(base, allExercises),
+    });
     const ex = allExercises[exId];
     if (!ex) return;
     openDetail({ ...ex, meta: ex.meta || exerciseMeta[exId] || {} }, list, ctx);
@@ -247,12 +255,6 @@ export default function TodayView({
         labelStyle={homeLbl}
         accentColor={P}
       >
-        {(() => {
-          const dow = new Date(today + "T12:00:00").toLocaleDateString("en-US", { weekday:"short" });
-          const dayCats = (schedule.find(s => s.day === dow)?.cats) || [];
-          return <WarmUpCard emphasize={isHighImpactDay(dayCats)} growthStatus={computeGrowth(growthLog).status} P={P} />;
-        })()}
-
         <div style={{ margin:"0 20px 14px", borderRadius:16,
           border:`1px solid ${claimed ? "rgba(34,197,94,0.35)" : P + "33"}`,
           background:claimed ? "rgba(34,197,94,0.07)" : `${P}0c`, overflow:"hidden" }}>
@@ -432,6 +434,8 @@ export default function TodayView({
               plan={todayPlan}
               cats={cats}
               allExercises={allExercises}
+              workouts={workouts}
+              exerciseMeta={exerciseMeta}
               P={P}
               SF={SF}
               bd={bd}
@@ -440,11 +444,21 @@ export default function TodayView({
               onOpenCategory={onPickCategory}
               onOpenExercise={(ex, list, ctx) => {
                 const enriched = { ...ex, meta: ex.meta || exerciseMeta[ex.id] || {} };
-                const fullList = (list || [ex]).map(e => ({ ...e, meta: e.meta || exerciseMeta[e.id] || {} }));
+                const fullList = withSessionWarmup(
+                  (list || [ex]).map(e => ({ ...e, meta: e.meta || exerciseMeta[e.id] || {} })),
+                  workouts,
+                  exerciseMeta,
+                  { categories: categoriesFromExercises(list || [ex], allExercises) },
+                );
                 openDetail(enriched, fullList, ctx);
               }}
               onStartProgramSession={(exList, ctx) => {
-                const list = (exList || []).map(e => ({ ...e, meta: e.meta || exerciseMeta[e.id] || {} }));
+                const list = withSessionWarmup(
+                  (exList || []).map(e => ({ ...e, meta: e.meta || exerciseMeta[e.id] || {} })),
+                  workouts,
+                  exerciseMeta,
+                  { categories: categoriesFromExercises(exList, allExercises) },
+                );
                 if (list[0]) openDetail(list[0], list, ctx);
               }}
               onStartCustomWorkout={startExerciseList}
@@ -499,7 +513,10 @@ export default function TodayView({
                         <button key={ex.id} type="button"
                           onClick={() => {
                             const ctx = { programId: prog.id, week: sched.week, sessionIdx: sched.sessionIdx };
-                            const list = dueExercises.map(e => ({ ...e, meta: exerciseMeta[e.id] || {} }));
+                            const base = dueExercises.map(e => ({ ...e, meta: exerciseMeta[e.id] || {} }));
+                            const list = withSessionWarmup(base, workouts, exerciseMeta, {
+                              categories: categoriesFromExercises(base, allExercises),
+                            });
                             if (list[0]) openDetail(list[0], list, ctx);
                           }}
                           style={{ textAlign:"left", padding:"6px 8px", borderRadius:8, border:`1px solid ${prog.color}33`,
@@ -510,7 +527,10 @@ export default function TodayView({
                       <button type="button"
                         onClick={() => {
                           const ctx = { programId: prog.id, week: sched.week, sessionIdx: sched.sessionIdx };
-                          const list = dueExercises.map(e => ({ ...e, meta: exerciseMeta[e.id] || {} }));
+                          const base = dueExercises.map(e => ({ ...e, meta: exerciseMeta[e.id] || {} }));
+                          const list = withSessionWarmup(base, workouts, exerciseMeta, {
+                            categories: categoriesFromExercises(base, allExercises),
+                          });
                           if (list[0]) openDetail(list[0], list, ctx);
                         }}
                         style={{ marginTop:4, padding:"7px 10px", borderRadius:8, border:"none",
@@ -665,6 +685,11 @@ export default function TodayView({
                 )}
               </div>
             </div>
+            {!quickWorkoutComplete && (
+              <div style={{ fontSize:10, color:"#64748b", padding:"0 16px 8px" }}>
+                🟡 Warm-up is step 1 — Start Workout opens warm-up drills first.
+              </div>
+            )}
             <div style={{ padding:"4px 12px 10px" }}>
               {["warmup", "main", "finisher", "recovery"].map(role => {
                 const exs = todaysWorkout.exercises.filter(e => e.role === role);
@@ -716,7 +741,11 @@ export default function TodayView({
               ) : (
                 <div style={{ display:"flex", gap:8 }}>
                   <button onClick={() => {
-                    const exs = todaysWorkout.exercises.map(e => ({ ...e, meta: e.meta || exerciseMeta[e.id] || {} }));
+                    const exs = withSessionWarmup(
+                      todaysWorkout.exercises.map(e => ({ ...e, meta: e.meta || exerciseMeta[e.id] || {} })),
+                      workouts,
+                      exerciseMeta,
+                    );
                     if (exs[0]) openDetail(exs[0], exs);
                   }}
                     style={{ flex:1, padding:"11px", borderRadius:12, background:P, border:"none", color:"#000", fontSize:13, fontWeight:800, cursor:"pointer" }}>

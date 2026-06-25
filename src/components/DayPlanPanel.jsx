@@ -1,11 +1,20 @@
 /**
  * Planned training for one day — programs, custom builds, weekly categories + history.
+ * Warm-up drills are part of each session (not a separate card kids skip).
  */
+import {
+  pickSessionWarmupExercises,
+  withSessionWarmup,
+  categoriesFromExercises,
+} from "../lib/sessionWarmup.js";
+
 export default function DayPlanPanel({
   plan,
   history = null,
   cats = {},
   allExercises = {},
+  workouts = null,
+  exerciseMeta = {},
   P = "#f97316",
   SF = "#111827",
   bd = "rgba(255,255,255,0.08)",
@@ -97,6 +106,13 @@ export default function DayPlanPanel({
           </div>
           {plan.programSessions.map(({ program, week, session, sessionIdx, done }) => {
             const exList = sessionExercises(session);
+            const sessionCats = categoriesFromExercises(exList, allExercises);
+            const warmupExs = workouts
+              ? pickSessionWarmupExercises(workouts, exerciseMeta, { categories: sessionCats })
+              : [];
+            const fullSessionList = workouts
+              ? withSessionWarmup(exList, workouts, exerciseMeta, { categories: sessionCats })
+              : exList;
             return (
               <div key={program.id} style={{
                 marginBottom: 8, padding: "10px 12px", borderRadius: 12,
@@ -112,9 +128,44 @@ export default function DayPlanPanel({
                     </div>
                   </div>
                 </div>
+                {warmupExs.length > 0 && (
+                  <div style={{ marginBottom: 6 }}>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: "#475569", letterSpacing: "0.12em",
+                      textTransform: "uppercase", marginBottom: 4, paddingLeft: 4 }}>
+                      🟡 Warm-Up · do these first
+                    </div>
+                    {warmupExs.map(ex => {
+                      const pCtx = { programId: program.id, week, sessionIdx };
+                      const inner = (
+                        <>
+                          <span style={{ flex: 1, fontSize: 12, color: "var(--fkh-text)", fontWeight: 500,
+                            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {ex.name}
+                          </span>
+                          {loggedIds.has(ex.id) && <span style={{ color: "#22c55e", fontSize: 13, flexShrink: 0 }}>✓</span>}
+                        </>
+                      );
+                      const rowStyle = {
+                        display: "flex", alignItems: "center", gap: 8,
+                        padding: "7px 9px", borderRadius: 8,
+                        background: "rgba(245,158,11,0.06)",
+                        border: "1px solid rgba(245,158,11,0.18)",
+                      };
+                      if (onOpenExercise) {
+                        return (
+                          <button key={`${program.id}-wu-${ex.id}`} type="button"
+                            onClick={() => onOpenExercise(ex, fullSessionList, pCtx)}
+                            style={{ ...rowStyle, width: "100%", cursor: "pointer", textAlign: "left" }}>
+                            {inner}
+                          </button>
+                        );
+                      }
+                      return <div key={`${program.id}-wu-${ex.id}`} style={rowStyle}>{inner}</div>;
+                    })}
+                  </div>
+                )}
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   {session.exercises.map(exId => {
-                    const exList = sessionExercises(session);
                     const pCtx = { programId: program.id, week, sessionIdx };
                     const ex = allExercises[exId];
                     if (!ex) return null;
@@ -136,7 +187,7 @@ export default function DayPlanPanel({
                     if (onOpenExercise) {
                       return (
                         <button key={`${program.id}-${exId}`} type="button"
-                          onClick={() => onOpenExercise(ex, exList, pCtx)}
+                          onClick={() => onOpenExercise(ex, fullSessionList, pCtx)}
                           style={{ ...rowStyle, width: "100%", cursor: "pointer", textAlign: "left" }}>
                           {inner}
                         </button>
@@ -145,9 +196,9 @@ export default function DayPlanPanel({
                     return <div key={`${program.id}-${exId}`} style={rowStyle}>{inner}</div>;
                   })}
                 </div>
-                {!done && exList.length > 0 && onStartProgramSession && (
+                {!done && fullSessionList.length > 0 && onStartProgramSession && (
                   <button type="button"
-                    onClick={() => onStartProgramSession(exList, {
+                    onClick={() => onStartProgramSession(fullSessionList, {
                       programId: program.id,
                       week,
                       sessionIdx,
@@ -182,7 +233,13 @@ export default function DayPlanPanel({
               </div>
               {onStartCustomWorkout && (
                 <button type="button"
-                  onClick={() => onStartCustomWorkout(cw.exerciseIds.map(id => allExercises[id]).filter(Boolean))}
+                  onClick={() => {
+                    const exList = cw.exerciseIds.map(id => allExercises[id]).filter(Boolean);
+                    const list = workouts
+                      ? withSessionWarmup(exList, workouts, exerciseMeta)
+                      : exList;
+                    onStartCustomWorkout(list);
+                  }}
                   style={{ width: "100%", marginTop: 8, padding: "8px 10px", borderRadius: 8, border: "none",
                     background: P, color: "#fff", fontSize: 11, fontWeight: 800, cursor: "pointer" }}>
                   Start workout →

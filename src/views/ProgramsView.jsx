@@ -24,6 +24,7 @@ import {
 import { generateCustomMissionWorkout, BUILD_FOCUS_OPTIONS, BUILD_INTENSITY_OPTIONS } from "../lib/missionGenerator.js";
 import { safePersistKey } from "../lib/dataSafety.js";
 import { buildTrainingDayPlan } from "../lib/trainingDayPlan.js";
+import { withSessionWarmup, categoriesFromExercises } from "../lib/sessionWarmup.js";
 import GuideNavButton from "../components/GuideNavButton.jsx";
 
 const todayKey = () => new Date().toLocaleDateString("en-CA");
@@ -131,9 +132,13 @@ export default function ProgramsView({
       .filter(Boolean)
   ), [favorites, allExercises]);
 
-  const openExercise = (ex, list = []) => {
+  const openExercise = (ex, list = [], ctx = null) => {
     const enriched = { ...ex, meta: ex.meta || exerciseMeta[ex.id] || {} };
-    openDetail(enriched, list.map(e => ({ ...e, meta: e.meta || exerciseMeta[e.id] || {} })));
+    const base = list.map(e => ({ ...e, meta: e.meta || exerciseMeta[e.id] || {} }));
+    const fullList = withSessionWarmup(base, workouts, exerciseMeta, {
+      categories: categoriesFromExercises(base, allExercises),
+    });
+    openDetail(enriched, fullList, ctx);
   };
 
   const startCustomList = (entryOrIds, name, emoji = "🏋️") => {
@@ -361,7 +366,12 @@ export default function ProgramsView({
                           const done = enrollment
                             ? isProgramExerciseDone(programProgress, prog.id, week.week, si, exId)
                             : !!completed[`${todayKey()}-${exId}`];
-                          const sessionExList = session.exercises.map(id => ({ ...allExercises[id], _cat:allExercises[id]?._cat, meta:allExercises[id]?.meta || exerciseMeta[id] || {} })).filter(Boolean);
+                          const sessionExList = withSessionWarmup(
+                            session.exercises.map(id => ({ ...allExercises[id], _cat:allExercises[id]?._cat, meta:allExercises[id]?.meta || exerciseMeta[id] || {} })).filter(Boolean),
+                            workouts,
+                            exerciseMeta,
+                            { categories: session.exercises.map(id => allExercises[id]?._cat).filter(Boolean) },
+                          );
                           const pCtx = enrollment ? { programId: prog.id, week: week.week, sessionIdx: si } : null;
                           return (
                             <div key={exId} onClick={() => { const enriched = { ...ex, _cat:ex._cat, meta:ex.meta || exerciseMeta[exId] || {} }; openDetail(enriched, sessionExList, pCtx); }}

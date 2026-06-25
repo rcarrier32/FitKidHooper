@@ -17,7 +17,7 @@ export const GUIDE_SECTIONS = [
     tourView: "home",
     items: [
       { label: "Daily mission — 2 drills + a shot goal" },
-      { label: "2-minute warm-up" },
+      { label: "Warm-up first, then drills" },
       { label: "Your path rail — next rank & moves", to: "paths" },
       { label: "Find a drill — search any exercise" },
     ],

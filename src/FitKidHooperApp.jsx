@@ -43,7 +43,7 @@ import {
 } from "./lib/achievementsApi.js";
 import { getStreak, getTrainingDays, getWeekShotGoal, getMonthShotGoal, setWeekShotGoal, setMonthShotGoal, getShotGoalPeriod, setShotGoalPeriod, getWeekMakesFromLog, getMonthMakesFromLog, daysLeftInWeek, daysLeftInMonth } from "./lib/progressStats.js";
 import { computeShootingStats, computeSpotStats, computeLocationStats, computeZoneTypeStats } from "./lib/shootingStats.js";
-import { resolveDailyAction, pickChallengeNudge } from "./lib/dailyAction.js";
+import { withSessionWarmup, categoriesFromExercises, isWarmupExercise } from "./lib/sessionWarmup.js";
 import {
   consumeInviteDeepLink,
   consumeMissionDeepLink,
@@ -1975,6 +1975,12 @@ function generateWorkout(settings, templateKey, recentIds=[]) {
   slots.main     = pick("main",     tmpl.structure.main,     r => r==="main");
   slots.finisher = pick("finisher", tmpl.structure.finisher, r => r==="finisher");
   slots.recovery = pick("recovery", tmpl.structure.recovery, r => r==="recovery"||r==="warmup");
+
+  if (!slots.warmup.length) {
+    const fallback = scored.find(ex => ex.id === "jumping-jacks")
+      || scored.find(ex => (ex.meta.workoutRole || []).includes("warmup"));
+    if (fallback) slots.warmup = [fallback];
+  }
 
   const exercises = [
     ...slots.warmup.map(e=>({...e,role:"warmup"})),
@@ -3970,7 +3976,13 @@ function CalendarView({
   }, [year, mon, daysInMon, schedule, programs, enrolledPrograms, programProgress, workouts]);
 
   const startSession = (exercises, ctx) => {
-    if (exercises?.[0]) onOpenExercise?.(exercises[0], exercises, ctx);
+    const list = withSessionWarmup(
+      (exercises || []).map(e => ({ ...e, meta: e.meta || EXERCISE_META[e.id] || {} })),
+      workouts,
+      EXERCISE_META,
+      { categories: categoriesFromExercises(exercises, allExercises) },
+    );
+    if (list[0]) onOpenExercise?.(list[0], list, ctx);
   };
 
   // intensity → opacity suffix (same pattern used app-wide)
@@ -4095,6 +4107,8 @@ function CalendarView({
           history={isFutureDay ? null : (selData || null)}
           cats={cats}
           allExercises={allExercises}
+          workouts={workouts}
+          exerciseMeta={EXERCISE_META}
           P={P}
           SF={SF}
           bd={bd}
@@ -5973,6 +5987,16 @@ export default function FitKidHooperApp() {
     setDetailList(list.map(enrich));
     setDetailContext(context);
   }, []);
+  const openSessionWithWarmup = useCallback((exList, ctx, startEx = null) => {
+    const list = withSessionWarmup(
+      (exList || []).map(e => ({ ...e, meta: e.meta || EXERCISE_META[e.id] || {} })),
+      WORKOUTS,
+      EXERCISE_META,
+      { categories: categoriesFromExercises(exList, ALL_EXERCISES) },
+    );
+    const first = startEx || list[0];
+    if (first) openDetail(first, list, ctx);
+  }, [openDetail]);
   const detailIdx  = activeExercise ? detailList.findIndex(e=>e.id===activeExercise.id) : -1;
   const nextExDetail = detailIdx>=0 && detailIdx<detailList.length-1 ? detailList[detailIdx+1] : null;
   const closeDetail  = () => { setActiveExercise(null); setDetailContext(null); };
@@ -6615,12 +6639,12 @@ export default function FitKidHooperApp() {
   const programDetailSheet = activeExercise ? (
     <ExerciseDetailSheet exercise={activeExercise} color={P}
       bg2={SF} brd={bd} BG={BG} SF={SF}
-      isDone={detailContext
+      isDone={detailContext && !isWarmupExercise(activeExercise)
         ? isProgramExerciseDone(programProgress, detailContext.programId, detailContext.week, detailContext.sessionIdx, activeExercise.id)
         : isDone(activeExercise.id)}
       onToggle={()=>{
-        if (detailContext) toggleProgramExercise(detailContext, activeExercise.id);
-        else toggle(activeExercise.id);
+        if (detailContext && !isWarmupExercise(activeExercise)) toggleProgramExercise(detailContext, activeExercise.id);
+        else toggle(activeExercise.id, detailContext ? "program_warmup" : undefined);
       }}
       onClose={closeDetail} onNext={nextExDetail?()=>setActiveExercise(nextExDetail):null}
       completed={completedSafe}
@@ -7285,13 +7309,15 @@ export default function FitKidHooperApp() {
                   history={buildCalendarData(completed)[scheduleDetailDate] || null}
                   cats={CATS}
                   allExercises={ALL_EXERCISES}
+                  workouts={WORKOUTS}
+                  exerciseMeta={EXERCISE_META}
                   P={P}
                   SF={SF}
                   bd={bd}
                   onOpenCategory={cat => { setActiveCat(cat); setPrevView("schedule"); setView("cat"); }}
-                  onOpenExercise={(ex, list, ctx) => openDetail(ex, list || [ex], ctx)}
-                  onStartProgramSession={(exs, ctx) => { if (exs?.[0]) openDetail(exs[0], exs, ctx); }}
-                  onStartCustomWorkout={exs => { if (exs?.[0]) openDetail(exs[0], exs); }}
+                  onOpenExercise={(ex, list, ctx) => openSessionWithWarmup(list || [ex], ctx, ex)}
+                  onStartProgramSession={(exs, ctx) => openSessionWithWarmup(exs, ctx)}
+                  onStartCustomWorkout={exList => openSessionWithWarmup(exList, null)}
                 />
               </div>
             )}
@@ -7394,8 +7420,8 @@ export default function FitKidHooperApp() {
             allExercises={ALL_EXERCISES}
             workouts={WORKOUTS}
             onOpenCategory={cat => { setActiveCat(cat); setPrevView("schedule"); setView("cat"); }}
-            onOpenExercise={(ex, list, ctx) => openDetail(ex, list || [ex], ctx)}
-            onStartProgramSession={(exs, ctx) => { if (exs?.[0]) openDetail(exs[0], exs, ctx); }}
+            onOpenExercise={(ex, list, ctx) => openSessionWithWarmup(list || [ex], ctx, ex)}
+            onStartProgramSession={(exs, ctx) => openSessionWithWarmup(exs, ctx)}
           />
         )}
 
