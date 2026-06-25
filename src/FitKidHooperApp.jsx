@@ -17,7 +17,7 @@ import { exportCanonicalSave, importCanonicalSave } from "./lib/canonicalSave.js
 import { recoverFromSyncBackupIfNeeded } from "./lib/syncBackup.js";
 import { withStoredAvatar, writeStoredAvatar, readStoredAvatar, stripAvatarForCloud } from "./lib/avatarStorage.js";
 import { safePersistKey } from "./lib/dataSafety.js";
-import { readStoredObject, parseStoredObject, repairStoredObjectKeys } from "./lib/storageParse.js";
+import { readStoredObject, parseStoredObject, repairStoredObjectKeys, asRecord } from "./lib/storageParse.js";
 import { mergeUserSettings } from "./lib/settingsMerge.js";
 import { persistHydratedSettings, normalizeProfileFields, fetchAthleteProfilePatch, mergeProfilePatch } from "./lib/profileHydrate.js";
 import { syncAvatarToCloud, restoreLocalAvatarFromCloud } from "./lib/avatarCloud.js";
@@ -2002,6 +2002,9 @@ function getLevel(xp) {
 
 
 function computeXP(completed, programProgress={}, missionLog={}) {
+  completed = asRecord(completed);
+  programProgress = asRecord(programProgress);
+  missionLog = asRecord(missionLog);
   let exXP=0, workoutXP=0, challengeXP=0, shotXP=0, streakXP=0, badgeXP=0, missionXP=0;
 
   // Exercise XP (5 per) + workout completion bonus (25 per qualifying day)
@@ -2058,6 +2061,7 @@ function computeXP(completed, programProgress={}, missionLog={}) {
 /* ═══════════════════════ CALENDAR DATA ══════════════════════ */
 
 function buildCalendarData(completed) {
+  completed = asRecord(completed);
   const dayMap = {};
 
   // Group completed exercises by date
@@ -2145,6 +2149,8 @@ const ALL_EXERCISES = Object.fromEntries(
 );
 
 function buildCoachMessage(completed, xpData, earnedBadges, programProgress) {
+  completed = asRecord(completed);
+  programProgress = asRecord(programProgress);
   const todayKey = new Date().toLocaleDateString("en-CA");
   const streak = (() => {
     let s = 0, d = new Date();
@@ -2460,6 +2466,9 @@ function computePeriodXP(periodEntries) {
 }
 
 function buildReport(period, completed, badgeDatesMap, enrolledPrograms, favorites, programProgress={}) {
+  completed = asRecord(completed);
+  badgeDatesMap = asRecord(badgeDatesMap);
+  programProgress = asRecord(programProgress);
   const now = new Date();
   const todayStr = now.toLocaleDateString("en-CA");
   const periodStart = period==="7d"
@@ -2815,6 +2824,7 @@ const GOAL_NAMES = {
 };
 
 function computeRecommendation(settings, completed, currentTemplate) {
+  completed = asRecord(completed);
   const age   = calcAge(settings.dateOfBirth);
   const goals = settings.goals || [];
   const today = new Date().toLocaleDateString("en-CA");
@@ -5327,6 +5337,10 @@ const MIGRATIONS = [
   () => {
     repairStoredObjectKeys();
   },
+  // ── v8 → v9: re-repair after cloud sync regressions ──
+  () => {
+    repairStoredObjectKeys();
+  },
 ];
 
 const DATA_VERSION = MIGRATIONS.length; // keep in lock-step automatically
@@ -5432,6 +5446,7 @@ function checkIdStability() {
 // useState initializer reads localStorage.
 recoverFromSyncBackupIfNeeded();
 runDataMigrations();
+repairStoredObjectKeys();
 persistProgramProgressRecovery();
 checkIdStability();
 
@@ -5582,6 +5597,7 @@ export default function FitKidHooperApp() {
 
   const applyCloudSync = useCallback(async () => {
     const result = await auth.syncNow();
+    repairStoredObjectKeys();
     persistProgramProgressRecovery();
     reloadAthleteStateFromStorage();
     if (auth.user?.id) await hydrateProfileIntoState(auth.user.id);
@@ -6217,7 +6233,7 @@ export default function FitKidHooperApp() {
         : earnedBadges.includes("streak-7") ? 7 : 0;
       return {
         earnedBadgeIds: new Set(earnedBadges),
-        ledgerIds: new Set(Object.keys(ledger)),
+        ledgerIds: new Set(Object.keys(asRecord(ledger))),
         makes,
         maxStreak,
         catCounts: computeCatCounts(completed, getExerciseCategory),

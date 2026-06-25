@@ -1,5 +1,11 @@
 /** Safe JSON.parse for localStorage — null, arrays, and primitives never poison app state. */
 
+/** Coerce in-memory state to a plain object (never null/array). */
+export function asRecord(v, fallback = {}) {
+  if (v && typeof v === "object" && !Array.isArray(v)) return v;
+  return fallback;
+}
+
 export function parseStoredObject(raw, fallback = {}) {
   if (raw == null || raw === "") return { ...fallback };
   try {

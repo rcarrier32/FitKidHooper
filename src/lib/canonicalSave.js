@@ -52,6 +52,9 @@ import {
 import { mergeUserSettings } from "./settingsMerge.js";
 import { mergeSaveValue, mergeEnrolledPrograms } from "./persistMerge.js";
 import { safePersistKey, wouldRegressPayload, snapshotAthleteBackup } from "./dataSafety.js";
+import { parseStoredObject, STORED_OBJECT_KEYS } from "./storageParse.js";
+
+const CANONICAL_OBJECT_KEYS = new Set(STORED_OBJECT_KEYS);
 
 export { mergeSaveValue };
 
@@ -106,6 +109,12 @@ function readRawSaveValue(k) {
   const raw = localStorage.getItem(k);
   if (raw == null) return undefined;
   if (k === "fkh-avatar") return raw;
+  if (CANONICAL_OBJECT_KEYS.has(k)) {
+    const fallback = k === "fkh-favs"
+      ? { exercises: {}, workouts: {}, programs: {} }
+      : {};
+    return parseStoredObject(raw, fallback);
+  }
   try {
     return JSON.parse(raw);
   } catch {
@@ -184,11 +193,17 @@ export function writeCanonicalPayload(payload, { force = false } = {}) {
     || readStoredAvatar();
   for (const k of CANONICAL_SAVE_KEYS) {
     if (payload[k] == null) continue;
-    const merged = k === "s_settings"
+    let merged = k === "s_settings"
       ? mergeSettings(readLocalSettingsForMerge(), payload[k])
       : k === "fkh-programs"
       ? mergeEnrolledPrograms(readRawSaveValue(k), payload[k])
       : mergeSaveValue(readRawSaveValue(k), payload[k]);
+    if (CANONICAL_OBJECT_KEYS.has(k)) {
+      const fallback = k === "fkh-favs"
+        ? { exercises: {}, workouts: {}, programs: {} }
+        : {};
+      merged = parseStoredObject(merged, fallback);
+    }
     writeRawSaveValue(k, merged, { force: true });
   }
   if (avatar) {

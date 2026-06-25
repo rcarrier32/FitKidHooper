@@ -3,15 +3,17 @@ import { useRegisterSW } from 'virtual:pwa-register/react'
 import { showWhatsNewSheet } from './lib/changelog.js'
 
 /**
- * Shown only when a new build is waiting — same pattern as the Fit app.
- * User taps Update to activate the new service worker and reload.
+ * Auto-applies new builds (see vite.config registerType: autoUpdate).
+ * Shows a brief banner when a reload is pending so athletes know why the app refreshed.
  */
 export default function UpdateBanner() {
   const { needRefresh: [needRefresh], updateServiceWorker } = useRegisterSW({
     onRegistered(registration) {
       if (!registration) return
-      // Poll for new builds while the app is open.
       setInterval(() => registration.update(), 5 * 60 * 1000)
+    },
+    onNeedRefresh() {
+      updateServiceWorker(true)
     },
   })
 

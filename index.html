@@ -15,10 +15,48 @@
   <body>
     <div id="root"></div>
     <script>
+      (function () {
+        var OBJECT_KEYS = [
+          's_settings', 's_done', 'fkh-programs', 'fkh-program-progress', 'fkh-set-log',
+          'fkh-max-reps', 'fkh-bilateral-prefs', 'fkh-missions', 'fkh-favs', 'fkh-badge-dates',
+          'fkh-achievements', 'fkh-benchmark-pbs', 'fkh-notify-prefs', 'shot_log_v2'
+        ];
+        function favsFallback() { return '{"exercises":{},"workouts":{},"programs":{}}'; }
+        function repairKey(k) {
+          try {
+            var raw = localStorage.getItem(k);
+            if (raw == null) return;
+            if (raw === 'null' || raw === '[]') {
+              localStorage.setItem(k, k === 'fkh-favs' ? favsFallback() : '{}');
+              return;
+            }
+            var v = JSON.parse(raw);
+            if (v === null || typeof v !== 'object' || Array.isArray(v)) {
+              localStorage.setItem(k, k === 'fkh-favs' ? favsFallback() : '{}');
+            }
+          } catch (e) {}
+        }
+        for (var i = 0; i < OBJECT_KEYS.length; i++) repairKey(OBJECT_KEYS[i]);
+      })();
       window.addEventListener('beforeinstallprompt', function(e) {
         e.preventDefault();
         window._installPrompt = e;
         window.dispatchEvent(new Event('installpromptready'));
+      });
+      window.addEventListener('error', function (e) {
+        var msg = (e && e.message) || '';
+        if (!/null to object|undefined or null to object|Object\.keys\(\)/.test(msg)) return;
+        try {
+          var key = 'fkh-crash-repair-v1';
+          if (sessionStorage.getItem(key)) return;
+          sessionStorage.setItem(key, '1');
+          var OBJECT_KEYS = ['s_done','fkh-programs','fkh-program-progress','fkh-missions','s_settings','shot_log_v2'];
+          for (var i = 0; i < OBJECT_KEYS.length; i++) {
+            var k = OBJECT_KEYS[i], raw = localStorage.getItem(k);
+            if (raw === 'null' || raw === '[]') localStorage.setItem(k, '{}');
+          }
+          location.reload();
+        } catch (err) {}
       });
     </script>
     <script type="module" src="/src/main.jsx"></script>
@@ -26,9 +64,16 @@
       setTimeout(function() {
         var root = document.getElementById('root');
         if (root && !root.children.length) {
-          var key = 'fkh-blank-reload-v1';
+          var key = 'fkh-blank-reload-v2';
           if (!sessionStorage.getItem(key)) {
             sessionStorage.setItem(key, '1');
+            try {
+              var keys = ['s_done','fkh-programs','fkh-program-progress','fkh-missions','s_settings','shot_log_v2'];
+              for (var i = 0; i < keys.length; i++) {
+                var k = keys[i], raw = localStorage.getItem(k);
+                if (raw === 'null' || raw === '[]') localStorage.setItem(k, '{}');
+              }
+            } catch (e) {}
             location.reload();
           }
         }
