@@ -3482,16 +3482,21 @@ function ShotTracker({ P, S, BG, athleteName, settings, onLogChange, onOpenGuide
                     </button>
                   </div>
 
-                  <div style={{ display:"flex", justifyContent:"center", gap:10, marginBottom:14 }}>
+                  <div style={{ fontSize:10, fontWeight:700, color:"#64748b", letterSpacing:"0.06em", textTransform:"uppercase", marginBottom:8 }}>
+                    Shot type
+                  </div>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:14 }}>
                     {SHOT_STYLES.map(sty => (
-                      <button key={sty.id} type="button" title={sty.label} onClick={() => pickShotStyle(sty.id)}
+                      <button key={sty.id} type="button" onClick={() => pickShotStyle(sty.id)}
                         style={{
-                          width:46, height:46, borderRadius:12, cursor:"pointer",
+                          padding:"10px 8px", borderRadius:10, cursor:"pointer",
                           border:`1.5px solid ${shotStyle === sty.id ? P : bd}`,
                           background: shotStyle === sty.id ? `${P}22` : "rgba(255,255,255,0.04)",
-                          fontSize:20, lineHeight:1,
+                          color: shotStyle === sty.id ? P : "var(--fkh-text-muted)",
+                          fontSize:11, fontWeight: shotStyle === sty.id ? 800 : 600,
+                          lineHeight:1.25, textAlign:"center",
                         }}>
-                        {sty.emoji}
+                        {sty.label}
                       </button>
                     ))}
                   </div>
@@ -3564,7 +3569,7 @@ function ShotTracker({ P, S, BG, athleteName, settings, onLogChange, onOpenGuide
                     <span style={{ fontSize:13 }}>{def?.emoji}</span>
                     <div style={{ flex:1, minWidth:0 }}>
                       <div style={{ fontSize:11, color:c, fontWeight:600 }}>{def?.label}{s.location?` · ${s.location}`:""}</div>
-                      <div style={{ fontSize:10, color:"#64748b" }}>{sty.emoji} {sty.short}</div>
+                      <div style={{ fontSize:10, color:"#64748b" }}>{sty.label}</div>
                     </div>
                     <span style={{ fontSize:12 }}>{s.made===false?"❌":"✅"}</span>
                   </div>
@@ -3671,8 +3676,7 @@ function ShotTracker({ P, S, BG, athleteName, settings, onLogChange, onOpenGuide
                 const has = s?.a > 0;
                 return (
                   <div key={st.id} style={{ display:"flex",alignItems:"center",gap:8 }}>
-                    <span style={{ fontSize:13,width:18 }}>{st.emoji}</span>
-                    <span style={{ fontSize:11,color:"var(--fkh-text-muted)",width:96,flexShrink:0 }}>{st.label}</span>
+                    <span style={{ fontSize:11,color:"var(--fkh-text-muted)",flex:1,minWidth:0 }}>{st.label}</span>
                     <div style={{ flex:1,height:6,borderRadius:99,background:"rgba(255,255,255,0.07)",overflow:"hidden" }}>
                       <div style={{ width:`${has ? s.pct : 0}%`,height:"100%",background:P }} />
                     </div>

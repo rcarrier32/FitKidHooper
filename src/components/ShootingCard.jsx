@@ -75,7 +75,6 @@ export default function ShootingCard({ P = "#f97316", SF, bd }) {
                 if (!has) return null;
                 return (
                   <div key={st.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 13, width: 18 }}>{st.emoji}</span>
                     <span style={{ fontSize: 11, color: "var(--fkh-text-muted)", flex: 1, minWidth: 0 }}>{st.label}</span>
                     <div style={{ width: 56, height: 5, borderRadius: 99, background: "rgba(255,255,255,0.07)", overflow: "hidden" }}>
                       <div style={{ width: `${s.pct || 0}%`, height: "100%", background: P }} />
