@@ -4,7 +4,14 @@ import { migrateAvatarOutOfSettings } from './lib/avatarStorage.js'
 import './index.css'
 import App from './App.jsx'
 
-repairStoredObjectKeys()
-migrateAvatarOutOfSettings()
+try {
+  repairStoredObjectKeys()
+  migrateAvatarOutOfSettings()
+} catch (e) {
+  console.error('[fkh] pre-boot repair failed', e)
+}
 
-createRoot(document.getElementById('root')).render(<App />)
+const rootEl = document.getElementById('root')
+if (rootEl) {
+  createRoot(rootEl).render(<App />)
+}

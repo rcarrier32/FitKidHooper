@@ -19,6 +19,11 @@ class BootErrorBoundary extends Component {
     try { window.__FKH_BOOT_ERROR__ = String(error?.message || error) } catch {}
   }
 
+  componentDidMount() {
+    const el = document.getElementById('fkh-boot-shell')
+    if (el) el.style.display = 'none'
+  }
+
   retry = () => {
     try {
       repairStoredObjectKeys()
@@ -67,7 +72,13 @@ class BootErrorBoundary extends Component {
         </div>
       )
     }
-    return this.props.children
+    return (
+      <>
+        <UpdateBanner />
+        <InstallBanner />
+        <FitKidHooperApp key={this.state.attempt} />
+      </>
+    )
   }
 }
 
@@ -76,11 +87,5 @@ export default function App() {
     return <AdminDashboard />
   }
 
-  return (
-    <BootErrorBoundary>
-      <UpdateBanner />
-      <InstallBanner />
-      <FitKidHooperApp key={this.state.attempt} />
-    </BootErrorBoundary>
-  )
+  return <BootErrorBoundary />
 }

@@ -63,15 +63,26 @@ export function repairStoredObjectKeys() {
     try {
       const raw = localStorage.getItem(key);
       if (raw == null) continue;
+      const favsEmpty = JSON.stringify({ exercises: {}, workouts: {}, programs: {} });
+      if (raw === "null" || raw === "[]" || raw === '""') {
+        localStorage.setItem(key, key === "fkh-favs" ? favsEmpty : "{}");
+        continue;
+      }
+      if (raw.length > 500_000) {
+        console.warn("[fkh] truncating oversized localStorage key", key);
+        localStorage.setItem(key, key === "fkh-favs" ? favsEmpty : "{}");
+        continue;
+      }
       const fallback = key === "fkh-favs"
         ? { exercises: {}, workouts: {}, programs: {} }
-        : key === "shot_log_v2"
-          ? {}
-          : {};
-      const fixed = parseStoredObject(raw, fallback);
-      const parsed = JSON.parse(raw);
+        : {};
+      let parsed;
+      try { parsed = JSON.parse(raw); } catch {
+        localStorage.setItem(key, JSON.stringify(parseStoredObject(raw, fallback)));
+        continue;
+      }
       if (parsed == null || typeof parsed !== "object" || Array.isArray(parsed)) {
-        localStorage.setItem(key, JSON.stringify(fixed));
+        localStorage.setItem(key, JSON.stringify(parseStoredObject(raw, fallback)));
       }
     } catch { /* ignore */ }
   }
