@@ -5448,11 +5448,20 @@ function checkIdStability() {
 
 // Run once at module load — before the component mounts and before any
 // useState initializer reads localStorage.
-recoverFromSyncBackupIfNeeded();
-runDataMigrations();
-repairStoredObjectKeys();
-persistProgramProgressRecovery();
-checkIdStability();
+try {
+  recoverFromSyncBackupIfNeeded();
+  runDataMigrations();
+  repairStoredObjectKeys();
+  migrateAvatarOutOfSettings();
+  persistProgramProgressRecovery();
+  checkIdStability();
+} catch (e) {
+  console.error("[fkh] app boot failed — attempting repair", e);
+  try {
+    repairStoredObjectKeys();
+    migrateAvatarOutOfSettings();
+  } catch { /* ignore */ }
+}
 
 function loadSettingsFromStorage(defaults) {
   try {

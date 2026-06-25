@@ -1,35 +1,14 @@
-import { Component, Suspense, lazy } from 'react'
+import { Component } from 'react'
+import FitKidHooperApp from './FitKidHooperApp.jsx'
 import UpdateBanner from './UpdateBanner'
 import InstallBanner from './InstallBanner'
 import AdminDashboard from './components/AdminDashboard.jsx'
 import { isAdminDashboardEnabled } from './lib/adminAccess.js'
-
-const FitKidHooperApp = lazy(() => import('./FitKidHooperApp.jsx'))
-
-function BootShell() {
-  return (
-    <div style={{
-      minHeight: '100dvh',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: '#060b14',
-      color: '#94a3b8',
-      fontFamily: 'system-ui, sans-serif',
-      gap: 12,
-      padding: 24,
-      textAlign: 'center',
-    }}>
-      <div style={{ fontSize: 40, lineHeight: 1 }}>🏀</div>
-      <div style={{ fontSize: 15, fontWeight: 700, color: '#f97316' }}>Fit Kid Hooper</div>
-      <div style={{ fontSize: 13, opacity: 0.85 }}>Loading your training…</div>
-    </div>
-  )
-}
+import { repairStoredObjectKeys } from './lib/storageParse.js'
+import { migrateAvatarOutOfSettings } from './lib/avatarStorage.js'
 
 class BootErrorBoundary extends Component {
-  state = { error: null }
+  state = { error: null, attempt: 0 }
 
   static getDerivedStateFromError(error) {
     return { error }
@@ -37,6 +16,15 @@ class BootErrorBoundary extends Component {
 
   componentDidCatch(error, info) {
     console.error('[fkh] boot failed', error, info)
+    try { window.__FKH_BOOT_ERROR__ = String(error?.message || error) } catch {}
+  }
+
+  retry = () => {
+    try {
+      repairStoredObjectKeys()
+      migrateAvatarOutOfSettings()
+    } catch { /* ignore */ }
+    this.setState(s => ({ error: null, attempt: s.attempt + 1 }))
   }
 
   render() {
@@ -58,11 +46,11 @@ class BootErrorBoundary extends Component {
           <div style={{ fontSize: 40 }}>🏀</div>
           <div style={{ fontSize: 16, fontWeight: 800, color: '#f97316' }}>Couldn&apos;t start the app</div>
           <div style={{ fontSize: 13, color: '#94a3b8', maxWidth: 320, lineHeight: 1.5 }}>
-            Try opening the page again. Your training progress is saved.
+            Your training progress is saved. Tap try again — we&apos;ll repair and reload.
           </div>
           <button
             type="button"
-            onClick={() => window.location.reload()}
+            onClick={this.retry}
             style={{
               background: '#f97316',
               color: '#000',
@@ -92,9 +80,7 @@ export default function App() {
     <BootErrorBoundary>
       <UpdateBanner />
       <InstallBanner />
-      <Suspense fallback={<BootShell />}>
-        <FitKidHooperApp />
-      </Suspense>
+      <FitKidHooperApp key={this.state.attempt} />
     </BootErrorBoundary>
   )
 }

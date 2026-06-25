@@ -78,6 +78,15 @@ export function isPushSupported() {
     && "PushManager" in window && "Notification" in window;
 }
 
+export function notificationIconUrl() {
+  if (typeof window === "undefined") return undefined;
+  try {
+    return new URL("pwa-192.png", window.location.origin + import.meta.env.BASE_URL).href;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function getPushSubscription() {
   if (!isPushSupported()) return null;
   try {
@@ -164,6 +173,7 @@ export function notifyNewMessage({ preview } = {}) {
   try {
     new Notification("💬 New message", {
       body: preview ? String(preview).slice(0, 80) : "A friend sent you a message",
+      icon: notificationIconUrl(),
       tag: "fkh-message",
       data: { url: `${import.meta.env.BASE_URL}?messages=1` },
     });
@@ -185,6 +195,7 @@ export function notifyMissionReminder({ athleteName, missionTitle } = {}) {
       : `${athleteName || "Hooper"}, your daily mission is ready.`;
     new Notification(title, {
       body,
+      icon: notificationIconUrl(),
       tag: "fkh-mission",
       data: { url: `${import.meta.env.BASE_URL}?mission=1` },
     });

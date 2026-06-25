@@ -47,10 +47,12 @@ Deno.serve(async (req) => {
     targets = targets.filter((s: any) => !activeSet.has(s.user_id));
   }
 
+  const iconUrl = "https://rcarrier32.github.io/FitKidHooper/pwa-192.png";
   const msg = JSON.stringify({
     title: title || "🏀 Time to train",
     body: body || "Your daily mission is waiting — go get a rep in!",
     url: url || "/FitKidHooper/?mission=1",
+    icon: iconUrl,
     tag: category,
   });
 

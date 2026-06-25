@@ -9,20 +9,11 @@ function trimOversizedAvatar(dataUrl) {
   return null;
 }
 
+/** Read-only — never mutates storage (safe during React render). */
 export function readStoredAvatar() {
   try {
     const raw = localStorage.getItem(AVATAR_STORAGE_KEY);
     if (raw) return trimOversizedAvatar(raw);
-  } catch {}
-  try {
-    const s = JSON.parse(localStorage.getItem("s_settings") || "{}");
-    const fromSettings = trimOversizedAvatar(s.avatar);
-    if (fromSettings) {
-      writeStoredAvatar(fromSettings);
-      delete s.avatar;
-      localStorage.setItem("s_settings", JSON.stringify(s));
-      return fromSettings;
-    }
   } catch {}
   return null;
 }
