@@ -17,11 +17,12 @@ import { exportCanonicalSave, importCanonicalSave } from "./lib/canonicalSave.js
 import { recoverFromSyncBackupIfNeeded } from "./lib/syncBackup.js";
 import { writeStoredAvatar, readStoredAvatar, stripAvatarForCloud, migrateAvatarOutOfSettings } from "./lib/avatarStorage.js";
 import { safePersistKey } from "./lib/dataSafety.js";
-import { readStoredObject, parseStoredObject, repairStoredObjectKeys, asRecord } from "./lib/storageParse.js";
+import { readStoredObject, parseStoredObject, repairStoredObjectKeys, asRecord, readStoredArray } from "./lib/storageParse.js";
 import { mergeUserSettings } from "./lib/settingsMerge.js";
 import { persistHydratedSettings, normalizeProfileFields, fetchAthleteProfilePatch, mergeProfilePatch } from "./lib/profileHydrate.js";
 import { syncAvatarToCloud, restoreLocalAvatarFromCloud } from "./lib/avatarCloud.js";
 import { getEffectiveAthleteId, hasStoredAuthSession } from "./lib/auth.js";
+import { getSupabaseClient } from "./lib/supabaseClient.js";
 import { CATS, CAT_DOT_COLORS } from "./lib/categories.js";
 import { BADGES_DEF, BADGE_CATS, getEarnedBadges, getBadgeProgress } from "./lib/badges.js";
 import { PROGRESSION_CHAINS, getChainForExercise, getChainStatus } from "./lib/progressionChains.js";
@@ -5585,6 +5586,8 @@ export default function FitKidHooperApp() {
   const celebratedMissionTasksRef = useRef(new Set());
   const [favorites, setFavorites] = useState(() => readStoredObject("fkh-favs", { exercises: {}, workouts: {}, programs: {} }));
   const reloadAthleteStateFromStorage = useCallback(() => {
+    repairStoredObjectKeys();
+    migrateAvatarOutOfSettings();
     persistProgramProgressRecovery();
     setSettings(loadSettingsFromStorage(DEFAULT));
     setCompleted(readStoredObject("s_done"));
@@ -5599,6 +5602,10 @@ export default function FitKidHooperApp() {
     setLedger(readLocalLedger());
     setBenchmarkPBs(readLocalPBs());
     setGrowthLog(readGrowthLog());
+    try {
+      const celebrated = readStoredArray("fkh-celebrated-badges");
+      setCelebratedBadges(new Set(celebrated));
+    } catch { /* ignore */ }
   }, []);
 
   const hydrateProfileIntoState = useCallback(async (userId) => {
@@ -5616,15 +5623,33 @@ export default function FitKidHooperApp() {
     });
   }, []);
 
+  const completedSafe = useMemo(() => asRecord(completed), [completed]);
+  const missionLogSafe = useMemo(() => asRecord(missionLog), [missionLog]);
+  const enrolledProgramsSafe = useMemo(() => asRecord(enrolledPrograms), [enrolledPrograms]);
+  const programProgressSafe = useMemo(() => asRecord(programProgress), [programProgress]);
+
   const applyCloudSync = useCallback(async () => {
-    const result = await auth.syncNow();
-    repairStoredObjectKeys();
-    persistProgramProgressRecovery();
-    reloadAthleteStateFromStorage();
-    if (auth.user?.id) await hydrateProfileIntoState(auth.user.id);
-    if (result?.ok) refreshSquadNotifications();
-    return result;
-  }, [auth.syncNow, auth.user?.id, reloadAthleteStateFromStorage, hydrateProfileIntoState, refreshSquadNotifications]);
+    try {
+      const result = await auth.syncNow();
+      repairStoredObjectKeys();
+      migrateAvatarOutOfSettings();
+      persistProgramProgressRecovery();
+      reloadAthleteStateFromStorage();
+      const sb = getSupabaseClient();
+      const userId = (await sb?.auth.getSession())?.data?.session?.user?.id;
+      if (userId) await hydrateProfileIntoState(userId).catch(() => {});
+      if (result?.ok) refreshSquadNotifications();
+      return result;
+    } catch (e) {
+      console.error("[fkh] applyCloudSync failed", e);
+      try {
+        repairStoredObjectKeys();
+        migrateAvatarOutOfSettings();
+        reloadAthleteStateFromStorage();
+      } catch { /* ignore */ }
+      return { ok: false, error: e?.message || String(e) };
+    }
+  }, [auth.syncNow, reloadAthleteStateFromStorage, hydrateProfileIntoState, refreshSquadNotifications]);
   const [reportPeriod, setReportPeriod] = useState("30d");
   const [strDay, setStrDay] = useState(()=>localStorage.getItem('s_strday')||'Day 1');
   const [showOnboarding, setShowOnboarding] = useState(() => {
@@ -5937,7 +5962,7 @@ export default function FitKidHooperApp() {
     setBilateralPrefs(prev => ({ ...prev, [exId]: { on, unit } }));
   }, []);
   const setStrDayPersist = day => { setStrDay(day); localStorage.setItem('s_strday',day); };
-  const doneCnt = Object.keys(completed).filter(k=>k.startsWith(today)).length;
+  const doneCnt = Object.keys(completedSafe).filter(k=>k.startsWith(today)).length;
 
   /* Exercise Detail helpers ────────────────────────────────── */
   const openDetail = useCallback((ex, list=[], context=null) => {
@@ -5970,10 +5995,10 @@ export default function FitKidHooperApp() {
 
   const recentExIds = useMemo(()=>{
     const cutoff = new Date(Date.now()-3*86400000).toLocaleDateString("en-CA");
-    return Object.keys(completed)
-      .filter(k=>{ const d=k.split("-").slice(0,3).join("-"); return d>=cutoff && completed[k]; })
+    return Object.keys(completedSafe)
+      .filter(k=>{ const d=k.split("-").slice(0,3).join("-"); return d>=cutoff && completedSafe[k]; })
       .map(k=>k.split("-").slice(3).join("-"));
-  },[completed]);
+  },[completedSafe]);
 
   const loadWorkoutForTemplate = useCallback((templateKey, { forceRegenerate = false } = {}) => {
     if (!workoutStoreRef.current) {
@@ -6111,7 +6136,6 @@ export default function FitKidHooperApp() {
       initialMode={authInitialMode}
       onClose={() => { setShowAuth(false); setAuthInitialMode("signin"); }}
       onSignedIn={async () => {
-        await applyCloudSync();
         setShowAuth(false);
         setAuthInitialMode("signin");
         if (showOnboarding) {
@@ -6203,11 +6227,11 @@ export default function FitKidHooperApp() {
   }, [enrolledPrograms, programProgress]);
 
   const coachRec = useMemo(() =>
-    computeRecommendation(settings, completed, coachBasisTemplate ?? defaultTmpl),
-  [settings, completed, coachBasisTemplate, defaultTmpl]);
+    computeRecommendation(settings, completedSafe, coachBasisTemplate ?? defaultTmpl),
+  [settings, completedSafe, coachBasisTemplate, defaultTmpl]);
 
   /* XP / Level / Badges ──────────────────────────────────── */
-  const xpData = useMemo(() => computeXP(completed, programProgress, missionLog), [completed, programProgress, missionLog]);
+  const xpData = useMemo(() => computeXP(completedSafe, programProgressSafe, missionLogSafe), [completedSafe, programProgressSafe, missionLogSafe]);
   const currentLevel = useMemo(() => getLevel(xpData.total), [xpData.total]);
   const prevLevelRankRef = useRef(currentLevel.rank);
   useEffect(() => {
@@ -6220,14 +6244,14 @@ export default function FitKidHooperApp() {
     }
     prevLevelRankRef.current = currentLevel.rank;
   }, [currentLevel, xpData.total]);
-  const earnedBadges = useMemo(() => getEarnedBadges(completed, programProgress, PROGRAMS), [completed, programProgress]);
-  const personalChallenges = useMemo(() => buildPersonalChallenges(completed, WORKOUTS), [completed]);
+  const earnedBadges = useMemo(() => getEarnedBadges(completedSafe, programProgressSafe, PROGRAMS), [completedSafe, programProgressSafe]);
+  const personalChallenges = useMemo(() => buildPersonalChallenges(completedSafe, WORKOUTS), [completedSafe]);
   const recommendedProgramIds = useMemo(() => recommendProgramsForFavorite(settings), [settings]);
   const totalBadges = BADGES_DEF.length;
   const totalTracks = PATHS.length;
   const coachMsg = useMemo(
-    () => buildCoachMessage(completed, xpData, earnedBadges, programProgress),
-    [completed, xpData, earnedBadges, programProgress]
+    () => buildCoachMessage(completedSafe, xpData, earnedBadges, programProgressSafe),
+    [completedSafe, xpData, earnedBadges, programProgressSafe]
   );
   // Detect newly unlocked badges → queue celebration + record dates
   useEffect(()=>{
@@ -6263,8 +6287,8 @@ export default function FitKidHooperApp() {
         ledgerIds: new Set(Object.keys(asRecord(ledger))),
         makes,
         maxStreak,
-        catCounts: computeCatCounts(completed, getExerciseCategory),
-        exCounts: computeExCounts(completed),
+        catCounts: computeCatCounts(completedSafe, getExerciseCategory),
+        exCounts: computeExCounts(completedSafe),
         styleMakes: computeShotStyleMakes(sl),
       };
     } catch (e) {
@@ -6279,7 +6303,7 @@ export default function FitKidHooperApp() {
         styleMakes: {},
       };
     }
-  },[earnedBadges, completed, getExerciseCategory, ledger, shotLogTick]);
+  },[earnedBadges, completedSafe, getExerciseCategory, ledger, shotLogTick]);
 
   const tracksComplete = useMemo(
     () => PATHS.filter(t => trackStageProgress(t, progressCtx).reached >= t.stages.length).length,
@@ -6352,7 +6376,7 @@ export default function FitKidHooperApp() {
   /* Daily Mission ─────────────────────────────────────────────── */
   const todayMission = useMemo(() => {
     try {
-      return generateDailyMission(today, settings, completed, enrolledPrograms, programProgress);
+      return generateDailyMission(today, settings, completedSafe, enrolledProgramsSafe, programProgressSafe);
     } catch (e) {
       console.error("[fkh] daily mission generation failed", e);
       return {
@@ -6369,34 +6393,34 @@ export default function FitKidHooperApp() {
         bonusXP: 50,
       };
     }
-  }, [today, settings, completed, enrolledPrograms, programProgress]);
+  }, [today, settings, completedSafe, enrolledProgramsSafe, programProgressSafe]);
 
-  const missionClaimed = !!missionLog[today]?.claimed;
+  const missionClaimed = !!missionLogSafe[today]?.claimed;
 
   const requiredTasksDone = useMemo(()=>
     todayMission.tasks.filter(t=>t.required).every(t=>{
-      const {cur,target} = getMissionTaskProgress(t, completed, today, programProgress);
+      const {cur,target} = getMissionTaskProgress(t, completedSafe, today, programProgressSafe);
       return cur >= target;
     }),
-  [todayMission, completed, today, programProgress]);
+  [todayMission, completedSafe, today, programProgressSafe]);
 
-  const challengeProgress = useCallback((def, completed) => getChallengeProgress(def, completed, WORKOUTS), []);
+  const challengeProgress = useCallback((def, completedArg) => getChallengeProgress(def, completedArg, WORKOUTS), []);
 
   const challengeNudge = useMemo(
-    () => pickChallengeNudge(CHALLENGES_DEF, challengeProgress, completed),
-    [completed, challengeProgress]
+    () => pickChallengeNudge(CHALLENGES_DEF, challengeProgress, completedSafe),
+    [completedSafe, challengeProgress]
   );
 
   const activeProgForMission = useMemo(() => {
     const dueList = [];
     for (const prog of PROGRAMS) {
-      if (!enrolledPrograms[prog.id]) continue;
-      const due = findDueProgramSession(prog, enrolledPrograms[prog.id], programProgress, today);
+      if (!enrolledProgramsSafe[prog.id]) continue;
+      const due = findDueProgramSession(prog, enrolledProgramsSafe[prog.id], programProgressSafe, today);
       if (due) dueList.push({ prog, due });
     }
     const sorted = sortDueProgramEntries(dueList);
-    return sorted[0]?.prog || PROGRAMS.find(p => enrolledPrograms[p.id]) || null;
-  }, [enrolledPrograms, programProgress, today]);
+    return sorted[0]?.prog || PROGRAMS.find(p => enrolledProgramsSafe[p.id]) || null;
+  }, [enrolledProgramsSafe, programProgressSafe, today]);
 
   const dueSessionForMission = useMemo(() => {
     if (!activeProgForMission) return null;
@@ -6454,17 +6478,21 @@ export default function FitKidHooperApp() {
   }, [navDeepLink]);
 
   useEffect(() => {
-    if (!auth.isSignedIn) return;
+    if (!auth.isSignedIn || auth.loading) return;
     let cancelled = false;
-    const timer = window.setTimeout(async () => {
-      if (cancelled) return;
-      await applyCloudSync();
-    }, 2500);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [auth.isSignedIn, applyCloudSync]);
+    (async () => {
+      try {
+        await applyCloudSync();
+        if (cancelled) return;
+        await claimChallengeRewards().catch(() => 0);
+        await pullLedger().catch(() => {});
+        if (!cancelled) setLedger(readLocalLedger());
+      } catch (e) {
+        console.error("[fkh] post-sign-in sync failed", e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [auth.isSignedIn, auth.loading, applyCloudSync]);
 
   // Normalize legacy profile fields when Settings opens (tab or legacy sheet).
   useEffect(() => {
@@ -6582,7 +6610,7 @@ export default function FitKidHooperApp() {
         else toggle(activeExercise.id);
       }}
       onClose={closeDetail} onNext={nextExDetail?()=>setActiveExercise(nextExDetail):null}
-      completed={completed}
+      completed={completedSafe}
       favored={isFav("exercises",activeExercise.id)}
       onToggleFav={()=>toggleFav("exercises",activeExercise.id)}
       {...detailSheetProps}/>
@@ -6690,7 +6718,7 @@ export default function FitKidHooperApp() {
         toggle={toggle}
         toggleProgramExercise={toggleProgramExercise}
         isDone={isDone}
-        completed={completed}
+        completed={completedSafe}
       />
     );
   }
@@ -6700,7 +6728,7 @@ export default function FitKidHooperApp() {
     return (
       <SquadView
         settings={settings}
-        completed={completed}
+        completed={completedSafe}
         missionLog={missionLog}
         getCategory={getExerciseCategory}
         earnedBadges={earnedBadges}
@@ -6757,7 +6785,7 @@ export default function FitKidHooperApp() {
         xpData={xpData}
         currentLevel={currentLevel}
         earnedBadges={earnedBadges}
-        completed={completed}
+        completed={completedSafe}
         programProgress={programProgress}
         badgeDates={badgeDates}
         totalBadges={totalBadges}
@@ -6823,7 +6851,7 @@ export default function FitKidHooperApp() {
     <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif", background:BG, color:"var(--fkh-text)", minHeight:"100vh", maxWidth:680, margin:"0 auto", paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
       {shellOverlays}
       <HistoryView
-        completed={completed} badgeDates={badgeDates} settings={settings}
+        completed={completedSafe} badgeDates={badgeDates} settings={settings}
         allExercises={ALL_EXERCISES}
         P={P} BG={BG} SF={SF} bd={bd} lbl={lbl}
         onBack={() => setView(prevView === "progress" ? "progress" : "home")}/>
@@ -6836,7 +6864,7 @@ export default function FitKidHooperApp() {
     return (
       <ChallengesView
         settings={settings}
-        completed={completed}
+        completed={completedSafe}
         missionLog={missionLog}
         getCategory={getExerciseCategory}
         earnedBadges={earnedBadges}
@@ -6929,7 +6957,7 @@ export default function FitKidHooperApp() {
           onToggle={()=>toggle(activeExercise.id)}
           onClose={closeDetail}
           onNext={nextExDetail?()=>setActiveExercise(nextExDetail):null}
-          completed={completed}
+          completed={completedSafe}
           favored={isFav("exercises",activeExercise.id)}
           onToggleFav={()=>toggleFav("exercises",activeExercise.id)}
           navLabel={activeCat&&CATS[activeCat]?`${CATS[activeCat].emoji} ${CATS[activeCat].label}`:undefined}
@@ -6971,7 +6999,7 @@ export default function FitKidHooperApp() {
           bg2={SF} brd={bd} BG={BG} SF={SF}
           isDone={isDone(activeExercise.id)} onToggle={()=>toggle(activeExercise.id)}
           onClose={closeDetail} onNext={nextExDetail?()=>setActiveExercise(nextExDetail):null}
-          completed={completed}
+          completed={completedSafe}
           favored={isFav("exercises",activeExercise.id)}
           onToggleFav={()=>toggleFav("exercises",activeExercise.id)}
           {...detailSheetProps}/>}
@@ -7338,7 +7366,7 @@ export default function FitKidHooperApp() {
 
         {schedTab==="calendar"&&(
           <CalendarView
-            completed={completed}
+            completed={completedSafe}
             P={P}
             S={S}
             BG={BG}
@@ -7374,7 +7402,7 @@ export default function FitKidHooperApp() {
         onToggle={()=>toggle(activeExercise.id)}
         onClose={closeDetail}
         onNext={nextExDetail?()=>setActiveExercise(nextExDetail):null}
-        completed={completed}
+        completed={completedSafe}
         favored={isFav("exercises",activeExercise.id)}
         onToggleFav={()=>toggleFav("exercises",activeExercise.id)}
         {...detailSheetProps}/>}
@@ -7397,7 +7425,7 @@ export default function FitKidHooperApp() {
             setShowOnboarding(false);
             startTour();
           }}
-          onAuthSuccess={applyCloudSync}
+          onAuthSuccess={undefined}
           onForgotPasscode={() => { setAuthInitialMode("forgot"); setShowAuth(true); }}
         />
       )}
@@ -7496,7 +7524,7 @@ export default function FitKidHooperApp() {
         todayMission={todayMission}
         missionClaimed={missionClaimed}
         requiredTasksDone={requiredTasksDone}
-        completed={completed}
+        completed={completedSafe}
         programProgress={programProgress}
         challengeNudge={challengeNudge}
         dailyAction={dailyAction}

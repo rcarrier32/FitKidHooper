@@ -68,16 +68,20 @@ export function useAuth(settings) {
   }, [user?.id, settings?.athleteName]);
 
   const syncNow = useCallback(async () => {
-    if (!user?.id) return { ok: false, error: "Not signed in" };
+    const sb = getSupabaseClient();
+    if (!sb) return { ok: false, error: "Not configured" };
+    const { data: { session } } = await sb.auth.getSession();
+    const userId = session?.user?.id;
+    if (!userId) return { ok: false, error: "Not signed in" };
     setSyncStatus("syncing");
     setSyncDetail(null);
-    const result = await syncCloudSave(user.id);
+    const result = await syncCloudSave(userId);
     if (result.ok && result.restored) setSyncStatus("restored");
     else if (result.ok && result.skipped) setSyncStatus("skipped");
     else setSyncStatus(result.ok ? "ok" : "error");
     setSyncDetail(result);
     return result;
-  }, [user?.id]);
+  }, []);
 
   const logout = useCallback(async () => {
     await signOut();

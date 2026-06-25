@@ -15,6 +15,8 @@ import {
   mergeProfilePatch,
   needsProfileHydrate,
 } from "./profileHydrate.js";
+import { repairStoredObjectKeys } from "./storageParse.js";
+import { migrateAvatarOutOfSettings } from "./avatarStorage.js";
 
 const LOCAL_CLOUD_VERSION_KEY = "fkh-cloud-version";
 const LOCAL_CLOUD_UPDATED_KEY = "fkh-cloud-updated";
@@ -37,6 +39,10 @@ async function enrichPayloadFromAthleteProfile(sb, userId, payload) {
 async function writeMergedPayload(sb, userId, payload) {
   const enriched = await enrichPayloadFromAthleteProfile(sb, userId, payload);
   writeCanonicalPayload(enriched, { force: true });
+  try {
+    repairStoredObjectKeys();
+    migrateAvatarOutOfSettings();
+  } catch { /* ignore */ }
   return enriched;
 }
 
