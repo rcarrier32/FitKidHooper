@@ -1,11 +1,13 @@
 import { isDefaultTheme } from "./theme.js";
 
 const DEFAULT_ATHLETE_NAME = "Champ";
+const DEFAULT_EXPERIENCE = "beginner";
+const DEFAULT_PLAY_STYLE = "any";
 
 const IDENTITY_STRING_FIELDS = [
   "athleteName", "lastName",
   "favoritePlayLike", "favoriteAllTime", "favoriteCurrent", "favoritePlayer",
-  "dateOfBirth", "startDate", "playStyle", "experience",
+  "dateOfBirth", "startDate",
 ];
 
 /** True when settings look like a fresh/default profile shell (not a real athlete). */
@@ -22,7 +24,11 @@ export function isProfileShell(settings) {
   ].some(v => String(v || "").trim().length > 0);
   const hasCustomTheme = !isDefaultTheme(settings);
   const hasDob = !!settings.dateOfBirth;
-  return !hasName && !hasLast && !hasFav && !hasCustomTheme && !hasDob;
+  const hasGoals = Array.isArray(settings.goals) && settings.goals.length > 0;
+  const hasTrainingProfile =
+    (settings.experience && settings.experience !== DEFAULT_EXPERIENCE)
+    || (settings.playStyle && settings.playStyle !== DEFAULT_PLAY_STYLE);
+  return !hasName && !hasLast && !hasFav && !hasCustomTheme && !hasDob && !hasGoals && !hasTrainingProfile;
 }
 
 /** True when incoming would erase identity the athlete already saved locally. */
@@ -38,6 +44,14 @@ export function wouldWipeIdentityFields(incoming, existing) {
     return true;
   }
   if (Array.isArray(ex.goals) && ex.goals.length > 0 && (!Array.isArray(inc.goals) || inc.goals.length === 0)) {
+    return true;
+  }
+  if (ex.experience && ex.experience !== DEFAULT_EXPERIENCE
+    && (!inc.experience || inc.experience === DEFAULT_EXPERIENCE)) {
+    return true;
+  }
+  if (ex.playStyle && ex.playStyle !== DEFAULT_PLAY_STYLE
+    && (!inc.playStyle || inc.playStyle === DEFAULT_PLAY_STYLE)) {
     return true;
   }
   return false;

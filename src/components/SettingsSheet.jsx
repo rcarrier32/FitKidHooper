@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { readStoredAvatar } from "../lib/avatarStorage.js";
 import { saveAvatarLocally } from "../lib/avatarCloud.js";
+import AvatarCropSheet from "./AvatarCropSheet.jsx";
 import NotificationSettings from "./NotificationSettings.jsx";
 import { getAgeGroup, getAgeGroupLabel, calcAge } from "../lib/periodStats.js";
 import { exportCanonicalSave, importCanonicalSave } from "../lib/canonicalSave.js";
@@ -152,6 +153,7 @@ function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenW
   const [guardrailNote, setGuardrailNote] = useState(null);
   const [avatarSaveNote, setAvatarSaveNote] = useState(null);
   const [avatarSaving, setAvatarSaving] = useState(false);
+  const [cropSource, setCropSource] = useState(null);
   const [installPrompt, setInstallPrompt] = useState(() => window._installPrompt || null);
   const fileRef = useRef(null);
   const importRef = useRef(null);
@@ -286,15 +288,9 @@ function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenW
                 setAvatarSaving(true);
                 setAvatarSaveNote(null);
                 const reader = new FileReader();
-                reader.onload = async ev => {
-                  const result = await saveAvatarLocally(ev.target.result);
+                reader.onload = ev => {
                   setAvatarSaving(false);
-                  if (result.ok) {
-                    setAvatarSaveNote("Photo saved ✓");
-                    onAvatarChange?.();
-                  } else {
-                    setAvatarSaveNote("Couldn't save photo — try a smaller picture");
-                  }
+                  setCropSource(ev.target.result);
                 };
                 reader.onerror = () => {
                   setAvatarSaving(false);
@@ -713,14 +709,35 @@ function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenW
       </div>
   );
 
-  if (embedded) {
-    return <div style={{ padding:"0 0 8px" }}>{inner}</div>;
-  }
-
   return (
-    <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.82)",zIndex:300,display:"flex",alignItems:"flex-end",justifyContent:"center",backdropFilter:"blur(6px)" }}>
-      {inner}
-    </div>
+    <>
+      <AvatarCropSheet
+        open={Boolean(cropSource)}
+        imageSrc={cropSource}
+        accent={P}
+        busy={avatarSaving}
+        onCancel={() => { setCropSource(null); setAvatarSaving(false); }}
+        onConfirm={async (cropped) => {
+          setAvatarSaving(true);
+          const result = await saveAvatarLocally(cropped);
+          setAvatarSaving(false);
+          setCropSource(null);
+          if (result.ok) {
+            setAvatarSaveNote("Photo saved ✓");
+            onAvatarChange?.();
+          } else {
+            setAvatarSaveNote("Couldn't save photo — try a smaller picture");
+          }
+        }}
+      />
+      {embedded ? (
+        <div style={{ padding:"0 0 8px" }}>{inner}</div>
+      ) : (
+        <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.82)",zIndex:300,display:"flex",alignItems:"flex-end",justifyContent:"center",backdropFilter:"blur(6px)" }}>
+          {inner}
+        </div>
+      )}
+    </>
   );
 }
 

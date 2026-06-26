@@ -16,6 +16,27 @@ function loadImage(dataUrl) {
   });
 }
 
+/** Draw the visible crop circle from a panned/zoomed preview into a JPEG data URL. */
+export async function cropAvatarPreview(dataUrl, { scale, offset, viewport = 280, output = 256 } = {}) {
+  const img = await loadImage(dataUrl);
+  const canvas = document.createElement("canvas");
+  canvas.width = output;
+  canvas.height = output;
+  const ctx = canvas.getContext("2d");
+  const drawW = img.width * scale;
+  const drawH = img.height * scale;
+  const left = viewport / 2 + offset.x - drawW / 2;
+  const top = viewport / 2 + offset.y - drawH / 2;
+  ctx.beginPath();
+  ctx.arc(output / 2, output / 2, output / 2, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.clip();
+  ctx.drawImage(img, left * (output / viewport), top * (output / viewport), drawW * (output / viewport), drawH * (output / viewport));
+  const out = canvas.toDataURL("image/jpeg", JPEG_QUALITY);
+  if (!out.startsWith("data:")) throw new Error("Could not crop avatar");
+  return out;
+}
+
 /** Resize a data URL to a JPEG blob suitable for cloud storage. */
 export async function avatarDataUrlToBlob(dataUrl, maxPx = MAX_PX) {
   const img = await loadImage(dataUrl);

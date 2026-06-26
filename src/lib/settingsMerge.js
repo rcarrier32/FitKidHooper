@@ -4,6 +4,8 @@ import {
 } from "./theme.js";
 
 const DEFAULT_ATHLETE_NAME = "Champ";
+const DEFAULT_EXPERIENCE = "beginner";
+const DEFAULT_PLAY_STYLE = "any";
 
 export function isRealName(name) {
   const n = String(name || "").trim();
@@ -46,15 +48,17 @@ export function isDefaultAthleteProfile(settings) {
   if (filled) return false;
   if (s.jerseyNumber != null && s.jerseyNumber !== "") return false;
   if (Array.isArray(s.goals) && s.goals.length) return false;
+  if (s.experience && s.experience !== DEFAULT_EXPERIENCE) return false;
+  if (s.playStyle && s.playStyle !== DEFAULT_PLAY_STYLE) return false;
   return true;
 }
 
-/** Prefer non-empty; when both filled, local (this device) wins. */
+/** Prefer local when set; only take cloud to fill gaps. */
 function pickFilled(localVal, cloudVal) {
   const l = String(localVal ?? "").trim();
   const c = String(cloudVal ?? "").trim();
-  if (l && c) return l;
-  return l || c;
+  if (l) return localVal;
+  return c ? cloudVal : localVal ?? cloudVal;
 }
 
 function pickAthleteName(local, cloud) {
@@ -68,6 +72,28 @@ function pickAthleteName(local, cloud) {
   return l || c || DEFAULT_ATHLETE_NAME;
 }
 
+function pickExperience(local, cloud) {
+  const l = local?.experience;
+  const c = cloud?.experience;
+  if (l && l !== DEFAULT_EXPERIENCE) return l;
+  if (c && c !== DEFAULT_EXPERIENCE) return c;
+  return l || c || DEFAULT_EXPERIENCE;
+}
+
+function pickPlayStyle(local, cloud) {
+  const l = local?.playStyle;
+  const c = cloud?.playStyle;
+  if (l && l !== DEFAULT_PLAY_STYLE) return l;
+  if (c && c !== DEFAULT_PLAY_STYLE) return c;
+  return l || c || DEFAULT_PLAY_STYLE;
+}
+
+function pickGoals(local, cloud) {
+  if (Array.isArray(local?.goals) && local.goals.length) return local.goals;
+  if (Array.isArray(cloud?.goals) && cloud.goals.length) return cloud.goals;
+  return Array.isArray(local?.goals) ? local.goals : (Array.isArray(cloud?.goals) ? cloud.goals : []);
+}
+
 function pickThemeSource(local, cloud) {
   const lCustom = !isDefaultTheme(local);
   const cCustom = !isDefaultTheme(cloud);
@@ -78,36 +104,12 @@ function pickThemeSource(local, cloud) {
 }
 
 /**
- * Field-level merge for s_settings — never let cloud defaults clobber local
- * theme, name, or favorites (and vice versa).
+ * Field-level merge for s_settings — local profile/training choices win when set.
+ * Cloud only fills gaps (e.g. name on a fresh device). Never spread cloud over local.
  */
 export function mergeUserSettings(local, cloud) {
   const l = local || {};
   const c = cloud || {};
-
-  if (needsCloudIdentityRestore(l, c)) {
-    const merged = { ...l, ...c };
-    merged.athleteName = pickAthleteName(l, c);
-    merged.lastName = pickFilled(c.lastName, l.lastName);
-    merged.favoritePlayer = pickFilled(c.favoritePlayer, l.favoritePlayer);
-    merged.favoriteAllTime = pickFilled(c.favoriteAllTime, l.favoriteAllTime);
-    merged.favoriteCurrent = pickFilled(c.favoriteCurrent, l.favoriteCurrent);
-    merged.favoritePlayLike = pickFilled(c.favoritePlayLike, l.favoritePlayLike);
-    merged.dateOfBirth = c.dateOfBirth || l.dateOfBirth || null;
-    merged.jerseyNumber = c.jerseyNumber ?? l.jerseyNumber ?? null;
-    merged.experience = c.experience || l.experience || merged.experience;
-    merged.playStyle = c.playStyle || l.playStyle || merged.playStyle;
-    merged.startDate = pickFilled(c.startDate, l.startDate);
-    if (c.goals?.length) merged.goals = c.goals;
-    Object.assign(merged, extractThemeFields(pickThemeSource(l, c)));
-    merged.equipped = { ...(c.equipped || {}), ...(l.equipped || {}) };
-    merged.activeTitle = l.activeTitle ?? c.activeTitle ?? null;
-    merged.workoutTimers = l.workoutTimers ?? c.workoutTimers ?? true;
-    merged.leaderboardSharing = l.leaderboardSharing ?? c.leaderboardSharing ?? true;
-    delete merged.avatar;
-    if (merged._avatarLocal) delete merged._avatarLocal;
-    return merged;
-  }
 
   const merged = { ...c, ...l };
 
@@ -120,12 +122,10 @@ export function mergeUserSettings(local, cloud) {
 
   merged.dateOfBirth = l.dateOfBirth || c.dateOfBirth || null;
   merged.jerseyNumber = l.jerseyNumber ?? c.jerseyNumber ?? null;
-  merged.experience = l.experience || c.experience || merged.experience;
-  merged.playStyle = l.playStyle || c.playStyle || merged.playStyle;
+  merged.experience = pickExperience(l, c);
+  merged.playStyle = pickPlayStyle(l, c);
+  merged.goals = pickGoals(l, c);
   merged.startDate = pickFilled(l.startDate, c.startDate);
-  if ((l.goals?.length || c.goals?.length)) {
-    merged.goals = l.goals?.length ? l.goals : c.goals;
-  }
 
   Object.assign(merged, extractThemeFields(pickThemeSource(l, c)));
 

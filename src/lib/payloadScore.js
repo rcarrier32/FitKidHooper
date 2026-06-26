@@ -42,6 +42,9 @@ export function scorePayload(payload) {
     if (name && name !== "Champ") score += 5;
     if (settings.dateOfBirth) score += 2;
     if (settings.lastName) score += 1;
+    if (Array.isArray(settings.goals) && settings.goals.length) score += settings.goals.length * 2;
+    if (settings.experience && settings.experience !== "beginner") score += 2;
+    if (settings.playStyle && settings.playStyle !== "any") score += 1;
     if ([settings.favoritePlayLike, settings.favoriteAllTime, settings.favoriteCurrent, settings.favoritePlayer]
       .some(v => String(v || "").trim())) score += 3;
     if (settings.primary || settings.accent || settings.themePresetId === "custom") score += 2;

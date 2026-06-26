@@ -27,6 +27,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run verify:imports
+      - run: npm run verify:settings-merge
       - run: npm run build
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}

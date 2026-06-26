@@ -6545,7 +6545,7 @@ export default function FitKidHooperApp() {
     return () => { cancelled = true; };
   }, [auth.isSignedIn, auth.loading, applyCloudSync]);
 
-  // Normalize legacy profile fields when Settings opens (tab or legacy sheet).
+  // Normalize legacy profile fields when Settings opens — local only, no cloud overwrite.
   useEffect(() => {
     const settingsOpen = showSettings || (view === "progress" && progressTab === "settings");
     if (!settingsOpen) return;
@@ -6557,8 +6557,7 @@ export default function FitKidHooperApp() {
     } catch (e) {
       console.error("[fkh] settings normalize failed", e);
     }
-    if (auth.isSignedIn && auth.user?.id) hydrateProfileIntoState(auth.user.id).catch(() => {});
-  }, [showSettings, view, progressTab, auth.isSignedIn, auth.user?.id, hydrateProfileIntoState]);
+  }, [showSettings, view, progressTab]);
 
   // Auto-sync the leaderboard on app open / sign-in (not just when Boards is
   // opened). Self-throttled to ~30 min, so it's cheap to fire here.
