@@ -8,6 +8,7 @@
     "build": "npm run verify:imports && vite build",
     "lint": "eslint .",
     "verify:imports": "node scripts/verify-imports.mjs",
+    "verify:smoke": "playwright test",
     "preview": "vite preview",
     "verify:supabase": "node scripts/verify-supabase.mjs",
     "verify:paths": "node scripts/verify-path-gates.mjs",
@@ -21,6 +22,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.51.1",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
