@@ -1,0 +1,145 @@
+{
+  "_comment": "DB surface the app depends on. Update this file in the SAME commit as any new .from()/.rpc() or insert/upsert column. verify:schema blocks deploy when live Supabase is behind this manifest.",
+  "tables": {
+    "athlete_profiles": [
+      "id",
+      "user_id",
+      "legacy_device_id",
+      "display_name",
+      "first_name",
+      "last_name",
+      "date_of_birth",
+      "jersey_number",
+      "favorite_player",
+      "favorite_current",
+      "favorite_playlike",
+      "position",
+      "age_group",
+      "avatar_url",
+      "active_title",
+      "equipped",
+      "primary_path_id",
+      "path_snapshot",
+      "updated_at"
+    ],
+    "athlete_analytics": [
+      "athlete_id",
+      "first_session_at",
+      "last_session_at",
+      "age_group",
+      "app_version",
+      "updated_at"
+    ],
+    "events": [
+      "athlete_id",
+      "event_name",
+      "properties",
+      "app_version",
+      "age_group"
+    ],
+    "athlete_save": [
+      "user_id",
+      "payload",
+      "version",
+      "updated_at"
+    ],
+    "leaderboard_stats": [
+      "athlete_id",
+      "display_name",
+      "age_group",
+      "period",
+      "xp",
+      "shots_made",
+      "training_days",
+      "streak",
+      "active_title",
+      "play_like",
+      "primary_path_rank",
+      "path_progress_pct",
+      "pushed_at"
+    ],
+    "friendships": [
+      "athlete_a",
+      "athlete_b"
+    ],
+    "friend_invites": [
+      "code",
+      "inviter_id",
+      "status",
+      "expires_at"
+    ],
+    "athlete_achievements": [
+      "athlete_id",
+      "achievement_id",
+      "kind",
+      "family",
+      "earned_at",
+      "context"
+    ],
+    "feed_reactions": [
+      "actor_id",
+      "target_id",
+      "achievement_id",
+      "emoji"
+    ],
+    "feed_comments": [
+      "id",
+      "author_id",
+      "target_id",
+      "achievement_id",
+      "body",
+      "created_at"
+    ],
+    "challenges": [
+      "id",
+      "slug",
+      "scope",
+      "metric",
+      "period",
+      "title",
+      "emoji",
+      "goal_value",
+      "reward_label",
+      "reward_achievement_id"
+    ],
+    "feedback": [
+      "athlete_id",
+      "rating",
+      "sentiment",
+      "category",
+      "message",
+      "app_version"
+    ],
+    "benchmark_results": [
+      "athlete_id",
+      "benchmark_id",
+      "value"
+    ],
+    "auth_usernames": [
+      "user_id",
+      "username"
+    ]
+  },
+  "rpcs": [
+    "claim_device_stats",
+    "claim_my_challenge_rewards",
+    "get_email_for_username",
+    "is_username_available",
+    "register_username",
+    "update_push_prefs",
+    "save_push_subscription",
+    "delete_push_subscription",
+    "send_message",
+    "fetch_thread",
+    "list_message_threads",
+    "unread_message_count",
+    "ensure_friends_board",
+    "accept_friend_invite",
+    "send_friend_request",
+    "send_friend_request_to",
+    "search_athletes_for_friend",
+    "list_friend_requests",
+    "respond_friend_request",
+    "list_sent_friend_requests"
+  ]
+}

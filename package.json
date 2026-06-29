@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "verify:imports": "node scripts/verify-imports.mjs",
     "verify:settings-merge": "node scripts/verify-settings-merge.mjs",
+    "verify:schema": "node scripts/verify-schema.mjs",
     "verify:smoke": "playwright test",
     "preview": "vite preview",
     "verify:supabase": "node scripts/verify-supabase.mjs",
