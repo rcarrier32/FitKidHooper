@@ -6669,7 +6669,7 @@ export default function FitKidHooperApp() {
   const renderBottomNav = () => (
     <div style={{ position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:680,background:NV,borderTop:`1px solid ${bd}`,display:"flex",zIndex:50,paddingBottom:"env(safe-area-inset-bottom, 0px)", pointerEvents:tourActive?"none":"auto", opacity:tourActive?0.92:1 }}>
       {NAV.map(n=>(
-        <button key={n.id} onClick={()=>setView(n.id)} style={{ flex:1,padding:"10px 0 12px",border:"none",background:"transparent",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2 }}>
+        <button key={n.id} onClick={()=>setView(n.id)} aria-label={`${n.emoji} ${n.label}`} style={{ flex:1,padding:"10px 0 12px",border:"none",background:"transparent",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2 }}>
           <span style={{ position:"relative", display:"inline-flex", alignItems:"center", justifyContent:"center" }}>
             <span style={{ fontSize:18 }}>{n.emoji}</span>
             {n.id === "squad" && squadNotifications > 0 && (
