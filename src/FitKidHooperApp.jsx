@@ -1038,7 +1038,7 @@ const W_FINISHING = [
     progressionTrack:"Step 2 — Reverse Side Finishing",
     desc:"Drive past the block line and use the backboard from the other side — takes away the shot blocker's angle completely. Every youth player needs this in their bag.",
     cues:["Drive PAST the block — do not stop under the rim","Reach the ball out to the far side of the backboard","Soft touch on the glass — high arc","Chin stays up — look at where you are aiming, not at the defender"],
-    trainer:"ExpertVillage", videoId:"R0rI1rW7boE", videoTitle:"Basketball Reverse Layup" },
+    trainer:"Get Handles Basketball", videoId:"OUO94jaAvz4", videoTitle:"How To Reverse Layups For Beginners — Get Handles" },
 
   { id:"fin-floater",     name:"Floater Series",          tag:"Advanced",        difficulty:"advanced",     ageRange:[11,14], funScore:9,  estimatedDuration:120,
     sets:"3x8 each hand", rest:"45 s",
@@ -1326,7 +1326,7 @@ const W_FOOTWORK_LAB = [
     progressionTrack:"Step 2 — Perimeter Footwork",
     desc:"After a convincing shot fake, step through on the side the defender's arm went up — converting the fake into an easy basket. Especially useful when shot-blockers overreact to fakes in the post or mid-range.",
     cues:["Shot fake must be completely convincing — full lift","Step through on the side their arm goes up","Keep low and protect the ball throughout","Finish with a power layup or two-foot stop"],
-    trainer:"General Coaching", videoId:"McDPlk1DaRc", videoTitle:"Must Have Basketball Footwork: The Step Through" },
+    trainer:"ILoveBasketball", videoId:"J-sGu1b3zcg", videoTitle:"Step-Through Move Variations — ILoveBasketball" },
 
   { id:"flab-duck-in",     name:"Duck-In & Seal",               tag:"Intermediate",difficulty:"intermediate", ageRange:[10,14], funScore:7,  estimatedDuration:120,
     sets:"3×30 s holds each side", rest:"30 s",
