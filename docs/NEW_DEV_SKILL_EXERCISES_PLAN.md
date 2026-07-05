@@ -1,6 +1,6 @@
 # Plan — Add 33 Player-Development Skills as FKH Exercises
 
-**Status:** PLAN ONLY — no exercise data written yet. Awaiting approval.
+**Status:** Part B (Defense) BUILT ✅ as its own category (B1). Part A (29 exercises) still pending.
 **Source:** the dev-skill knowledge layer (`src/lib/skillGraph.js`) + curated videos (`src/lib/skillVideos.js`).
 **Audience:** ages 9–14. **Constraint:** do not change FKH UI without approval.
 
@@ -115,6 +115,12 @@ Two options:
 
 **Recommendation: B1** — a Defense card matches the skillGraph areas and gives the 5 defensive dev-skills
 (these 4 + the 3 rebounding micro-cues later) a real home.
+
+**DONE (B1 built):** `W_DEFENSE` = 4 new on-ball exercises (`def-lateral`, `def-contain`, `def-contest`,
+`def-recover`) with youth-appropriate videos (Jr. NBA ×2, Brian McCormick, Basketball Coach Allen).
+`WORKOUTS.defense` cross-lists 18 existing defense-transfer agility drills by reference (no dup).
+Full registry wired: `CATS.defense`+dot, `WORKOUT_TEMPLATES.defense`, `SCHED_TO_TEMPLATE.defense`,
+gap-check + report pickers. Verified: builds clean, all ids resolve, no console errors.
 
 ---
 
