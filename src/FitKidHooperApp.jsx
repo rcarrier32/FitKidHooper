@@ -1601,6 +1601,34 @@ const W_PARTNER_GAMES = [
     cues:["Keep good spacing — fill the open spots","Screen for a teammate","Read help defense before you drive","Communicate every possession"] },
 ];
 
+/* ── Defense — on-ball & team defensive skills (own category; ties in agility crossovers below) ── */
+const W_DEFENSE = [
+  { id:"def-lateral",  name:"Lateral Slide",         tag:"On-Ball",  difficulty:"beginner",     ageRange:[9,14],  funScore:6,  estimatedDuration:90,
+    sets:"3x sideline-to-sideline", rest:"45 s",
+    transferTags:["defense","footwork","containment"],
+    desc:"Stay in a low stance and slide side to side without crossing your feet — the base of all on-ball defense.",
+    cues:["Feet never touch — push off the trail foot","Stay low, chest up, hands active","Don't cross your feet — slide, don't run","Head stays level, no bobbing up and down"],
+    trainer:"Jr. NBA", videoId:"4A6KqSJX8Ek", videoTitle:"Fundamentals of a Defensive Stance — Jr. NBA" },
+  { id:"def-contain",  name:"On-Ball Containment",   tag:"On-Ball",  difficulty:"intermediate", ageRange:[10,14], funScore:8,  estimatedDuration:90,
+    sets:"5 reps each direction", rest:"45 s",
+    transferTags:["defense","containment","reaction"],
+    desc:"Mirror the ball-handler and keep them in front — beat them to the spot instead of reaching.",
+    cues:["Beat them to the spot — no reaching","Nose on the ball, hands mirror the dribble","Give ground on the drive, then re-contain","Force them toward the sideline or help"],
+    trainer:"Brian McCormick", videoId:"voDcaAlaHDU", videoTitle:"Youth 1v1 Containment — Brian McCormick" },
+  { id:"def-contest",  name:"Shot Contest (No Foul)", tag:"Closeout", difficulty:"beginner",     ageRange:[9,14],  funScore:7,  estimatedDuration:60,
+    sets:"3x8 contests", rest:"30 s",
+    transferTags:["defense","closeout","discipline"],
+    desc:"Contest the shot with a high hand straight up — bother the shot without fouling.",
+    cues:["High hand STRAIGHT up — don't swipe down","Land on your own spot, not into the shooter","Chest to chest, hand to the ball","Yell 'shot!' then find someone to box out"],
+    trainer:"Basketball Coach Allen", videoId:"wAN8lPIQqco", videoTitle:"How to Contest Shots Without Fouling" },
+  { id:"def-recover",  name:"Recover & X-Out",       tag:"Team D",   difficulty:"intermediate", ageRange:[10,14], funScore:8,  estimatedDuration:90,
+    sets:"3x6 rotations", rest:"45 s",
+    transferTags:["defense","rotation","closeout"],
+    desc:"Close out, slide to contain, then sprint to recover and rotate — help-and-recover footwork for team defense.",
+    cues:["Closeout short and choppy — break down under control","Slide to contain, don't get beat baseline","Sprint the recovery — beat the next pass","Talk it: 'help', 'I've got ball', 'recover'"],
+    trainer:"Jr. NBA", videoId:"aSvFDJcIzys", videoTitle:"Closeout, Slide & Backpedal Drill — Jr. NBA" },
+];
+
 const WORKOUTS = {
   speed:        W_SPEED,
   balance:      W_BALANCE,
@@ -1624,8 +1652,19 @@ const WORKOUTS = {
   basketball_iq:    W_BASKETBALL_IQ,
   passing:          W_PASSING,
   rebounding:       W_REBOUNDING,
+  defense:          W_DEFENSE,   // augmented below with agility crossovers (after EXERCISE_META)
   partner_games:    W_PARTNER_GAMES,
 };
+
+/* Defense ties in existing agility/movement drills that transfer to on-ball defense. We cross-list
+   the SAME exercise objects (no duplication) so they show under Defense too. IDs are curated (not
+   every "defense"-tagged drill) to keep the card on-point. Composed after EXERCISE_META is defined. */
+const DEFENSE_CROSSOVER_IDS = [
+  "def-slide", "cone-cod", "closeout-footwork", "closeout-decel", "defensive-hip-flip", "hip-turns",
+  "drop-athletic-stance", "reactive-slide", "partner-mirror", "reactive-cone-calls", "decel-shuffle",
+  "lateral-step-matrix", "quick-feet-cones", "fast-feet-turn", "carioca", "lateral-carioca",
+  "retreat-sprint", "backpedal-sprint",
+];
 
 
 
@@ -1778,6 +1817,11 @@ const EXERCISE_META = {
   "defensive-recovery":  { difficulty:"intermediate", impactLevel:"high",   intensityLevel:"high",   movementType:"athletic",     bodyFocus:["legs","lungs"],                    basketballTransfer:["defense","conditioning"],   equipment:"none",         spaceRequired:"full_court", ageRange:[10,14], estimatedDuration:120, funScore:7, workoutRole:["finisher"] },
   "lateral-sprint-combo":{ difficulty:"intermediate", impactLevel:"high",   intensityLevel:"high",   movementType:"athletic",     bodyFocus:["full-legs","hips"],                basketballTransfer:["defense","conditioning"],   equipment:"none",         spaceRequired:"large",      ageRange:[10,14], estimatedDuration:120, funScore:8, workoutRole:["main","finisher"] },
   "reaction-sprint":     { difficulty:"beginner",     impactLevel:"medium", intensityLevel:"medium", movementType:"athletic",     bodyFocus:["legs","hips","reaction"],          basketballTransfer:["speed","defense"],          equipment:"none",         spaceRequired:"large",      ageRange:[9,14],  estimatedDuration:90,  funScore:9, workoutRole:["main"] },
+  /* ─── DEFENSE ─── */
+  "def-lateral":         { difficulty:"beginner",     impactLevel:"medium", intensityLevel:"medium", movementType:"athletic",     bodyFocus:["legs","hips","ankles"],            basketballTransfer:["defense","footwork"],       equipment:"none",         spaceRequired:"large",      ageRange:[9,14],  estimatedDuration:90,  funScore:6, workoutRole:["main"] },
+  "def-contain":         { difficulty:"intermediate", impactLevel:"medium", intensityLevel:"medium", movementType:"skill",        bodyFocus:["legs","hips","reaction"],          basketballTransfer:["defense","reaction"],       equipment:"none",         spaceRequired:"medium",     ageRange:[10,14], estimatedDuration:90,  funScore:8, workoutRole:["main"] },
+  "def-contest":         { difficulty:"beginner",     impactLevel:"low",    intensityLevel:"low",    movementType:"skill",        bodyFocus:["legs","core","timing"],            basketballTransfer:["defense","closeout"],       equipment:"none",         spaceRequired:"small",      ageRange:[9,14],  estimatedDuration:60,  funScore:7, workoutRole:["main"] },
+  "def-recover":         { difficulty:"intermediate", impactLevel:"medium", intensityLevel:"medium", movementType:"athletic",     bodyFocus:["legs","hips","lungs"],             basketballTransfer:["defense","rotation"],       equipment:"none",         spaceRequired:"large",      ageRange:[10,14], estimatedDuration:90,  funScore:8, workoutRole:["main"] },
   /* ─── HANDLES ─── */
   "tennis-dribble":      { difficulty:"beginner",     impactLevel:"low",    intensityLevel:"low",    movementType:"skill",        bodyFocus:["hands","eyes","coordination"],     basketballTransfer:["ball-handling","reaction"], equipment:"tennis_ball",  spaceRequired:"small",      ageRange:[9,14],  estimatedDuration:120, funScore:8, workoutRole:["main"] },
   "tennis-wall":         { difficulty:"beginner",     impactLevel:"low",    intensityLevel:"low",    movementType:"skill",        bodyFocus:["hands","eyes","reaction"],         basketballTransfer:["ball-handling","reaction"], equipment:"tennis_ball",  spaceRequired:"small",      ageRange:[9,14],  estimatedDuration:90,  funScore:8, workoutRole:["main"] },
@@ -1853,6 +1897,17 @@ const EXERCISE_META = {
   "iq-transition":       { difficulty:"intermediate", impactLevel:"low",    intensityLevel:"low",    movementType:"skill",        bodyFocus:["mind","feet","coordination"],      basketballTransfer:["transition","basketball-IQ","decision-making","team-offense"], equipment:"basketball", spaceRequired:"large", ageRange:[10,14], estimatedDuration:120, funScore:9, workoutRole:["main"],           progressionTrack:"Step 3 — Defensive IQ" },
 };
 
+/* Cross-list existing agility/movement drills that transfer to on-ball defense into the Defense
+   category. Same object references (no duplication) — they appear under Defense AND their home
+   category. Missing ids are skipped safely. */
+{
+  const _pool = new Map(Object.values(WORKOUTS).flat().map((e) => [e.id, e]));
+  WORKOUTS.defense = [
+    ...W_DEFENSE,
+    ...DEFENSE_CROSSOVER_IDS.map((id) => _pool.get(id)).filter(Boolean),
+  ];
+}
+
 /* Age-based workout generation rules */
 const AGE_RULES = {
   9:  { maxMinutes:12, maxExercises:4, maxHighImpact:1, focus:["coordination","balance","fun","skill"] },
@@ -1911,9 +1966,10 @@ const WORKOUT_TEMPLATES = {
   recovery:  { name:"Recovery Day",      emoji:"🔄", desc:"Light movement, balance, and mobility.",   cats:["balance","coordination"],                   structure:{warmup:2,main:2,finisher:0,recovery:2}, ageMin:9  },
   handles:   { name:"Ball Handling",     emoji:"🤲", desc:"Dribbling, footwork, and court IQ.",       cats:["handles","game_handles","coordination"],    structure:{warmup:1,main:4,finisher:1,recovery:0}, ageMin:9  },
   shooting:  { name:"Shooting Session",  emoji:"🎯", desc:"Form, range, and shooting consistency.",   cats:["shooting","shooting_lab"],                  structure:{warmup:1,main:3,finisher:1,recovery:0}, ageMin:9  },
+  defense:   { name:"Defense",           emoji:"🛡️", desc:"On-ball footwork, closeouts, and containment.", cats:["defense","athletic","coordination"],   structure:{warmup:2,main:3,finisher:1,recovery:0}, ageMin:9  },
 };
 
-const SCHED_TO_TEMPLATE = { explosion:"jump",deceleration:"jump",speed:"quickFeet",coordination:"quickFeet",athletic:"quickFeet",strength:"fullBody",conditioning:"fullBody",balance:"recovery",handles:"handles",game_handles:"handles",basketball_iq:"handles",shooting:"shooting",shooting_lab:"shooting" };
+const SCHED_TO_TEMPLATE = { explosion:"jump",deceleration:"jump",speed:"quickFeet",coordination:"quickFeet",athletic:"quickFeet",strength:"fullBody",conditioning:"fullBody",balance:"recovery",handles:"handles",game_handles:"handles",basketball_iq:"handles",shooting:"shooting",shooting_lab:"shooting",defense:"defense" };
 
 function generateWorkout(settings, templateKey, recentIds=[]) {
   const tmpl = WORKOUT_TEMPLATES[templateKey];
@@ -2185,6 +2241,7 @@ function buildCoachMessage(completed, xpData, earnedBadges, programProgress) {
     { key:"game_handles", label:"Game Handles" }, { key:"footwork_lab", label:"Footwork Lab" },
     { key:"finishing_school", label:"Finishing School" }, { key:"shooting_lab", label:"Shooting Lab" },
     { key:"post_moves", label:"Post Moves" }, { key:"basketball_iq", label:"Basketball IQ" },
+    { key:"defense", label:"Defense" },
   ];
   let gapCat = null;
   const nowMs = Date.now();
@@ -2553,6 +2610,7 @@ function buildReport(period, completed, badgeDatesMap, enrolledPrograms, favorit
     {key:"shooting_lab",  label:"Shooting Lab",            emoji:"🎯"},
     {key:"postmoves",     label:"Post Moves",              emoji:"🏋️"},
     {key:"basketball_iq", label:"Basketball IQ",           emoji:"🧠"},
+    {key:"defense",       label:"Defense",                 emoji:"🛡️"},
   ];
   const catCounts = {};
   for(const [k] of periodEntries){

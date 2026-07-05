@@ -23,6 +23,7 @@ export const CATS = {
   basketball_iq:    { label:"Basketball IQ",         emoji:"🧠" },
   passing:          { label:"Passing",               emoji:"↗️" },
   rebounding:       { label:"Rebounding",            emoji:"🙌" },
+  defense:          { label:"Defense",               emoji:"🛡️" },
   partner_games:    { label:"Partner & Games",       emoji:"👥", partner:true },
 };
 
@@ -39,4 +40,5 @@ export const CAT_DOT_COLORS = {
   handles:      "#7c3aed",
   basketball_iq:"#3b82f6",
   shooting:     "#f97316",
+  defense:      "#0ea5e9",
 };
