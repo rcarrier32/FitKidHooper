@@ -179,6 +179,13 @@ export const FAVORITE_PLAYER_REGISTRY = [
     categories: ["rebounding"],
     label: "Motor & second-jump boards",
   },
+  {
+    keys: ["manu", "ginobili", "ginóbili", "giannis", "antetokounmpo", "greek freak"],
+    primaryPath: "eurostep",
+    programs: ["first-step", "complete-hooper"],
+    categories: ["finishing", "finishing_school"],
+    label: "Euro step & change of direction",
+  },
 ];
 
 export function favoritePlayerQuery(settings) {
