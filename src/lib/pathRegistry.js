@@ -21,7 +21,7 @@ export const FAVORITE_PLAYER_REGISTRY = [
   {
     keys: ["iverson", "ai"],
     primaryPath: "ballhandling",
-    programs: ["guard-handles", "first-step"],
+    programs: ["guard-handles", "first-step-explosion"],
     categories: ["handles", "ballhandling", "explosion"],
     label: "Crossover & first step",
   },
@@ -35,14 +35,14 @@ export const FAVORITE_PLAYER_REGISTRY = [
   {
     keys: ["hardaway", "tim"],
     primaryPath: "ballhandling",
-    programs: ["guard-handles", "first-step"],
+    programs: ["guard-handles", "first-step-explosion"],
     categories: ["handles", "ballhandling"],
     label: "UTA crossover",
   },
   {
     keys: ["kyrie", "irving"],
     primaryPath: "ballhandling",
-    programs: ["guard-handles", "first-step"],
+    programs: ["guard-handles", "first-step-explosion"],
     categories: ["handles", "ballhandling", "finishing"],
     label: "Handle & finish",
   },
@@ -91,14 +91,14 @@ export const FAVORITE_PLAYER_REGISTRY = [
   {
     keys: ["jordan", "mj"],
     primaryPath: "finisher",
-    programs: ["first-step", "complete-hooper"],
+    programs: ["first-step-explosion", "complete-hooper"],
     categories: ["finishing", "explosion"],
     label: "Attack the rim",
   },
   {
     keys: ["wade", "flash"],
     primaryPath: "finisher",
-    programs: ["first-step"],
+    programs: ["first-step-explosion"],
     categories: ["finishing", "explosion"],
     label: "Paint penetration",
   },
@@ -112,7 +112,7 @@ export const FAVORITE_PLAYER_REGISTRY = [
   {
     keys: ["richardson", "jrich", "j-rich"],
     primaryPath: "skywalker",
-    programs: ["jump-higher", "first-step"],
+    programs: ["jump-higher", "first-step-explosion"],
     categories: ["explosion", "athletic"],
     label: "360 dunks & hang time",
   },
@@ -182,7 +182,7 @@ export const FAVORITE_PLAYER_REGISTRY = [
   {
     keys: ["manu", "ginobili", "ginóbili", "giannis", "antetokounmpo", "greek freak", "mitchell", "donovan", "spida", "shai", "gilgeous", "alexander", "sga"],
     primaryPath: "eurostep",
-    programs: ["first-step", "complete-hooper"],
+    programs: ["first-step-explosion", "complete-hooper"],
     categories: ["finishing", "finishing_school"],
     label: "Euro step & change of direction",
   },

@@ -111,7 +111,7 @@ export const MASTERY_TRACKS = [
   {
     id: "ballhandling", name: "Ball Handling", emoji: "🤲", archetype: "The Ball Handler",
     theme: "The ball on a string — cross, wrap, and break ankles like the greats.",
-    relatedProgramIds: ["guard-handles", "first-step"],
+    relatedProgramIds: ["guard-handles", "first-step-explosion"],
     favoritePlayerKeys: ["williams","white","chocolate","hardaway","tim","iverson","ai","kyrie","irving","crossover","handles"],
     stages: [
       { id: "ballhandling-1", name: "Ball Handler", emoji: "🤲", flavor: "The ball listens to your hands.",
@@ -297,7 +297,7 @@ export const MASTERY_TRACKS = [
   {
     id: "finisher", name: "Slashing", emoji: "⚡", archetype: "The Finisher",
     theme: "Live in the paint and finish through anything — channel the most electric scorers.",
-    relatedProgramIds: ["first-step", "complete-hooper"],
+    relatedProgramIds: ["first-step-explosion", "complete-hooper"],
     favoritePlayerKeys: ["wade","flash","iverson","ai","erving","doctor","rose","harden","kyrie","irving","finisher","slash"],
     stages: [
       { id: "finisher-1", name: "Downhill", emoji: "🏃", flavor: "First step's got juice.",
@@ -324,7 +324,7 @@ export const MASTERY_TRACKS = [
   {
     id: "floater", name: "Floater", emoji: "🌧️", archetype: "The Floater",
     theme: "The runner in the lane — drop the teardrop over the big and walk away cool.",
-    relatedProgramIds: ["guard-handles", "first-step"],
+    relatedProgramIds: ["guard-handles", "first-step-explosion"],
     favoritePlayerKeys: ["parker","tony","teardrop","floater","trae","gervin","iceman","runner"],
     stages: [
       { id: "floater-1", name: "Teardrop Kid", emoji: "💧", flavor: "Soft touch over the first big.",
@@ -351,7 +351,7 @@ export const MASTERY_TRACKS = [
   {
     id: "skywalker", name: "Athleticism", emoji: "💥", archetype: "Above the Rim",
     theme: "Play above the rim — rise with the greatest leapers the game has seen.",
-    relatedProgramIds: ["jump-higher", "first-step", "bodyweight-beast"],
+    relatedProgramIds: ["jump-higher", "first-step-explosion", "bodyweight-beast"],
     favoritePlayerKeys: ["carter","vince","richardson","jrich","wilkins","dominique","lavine","griffin","lebron","james","ja","morant","dunk","westbrook","zion","hops"],
     stages: [
       { id: "skywalker-1", name: "Springs", emoji: "🌀", flavor: "Off the floor in a hurry.",
@@ -431,7 +431,7 @@ export const MASTERY_TRACKS = [
   {
     id: "eurostep", name: "Euro Step", emoji: "👣", archetype: "The Euro Stepper",
     theme: "Two long steps around the big — change direction in the air and finish soft.",
-    relatedProgramIds: ["first-step", "complete-hooper"],
+    relatedProgramIds: ["first-step-explosion", "complete-hooper"],
     favoritePlayerKeys: ["manu","ginobili","giannis","antetokounmpo","greek freak","freak","euro","eurostep"],
     stages: [
       { id: "eurostep-1", name: "Two-Step", inspo: "Donovan Mitchell", emoji: "🕷️", flavor: "Long, athletic steps around the first defender — Spida-quick to the rim.",
