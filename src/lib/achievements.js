@@ -449,7 +449,7 @@ export const MASTERY_TRACKS = [
         title: { id: "title-change-of-pace", label: "Change of Pace" },
         cosmetic: { id: "cos-cold-frame", label: "Cold Frame", slot: "frame", emoji: "🧊" },
         requirements: [G.bucket("finishing", 110)],
-        signatureDrills: [{ exId: "fin-euro", min: 11 }] },
+        signatureDrills: [{ exId: "fin-euro", min: 11 }, { exId: "fs-low-pickup", min: 6 }] },
       { id: "eurostep-4", name: "Freak Step", inspo: "Giannis Antetokounmpo", emoji: "🦌", flavor: "Free-throw line to the rim in two giant steps.",
         color: "#f59e0b", rarity: "epic",
         title: { id: "title-freak-step", label: "Freak Step" },

@@ -1273,6 +1273,14 @@ const W_FINISHING_SCHOOL = [
     cues:["Expect contact — stay strong through it, not around it","Use a low, protected dribble into the lane","Extend fully on the finish even when hit","Keep the elbow in — don't lose ball control on contact"],
     trainer:"Breakthrough Basketball", videoId:"6lyBb7u7SAg", videoTitle:"1v1 Finishing Drill From The Corner" },
 
+  { id:"fs-low-pickup",    name:"Low Pickup Finish",           tag:"Advanced",    difficulty:"advanced",     ageRange:[11,14], funScore:9,  estimatedDuration:120,
+    sets:"3×8 each side", rest:"45 s",
+    transferTags:["finishing","change-of-pace","space-creation"],
+    progressionTrack:"Step 4 — Advanced Finishes",
+    desc:"Pick the ball up early, low, and LONG on the last dribble — the SGA-style gather that eats ground and gets you past the defender before the finish. Change speeds into it: slow, slow, then explode.",
+    cues:["Pick it up low and far out front — cover ground on the gather","Change speed INTO the pickup — decelerate, then explode","Long first step off the pickup — shoulder past the defender","Finish soft off two feet or flow into a euro"],
+    trainer:"ILoveBasketball", videoId:"xyKHAcLPWqc", videoTitle:"Dribble Pickups Impossible to Guard — ILoveBasketball" },
+
   /* ── Redistributed from Basketball Skills ── */
   { id:"relph-scoop",    name:"Scoop Layups",                    tag:"Advanced",    difficulty:"intermediate", ageRange:[10,14], funScore:7,  estimatedDuration:120,
     sets:"10 each side", rest:"20 s",
@@ -2429,7 +2437,7 @@ const PROGRAMS = [
       { week:4, goal:"Advanced finishes and full-speed integration — score from anywhere in the paint.",
         sessions:[
           { day:"Session 1", focus:"Advanced Finishes",       exercises:["fin-floater","fin-euro","fin-pro-hop"] },
-          { day:"Session 2", focus:"Elite Moves",             exercises:["fin-wrong-foot","fin-floater","flab-rocker-step"] },
+          { day:"Session 2", focus:"Elite Moves",             exercises:["fin-wrong-foot","fs-low-pickup","flab-rocker-step"] },
           { day:"Session 3", focus:"Complete Attack",         exercises:["fin-pro-hop","fin-euro","sackmann-finish"] },
         ]},
     ],

@@ -130,6 +130,7 @@ export const SKILLS = [
   // ── FINISHING — gather → finish → counter → outcome ──
   { id: "speed_gather", area: "finishing", name: "Speed Gather (off one)", gameSlot: "entry", age: "foundational", patterns: ["first_step"] },
   { id: "power_gather", area: "finishing", name: "Power Gather (off two)", gameSlot: "entry", age: "foundational", patterns: ["jump_stop"] },
+  { id: "low_pickup",   area: "finishing", name: "Low Pickup",      gameSlot: "entry", age: "advanced", patterns: ["first_step"] },
   { id: "layup",        area: "finishing", name: "Overhand Layup",  gameSlot: "move", age: "foundational" },
   { id: "scoop",        area: "finishing", name: "Underhand / Scoop", gameSlot: "move", age: "foundational" },
   { id: "reverse",      area: "finishing", name: "Reverse Layup",   gameSlot: "move", age: "foundational" },
