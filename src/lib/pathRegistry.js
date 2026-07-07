@@ -180,7 +180,7 @@ export const FAVORITE_PLAYER_REGISTRY = [
     label: "Motor & second-jump boards",
   },
   {
-    keys: ["manu", "ginobili", "ginóbili", "giannis", "antetokounmpo", "greek freak", "mitchell", "donovan", "spida"],
+    keys: ["manu", "ginobili", "ginóbili", "giannis", "antetokounmpo", "greek freak", "mitchell", "donovan", "spida", "shai", "gilgeous", "alexander", "sga"],
     primaryPath: "eurostep",
     programs: ["first-step", "complete-hooper"],
     categories: ["finishing", "finishing_school"],
