@@ -39,6 +39,7 @@ const BUCKETS = {
   midrange:    ["shooting_lab", "shootingdrills", "footwork_lab"],
   stepback:    ["shooting_lab", "shootingdrills", "footwork_lab"],
   touch:       ["finishing", "finishing_school"],
+  rebounding:  ["rebounding"],
 };
 
 /** Shorthand for structured stage gates (evaluated by pathGates.js). */
@@ -390,6 +391,43 @@ export const MASTERY_TRACKS = [
         signatureDrills: [{ exId: "drop-jump", min: 12 }, { exId: "box-jump", min: 16 }, { exId: "pogo-to-tuck", min: 10 }] },
     ],
   },
+  {
+    id: "rebounder", name: "Rebounding", emoji: "🪃", archetype: "The Glass Cleaner",
+    theme: "The ball is yours before it hits the floor — box out, go get it, and own the glass.",
+    relatedProgramIds: ["own-the-glass", "complete-hooper"],
+    favoritePlayerKeys: ["rodman","dennis","worm","faried","manimal","moses","malone","ben wallace","wallace","drummond","gobert","rudy","dwight","howard","rebound","boards","glass"],
+    stages: [
+      { id: "rebounder-1", name: "Box-Out", emoji: "🧱", flavor: "You put a body on your man first.",
+        color: "#86efac", rarity: "common",
+        requirements: [G.bucket("rebounding", 40)],
+        signatureDrills: [{ exId: "reb-boxout", min: 6 }] },
+      { id: "rebounder-2", name: "The Motor", inspo: "Kenneth Faried", emoji: "⚙️", flavor: "Relentless — you chase every single miss.",
+        color: "#4ade80", rarity: "rare",
+        title: { id: "title-the-motor", label: "The Motor" },
+        cosmetic: { id: "cos-glass-bronze", label: "Bronze Glass Frame", slot: "frame", emoji: "🪟" },
+        requirements: [G.bucket("rebounding", 150)],
+        signatureDrills: [{ exId: "reb-boxout", min: 8 }, { exId: "reb-self-toss", min: 8 }] },
+      { id: "rebounder-3", name: "Second Jump", inspo: "Moses Malone", emoji: "🔁", flavor: "Up, down, up again — you win it on the second effort.",
+        color: "#22c55e", rarity: "epic",
+        title: { id: "title-second-jump", label: "Second Jump" },
+        cosmetic: { id: "cos-glass-silver", label: "Silver Glass Frame", slot: "frame", emoji: "🪟" },
+        requirements: [G.bucket("rebounding", 400), G.days(14)],
+        signatureDrills: [{ exId: "reb-power", min: 8 }, { exId: "reb-tips", min: 8 }] },
+      { id: "rebounder-4", name: "Glass Eater", inspo: "Ben Wallace", emoji: "🧹", flavor: "Undersized, unbothered — the whole glass is yours.",
+        color: "#16a34a", rarity: "epic",
+        title: { id: "title-glass-eater", label: "Glass Eater" },
+        cosmetic: { id: "cos-glass-gold", label: "Gold Glass Frame", slot: "frame", emoji: "🏆" },
+        requirements: [G.bucket("rebounding", 900), G.streak(7)],
+        signatureDrills: [{ exId: "pg-boxout-live", min: 6 }, { exId: "reb-power", min: 10 }] },
+      { id: "rebounder-5", name: "The Worm", inspo: "Dennis Rodman Conquest", emoji: "👑", flavor: "Rebounding as an art form. The summit of the glass.",
+        color: "#f59e0b", rarity: "legendary", conquest: true,
+        title: { id: "title-the-worm", label: "The Worm" },
+        cosmetic: { id: "cos-glass-anim", label: "Animated Glass Frame", slot: "frame", emoji: "🪃" },
+        unlockNote: "Complete Own the Glass + 1500 rebounding reps",
+        requirements: [G.bucket("rebounding", 1500), G.program("pgm-own-the-glass")],
+        signatureDrills: [{ exId: "reb-outlet", min: 10 }, { exId: "reb-boxout", min: 12 }] },
+    ],
+  },
 ];
 
 /** Alias used in Path Framework docs. */
@@ -573,6 +611,7 @@ export function buildEvalCtx(ctxIn) {
       midrange: bucketSum(ctxIn.catCounts, BUCKETS.midrange),
       stepback: bucketSum(ctxIn.catCounts, BUCKETS.stepback),
       touch: bucketSum(ctxIn.catCounts, BUCKETS.touch),
+      rebounding: bucketSum(ctxIn.catCounts, BUCKETS.rebounding),
     },
   };
 }

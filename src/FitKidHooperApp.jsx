@@ -2510,6 +2510,32 @@ const PROGRAMS = [
         ]},
     ],
   },
+
+  {
+    id:"own-the-glass", name:"Own the Glass", emoji:"🪃", color:"#22c55e",
+    badgeId:"pgm-own-the-glass", duration:3, daysPerWeek:3, ageRange:[9,17],
+    desc:"Become the player who owns the boards — box out, go get it at its highest point, and win every second-jump battle.",
+    weeks:[
+      { week:1, goal:"Win the position before the ball — box-out footwork and going to get it.",
+        sessions:[
+          { day:"Session 1", focus:"Box-Out Footwork",     exercises:["reb-boxout","reb-self-toss","sl-stick-landing"] },
+          { day:"Session 2", focus:"Go Get It",            exercises:["reb-self-toss","reb-tips","box-jump"] },
+          { day:"Session 3", focus:"Live Contact",         exercises:["pg-boxout-live","reb-boxout","squat-jumps"] },
+        ]},
+      { week:2, goal:"High-point the ball and win on the second effort — the rebounder's motor.",
+        sessions:[
+          { day:"Session 1", focus:"High-Point Timing",    exercises:["reb-tips","reb-self-toss","pogo-jumps"] },
+          { day:"Session 2", focus:"Second Jump",          exercises:["reb-power","tuck-jumps","box-jump"] },
+          { day:"Session 3", focus:"Relentless Motor",     exercises:["reb-power","pg-boxout-live","broad-jump"] },
+        ]},
+      { week:3, goal:"Finish the play — putbacks, outlets, and owning the whole glass.",
+        sessions:[
+          { day:"Session 1", focus:"Putback Finish",       exercises:["reb-power","reb-tips","drop-jump"] },
+          { day:"Session 2", focus:"Outlet & Go",          exercises:["reb-outlet","reb-self-toss","squat-jumps"] },
+          { day:"Session 3", focus:"Own the Glass",        exercises:["pg-boxout-live","reb-power","reb-outlet"] },
+        ]},
+    ],
+  },
 ];
 
 /* ═══════════════════════ PROGRESS REPORT ════════════════════ */

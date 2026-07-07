@@ -165,6 +165,20 @@ export const FAVORITE_PLAYER_REGISTRY = [
     categories: ["shooting_lab", "shootingdrills"],
     label: "One-leg balance shot",
   },
+  {
+    keys: ["rodman", "dennis", "worm"],
+    primaryPath: "rebounder",
+    programs: ["own-the-glass"],
+    categories: ["rebounding"],
+    label: "Own the glass",
+  },
+  {
+    keys: ["faried", "manimal", "moses malone", "ben wallace", "drummond", "gobert", "dwight", "howard"],
+    primaryPath: "rebounder",
+    programs: ["own-the-glass", "complete-hooper"],
+    categories: ["rebounding"],
+    label: "Motor & second-jump boards",
+  },
 ];
 
 export function favoritePlayerQuery(settings) {
