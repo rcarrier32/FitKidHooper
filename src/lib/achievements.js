@@ -434,7 +434,7 @@ export const MASTERY_TRACKS = [
     relatedProgramIds: ["first-step", "complete-hooper"],
     favoritePlayerKeys: ["manu","ginobili","giannis","antetokounmpo","greek freak","freak","euro","eurostep"],
     stages: [
-      { id: "eurostep-1", name: "Two-Step", emoji: "🦶", flavor: "Long, balanced steps around the first defender.",
+      { id: "eurostep-1", name: "Two-Step", inspo: "Donovan Mitchell", emoji: "🕷️", flavor: "Long, athletic steps around the first defender — Spida-quick to the rim.",
         color: "#fcd34d", rarity: "common",
         requirements: [G.bucket("finishing", 20)],
         signatureDrills: [{ exId: "fin-euro", min: 5 }] },
