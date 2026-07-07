@@ -74,8 +74,9 @@ made explicit. Recommended implementation:
 
 1. **Add the `tier` field to skillGraph** (foundation for everything below). Pure data in `skillGraph.js`;
    no UI. ~1 pass to classify ~70 skills into T1/T2/T3 using role + age + the grammar.
-2. **Rebounding pillar** — new *"Glass Cleaner"* legend path (inspo: Rodman → Conquest) + an *"Own the Glass"*
-   program, drawing on `W_REBOUNDING` + the rebounding micro-cues we flagged earlier.
+2. **Rebounding pillar** — ✅ **BUILT.** `rebounder` legend path (The Glass Cleaner: Box-Out → The Motor/Faried
+   → Second Jump/Moses Malone → Glass Eater/Ben Wallace → The Worm/Rodman Conquest) + 3-week *Own the Glass*
+   program + `rebounding` bucket + registry entries + `pgm-own-the-glass` badge. Verified builds clean.
 3. **Lockdown Defender program** — a 4-week program feeding the existing *The Lockdown* path, built on the
    new Defense category (this is the highest-leverage: path + category already exist, only the program is missing).
 4. **Floor General (passing) program** — standalone, feeding the Maestro path.
