@@ -173,7 +173,7 @@ export const FAVORITE_PLAYER_REGISTRY = [
     label: "Own the glass",
   },
   {
-    keys: ["faried", "manimal", "moses malone", "ben wallace", "drummond", "gobert", "dwight", "howard"],
+    keys: ["draymond", "green", "moses malone", "ben wallace", "drummond", "gobert", "dwight", "howard"],
     primaryPath: "rebounder",
     programs: ["own-the-glass", "complete-hooper"],
     categories: ["rebounding"],
