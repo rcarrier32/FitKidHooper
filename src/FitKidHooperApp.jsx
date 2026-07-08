@@ -1281,6 +1281,14 @@ const W_FINISHING_SCHOOL = [
     cues:["Pick it up low and far out front — cover ground on the gather","Change speed INTO the pickup — decelerate, then explode","Long first step off the pickup — shoulder past the defender","Finish soft off two feet or flow into a euro"],
     trainer:"ILoveBasketball", videoId:"xyKHAcLPWqc", videoTitle:"Dribble Pickups Impossible to Guard — ILoveBasketball" },
 
+  { id:"fs-speed-gather",  name:"Speed Gather (One Foot)",     tag:"Foundation",  difficulty:"intermediate", ageRange:[10,14], funScore:8,  estimatedDuration:90,
+    sets:"3×6 each side", rest:"30 s",
+    transferTags:["finishing","first-step","transition"],
+    progressionTrack:"Step 1 — Close-Range Foundation",
+    desc:"Gather off one foot at full speed and go straight up — the running one-foot layup that lets you finish in transition without slowing down. Collect the ball on the correct foot and explode up, not out.",
+    cues:["Gather off your INSIDE foot at full speed","Long last stride, then up — don't gather short","Go UP, not out — protect it high off the glass","Stay on balance — don't fade under the rim"],
+    trainer:"Good Drill", videoId:"Qvj-cfs67AA", videoTitle:"Stop Missing Full-Speed Layups — Good Drill" },
+
   /* ── Redistributed from Basketball Skills ── */
   { id:"relph-scoop",    name:"Scoop Layups",                    tag:"Advanced",    difficulty:"intermediate", ageRange:[10,14], funScore:7,  estimatedDuration:120,
     sets:"10 each side", rest:"20 s",
