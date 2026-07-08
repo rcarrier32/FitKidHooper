@@ -72,8 +72,9 @@ made explicit. Recommended implementation:
 
 ## 4. Recommended evolution (priority order)
 
-1. **Add the `tier` field to skillGraph** (foundation for everything below). Pure data in `skillGraph.js`;
-   no UI. ~1 pass to classify ~70 skills into T1/T2/T3 using role + age + the grammar.
+1. ~~**Add the `tier` field to skillGraph**~~ ✅ **DONE.** `SKILL_TIERS` in `skillGraph.js` classifies all
+   73 skills into T1/T2/T3 (26/33/14) + `TIER_META`, `skillTier(id)`, `skillsByTier(t)`. Programs, legend
+   rungs, and the age-aware generator can now reference a real 3-level ladder.
 2. **Rebounding pillar** — ✅ **BUILT.** `rebounder` legend path (The Glass Cleaner: Box-Out → The Motor/Faried
    → Second Jump/Moses Malone → Glass Eater/Ben Wallace → The Worm/Rodman Conquest) + 3-week *Own the Glass*
    program + `rebounding` bucket + registry entries + `pgm-own-the-glass` badge. Verified builds clean.
