@@ -2544,6 +2544,38 @@ const PROGRAMS = [
         ]},
     ],
   },
+
+  {
+    id:"lockdown-defender", name:"Lockdown Defender", emoji:"🛡️", color:"#0ea5e9",
+    badgeId:"pgm-lockdown-defender", duration:4, daysPerWeek:3, ageRange:[9,17],
+    desc:"Become the player nobody wants to be guarded by — stance, slide, containment, closeouts, and team defense that shuts the ball down.",
+    weeks:[
+      { week:1, goal:"Build the base — athletic stance and a slide that never crosses its feet.",
+        sessions:[
+          { day:"Session 1", focus:"Stance Foundation",   exercises:["drop-athletic-stance","def-lateral","def-slide"] },
+          { day:"Session 2", focus:"Quick Feet",           exercises:["fast-feet-turn","quick-feet-cones","def-lateral"] },
+          { day:"Session 3", focus:"Lateral Control",      exercises:["def-slide","lateral-step-matrix","carioca"] },
+        ]},
+      { week:2, goal:"Keep the ball in front — mirror the handler and beat them to the spot.",
+        sessions:[
+          { day:"Session 1", focus:"Mirror the Ball",      exercises:["def-contain","partner-mirror","defensive-hip-flip"] },
+          { day:"Session 2", focus:"Beat Them to the Spot",exercises:["def-contain","reactive-slide","hip-turns"] },
+          { day:"Session 3", focus:"Change Direction",     exercises:["defensive-hip-flip","reactive-cone-calls","def-contain"] },
+        ]},
+      { week:3, goal:"Close out under control and contest the shot without fouling.",
+        sessions:[
+          { day:"Session 1", focus:"Closeout Footwork",    exercises:["closeout-footwork","closeout-decel","def-contest"] },
+          { day:"Session 2", focus:"Contest, No Foul",     exercises:["def-contest","def-lateral","closeout-footwork"] },
+          { day:"Session 3", focus:"Out & Recover",        exercises:["closeout-decel","reactive-slide","def-contest"] },
+        ]},
+      { week:4, goal:"Team defense — help, recover, and rotate as a unit.",
+        sessions:[
+          { day:"Session 1", focus:"Help & Recover",       exercises:["def-recover","def-contain","backpedal-sprint"] },
+          { day:"Session 2", focus:"Rotate",               exercises:["def-recover","reactive-cone-calls","retreat-sprint"] },
+          { day:"Session 3", focus:"Full Lockdown",        exercises:["def-recover","def-contest","def-contain"] },
+        ]},
+    ],
+  },
 ];
 
 /* ═══════════════════════ PROGRESS REPORT ════════════════════ */

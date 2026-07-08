@@ -40,6 +40,7 @@ export const BADGES_DEF = [
   { id:"pgm-complete-hooper",cat:"program", name:"Complete Hooper",   emoji:"🏆", desc:"Complete the Complete Hooper program",       color:"#f59e0b" },
   { id:"pgm-bodyweight",     cat:"program", name:"Bodyweight Beast",  emoji:"💪", desc:"Complete the Bodyweight Beast program",      color:"#22c55e" },
   { id:"pgm-own-the-glass",  cat:"program", name:"Glass Cleaner",     emoji:"🪃", desc:"Complete the Own the Glass program",          color:"#22c55e" },
+  { id:"pgm-lockdown-defender", cat:"program", name:"Lockdown Defender", emoji:"🛡️", desc:"Complete the Lockdown Defender program",    color:"#0ea5e9" },
 ];
 
 const CHAIN_BADGE_MAP = {
