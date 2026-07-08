@@ -906,6 +906,13 @@ const W_SHOOTING = [
     desc:"Make a 3 from each of the 5 spots in order — corner, wing, top, wing, corner. Miss and you drop back one spot. Get all the way around to win. 🥉 finish once · 🥈 finish twice · 🥇 finish under 3:00.",
     cues:["One spot at a time — earn your way around","A miss sends you back a spot — stay locked in","Reset your feet fully at each new spot","Race the clock once you can finish it clean"],
     trainer:"Shoot-A-Way", videoId:"_ThYnVrVCYE", videoTitle:"2-in-a-Row Around the World — Shoot-A-Way" },
+
+  { id:"chal-beal-5spot", name:"Bradley Beal 5-Spot (2-Up-2-Back)", tag:"Bradley Beal",
+    sets:"5 spots · 2-in-a-row to advance · mid-range then 3", rest:"between the two rounds",
+    levels:[{ tier:"Bronze", emoji:"🥉", target:"Finish all 5 spots (10 pts)" },{ tier:"Silver", emoji:"🥈", target:"18 points" },{ tier:"Gold", emoji:"🥇", target:"26 points" }],
+    desc:"Bradley Beal's competitive 5-spot. At each spot you must make 2 IN A ROW to advance; miss 2 in a row and you drop back a spot. Finishing all 5 spots banks 10 points (2 per spot). With time left on the clock, shoot from any spot — each extra make is worth 2 points. Run it once at mid-range, then again from three. Grab a partner to rebound and compete — race the clock.",
+    cues:["Make 2 IN A ROW to move on — any miss resets your streak","Miss 2 in a row and you drop back a spot — stay composed","Finish all 5 spots = 10 points banked (2 per spot)","Bonus time: shoot any spot, each make = 2 points — pile them up","Run mid-range and 3-point as two separate rounds","🧱 No partner? Rebound your own and keep the clock running"],
+    trainer:"Patrick Schnell", videoId:"PGdn1j3uNL4", videoTitle:"1-Minute Bradley Beal Shooting Drill" },
 ];
 
 /* ═══════════════════════════════════════════════════════════════
