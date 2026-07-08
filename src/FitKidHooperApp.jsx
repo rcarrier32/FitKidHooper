@@ -1555,6 +1555,18 @@ const W_PASSING = [
     sets:"3x12 each hand", rest:"25 s",
     desc:"Take one dribble, then snap a pass to a wall spot without picking the ball up first. The live-action pass.",
     cues:["Pass straight out of the dribble — no gather","Keep your eyes up, not on the ball","Both hands","Make the target small"] },
+  { id:"pass-kick-out", name:"Drive & Kick (Wall)", tag:"Game Pass", setup:"solo",
+    sets:"3x10 each side", rest:"25 s",
+    desc:"Attack the wall with a hard dribble like you're driving to the rim, then kick the ball out to a corner target. The drive-and-kick that creates open threes.",
+    cues:["Sell the drive first — go hard at the wall","Kick to the corner spot, not the middle","One-hand push out, on a line","Eyes up — 'see' the shooter before you pass"] },
+  { id:"pass-skip", name:"Skip Pass (Wall)", tag:"Game Pass", setup:"solo",
+    sets:"3x12", rest:"25 s",
+    desc:"Step back and fire a long, on-a-line skip pass to a high target across the wall — the cross-court pass that beats a shifted defense.",
+    cues:["Strong two-hand or one-hand push for distance","Throw it on a line, not a rainbow","Aim above the numbers so it's catch-ready","Step into it for power"] },
+  { id:"pass-pocket", name:"Pocket Pass (Wall)", tag:"Game Pass", setup:"solo",
+    sets:"3x12 each hand", rest:"20 s",
+    desc:"Off one dribble, slip a low, quick push pass into a low wall target — the tight pocket pass to a roller in the pick-and-roll.",
+    cues:["Keep it low and quick — under a defender's reach","One hand, off the dribble, no gather","Snap it — short and firm","Work both hands"] },
 ];
 
 /* ── Rebounding (solo — self-toss + box-out footwork) ── */
@@ -2573,6 +2585,38 @@ const PROGRAMS = [
           { day:"Session 1", focus:"Help & Recover",       exercises:["def-recover","def-contain","backpedal-sprint"] },
           { day:"Session 2", focus:"Rotate",               exercises:["def-recover","reactive-cone-calls","retreat-sprint"] },
           { day:"Session 3", focus:"Full Lockdown",        exercises:["def-recover","def-contest","def-contain"] },
+        ]},
+    ],
+  },
+
+  {
+    id:"floor-general", name:"Floor General", emoji:"🧠", color:"#6366f1",
+    badgeId:"pgm-floor-general", duration:4, daysPerWeek:3, ageRange:[9,17],
+    desc:"Become the passer your team runs through — all you need is a ball and a wall. Snappy fundamentals, passing off the move, and the game reads that create easy buckets for everyone.",
+    weeks:[
+      { week:1, goal:"Snap it — accurate, catch-ready chest and bounce passes off a wall.",
+        sessions:[
+          { day:"Session 1", focus:"Chest & Bounce",      exercises:["pass-wall-chest","pass-wall-bounce","pass-one-hand"] },
+          { day:"Session 2", focus:"Both Hands",          exercises:["pass-one-hand","pass-wall-chest","pass-wall-bounce"] },
+          { day:"Session 3", focus:"Crisp & Repeatable",  exercises:["pass-wall-bounce","pass-one-hand","pass-wall-chest"] },
+        ]},
+      { week:2, goal:"Pass off the move — link footwork and the dribble to the pass.",
+        sessions:[
+          { day:"Session 1", focus:"Pivot & Pass",        exercises:["pass-pivot","pass-wall-chest","pass-one-hand"] },
+          { day:"Session 2", focus:"Off the Dribble",     exercises:["pass-off-dribble","pass-pivot","pass-one-hand"] },
+          { day:"Session 3", focus:"Move & Deliver",      exercises:["pass-off-dribble","pass-pivot","pass-wall-bounce"] },
+        ]},
+      { week:3, goal:"Create for others — drive-and-kick and the cross-court skip.",
+        sessions:[
+          { day:"Session 1", focus:"Drive & Kick",        exercises:["pass-kick-out","pass-off-dribble","pass-one-hand"] },
+          { day:"Session 2", focus:"Skip the Defense",    exercises:["pass-skip","pass-kick-out","pass-wall-chest"] },
+          { day:"Session 3", focus:"Read & Deliver",      exercises:["pass-kick-out","pass-skip","pass-off-dribble"] },
+        ]},
+      { week:4, goal:"Floor general — the pocket pass and running the show.",
+        sessions:[
+          { day:"Session 1", focus:"Pocket Pass",         exercises:["pass-pocket","pass-off-dribble","pass-pivot"] },
+          { day:"Session 2", focus:"Every Read",          exercises:["pass-pocket","pass-kick-out","pass-skip"] },
+          { day:"Session 3", focus:"Run the Show",        exercises:["pass-pivot","pass-pocket","pass-kick-out"] },
         ]},
     ],
   },

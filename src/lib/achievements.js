@@ -32,7 +32,7 @@ import {
 /* ── Category buckets (raw exercise categories → a path's skill area) ──────── */
 const BUCKETS = {
   handles:     ["handles", "ballhandling"],
-  playmaking:  ["game_handles", "footwork", "footwork_lab"],
+  playmaking:  ["game_handles", "footwork", "footwork_lab", "passing"],
   defense:     ["defense", "deceleration", "athletic"],
   explosion:   ["explosion"],
   finishing:   ["finishing", "finishing_school", "footwork", "footwork_lab"],
@@ -232,7 +232,7 @@ export const MASTERY_TRACKS = [
   {
     id: "maestro", name: "Playmaking", emoji: "🧠", archetype: "The Maestro",
     theme: "Make the defense dance — footwork, reads, and passes like the great floor generals.",
-    relatedProgramIds: ["guard-handles", "complete-hooper"],
+    relatedProgramIds: ["floor-general", "guard-handles", "complete-hooper"],
     favoritePlayerKeys: ["stockton","magic","johnson","nash","kidd","paul","cp3","rondo","point","haliburton","assist","brunson","jalen"],
     stages: [
       { id: "maestro-1", name: "Passer", emoji: "🤲", flavor: "You see the open man.",
