@@ -73,7 +73,7 @@ export const MASTERY_TRACKS = [
     id: "shooter", name: "Shooting", emoji: "🎯", archetype: "The Shooter",
     theme: "From open looks to limitless range — walk the line of the greatest shooters ever.",
     relatedProgramIds: ["become-shooter", "complete-hooper"],
-    favoritePlayerKeys: ["curry","steph","allen","ray","miller","reggie","thompson","klay","bird","durant","kd","lillard","dame","korver","maravich","pistol"],
+    favoritePlayerKeys: ["curry","steph","allen","ray","miller","reggie","thompson","klay","bird","durant","kd","lillard","dame","korver","maravich","pistol","edwards","anthony edwards","ant","booker","devin booker","trae","trae young"],
     stages: [
       { id: "shooter-1", name: "Shooter", emoji: "🎯", flavor: "You knock down the open ones.",
         color: "#60a5fa", rarity: "common",

@@ -186,6 +186,13 @@ export const FAVORITE_PLAYER_REGISTRY = [
     categories: ["finishing", "finishing_school"],
     label: "Euro step & change of direction",
   },
+  {
+    keys: ["edwards", "anthony edwards", "ant", "booker", "devin booker", "trae", "trae young"],
+    primaryPath: "shooter",
+    programs: ["become-shooter", "complete-hooper"],
+    categories: ["shooting_lab", "shootingdrills"],
+    label: "Modern shot-makers — extend your range",
+  },
 ];
 
 export function favoritePlayerQuery(settings) {
