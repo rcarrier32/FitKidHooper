@@ -208,3 +208,50 @@ export const skillsBySlot = (slot) => SKILLS.filter((s) => s.gameSlot === slot);
 export const getSkill      = (id)   => SKILLS.find((s) => s.id === id);
 /** Skills that cross-link into NextPlay's tactical layer (the shared nodes). */
 export const skillsWithTacticalLink = () => SKILLS.filter((s) => s.tacticalAction);
+
+/* ── Development tiers ─────────────────────────────────────────────────────────
+ * The Speed/Difficulty axis of the DEV grammar made explicit. Supersedes the
+ * 2-value `age` band: T1 Foundation (isolated/controlled) → T2 Application (on the
+ * move, combos, live speed) → T3 Game-Speed (contested, reads, counters). Programs
+ * and Legend rungs reference these; the age-aware generator serves tier-appropriate
+ * reps instead of a flat age gate.
+ */
+export const TIER_META = {
+  1: { key: "foundation",  label: "Foundation",  hint: "Isolated & controlled — learn the move." },
+  2: { key: "application", label: "Application", hint: "On the move, combos, live speed." },
+  3: { key: "game_speed",  label: "Game-Speed",  hint: "Contested, with reads and counters." },
+};
+
+export const SKILL_TIERS = {
+  // handles
+  pound: 1, hesitation: 1, in_out: 1, inside_out: 1, stutter: 1, cross: 1,
+  push_cross: 2, between: 2, behind: 2, retreat: 2, pullback: 2, hang: 2, freeze: 2,
+  spin: 3, half_spin: 3, shamgod: 3, snatch: 3, cross_behind: 3, hang_hesi_cross: 3,
+  // shooting
+  spot_up: 1, catch_shoot: 1,
+  relocation: 2, drift: 2, curl: 2, flare: 2, pin_down: 2, dho_entry: 2, transition_shot: 2,
+  pullup_1: 2, pullup_2: 2, floater: 2, shot_fake_drive: 2,
+  zoom: 3, step_back: 3, side_step: 3, reject_screen: 3,
+  // finishing
+  speed_gather: 1, power_gather: 1, layup: 1, scoop: 1, reverse: 1,
+  low_pickup: 2, euro: 2, pro_hop: 2,
+  up_under: 3,
+  // footwork
+  jump_stop_skill: 1, front_pivot_skill: 1, reverse_pivot_skill: 1, jab_go: 1, rip_through: 1,
+  step_through: 2,
+  // passing
+  chest: 1, bounce: 1,
+  kick_out: 2, dump_off: 2, outlet: 2, skip: 2,
+  pocket: 3,
+  // defense
+  def_stance: 1, slide: 1,
+  closeout: 2, containment: 2, contest: 2,
+  recover_xout: 3,
+  // rebounding
+  reb_ready: 1, reb_tracking: 1, reb_highpoint: 1, reb_secure: 1,
+  reb_pursuit: 2, reb_second: 2, reb_putback: 2, reb_outlet: 2,
+  reb_tipcontrol: 3,
+};
+
+export const skillTier    = (id) => SKILL_TIERS[id] ?? null;
+export const skillsByTier = (t)  => SKILLS.filter((s) => SKILL_TIERS[s.id] === t);
