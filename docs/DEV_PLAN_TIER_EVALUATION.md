@@ -85,8 +85,9 @@ made explicit. Recommended implementation:
 4. ~~**Floor General (passing) program**~~ ✅ **DONE.** 4-week `floor-general` program built entirely on
    WALL drills (solo-trainable) — added 3 new ones (Drive & Kick, Skip, Pocket) for kick_out/skip/pocket.
    Badge `pgm-floor-general`, wired into the Maestro path; `BUCKETS.playmaking` now counts `passing`.
-5. **Retro-tier existing programs** — relabel each program's weeks/levels as T1→T3 so progression is legible
-   and consistent with the legends' rarity.
+5. ~~**Retro-tier existing programs**~~ ✅ **DONE.** `PROGRAM_WEEK_TIERS` maps all 10 programs' weeks to
+   T1→T3 (lengths verified against week counts) + `programWeekTier()`/`TIER_LABELS` helpers. Data only;
+   a future week-badge UI can render it.
 
 **Constraint note:** items 1–5 are mostly *data* (skillGraph fields, PROGRAMS entries, achievements.js
 paths). New legend paths/programs surface through existing UI (the same way the Defense category did), so
