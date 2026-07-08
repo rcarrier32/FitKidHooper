@@ -2630,6 +2630,25 @@ const PROGRAMS = [
   },
 ];
 
+/* Development tier per program week — the same T1 Foundation → T2 Application → T3 Game-Speed
+   ladder as skillGraph SKILL_TIERS, applied at the program level so a program's difficulty reads
+   consistently against the Legend paths' rarity. Indexed by week (0-based). Data only — a future
+   UI can badge each week ("Tier 1 · Foundation") from this; nothing renders it yet. */
+const PROGRAM_WEEK_TIERS = {
+  "jump-higher":          [1, 2, 2, 3],
+  "guard-handles":        [1, 2, 2, 3],
+  "step-back-legends":    [2, 3],
+  "become-shooter":       [1, 2, 2, 3],
+  "first-step-explosion": [1, 2, 2, 3],
+  "complete-hooper":      [1, 2, 2, 3, 3, 3],
+  "bodyweight-beast":     [1, 2, 3],
+  "own-the-glass":        [1, 2, 3],
+  "lockdown-defender":    [1, 2, 2, 3],
+  "floor-general":        [1, 2, 2, 3],
+};
+const TIER_LABELS = { 1: "Foundation", 2: "Application", 3: "Game-Speed" };
+const programWeekTier = (programId, weekNum) => PROGRAM_WEEK_TIERS[programId]?.[weekNum - 1] ?? null;
+
 /* ═══════════════════════ PROGRESS REPORT ════════════════════ */
 
 function computePeriodXP(periodEntries) {
