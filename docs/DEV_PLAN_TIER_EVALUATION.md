@@ -82,7 +82,9 @@ made explicit. Recommended implementation:
    containment → closeouts/contest → team defense) on W_DEFENSE + defense-transfer agility, badge
    `pgm-lockdown-defender`, wired into the Lockdown path. Also fixed: `BUCKETS.defense` now counts the
    `defense` category so those reps advance the legend path.
-4. **Floor General (passing) program** — standalone, feeding the Maestro path.
+4. ~~**Floor General (passing) program**~~ ✅ **DONE.** 4-week `floor-general` program built entirely on
+   WALL drills (solo-trainable) — added 3 new ones (Drive & Kick, Skip, Pocket) for kick_out/skip/pocket.
+   Badge `pgm-floor-general`, wired into the Maestro path; `BUCKETS.playmaking` now counts `passing`.
 5. **Retro-tier existing programs** — relabel each program's weeks/levels as T1→T3 so progression is legible
    and consistent with the legends' rarity.
 
