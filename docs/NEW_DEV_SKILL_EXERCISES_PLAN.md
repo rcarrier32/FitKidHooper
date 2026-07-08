@@ -1,6 +1,10 @@
 # Plan — Add 33 Player-Development Skills as FKH Exercises
 
-**Status:** Part B (Defense) BUILT ✅ as its own category (B1). Part A (29 exercises) still pending.
+**Status:** COMPLETE ✅. Part B (Defense) built as its own category. Part A done: 9 handles (`gh-*`) +
+12 shooting (`slab-*`) + 3 passing (wall drills via Floor General) + Speed Gather + Low Pickup. The rest
+of the "new" finishing/footwork/rebounding skills turned out already covered by existing drills
+(Overhand Layup→Mikan, Scoop→relph-scoop, Jab-and-Go→Jab Series, Put-Back→Tip/Power Rebound) — no dups.
+All videos hand-vetted (best-of youth + first-sweep, title-matched); all build clean.
 **Source:** the dev-skill knowledge layer (`src/lib/skillGraph.js`) + curated videos (`src/lib/skillVideos.js`).
 **Audience:** ages 9–14. **Constraint:** do not change FKH UI without approval.
 
