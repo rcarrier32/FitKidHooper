@@ -78,8 +78,10 @@ made explicit. Recommended implementation:
 2. **Rebounding pillar** — ✅ **BUILT.** `rebounder` legend path (The Glass Cleaner: Box-Out → The Motor/Faried
    → Second Jump/Moses Malone → Glass Eater/Ben Wallace → The Worm/Rodman Conquest) + 3-week *Own the Glass*
    program + `rebounding` bucket + registry entries + `pgm-own-the-glass` badge. Verified builds clean.
-3. **Lockdown Defender program** — a 4-week program feeding the existing *The Lockdown* path, built on the
-   new Defense category (this is the highest-leverage: path + category already exist, only the program is missing).
+3. ~~**Lockdown Defender program**~~ ✅ **DONE.** 4-week `lockdown-defender` program (stance/slide →
+   containment → closeouts/contest → team defense) on W_DEFENSE + defense-transfer agility, badge
+   `pgm-lockdown-defender`, wired into the Lockdown path. Also fixed: `BUCKETS.defense` now counts the
+   `defense` category so those reps advance the legend path.
 4. **Floor General (passing) program** — standalone, feeding the Maestro path.
 5. **Retro-tier existing programs** — relabel each program's weeks/levels as T1→T3 so progression is legible
    and consistent with the legends' rarity.
