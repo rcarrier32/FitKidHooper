@@ -876,6 +876,36 @@ const W_SHOOTING = [
     desc:"DJ Sackmann drill connecting ball handling to shooting — hesitate the defender then rise for the shot.",
     cues:["The hesitation earns the shot — do not skip the setup","One foot anchored on the gather — do not drift","Balance on the catch: weight centered, ready to shoot"],
     trainer:"Shot Science Basketball", videoId:"EyYbMJzrKYs", videoTitle:"Hesitation Dribble Attack" },
+
+  /* ── Leveled shooting challenges — Bronze/Silver/Gold targets. `levels` is structured data a
+     future levels UI can render; the targets are also in the desc so it works in today's UI. ── */
+  { id:"chal-timed-3pt", name:"Timed 3-Point Challenge",         tag:"3-Point Challenge",
+    sets:"60-second clock — count your makes", rest:"90 s between rounds",
+    levels:[{ tier:"Bronze", emoji:"🥉", target:"5 threes in 60s" },{ tier:"Silver", emoji:"🥈", target:"8 threes in 60s" },{ tier:"Gold", emoji:"🥇", target:"12 threes in 60s" }],
+    desc:"Set a 60-second clock and make as many 3s as you can from behind the arc — rebound your own miss and shoot FAST. Log your makes and chase the next level. 🥉 5 · 🥈 8 · 🥇 12 makes in 60 seconds.",
+    cues:["Shoot on rhythm — quick but under control","Rebound your own miss fast and reset","Move around the arc — don't camp one spot","Beat your best score every session"],
+    trainer:"Coach Tony Miller", videoId:"5t1bSN9bxeI", videoTitle:"Competitive Shooting Challenge — Coach Tony Miller" },
+
+  { id:"chal-5spot-mid", name:"5-Spot Test — Mid-Range",         tag:"5-Spot Challenge",
+    sets:"25 shots — 5 from each of 5 spots", rest:"N/A",
+    levels:[{ tier:"Bronze", emoji:"🥉", target:"14 of 25" },{ tier:"Silver", emoji:"🥈", target:"18 of 25" },{ tier:"Gold", emoji:"🥇", target:"22 of 25" }],
+    desc:"Take 5 stationary mid-range shots from each of the 5 spots — both corners, both wings, and the top. Log your total makes out of 25. 🥉 14 · 🥈 18 · 🥇 22 of 25.",
+    cues:["Same clean form on every rep — this is a form test too","Set your feet fully before each shot","Hold your follow-through and watch it in","Go around the horseshoe: corner, wing, top, wing, corner"],
+    trainer:"Dr. Dish Basketball", videoId:"cuud1564_lM", videoTitle:"5-Spot Shooting Challenge — Dr. Dish" },
+
+  { id:"chal-5spot-3pt", name:"5-Spot Test — 3-Point",           tag:"5-Spot Challenge",
+    sets:"25 shots — 5 from each of 5 spots", rest:"N/A",
+    levels:[{ tier:"Bronze", emoji:"🥉", target:"10 of 25" },{ tier:"Silver", emoji:"🥈", target:"14 of 25" },{ tier:"Gold", emoji:"🥇", target:"18 of 25" }],
+    desc:"Now step behind the arc — 5 stationary 3s from each of the 5 spots (corners, wings, top). Threes are harder, so the bar is lower. Log makes out of 25. 🥉 10 · 🥈 14 · 🥇 18 of 25.",
+    cues:["Get your legs into it — power from the ground up","Don't rush because it's deeper — same rhythm","Feet set behind the line before you rise","Track your score and beat it next time"],
+    trainer:"Teach Hoops", videoId:"iI479qqfSFw", videoTitle:"5-Spot Shooting Drill — Teach Hoops" },
+
+  { id:"chal-atw-3pt",   name:"Around the World (3s)",           tag:"3-Point Challenge",
+    sets:"5 spots — make to advance", rest:"N/A",
+    levels:[{ tier:"Bronze", emoji:"🥉", target:"Complete the circuit once" },{ tier:"Silver", emoji:"🥈", target:"Complete it twice in a row" },{ tier:"Gold", emoji:"🥇", target:"Complete it under 3:00" }],
+    desc:"Make a 3 from each of the 5 spots in order — corner, wing, top, wing, corner. Miss and you drop back one spot. Get all the way around to win. 🥉 finish once · 🥈 finish twice · 🥇 finish under 3:00.",
+    cues:["One spot at a time — earn your way around","A miss sends you back a spot — stay locked in","Reset your feet fully at each new spot","Race the clock once you can finish it clean"],
+    trainer:"Shoot-A-Way", videoId:"_ThYnVrVCYE", videoTitle:"2-in-a-Row Around the World — Shoot-A-Way" },
 ];
 
 /* ═══════════════════════════════════════════════════════════════
