@@ -187,7 +187,7 @@ export const FAVORITE_PLAYER_REGISTRY = [
     label: "Euro step & change of direction",
   },
   {
-    keys: ["edwards", "anthony edwards", "ant", "booker", "devin booker", "trae", "trae young"],
+    keys: ["edwards", "anthony edwards", "ant", "booker", "devin booker", "tatum", "jayson tatum"],
     primaryPath: "shooter",
     programs: ["become-shooter", "complete-hooper"],
     categories: ["shooting_lab", "shootingdrills"],
