@@ -115,6 +115,7 @@ export default function TodayView({
   onOpenSchedule,
   focusMissionSection = false,
   onMissionFocusHandled,
+  onOpenCoach,
 }) {
   const homeLbl = { fontFamily:"'DM Mono',monospace", fontSize:12, letterSpacing:"0.13em", color:P, fontWeight:800, marginBottom:10, textTransform:"uppercase" };
   const [homeOpen, setHomeOpen] = useState(loadHomeOpen);
@@ -190,14 +191,21 @@ export default function TodayView({
   return (
     <>
       {/* Coach FKH — compact motivational bar */}
-      <div style={{ margin:"8px 20px 10px", padding:"10px 14px", borderRadius:12, background:`${P}0d`, border:`1px solid ${P}22`,
-        display:"flex", alignItems:"flex-start", gap:10 }}>
+      <button
+        type="button"
+        onClick={onOpenCoach}
+        style={{ margin:"8px 20px 10px", padding:"10px 14px", borderRadius:12, background:`${P}0d`, border:`1px solid ${P}22`,
+          display:"flex", alignItems:"flex-start", gap:10, width:"calc(100% - 40px)", cursor:"pointer", textAlign:"left" }}
+      >
         <span style={{ fontSize:16, flexShrink:0, lineHeight:1.4 }}>🏀</span>
         <div style={{ flex:1, minWidth:0 }}>
           <span style={{ fontSize:10, fontWeight:800, color:P, letterSpacing:"0.12em", textTransform:"uppercase", marginRight:6 }}>Coach FKH</span>
           <span style={{ fontSize:12, color:"var(--fkh-text)", lineHeight:1.5 }}>{coachMsg}</span>
         </div>
-      </div>
+        {onOpenCoach && (
+          <span style={{ fontSize:11, fontWeight:800, color:P, flexShrink:0, alignSelf:"center" }}>Ask →</span>
+        )}
+      </button>
 
       {showTourPrompt && (
         <TourPromptBanner P={P} onStartTour={onStartTour} onOpenGuide={onOpenGuide} onDismiss={onDismissTourPrompt} />

@@ -68,7 +68,7 @@ export const DEVELOPMENT_PATHWAYS = [
     phases: [
       {
         tier: 1,
-        programIds: ["guard-handles", "become-shooter"],
+        programIds: ["guard-handles", "become-shooter", "passing-fundamentals"],
         skillTargets: ["pound", "cross", "catch_shoot", "def_stance"],
         areaWeights: { handles: 0.35, shooting: 0.3, defense: 0.2, footwork: 0.15 },
       },

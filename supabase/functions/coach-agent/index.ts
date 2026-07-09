@@ -1,8 +1,6 @@
-// FKH Coach Agent — grounded development recommendations (Phase 2 pilot).
+// FKH Coach Agent — grounded development recommendations.
 // Deploy: supabase functions deploy coach-agent
-// Secrets: OPENAI_API_KEY (optional — structured mode works without LLM)
-//
-// Keep adaptation logic in sync with src/lib/coachAgent.js
+// Secrets (optional): OPENAI_API_KEY
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -20,26 +18,20 @@ type CoachIntent =
   | "gap_analysis"
   | "search_exercises";
 
+interface Citation { type: string; id: string }
+
 interface CoachRequest {
   intent?: CoachIntent;
   message?: string;
   exerciseId?: string;
   skillId?: string;
-  /** Client sends sanitized athlete context — never raw localStorage blobs */
-  athleteContext?: {
-    settings?: {
-      dateOfBirth?: string;
-      experience?: string;
-      goals?: string[];
-      playStyle?: string;
-      athleteName?: string;
-    };
-    completed?: Record<string, boolean>;
-    enrolledProgramIds?: string[];
-    age?: number;
-  };
-  /** When true and OPENAI_API_KEY set, rewrite message in coach voice */
+  athleteContext?: Record<string, unknown>;
   personalize?: boolean;
+  precomputed?: {
+    message: string;
+    data: unknown;
+    citations?: Citation[];
+  };
 }
 
 interface CoachResponse {
@@ -47,8 +39,8 @@ interface CoachResponse {
   intent: CoachIntent;
   message: string;
   data: unknown;
-  citations: Array<{ type: string; id: string }>;
-  mode: "structured" | "llm";
+  citations: Citation[];
+  mode: "structured" | "llm" | "local";
   error?: string;
 }
 
@@ -96,16 +88,33 @@ Deno.serve(async (req) => {
     const body: CoachRequest = await req.json();
     const intent = body.intent ?? routeIntent(body.message ?? "");
 
-    // Phase 2: client sends pre-built context from coachAgent.js helpers.
-    // Phase 3: edge function loads profile + completion from Supabase tables.
-    const result = await handleStructuredCoach(intent, body);
-
-    if (body.personalize && Deno.env.get("OPENAI_API_KEY")) {
-      result.message = await personalizeWithLlm(result, body.athleteContext?.settings?.athleteName);
-      result.mode = "llm";
+    if (!body.precomputed?.message) {
+      return json({
+        ok: false,
+        intent,
+        message: "Client must send precomputed coach payload. Use handleCoachRequest() in the app.",
+        data: null,
+        citations: [],
+        mode: "structured",
+        error: "missing_precomputed",
+      }, 400);
     }
 
-    return json(result);
+    const citations = body.precomputed.citations ?? [];
+    let message = body.precomputed.message;
+
+    if (body.personalize && Deno.env.get("OPENAI_API_KEY")) {
+      message = await personalizeWithLlm(message, body.precomputed.data, body.athleteContext);
+    }
+
+    return json({
+      ok: true,
+      intent,
+      message,
+      data: body.precomputed.data,
+      citations,
+      mode: body.personalize && Deno.env.get("OPENAI_API_KEY") ? "llm" : "structured",
+    });
   } catch (e) {
     return json({
       ok: false,
@@ -129,50 +138,22 @@ function routeIntent(message: string): CoachIntent {
   return "pathway_adapt";
 }
 
-/** Structured handler — mirrors src/lib/coachAgent.js handleCoachRequest */
-async function handleStructuredCoach(intent: CoachIntent, body: CoachRequest): Promise<CoachResponse> {
-  const ctx = body.athleteContext ?? {};
-
-  // Client should POST with `data` pre-computed via handleCoachRequest for full grounding.
-  // This stub returns the contract; wire client-side coachAgent.js in Phase 2 pilot.
-  if (body.athleteContext && (body as CoachRequest & { precomputed?: unknown }).precomputed) {
-    const pre = (body as CoachRequest & { precomputed: { data: unknown; message: string; citations?: unknown[] } }).precomputed;
-    return {
-      ok: true,
-      intent,
-      message: pre.message,
-      data: pre.data,
-      citations: (pre.citations as CoachResponse["citations"]) ?? [],
-      mode: "structured",
-    };
-  }
-
-  const age = ctx.age ?? 12;
-  const tierLabel = age <= 11 ? "Foundation" : age <= 14 ? "Application" : "Game-Speed";
-
-  return {
-    ok: true,
-    intent,
-    message: `Coach FKH (${tierLabel} phase): send athleteContext with client-side handleCoachRequest() for grounded answers. See docs/COACH_AGENT_API.md.`,
-    data: {
-      note: "Deploy with client precomputed payload or bundle src/lib/coachAgent.js for server-side retrieval.",
-      intent,
-      athleteAge: age,
-    },
-    citations: [],
-    mode: "structured",
-  };
-}
-
-async function personalizeWithLlm(result: CoachResponse, athleteName?: string): Promise<string> {
+async function personalizeWithLlm(
+  message: string,
+  data: unknown,
+  athleteContext?: Record<string, unknown>,
+): Promise<string> {
   const key = Deno.env.get("OPENAI_API_KEY");
-  if (!key) return result.message;
+  if (!key) return message;
+
+  const settings = (athleteContext?.settings || {}) as Record<string, string>;
+  const name = settings.athleteName || "hooper";
 
   const prompt = `You are Coach FKH — encouraging, kid-safe (ages 9-17), basketball development only.
 Rewrite this coaching message in 1-2 sentences. Do NOT invent drills or programs not in the data.
-Athlete: ${athleteName || "hooper"}
-Structured message: ${result.message}
-Data summary: ${JSON.stringify(result.data).slice(0, 1500)}`;
+Athlete: ${name}
+Structured message: ${message}
+Data (for context only): ${JSON.stringify(data).slice(0, 2000)}`;
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -188,7 +169,7 @@ Data summary: ${JSON.stringify(result.data).slice(0, 1500)}`;
     }),
   });
 
-  if (!res.ok) return result.message;
-  const data = await res.json();
-  return data.choices?.[0]?.message?.content?.trim() || result.message;
+  if (!res.ok) return message;
+  const out = await res.json();
+  return out.choices?.[0]?.message?.content?.trim() || message;
 }

@@ -20,6 +20,13 @@ import {
 
 let _indexCache = null;
 
+function enrichProgramIds(ids) {
+  return (ids || []).map((id) => {
+    const p = PROGRAMS.find((x) => x.id === id);
+    return p ? { id: p.id, name: p.name, emoji: p.emoji } : { id };
+  });
+}
+
 export function getExerciseSkillIndex() {
   if (!_indexCache) _indexCache = buildExerciseSkillIndex(ALL_EXERCISES, EXERCISE_META);
   return _indexCache;
@@ -232,10 +239,11 @@ export function handleCoachRequest({
     default: {
       const { developmentPlan } = buildAthleteContext(ctx);
       const pathway = DEVELOPMENT_PATHWAYS.find((p) => p.id === developmentPlan.pathwayId);
+      const programs = enrichProgramIds(developmentPlan.recommendedPrograms);
       return {
         intent: "pathway_adapt",
-        data: { ...developmentPlan, pathwayDescription: pathway?.description, tiers: DEVELOPMENT_TIERS },
-        message: `${developmentPlan.pathwayName} · ${developmentPlan.tierLabel} phase. ${developmentPlan.recommendedPrograms.length ? `Next program: ${developmentPlan.recommendedPrograms[0]}.` : "Stay consistent with your current plan."}`,
+        data: { ...developmentPlan, recommendedPrograms: programs, pathwayDescription: pathway?.description, tiers: DEVELOPMENT_TIERS },
+        message: `${developmentPlan.pathwayName} · ${developmentPlan.tierLabel} phase. ${programs.length ? `Next program: ${programs[0].emoji || ""} ${programs[0].name || programs[0].id}.` : "Stay consistent with your current plan."}`,
       };
     }
   }

@@ -67,6 +67,7 @@ export default function MeView({
   onOpenPlayerHighlight,
   onOpenExercise,
   onOpenShots,
+  onOpenCoach,
   renderBottomNav,
 }) {
   const subTabs = [
@@ -117,21 +118,38 @@ export default function MeView({
       </div>
 
       {progressTab === "overview" && (
-        <ProfileView
-          settings={settings}
-          totalXP={xpData.total}
-          currentLevel={currentLevel}
-          earnedBadges={earnedBadges}
-          totalBadges={totalBadges}
-          tracksComplete={tracksComplete}
-          totalTracks={totalTracks}
-          P={P}
-          onViewBadges={() => setProgressTab("locker")}
-          onViewLeaderboard={onViewLeaderboard}
-          onPushStats={onPushStats}
-          pushBusy={pushBusy}
-          pushError={pushError}
-        />
+        <>
+          <ProfileView
+            settings={settings}
+            totalXP={xpData.total}
+            currentLevel={currentLevel}
+            earnedBadges={earnedBadges}
+            totalBadges={totalBadges}
+            tracksComplete={tracksComplete}
+            totalTracks={totalTracks}
+            P={P}
+            onViewBadges={() => setProgressTab("locker")}
+            onViewLeaderboard={onViewLeaderboard}
+            onPushStats={onPushStats}
+            pushBusy={pushBusy}
+            pushError={pushError}
+          />
+          {onOpenCoach && (
+            <button
+              type="button"
+              onClick={onOpenCoach}
+              style={{
+                display: "block", width: "calc(100% - 36px)", margin: "0 18px 14px", textAlign: "left",
+                padding: "14px 16px", borderRadius: 14, border: `1px solid ${P}44`, background: `${P}12`, cursor: "pointer",
+              }}
+            >
+              <div style={{ fontSize: 14, fontWeight: 800, color: P }}>🧠 Ask Coach FKH</div>
+              <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 4, lineHeight: 1.45 }}>
+                Get a personalized development plan, skill gaps, and program recommendations.
+              </div>
+            </button>
+          )}
+        </>
       )}
 
       {progressTab === "locker" && (

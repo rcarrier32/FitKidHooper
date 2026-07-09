@@ -102,7 +102,7 @@ When adding drills to `trainingCatalog.js`:
 
 ## Program catalog (current)
 
-`jump-higher`, `guard-handles`, `step-back-legends`, `become-shooter`, `first-step-explosion`, `complete-hooper`, `bodyweight-beast`, `own-the-glass`, `lockdown-defender`, `floor-general`
+`jump-higher`, `guard-handles`, `step-back-legends`, `become-shooter`, `first-step-explosion`, `complete-hooper`, `bodyweight-beast`, `own-the-glass`, `lockdown-defender`, `passing-fundamentals`, `floor-general`
 
 ## Additional resources
 

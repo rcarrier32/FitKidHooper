@@ -135,6 +135,53 @@ export const EXERCISE_SKILL_OVERRIDES = {
   "pg-1v1": { skills: ["cross", "layup"], tier: 2 },
   "pg-2v2": { skills: ["catch_shoot", "closeout"], tier: 2 },
   "pg-3v3": { skills: ["kick_out", "containment"], tier: 3 },
+  // game handles — explicit skill ids
+  "gh-in-out": { skills: ["inside_out"] },
+  "gh-stutter": { skills: ["stutter"] },
+  "gh-freeze": { skills: ["freeze"] },
+  "gh-push-cross": { skills: ["push_cross"] },
+  "gh-half-spin": { skills: ["half_spin"] },
+  "gh-shamgod": { skills: ["shamgod"] },
+  "gh-pullback": { skills: ["pullback"] },
+  "gh-snatch": { skills: ["snatch"] },
+  "gh-cross-behind": { skills: ["cross_behind"] },
+  "gh-hang-hesi-cross": { skills: ["hang_hesi_cross"] },
+  "gh-hang-dribble": { skills: ["hang"] },
+  // finishing & footwork
+  "fin-reverse": { skills: ["reverse"] },
+  "fin-rev-mikan": { skills: ["reverse"] },
+  "fs-low-pickup": { skills: ["low_pickup"] },
+  "fw-rip-through": { skills: ["rip_through"] },
+  "flab-step-through": { skills: ["step_through"] },
+  "pm-step-through": { skills: ["step_through"] },
+  // passing
+  "pass-wall-chest": { skills: ["chest"] },
+  "pass-wall-bounce": { skills: ["bounce"] },
+  "pass-kick-out": { skills: ["kick_out", "dump_off"] },
+  "pass-skip": { skills: ["skip"] },
+  "pass-pocket": { skills: ["pocket"] },
+  // shooting lab — off-ball entries & counters
+  "slab-relocation": { skills: ["relocation"] },
+  "slab-drift": { skills: ["drift"] },
+  "slab-dho": { skills: ["dho_entry"] },
+  "slab-transition-shot": { skills: ["transition_shot"] },
+  "slab-zoom": { skills: ["zoom"] },
+  "slab-pullup": { skills: ["pullup_1"] },
+  "slab-pullup-1": { skills: ["pullup_1"] },
+  "slab-pullup-2": { skills: ["pullup_2"] },
+  "slab-side-step": { skills: ["side_step"] },
+  "slab-reject": { skills: ["reject_screen"] },
+  // rebounding
+  "reb-self-toss": { skills: ["reb_tracking", "reb_highpoint"] },
+  "reb-boxout": { skills: ["reb_secure"] },
+  "reb-power": { skills: ["reb_putback", "reb_second"] },
+  "reb-tips": { skills: ["reb_tipcontrol"] },
+  "reb-outlet": { skills: ["reb_outlet", "outlet"] },
+  // defense
+  "def-recover": { skills: ["recover_xout"] },
+  "def-lateral": { skills: ["slide", "def_stance"] },
+  "def-contain": { skills: ["containment"] },
+  "def-contest": { skills: ["contest"] },
 };
 
 /**

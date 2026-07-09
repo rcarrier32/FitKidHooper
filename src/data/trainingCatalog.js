@@ -1171,6 +1171,14 @@ const W_GAME_HANDLES = [
     cues:["Quick, choppy feet — sell the stop","Keep the ball on a string while you stutter","Then EXPLODE — one hard burst","Eyes up to read the defender's feet"],
     trainer:"AvcssBasketball", videoId:"06a9mc2gThU", videoTitle:"Stutter Step Dribbling for Youth — Avcss" },
 
+  { id:"gh-freeze",        name:"Freeze / Dead Leg",          tag:"Rhythm Move", difficulty:"advanced",     ageRange:[11,14], funScore:8,  estimatedDuration:90,
+    sets:"3×8 each side", rest:"25 s",
+    transferTags:["rhythm","deception","counter"],
+    progressionTrack:"Step 3 — Advanced Moves",
+    desc:"Plant the inside foot and freeze the ball on the hip — the dead-leg pause that makes defenders think you're done, then explode the opposite direction.",
+    cues:["Dead leg stays planted — don't hop","Ball freezes on the hip — don't dribble during the pause","Eyes sell the stop — look at the rim or defender's feet","Burst out low on the first step after the freeze"],
+    trainer:"Get Handles Basketball", videoId:"XvQFAjvRtwI", videoTitle:"Freeze Dribble — Get Handles" },
+
   { id:"gh-push-cross",    name:"Push Crossover",             tag:"Attack Move", difficulty:"intermediate", ageRange:[10,14], funScore:8,  estimatedDuration:90,
     sets:"3×10 each side", rest:"20 s",
     transferTags:["crossover","attacking","change-of-direction"],
@@ -1194,6 +1202,14 @@ const W_GAME_HANDLES = [
     desc:"Push the ball out in front with one hand, then snatch it back across your body with the other — a wide, sudden direction change named after God Shammgod. Elite space creation for a confident handler.",
     cues:["Push it out FAR with one hand","Snatch it back hard across with the other","Wide base — get low as you pull it across","Explode the new direction immediately"],
     trainer:"HandleLife", videoId:"BLK9vmk9csk", videoTitle:"How To Do The Shammgod — HandleLife" },
+
+  { id:"gh-hang-dribble",  name:"Hang Dribble",               tag:"Rhythm Move", difficulty:"advanced",     ageRange:[11,14], funScore:8,  estimatedDuration:90,
+    sets:"3×10 each hand", rest:"25 s",
+    transferTags:["rhythm","deception","setup"],
+    progressionTrack:"Step 3 — Advanced Moves",
+    desc:"Pause the ball in the air on a pound dribble — the hang sells that you're about to shoot or change direction. Master the hang before chaining it into hesi-cross combos.",
+    cues:["Freeze the ball at hip height — don't let it drop","Eyes up — sell the pause like a shot threat","Explode out of the hang — slow to fast","Stay low; the hang only works if your body sells it"],
+    trainer:"Get Handles Basketball", videoId:"XvQFAjvRtwI", videoTitle:"Hang Dribble — Get Handles" },
 
   { id:"gh-pullback",      name:"Pullback Dribble",           tag:"Escape",      difficulty:"intermediate", ageRange:[10,14], funScore:7,  estimatedDuration:90,
     sets:"3×10 each hand", rest:"20 s",
@@ -2225,6 +2241,32 @@ const PROGRAMS = [
   },
 
   {
+    id:"passing-fundamentals", name:"Passing Fundamentals", emoji:"🤝", color:"#14b8a6",
+    badgeId:"pgm-passing-fundamentals", duration:3, daysPerWeek:3, ageRange:[9,17],
+    desc:"Snap, accurate passes you can train solo — chest, bounce, pivot, and drive-and-kick before you run the floor as a playmaker.",
+    weeks:[
+      { week:1, goal:"Crisp stationary passes — chest and bounce off the wall.",
+        sessions:[
+          { day:"Session 1", focus:"Chest Pass",          exercises:["pass-wall-chest","pass-one-hand","pass-wall-chest"] },
+          { day:"Session 2", focus:"Bounce Pass",         exercises:["pass-wall-bounce","pass-wall-chest","pass-one-hand"] },
+          { day:"Session 3", focus:"Both Hands",          exercises:["pass-one-hand","pass-wall-bounce","pass-wall-chest"] },
+        ]},
+      { week:2, goal:"Pass off footwork — pivot and dribble into the pass.",
+        sessions:[
+          { day:"Session 1", focus:"Pivot & Pass",        exercises:["pass-pivot","pass-wall-chest","pass-one-hand"] },
+          { day:"Session 2", focus:"Off the Dribble",     exercises:["pass-off-dribble","pass-pivot","pass-wall-bounce"] },
+          { day:"Session 3", focus:"Move & Deliver",      exercises:["pass-off-dribble","pass-pivot","pass-one-hand"] },
+        ]},
+      { week:3, goal:"Create for teammates — kick-out and skip passes.",
+        sessions:[
+          { day:"Session 1", focus:"Drive & Kick",        exercises:["pass-kick-out","pass-off-dribble","pass-wall-chest"] },
+          { day:"Session 2", focus:"Skip Pass",         exercises:["pass-skip","pass-kick-out","pass-one-hand"] },
+          { day:"Session 3", focus:"Floor Reads",       exercises:["pass-kick-out","pass-skip","pass-off-dribble"] },
+        ]},
+    ],
+  },
+
+  {
     id:"floor-general", name:"Floor General", emoji:"🧠", color:"#6366f1",
     badgeId:"pgm-floor-general", duration:4, daysPerWeek:3, ageRange:[9,17],
     desc:"Become the passer your team runs through — all you need is a ball and a wall. Snappy fundamentals, passing off the move, and the game reads that create easy buckets for everyone.",
@@ -2271,6 +2313,7 @@ const PROGRAM_WEEK_TIERS = {
   "bodyweight-beast":     [1, 2, 3],
   "own-the-glass":        [1, 2, 3],
   "lockdown-defender":    [1, 2, 2, 3],
+  "passing-fundamentals": [1, 1, 2],
   "floor-general":        [1, 2, 2, 3],
 };
 const TIER_LABELS = { 1: "Foundation", 2: "Application", 3: "Game-Speed" };

@@ -104,6 +104,8 @@ import {
   chipStyle, actionBtnStyle, hexToHsl, contrastOn,
 } from "./lib/themeColors.js";
 import GuideSheet from "./components/GuideSheet.jsx";
+import CoachFKHSheet from "./components/CoachFKHSheet.jsx";
+import { buildCoachAthleteContext } from "./lib/coachAgentApi.js";
 import OnboardingTour from "./components/OnboardingTour.jsx";
 import { TOUR_STEPS, applyTourStep, markTourComplete, shouldShowTourPrompt, dismissTourPrompt } from "./lib/onboardingTour.js";
 import BoardView from "./components/BoardView.jsx";
@@ -3698,6 +3700,7 @@ export default function FitKidHooperApp() {
   const [programsHubSection, setProgramsHubSection] = useState("plans");
   const [lockerBadgesOpen, setLockerBadgesOpen] = useState(true);
   const [showFindDrills, setShowFindDrills] = useState(false);
+  const [showCoachFKH, setShowCoachFKH] = useState(false);
   const [workoutOpen, setWorkoutOpen] = useState(() => {
     try { return localStorage.getItem("fkh-workout-open") === "1"; } catch { return false; }
   });
@@ -4446,6 +4449,10 @@ export default function FitKidHooperApp() {
     () => buildCoachMessage(completedSafe, xpData, earnedBadges, programProgressSafe),
     [completedSafe, xpData, earnedBadges, programProgressSafe]
   );
+  const coachAthleteContext = useMemo(
+    () => buildCoachAthleteContext({ settings, completed: completedSafe, enrolledPrograms: enrolledProgramsSafe }),
+    [settings, completedSafe, enrolledProgramsSafe],
+  );
   // Detect newly unlocked badges → queue celebration + record dates
   useEffect(()=>{
     const newBadges = earnedBadges.filter(id=>!celebratedBadges.has(id));
@@ -4871,6 +4878,18 @@ export default function FitKidHooperApp() {
           onClose={() => setPlayerHighlight(null)}
         />
       )}
+      {showCoachFKH && (
+        <CoachFKHSheet
+          open={showCoachFKH}
+          onClose={() => setShowCoachFKH(false)}
+          P={P}
+          SF={SF}
+          bd={bd}
+          athleteContext={coachAthleteContext}
+          isSignedIn={auth.isSignedIn}
+          onOpenProgram={(id) => { setSelectedProgram(id); setView("programs"); setShowCoachFKH(false); }}
+        />
+      )}
       {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]} onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
       {renderMissionOverlays()}
       {tourOverlay}
@@ -5044,6 +5063,7 @@ export default function FitKidHooperApp() {
           if (ex) openDetail({ ...ex, meta: EXERCISE_META[exId] || {} }, []);
         }}
         onOpenShots={() => setView("shots")}
+        onOpenCoach={() => setShowCoachFKH(true)}
         renderBottomNav={renderBottomNav}
       />
     );
@@ -5787,6 +5807,7 @@ export default function FitKidHooperApp() {
         onEnableNotifications={enableNotificationsFromPrompt}
         onDismissNotificationPrompt={dismissNotificationPromptBanner}
         onOpenSchedule={() => openSchedule("home", "week")}
+        onOpenCoach={() => setShowCoachFKH(true)}
         focusMissionSection={homeMissionFocus}
         onMissionFocusHandled={() => setHomeMissionFocus(false)}
       />
