@@ -193,6 +193,7 @@ export const CATEGORY_TO_AREA = {
   footwork: "footwork", footwork_lab: "footwork",
   finishing: "finishing", finishing_school: "finishing",
   passing: "passing", rebounding: "rebounding",
+  defense: "defense",
   // athletic/strength/speed/etc. → athleticism (attributes)
   athletic: "athleticism", explosion: "athleticism", strength: "athleticism",
   speed: "athleticism", conditioning: "athleticism", coordination: "athleticism",

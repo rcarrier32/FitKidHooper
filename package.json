@@ -13,7 +13,7 @@
     "verify:smoke": "playwright test",
     "preview": "vite preview",
     "verify:supabase": "node scripts/verify-supabase.mjs",
-    "verify:paths": "node scripts/verify-path-gates.mjs",
+    "verify:exercise-skills": "node scripts/audit-exercise-skills.mjs",
     "migrate:paths": "supabase db query --linked -f supabase/paths.sql --yes"
   },
   "dependencies": {
