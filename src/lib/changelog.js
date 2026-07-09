@@ -1,18 +1,18 @@
 /**
  * Bump RELEASE_ID when shipping user-visible changes — drives the in-app "What's new" sheet.
  */
-export const RELEASE_ID = "2025.06.4";
+export const RELEASE_ID = "2026.07.1";
 
 export const WHATS_NEW = {
   id: RELEASE_ID,
-  headline: "June update — Step Back legends & a tighter Squad feed",
+  headline: "July update — Ask Coach FKH",
   items: [
-    { emoji: "↩️", text: "New Step-Back legend path — Harden, Luka, Dame — plus a 3-level drill chain and Step Back Legends program" },
-    { emoji: "👥", text: "Squad feed is slimmer — reaction counts, one React | Comment bar, and a single panel for emoji + comments" },
-    { emoji: "📖", text: "Guide on every tab — tour, explore the app, and how-to tips in one place" },
-    { emoji: "🏀", text: "Log shots by type — Stationary, Catch & Shoot, Pull-Up, Step Back — profile shows your breakdown" },
-    { emoji: "⭐", text: "Legend paths track signature shot makes — step-backs and pull-ups count toward your rank" },
-    { emoji: "🎯", text: "Weekly shot challenges: Catch & Shoot, Pull-Up, and Step Back weeks" },
+    { emoji: "🧠", text: "Ask Coach FKH — get a real answer about your plan, skill gaps, and what to work on next (Me tab or Today)" },
+    { emoji: "🏀", text: "Build a custom workout — tell Coach how long you've got and what to focus on (shooting, handles, strength, defense)" },
+    { emoji: "📅", text: "Week plans — ask for a different workout every day this week and Coach builds the whole week in one shot" },
+    { emoji: "⭐", text: "Train Like Legends — \"shoot like Steph\" or \"play like LeBron\" and get signature drills plus programs for your level" },
+    { emoji: "🎯", text: "Check your stats — \"18 out of 25 free throws\" and Coach tells you if you hit a real benchmark" },
+    { emoji: "💡", text: "Every drill has Ask Coach FKH — tap from any exercise to learn what it builds and why it matters" },
   ],
 };
 
