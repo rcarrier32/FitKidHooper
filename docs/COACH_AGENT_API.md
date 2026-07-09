@@ -1,21 +1,27 @@
 # Coach FKH Agent API
 
-Grounded basketball development coach. **Data picks drills; LLM only explains.**
+Grounded basketball development coach. **Data picks drills; the LLM only classifies intent — it never generates advice.**
 
 ## Architecture
 
 ```
 Client (PWA)
-  ├─ handleCoachRequest() in src/lib/coachAgent.js  ← retrieval + adaptation
-  ├─ POST /functions/v1/coach-agent                 ← auth + optional LLM voice
+  ├─ handleCoachRequest() in src/lib/coachAgent.js  ← retrieval + adaptation (always runs first, works offline)
+  ├─ POST /functions/v1/coach-agent                 ← auth + optional LLM intent classification
+  ├─ Client re-runs handleCoachRequest() locally with the LLM's corrected intent/skillIds
   └─ Citations: exercise ids + skill ids only (no hallucinated content)
 ```
+
+The edge function's LLM call has exactly one job: given free text the client couldn't route with confidence, return `{intent, skillIds, hasInjury}` from a closed vocabulary (known intents, known skill ids). It never writes the message or picks the drills — those always come from the same deterministic `handleCoachRequest()` the client already ran locally. A malformed/hallucinated/failed classification falls straight back to the local regex router with zero risk of an invented answer reaching a kid.
 
 Knowledge sources:
 - `src/data/trainingCatalog.js` — exercises, programs
 - `src/lib/skillGraph.js` — skills, tiers
 - `src/lib/exerciseSkills.js` — exercise → skill mapping
 - `src/lib/developmentPathways.js` — scalable T1→T3 pathways
+- `src/lib/achievements.js` — Train Like Legends tracks (`legend_plan`) and shot-accuracy benchmarks (`benchmark_check`)
+- `src/lib/pathRegistry.js` — curated player-name → track registry (also used by onboarding's "who do you play like" picker)
+- `src/lib/personalChallenges.js` — weekly challenges surfaced alongside a legend plan, where a clean fit exists
 
 ## Endpoint
 
@@ -63,11 +69,16 @@ Content-Type: application/json
 | `gap_analysis` | Skill gaps vs current pathway phase |
 | `explain_drill` | Why an exercise matters (requires `exerciseId`) |
 | `explain_skill` | Skill definition + catalog exercises |
-| `search_exercises` | Exercises building a skill |
+| `search_exercises` | Exercises building one or more named skills (grouped by skill) |
+| `legend_plan` | "Shoot like Steph" / "become a lockdown defender" — a Train Like Legends track, tier-appropriate signature drills, curated programs, and a related weekly challenge where one exists |
+| `build_workout` | One custom session composed from the catalog to fit a stated duration/focus/equipment constraint |
+| `week_plan` | Several non-repeating sessions across a week, built in a single response (no conversation memory needed) |
+| `benchmark_check` | A reported made/attempted stat ("18/25 free throws") checked against real kid-calibrated thresholds in `achievements.js` |
+| `off_topic` | Not a training question at all (trivia, unrelated topics) — reachable **only** via LLM classification; the local regex router never returns this, since a false positive here is worse than a harmless generic fallback |
 
-**Phase 2 pilot:** Client runs `handleCoachRequest()` locally, sends `precomputed` payload. Edge function validates auth and optionally personalizes tone.
+Both `build_workout` and `week_plan` also honor a stated injury (`hasInjury` from the LLM classifier, or local regex on phrases like "sore ankle") by excluding high-impact exercises and prefacing the response with a safety note.
 
-**Phase 3:** Edge function bundles `coachAgent.js` server-side and loads completion from Supabase.
+**Client-first, LLM-corrects:** the client always runs `handleCoachRequest()` locally first — this is the guaranteed, offline-capable, no-API-key-required baseline. When `personalize: true` and the request is free text the client couldn't route with an explicit intent (no quick-prompt button, no skill chip, no drill link), the edge function may return an LLM classification instead of an answer; the client re-runs `handleCoachRequest()` with that corrected `{intent, skillIds}` to get the final grounded answer. See `mode` in the response: `"local"` (no edge call), `"structured"` (edge call, no classification), `"llm_classified"` (edge call, classification applied).
 
 ## Response
 
@@ -110,50 +121,42 @@ Adaptation inputs:
 
 ## Guardrails
 
-- Basketball development only; no medical advice
-- Citations must reference catalog exercise/skill/program ids
+- Basketball development only; no medical advice — a stated injury gets a lighter, safety-filtered workout and a "check with a parent or coach" note, never a diagnosis
+- Citations must reference catalog exercise/skill/program ids — the LLM classifier can only pick from a closed vocabulary sent in its prompt (known intents, known skill ids); anything outside that list is rejected before use
 - Kid-safe tone; parent can use same API
-- Rate limit: recommend 20 requests/user/day in production
+- **Not yet implemented:** no request rate limiting on the edge function (recommend ~20/user/day before production scale) — real cost/abuse exposure at scale, low priority at current usage
 
 ## Deploy
 
 ```bash
 supabase functions deploy coach-agent
-# Optional: supabase secrets set OPENAI_API_KEY=sk-...
+# Optional: supabase secrets set OPENAI_API_KEY=sk-...   # without it, classification silently no-ops and every request falls back to "structured" mode
 ```
+
+`src/lib/skillGraph.js` and the edge function's `SKILL_MANIFEST` constant (id:name pairs used in the classification prompt) are kept in sync **by hand** — update both when adding/removing skills.
 
 ## Client usage
 
 ```javascript
-import { handleCoachRequest } from "./lib/coachAgent.js";
+import { invokeCoachAgent, buildCoachAthleteContext } from "./lib/coachAgentApi.js";
 
-const local = handleCoachRequest({
-  intent: "recommend_program",
-  athleteContext: {
-    settings: profile,
-    completed,
-    enrolledProgramIds: enrolled.map((p) => p.id),
-  },
-});
+const athleteContext = buildCoachAthleteContext({ settings: profile, completed, enrolledPrograms });
 
-// Optional: personalize tone via edge
-const res = await supabase.functions.invoke("coach-agent", {
-  body: {
-    intent: local.intent,
-    personalize: true,
-    athleteContext: { settings: profile },
-    precomputed: {
-      message: local.message,
-      data: local.data,
-      citations: local.data?.citations,
-    },
-  },
+// Handles local-first, edge classification, and fallback automatically.
+const res = await invokeCoachAgent({
+  intent: null,              // null for free text; an explicit intent for quick-prompt/skill-chip/drill-link UI
+  message: "how can I get better at crossover",
+  athleteContext,
+  personalize: isSignedIn,
 });
+// res.mode: "local" | "structured" | "llm_classified"
 ```
+
+Calling `handleCoachRequest()` from `coachAgent.js` directly (as in the old example) skips the edge/classification layer entirely — fine for tests or server-side use, but the app itself should go through `invokeCoachAgent()`.
 
 ## Verification
 
 ```bash
-npm run verify:exercise-skills   # mapping coverage
-node -e "import { handleCoachRequest } from './src/lib/coachAgent.js'; console.log(handleCoachRequest({ intent: 'gap_analysis', athleteContext: { settings: { playStyle: 'guard', goals: ['defense'] } } }));"
+npm run verify:exercise-skills   # catalog mapping coverage
+npm run verify:coach-agent       # routing/retrieval regression suite — see scripts/verify-coach-agent.mjs
 ```

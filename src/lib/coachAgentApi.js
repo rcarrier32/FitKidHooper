@@ -15,6 +15,7 @@ export function buildCoachAthleteContext({ settings, completed, enrolledPrograms
       goals: settings?.goals,
       playStyle: settings?.playStyle,
       athleteName: settings?.athleteName,
+      favoritePlayLike: settings?.favoritePlayLike,
     },
     completed: completed || {},
     enrolledProgramIds: enrolled,
@@ -24,18 +25,29 @@ export function buildCoachAthleteContext({ settings, completed, enrolledPrograms
 /**
  * Local grounded coach response (always available).
  */
-export function getLocalCoachResponse({ intent, message, exerciseId, skillId, athleteContext }) {
-  return handleCoachRequest({ intent, message, exerciseId, skillId, athleteContext });
+export function getLocalCoachResponse({ intent, message, exerciseId, skillId, skillIds, injuryHint, athleteContext }) {
+  return handleCoachRequest({ intent, message, exerciseId, skillId, skillIds, injuryHint, athleteContext });
+}
+
+function citationsFor(response) {
+  return response.data?.citations
+    || response.data?.skillGaps?.map((g) => ({ type: "skill", id: g.id }))
+    || [];
 }
 
 /**
- * Optional edge call — personalizes tone when signed in. Falls back to local on error.
+ * Optional edge call. For free-text messages the client couldn't route with
+ * an explicit intent, the edge function may return an LLM-derived
+ * classification {intent, skillIds} — the classifier's ONLY job is picking
+ * the right intent/skills, never generating content. When that happens this
+ * re-runs the exact same local deterministic pipeline with the corrected
+ * routing, so the final answer is always grounded, citation-backed catalog
+ * data regardless of whether classification ran. Falls back to the local
+ * regex-routed answer on any error, missing config, or invalid classification.
  */
-export async function invokeCoachAgent({ intent, message, athleteContext, personalize = false }) {
-  const local = getLocalCoachResponse({ intent, message, athleteContext });
-  const citations = local.data?.citations
-    || local.data?.skillGaps?.map((g) => ({ type: "skill", id: g.id }))
-    || [];
+export async function invokeCoachAgent({ intent, message, exerciseId, skillId, athleteContext, personalize = false }) {
+  const local = getLocalCoachResponse({ intent, message, exerciseId, skillId, athleteContext });
+  const citations = citationsFor(local);
 
   if (!personalize || !isSupabaseConfigured()) {
     return { ...local, mode: "local", citations };
@@ -47,8 +59,10 @@ export async function invokeCoachAgent({ intent, message, athleteContext, person
   try {
     const { data, error } = await sb.functions.invoke("coach-agent", {
       body: {
-        intent: local.intent,
+        intent, // raw, possibly undefined — tells the edge fn this was free text worth classifying
         message,
+        exerciseId,
+        skillId,
         athleteContext,
         personalize: true,
         precomputed: {
@@ -59,6 +73,20 @@ export async function invokeCoachAgent({ intent, message, athleteContext, person
       },
     });
     if (error || !data?.ok) return { ...local, mode: "local", citations };
+
+    if (data.mode === "llm_classified" && data.classification) {
+      const reclassified = getLocalCoachResponse({
+        intent: data.classification.intent,
+        message,
+        skillId: skillId || data.classification.skillIds?.[0],
+        skillIds: data.classification.skillIds,
+        injuryHint: data.classification.hasInjury,
+        exerciseId,
+        athleteContext,
+      });
+      return { ...reclassified, mode: "llm_classified", citations: citationsFor(reclassified) };
+    }
+
     return {
       intent: data.intent || local.intent,
       message: data.message || local.message,

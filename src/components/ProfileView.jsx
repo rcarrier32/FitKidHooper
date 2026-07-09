@@ -14,7 +14,7 @@ export default function ProfileView({
   P, onViewBadges, onViewLeaderboard, onPushStats, pushBusy, pushError,
 }) {
   return (
-    <div style={{ padding:"0 20px 100px" }}>
+    <div style={{ padding:"0 20px 16px" }}>
       <div style={{ padding:"20px 0 16px" }}>
         <AthleteCard settings={settings} currentLevel={currentLevel} totalXP={totalXP} variant="full" P={P} />
         {settings.dateOfBirth ? (

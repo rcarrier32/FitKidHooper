@@ -106,6 +106,7 @@ import {
 import GuideSheet from "./components/GuideSheet.jsx";
 import CoachFKHSheet from "./components/CoachFKHSheet.jsx";
 import { buildCoachAthleteContext } from "./lib/coachAgentApi.js";
+import { runGapAnalysis } from "./lib/coachAgent.js";
 import OnboardingTour from "./components/OnboardingTour.jsx";
 import { TOUR_STEPS, applyTourStep, markTourComplete, shouldShowTourPrompt, dismissTourPrompt } from "./lib/onboardingTour.js";
 import BoardView from "./components/BoardView.jsx";
@@ -328,7 +329,7 @@ function isBirthday(dob) {
   return birth.getMonth() === today.getMonth() && birth.getDate() === today.getDate();
 }
 
-function buildCoachMessage(completed, xpData, earnedBadges, programProgress) {
+function buildCoachMessage(completed, xpData, earnedBadges, programProgress, weakAreas = []) {
   completed = asRecord(completed);
   programProgress = asRecord(programProgress);
   const todayKey = new Date().toLocaleDateString("en-CA");
@@ -355,13 +356,17 @@ function buildCoachMessage(completed, xpData, earnedBadges, programProgress) {
     { key:"post_moves", label:"Post Moves" }, { key:"basketball_iq", label:"Basketball IQ" },
     { key:"defense", label:"Defense" },
   ];
-  let gapCat = null;
-  const nowMs = Date.now();
-  for (const { key, label } of bballGapCheck) {
-    const ids = new Set((WORKOUTS[key] || []).map(e => e.id));
-    const lastMs = Object.keys(completed).filter(k => completed[k] && [...ids].some(id => k.includes(id)))
-      .map(k => new Date(k.split("-").slice(0, 3).join("-") + "T12:00:00").getTime()).sort((a, b) => b - a)[0] || 0;
-    if ((nowMs - lastMs) / 86400000 >= 7) { gapCat = label; break; }
+  // Prefer the shared skill-graph gap analysis (same source Coach FKH chat uses);
+  // fall back to the legacy 7-day-untrained-category check if it has no signal yet.
+  let gapCat = weakAreas?.[0]?.label || null;
+  if (!gapCat) {
+    const nowMs = Date.now();
+    for (const { key, label } of bballGapCheck) {
+      const ids = new Set((WORKOUTS[key] || []).map(e => e.id));
+      const lastMs = Object.keys(completed).filter(k => completed[k] && [...ids].some(id => k.includes(id)))
+        .map(k => new Date(k.split("-").slice(0, 3).join("-") + "T12:00:00").getTime()).sort((a, b) => b - a)[0] || 0;
+      if ((nowMs - lastMs) / 86400000 >= 7) { gapCat = label; break; }
+    }
   }
 
   const closeChallenge = CHALLENGES_DEF
@@ -990,7 +995,10 @@ const GOAL_NAMES = {
   shooting:"Shooting", get_stronger:"Get Stronger", conditioning:"Conditioning",
 };
 
-function computeRecommendation(settings, completed, currentTemplate) {
+// Skill-graph area → workout template, for grounding coach nudges in the shared skill graph
+const AREA_TO_TEMPLATE = { handles:"handles", shooting:"shooting", defense:"defense", footwork:"quickFeet" };
+
+function computeRecommendation(settings, completed, currentTemplate, weakAreas = []) {
   completed = asRecord(completed);
   const age   = calcAge(settings.dateOfBirth);
   const goals = settings.goals || [];
@@ -1060,6 +1068,15 @@ function computeRecommendation(settings, completed, currentTemplate) {
     recommendedTemplate = age <= 11 ? "quickFeet" : "handles";
     const dayWord = daysSinceTrained + 1 === 3 ? "3 days" : `${daysSinceTrained + 1} days`;
     reasons.push(`It's been ${dayWord} — a short, high-energy session is the perfect way to get back in rhythm.`);
+  }
+
+  // Priority 3.5 — grounded skill-area gap (shared source with Coach FKH chat)
+  if (!reasons.length && weakAreas?.length) {
+    const gap = weakAreas.find(w => AREA_TO_TEMPLATE[w.area]);
+    if (gap) {
+      recommendedTemplate = AREA_TO_TEMPLATE[gap.area];
+      reasons.push(`Your ${gap.label.toLowerCase()} is behind your other skills — let's close that gap today.`);
+    }
   }
 
   // Priority 4 — streak maintenance
@@ -2795,7 +2812,7 @@ function ExerciseSetTracker({
 
 /* ═══════════════════════ EXERCISE DETAIL SHEET ════════════ */
 function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onToggle, onClose, onNext, completed, favored, onToggleFav, navLabel,
-  programContext, setLog, onSetLogChange, maxRepsMap, onMaxRepsChange, bilateralPrefs, onBilateralPrefChange, settings, today }) {
+  programContext, setLog, onSetLogChange, maxRepsMap, onMaxRepsChange, bilateralPrefs, onBilateralPrefChange, settings, today, onAskCoach }) {
   useWakeLock(true);
 
   const meta      = exercise.meta || {};
@@ -3109,6 +3126,18 @@ function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onTogg
                   </p>
                 </div>
               </div>
+            )}
+
+            {/* Ask Coach FKH — always available, independent of coachNotes/cues coverage */}
+            {onAskCoach && (
+              <button type="button" onClick={()=>onAskCoach(exercise.id)}
+                style={{ display:"flex",alignItems:"center",gap:8,width:"100%",marginBottom:18,
+                  background:`${color}0d`,border:`1px solid ${color}28`,borderRadius:12,
+                  padding:"11px 14px",cursor:"pointer",textAlign:"left" }}>
+                <span style={{ fontSize:15 }}>🧠</span>
+                <span style={{ fontSize:13,fontWeight:700,color,flex:1 }}>Ask Coach FKH about this drill</span>
+                <span style={{ fontSize:13,fontWeight:700,color }}>→</span>
+              </button>
             )}
 
             {/* Common Mistakes */}
@@ -3701,6 +3730,7 @@ export default function FitKidHooperApp() {
   const [lockerBadgesOpen, setLockerBadgesOpen] = useState(true);
   const [showFindDrills, setShowFindDrills] = useState(false);
   const [showCoachFKH, setShowCoachFKH] = useState(false);
+  const [coachInitialQuery, setCoachInitialQuery] = useState(null);
   const [workoutOpen, setWorkoutOpen] = useState(() => {
     try { return localStorage.getItem("fkh-workout-open") === "1"; } catch { return false; }
   });
@@ -4171,12 +4201,18 @@ export default function FitKidHooperApp() {
   const nextExDetail = detailIdx>=0 && detailIdx<detailList.length-1 ? detailList[detailIdx+1] : null;
   const closeDetail  = () => { setActiveExercise(null); setDetailContext(null); };
 
+  const askCoachAboutExercise = useCallback((exerciseId) => {
+    setCoachInitialQuery({ intent: "explain_drill", exerciseId, label: "Tell me about this drill" });
+    setShowCoachFKH(true);
+  }, []);
+
   const detailSheetProps = {
     programContext: detailContext,
     setLog, onSetLogChange: handleSetLogChange,
     maxRepsMap, onMaxRepsChange: handleMaxRepsChange,
     bilateralPrefs, onBilateralPrefChange: handleBilateralPrefChange,
     settings, today,
+    onAskCoach: askCoachAboutExercise,
   };
 
   const todayIdx  = new Date().getDay()===0?6:new Date().getDay()-1;
@@ -4422,9 +4458,15 @@ export default function FitKidHooperApp() {
     }
   }, [enrolledPrograms, programProgress]);
 
+  const coachAthleteContext = useMemo(
+    () => buildCoachAthleteContext({ settings, completed: completedSafe, enrolledPrograms: enrolledProgramsSafe }),
+    [settings, completedSafe, enrolledProgramsSafe],
+  );
+  const coachGapAnalysis = useMemo(() => runGapAnalysis(coachAthleteContext), [coachAthleteContext]);
+
   const coachRec = useMemo(() =>
-    computeRecommendation(settings, completedSafe, coachBasisTemplate ?? defaultTmpl),
-  [settings, completedSafe, coachBasisTemplate, defaultTmpl]);
+    computeRecommendation(settings, completedSafe, coachBasisTemplate ?? defaultTmpl, coachGapAnalysis.weakAreas),
+  [settings, completedSafe, coachBasisTemplate, defaultTmpl, coachGapAnalysis]);
 
   /* XP / Level / Badges ──────────────────────────────────── */
   const xpData = useMemo(() => computeXP(completedSafe, programProgressSafe, missionLogSafe), [completedSafe, programProgressSafe, missionLogSafe]);
@@ -4446,12 +4488,8 @@ export default function FitKidHooperApp() {
   const totalBadges = BADGES_DEF.length;
   const totalTracks = PATHS.length;
   const coachMsg = useMemo(
-    () => buildCoachMessage(completedSafe, xpData, earnedBadges, programProgressSafe),
-    [completedSafe, xpData, earnedBadges, programProgressSafe]
-  );
-  const coachAthleteContext = useMemo(
-    () => buildCoachAthleteContext({ settings, completed: completedSafe, enrolledPrograms: enrolledProgramsSafe }),
-    [settings, completedSafe, enrolledProgramsSafe],
+    () => buildCoachMessage(completedSafe, xpData, earnedBadges, programProgressSafe, coachGapAnalysis.weakAreas),
+    [completedSafe, xpData, earnedBadges, programProgressSafe, coachGapAnalysis]
   );
   // Detect newly unlocked badges → queue celebration + record dates
   useEffect(()=>{
@@ -4881,13 +4919,15 @@ export default function FitKidHooperApp() {
       {showCoachFKH && (
         <CoachFKHSheet
           open={showCoachFKH}
-          onClose={() => setShowCoachFKH(false)}
+          onClose={() => { setShowCoachFKH(false); setCoachInitialQuery(null); }}
           P={P}
           SF={SF}
           bd={bd}
           athleteContext={coachAthleteContext}
           isSignedIn={auth.isSignedIn}
+          initialQuery={coachInitialQuery}
           onOpenProgram={(id) => { setSelectedProgram(id); setView("programs"); setShowCoachFKH(false); }}
+          onOpenExercise={(id) => { const ex = ALL_EXERCISES[id]; if (ex) openDetail(ex); setShowCoachFKH(false); }}
         />
       )}
       {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]} onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
