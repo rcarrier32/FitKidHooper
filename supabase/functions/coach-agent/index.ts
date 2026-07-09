@@ -1,6 +1,9 @@
 // FKH Coach Agent — grounded development recommendations.
 // Deploy: supabase functions deploy coach-agent
-// Secrets (optional): OPENAI_API_KEY
+//
+// OPENAI_API_KEY is optional and intentionally NOT set in production — see
+// docs/COACH_AGENT_API.md § "LLM classification — optional, not enabled".
+// Without it, classification no-ops; all answers come from local routing.
 //
 // The LLM's ONLY job here is classification — deciding which intent (and,
 // for skill-scoped intents, which skills) a free-text message maps to. It

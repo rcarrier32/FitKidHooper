@@ -126,11 +126,39 @@ Adaptation inputs:
 - Kid-safe tone; parent can use same API
 - **Not yet implemented:** no request rate limiting on the edge function (recommend ~20/user/day before production scale) — real cost/abuse exposure at scale, low priority at current usage
 
+## LLM classification — optional, not enabled
+
+**Current production decision: do not set `OPENAI_API_KEY`.** Coach FKH is fully functional without it.
+
+The edge function can call OpenAI (`gpt-4o-mini`) to classify ambiguous free text from signed-in users — returning only `{intent, skillIds, hasInjury}`, never generating advice. Drills, programs, and messages always come from the local `handleCoachRequest()` pipeline regardless.
+
+| | Without `OPENAI_API_KEY` (current) | With `OPENAI_API_KEY` (future, optional) |
+|--|--|--|
+| Coach FKH works? | Yes — all intents, workouts, legends, benchmarks | Yes — same grounded answers |
+| Signed-out users | Local regex routing | Local regex routing (unchanged) |
+| Signed-in quick prompts / drill links | Local routing (explicit intent) | Local routing (unchanged) |
+| Signed-in free-text typing | Local regex routing | Edge may re-classify ambiguous messages |
+| Extra cost | **$0** | **Per-call OpenAI usage** (small per message on `gpt-4o-mini`, but adds up at scale without rate limits) |
+
+When the secret is **not** set, the edge function still deploys and authenticates requests; classification silently no-ops and every response stays in `"structured"` mode (local answer echoed back). Nothing is broken — you simply don't get LLM-assisted routing on messy free text.
+
+**Why we're skipping it for now:** the local router + regression suite (`npm run verify:coach-agent`) covers the common kid phrasings we care about. LLM classification is a polish layer, not a requirement, and it introduces a usage-based bill plus the need for rate limiting before scaling.
+
+**If we enable it later:**
+
+```bash
+# Requires an OpenAI account + billing. Adds per-request cost on signed-in free text only.
+supabase secrets set OPENAI_API_KEY=sk-...
+supabase functions deploy coach-agent
+```
+
+Also implement edge rate limiting (~20 requests/user/day) before turning this on at scale.
+
 ## Deploy
 
 ```bash
 supabase functions deploy coach-agent
-# Optional: supabase secrets set OPENAI_API_KEY=sk-...   # without it, classification silently no-ops and every request falls back to "structured" mode
+# OPENAI_API_KEY is intentionally NOT set — see "LLM classification — optional, not enabled" above
 ```
 
 `src/lib/skillGraph.js` and the edge function's `SKILL_MANIFEST` constant (id:name pairs used in the classification prompt) are kept in sync **by hand** — update both when adding/removing skills.
