@@ -12,6 +12,7 @@ export const ANALYTICS_EVENTS = {
   PROGRAM_SESSION_COMPLETE: "program_session_complete",
   CHALLENGE_COMPLETE: "challenge_complete",
   BADGE_EARN: "badge_earn",
+  EXERCISE_FAVORITE: "exercise_favorite",
   WORKOUT_COMPLETE: "workout_complete",
   SHOT_SESSION: "shot_session",
   VIDEO_PLAY: "video_play",

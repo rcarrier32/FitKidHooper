@@ -211,6 +211,17 @@ where event_name = 'exercise_complete'
 group by 1
 order by completions desc;
 
+create or replace view public.analytics_top_favorited_exercises as
+select
+  properties->>'exercise_id' as exercise_id,
+  count(*) as favorites,
+  count(distinct athlete_id) as unique_athletes
+from public.events
+where event_name = 'exercise_favorite'
+  and properties->>'exercise_id' is not null
+group by 1
+order by favorites desc;
+
 create or replace view public.analytics_top_programs as
 select
   properties->>'program_id' as program_id,
@@ -350,6 +361,7 @@ alter view public.analytics_sessions_per_week      set (security_invoker = on);
 alter view public.analytics_training_days_per_week set (security_invoker = on);
 alter view public.analytics_top_screens            set (security_invoker = on);
 alter view public.analytics_top_exercises          set (security_invoker = on);
+alter view public.analytics_top_favorited_exercises set (security_invoker = on);
 alter view public.analytics_top_programs           set (security_invoker = on);
 alter view public.analytics_mission_completion     set (security_invoker = on);
 alter view public.analytics_challenge_completion   set (security_invoker = on);

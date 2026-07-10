@@ -209,7 +209,7 @@ export default function AdminDashboard() {
       try {
         const [
           summary, dau, wau, mau, retention, sessions, trainingDays,
-          screens, exercises, programs, mission, challenges, badges,
+          screens, exercises, favoritedExercises, programs, mission, challenges, badges,
           feedbackSummary, backlog,
         ] = await Promise.all([
           sb.from("analytics_athlete_summary").select("*").maybeSingle(),
@@ -221,6 +221,7 @@ export default function AdminDashboard() {
           sb.from("analytics_training_days_per_week").select("*").order("week_start", { ascending: false }).limit(8),
           sb.from("analytics_top_screens").select("*").limit(15),
           sb.from("analytics_top_exercises").select("*").limit(15),
+          sb.from("analytics_top_favorited_exercises").select("*").limit(15),
           sb.from("analytics_top_programs").select("*").limit(15),
           sb.from("analytics_mission_completion").select("*").order("day", { ascending: false }).limit(14),
           sb.from("analytics_challenge_completion").select("*").limit(15),
@@ -246,6 +247,7 @@ export default function AdminDashboard() {
           trainingDays: trainingDays.data,
           screens: screens.data,
           exercises: exercises.data,
+          favoritedExercises: favoritedExercises.data,
           programs: programs.data,
           mission: mission.data,
           challenges: challenges.data,
@@ -401,6 +403,11 @@ export default function AdminDashboard() {
           columns={[{ key: "exercise_id", label: "Exercise" }, { key: "completions", label: "Completions" }, { key: "unique_athletes", label: "Athletes" }]}
           rows={data.exercises}
           onRowClick={row => openDrill({ type: "exercise", value: row.exercise_id, label: `Exercise: ${row.exercise_id}` })} />
+
+        <DataTable title="Most favorited exercises" hint="Click a row for recent favorites"
+          columns={[{ key: "exercise_id", label: "Exercise" }, { key: "favorites", label: "Favorites" }, { key: "unique_athletes", label: "Athletes" }]}
+          rows={data.favoritedExercises}
+          onRowClick={row => openDrill({ type: "exercise_favorite", value: row.exercise_id, label: `Favorited: ${row.exercise_id}` })} />
 
         <DataTable title="Top programs" hint="Click a row for session completions"
           columns={[{ key: "program_id", label: "Program" }, { key: "session_completions", label: "Sessions" }, { key: "unique_athletes", label: "Athletes" }]}

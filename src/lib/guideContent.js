@@ -16,13 +16,14 @@ export const GUIDE_SECTIONS = [
     navigateTo: "today",
     tourView: "home",
     items: [
+      { label: "Ask Coach FKH — your personal training AI" },
       { label: "Daily mission — 2 drills + a shot goal" },
       { label: "Warm-up first, then drills" },
       { label: "Your path rail — next rank & moves", to: "paths" },
       { label: "Find a drill — search any exercise" },
     ],
-    howTo: "Your home base: Daily Mission (bonus XP), enrolled programs, Train Like Legends, and Quick Workout. Tap section headers to expand or collapse. Tap any drill for video + coaching cues, then check it off to earn XP.",
-    tourBody: "Your daily mission, enrolled programs, legend progress, and a quick workout — all on one screen. Tap any section header to expand or collapse it.",
+    howTo: "Your home base: Coach FKH up top for a personalized plan or any basketball question, then Daily Mission (bonus XP), enrolled programs, Train Like Legends, and Quick Workout. Tap section headers to expand or collapse. Tap any drill for video + coaching cues, then check it off to earn XP.",
+    tourBody: "Your daily mission, enrolled programs, legend progress, and a quick workout — all on one screen. Tap the Coach FKH card up top any time you want a personalized plan, skill gaps, or drill recommendations.",
   },
   {
     key: "squad",

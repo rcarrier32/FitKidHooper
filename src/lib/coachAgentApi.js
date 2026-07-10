@@ -1,13 +1,22 @@
 import { getSupabaseClient, isSupabaseConfigured } from "./supabaseClient.js";
 import { handleCoachRequest } from "./coachAgent.js";
+import { buildPersonalChallenges } from "./personalChallenges.js";
 
 /**
- * Build athlete context from app state for coach requests.
+ * Build athlete context from app state for coach requests. Streak and
+ * activeChallenges reuse the same buildPersonalChallenges() the Challenges
+ * tab and Today card already compute from, so Coach FKH's answers reflect
+ * live progress instead of just enrolled programs and completed drills.
  */
-export function buildCoachAthleteContext({ settings, completed, enrolledPrograms }) {
+export function buildCoachAthleteContext({ settings, completed, enrolledPrograms, workouts = {} }) {
   const enrolled = enrolledPrograms && typeof enrolledPrograms === "object" && !Array.isArray(enrolledPrograms)
     ? Object.keys(enrolledPrograms).filter((id) => enrolledPrograms[id])
     : (enrolledPrograms || []).map((p) => (typeof p === "string" ? p : p.id)).filter(Boolean);
+  const challenges = buildPersonalChallenges(completed || {}, workouts);
+  const streak = challenges.find((c) => c.def.id === "streak-7")?.cur ?? 0;
+  const activeChallenges = challenges
+    .filter((c) => !c.done && c.cur > 0)
+    .map((c) => ({ id: c.def.id, name: c.def.name, cur: c.cur, target: c.target, pct: c.pct }));
   return {
     settings: {
       dateOfBirth: settings?.dateOfBirth,
@@ -19,6 +28,8 @@ export function buildCoachAthleteContext({ settings, completed, enrolledPrograms
     },
     completed: completed || {},
     enrolledProgramIds: enrolled,
+    streak,
+    activeChallenges,
   };
 }
 

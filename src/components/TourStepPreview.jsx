@@ -9,6 +9,13 @@ export default function TourStepPreview({ stepId, P = "#f97316" }) {
   if (stepId === "today") {
     return (
       <div style={{ padding: "4px 2px 0" }}>
+        <div style={{ ...box, padding: "7px 10px", marginBottom: 8, borderColor: `${P}44`, background: `${P}0d`, display: "flex", alignItems: "center", gap: 7 }}>
+          <span style={{ fontSize: 13 }}>🏀</span>
+          <div>
+            <div style={{ fontSize: 9, fontWeight: 800, color: P, letterSpacing: "0.08em" }}>COACH FKH</div>
+            <div style={{ fontSize: 9, color: "#94a3b8", marginTop: 1 }}>Ask me anything, anytime →</div>
+          </div>
+        </div>
         <div style={{ fontSize: 9, color: "#64748b", fontWeight: 700, marginBottom: 6, letterSpacing: "0.08em" }}>TODAY'S MISSION ▼</div>
         <div style={{ ...box, padding: "8px 10px", marginBottom: 6, borderColor: `${P}44`, background: `${P}12` }}>
           <div style={{ fontSize: 10, fontWeight: 800, color: P }}>Daily Mission · +75 BONUS XP</div>

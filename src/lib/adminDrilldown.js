@@ -207,6 +207,18 @@ export async function loadDrilldown(sb, drill) {
     return eventRows(data, label || `Exercise: ${value}`);
   }
 
+  if (type === "exercise_favorite") {
+    const { data, error } = await sb
+      .from("events")
+      .select("created_at, athlete_id, properties, age_group")
+      .eq("event_name", "exercise_favorite")
+      .eq("properties->>exercise_id", value)
+      .order("created_at", { ascending: false })
+      .limit(100);
+    if (error) throw error;
+    return eventRows(data, label || `Favorited: ${value}`);
+  }
+
   if (type === "program") {
     const { data, error } = await sb
       .from("events")
@@ -366,6 +378,7 @@ function formatEventDetail(row) {
   const p = row.properties || {};
   if (row.event_name === "screen_view") return p.screen || "—";
   if (row.event_name === "exercise_complete") return p.exercise_id || "—";
+  if (row.event_name === "exercise_favorite") return p.exercise_id || "—";
   if (row.event_name === "program_session_complete") {
     return `${p.program_id || "?"} w${p.week ?? "?"} s${p.session_idx ?? "?"}`;
   }

@@ -105,6 +105,7 @@ import {
 } from "./lib/themeColors.js";
 import GuideSheet from "./components/GuideSheet.jsx";
 import CoachFKHSheet from "./components/CoachFKHSheet.jsx";
+import CoachIntroSheet from "./components/CoachIntroSheet.jsx";
 import { buildCoachAthleteContext } from "./lib/coachAgentApi.js";
 import { runGapAnalysis } from "./lib/coachAgent.js";
 import OnboardingTour from "./components/OnboardingTour.jsx";
@@ -3731,6 +3732,8 @@ export default function FitKidHooperApp() {
   const [showFindDrills, setShowFindDrills] = useState(false);
   const [showCoachFKH, setShowCoachFKH] = useState(false);
   const [coachInitialQuery, setCoachInitialQuery] = useState(null);
+  const [showCoachIntro, setShowCoachIntro] = useState(false);
+  const [tourPendingAfterCoach, setTourPendingAfterCoach] = useState(false);
   const [workoutOpen, setWorkoutOpen] = useState(() => {
     try { return localStorage.getItem("fkh-workout-open") === "1"; } catch { return false; }
   });
@@ -3960,8 +3963,13 @@ export default function FitKidHooperApp() {
     setShowOnboarding(false);
   }, [auth.loading, auth.isSignedIn]);
 
+  // Post-onboarding sequence in progress: Meet Coach FKH intro, or the coach
+  // sheet it opened while a tour start is still pending. Other first-run
+  // surfaces (notifications, tour prompt, what's new) must wait their turn.
+  const inPostOnboardingFlow = showCoachIntro || (showCoachFKH && tourPendingAfterCoach);
+
   useEffect(() => {
-    if (!auth.isSignedIn || tourActive || showOnboarding) {
+    if (!auth.isSignedIn || tourActive || showOnboarding || inPostOnboardingFlow) {
       setShowNotificationPrompt(false);
       return undefined;
     }
@@ -3970,12 +3978,12 @@ export default function FitKidHooperApp() {
       if (!cancelled) setShowNotificationPrompt(need);
     });
     return () => { cancelled = true; };
-  }, [auth.isSignedIn, tourActive, showOnboarding]);
+  }, [auth.isSignedIn, tourActive, showOnboarding, inPostOnboardingFlow]);
 
   useEffect(() => {
-    if (tourActive || showOnboarding) return;
+    if (tourActive || showOnboarding || inPostOnboardingFlow) return;
     setShowTourPrompt(shouldShowTourPrompt());
-  }, [tourActive, showOnboarding]);
+  }, [tourActive, showOnboarding, inPostOnboardingFlow]);
 
   useEffect(() => {
     const onShow = () => setShowWhatsNew(true);
@@ -3984,11 +3992,11 @@ export default function FitKidHooperApp() {
   }, []);
 
   useEffect(() => {
-    if (showOnboarding || tourActive || auth.loading) return;
+    if (showOnboarding || inPostOnboardingFlow || tourActive || auth.loading) return;
     if (!shouldShowWhatsNew()) return;
     const t = setTimeout(() => setShowWhatsNew(true), 800);
     return () => clearTimeout(t);
-  }, [showOnboarding, tourActive, auth.loading]);
+  }, [showOnboarding, inPostOnboardingFlow, tourActive, auth.loading]);
 
   const getExerciseCategory = useCallback(exId => (ALL_EXERCISES[exId] || {})._cat, []);
 
@@ -4106,11 +4114,14 @@ export default function FitKidHooperApp() {
   useEffect(()=>{ safePersistKey("fkh-favs", favorites); },[favorites]);
 
   const isFav      = (type, id) => !!(favorites[type]||{})[id];
-  const toggleFav  = (type, id) => setFavorites(prev=>{
-    const sec = { ...(prev[type]||{}) };
-    if (sec[id]) delete sec[id]; else sec[id] = Date.now();
-    return { ...prev, [type]:sec };
-  });
+  const toggleFav  = (type, id) => {
+    if (type === "exercises" && !isFav(type, id)) track(ANALYTICS_EVENTS.EXERCISE_FAVORITE, { exercise_id: id });
+    setFavorites(prev=>{
+      const sec = { ...(prev[type]||{}) };
+      if (sec[id]) delete sec[id]; else sec[id] = Date.now();
+      return { ...prev, [type]:sec };
+    });
+  };
 
   const today = todayKey();
   const P = pri(settings), S = sec(settings), BG = bg(settings), ST = str3(settings), BTN = btn(settings);
@@ -4374,7 +4385,7 @@ export default function FitKidHooperApp() {
           localStorage.setItem("s_onboarded", "1");
           track(ANALYTICS_EVENTS.ONBOARDING_COMPLETE, {});
           setShowOnboarding(false);
-          startTour();
+          setShowCoachIntro(true);
         }
       }}
     />
@@ -4459,7 +4470,7 @@ export default function FitKidHooperApp() {
   }, [enrolledPrograms, programProgress]);
 
   const coachAthleteContext = useMemo(
-    () => buildCoachAthleteContext({ settings, completed: completedSafe, enrolledPrograms: enrolledProgramsSafe }),
+    () => buildCoachAthleteContext({ settings, completed: completedSafe, enrolledPrograms: enrolledProgramsSafe, workouts: WORKOUTS }),
     [settings, completedSafe, enrolledProgramsSafe],
   );
   const coachGapAnalysis = useMemo(() => runGapAnalysis(coachAthleteContext), [coachAthleteContext]);
@@ -4919,7 +4930,11 @@ export default function FitKidHooperApp() {
       {showCoachFKH && (
         <CoachFKHSheet
           open={showCoachFKH}
-          onClose={() => { setShowCoachFKH(false); setCoachInitialQuery(null); }}
+          onClose={() => {
+            setShowCoachFKH(false);
+            setCoachInitialQuery(null);
+            if (tourPendingAfterCoach) { setTourPendingAfterCoach(false); startTour(); }
+          }}
           P={P}
           SF={SF}
           bd={bd}
@@ -5688,10 +5703,23 @@ export default function FitKidHooperApp() {
             localStorage.setItem("s_onboarded", "1");
             track(ANALYTICS_EVENTS.ONBOARDING_COMPLETE, {});
             setShowOnboarding(false);
-            startTour();
+            setShowCoachIntro(true);
           }}
           onAuthSuccess={undefined}
           onForgotPasscode={() => { setAuthInitialMode("forgot"); setShowAuth(true); }}
+        />
+      )}
+      {showCoachIntro && (
+        <CoachIntroSheet
+          P={P}
+          athleteName={settings.athleteName}
+          onPickPrompt={(q) => {
+            setShowCoachIntro(false);
+            setCoachInitialQuery({ intent: q.intent, label: q.label });
+            setShowCoachFKH(true);
+            setTourPendingAfterCoach(true);
+          }}
+          onSkip={() => { setShowCoachIntro(false); startTour(); }}
         />
       )}
       <div style={{ padding:"26px 20px 16px",borderBottom:`1px solid ${P}14` }}>

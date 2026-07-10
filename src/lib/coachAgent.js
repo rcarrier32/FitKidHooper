@@ -188,6 +188,8 @@ export function buildAthleteContext({
   completed = {},
   enrolledProgramIds = [],
   age,
+  streak = 0,
+  activeChallenges = [],
 }) {
   const athleteAge = age ?? (settings.dateOfBirth ? calcAgeFromDob(settings.dateOfBirth) : 12);
   const index = getExerciseSkillIndex();
@@ -200,7 +202,20 @@ export function buildAthleteContext({
     enrolledProgramIds,
     exerciseSkillIndex: index,
   });
-  return { athleteAge, exerciseSkillIndex: index, developmentPlan: plan, settings };
+  return { athleteAge, exerciseSkillIndex: index, developmentPlan: plan, settings, streak, activeChallenges };
+}
+
+// Short, factual add-on for status-aware intents (pathway/gap/recommend) —
+// surfaces whatever's most actionable right now (a near-complete challenge
+// beats a plain streak mention). Reuses buildCoachAthleteContext's precomputed
+// streak/activeChallenges rather than recomputing from raw completed/workouts.
+function statusNote(ctx = {}) {
+  const closest = (ctx.activeChallenges || [])
+    .filter((c) => c.pct >= 60 && c.pct < 100)
+    .sort((a, b) => b.pct - a.pct)[0];
+  if (closest) return ` You're close on ${closest.name} — ${closest.cur}/${closest.target}.`;
+  if ((ctx.streak || 0) >= 3) return ` Keep your ${ctx.streak}-day streak going.`;
+  return "";
 }
 
 function calcAgeFromDob(dob) {
@@ -896,16 +911,17 @@ function resolveCoachIntent(resolvedIntent, { message, exerciseId, skillId, skil
     }
     case "recommend_program": {
       const rec = recommendProgram(ctx);
-      return { intent: resolvedIntent, data: rec, message: rec.message + multiWeekSuffix(message, rec.primaryRecommendation?.id) };
+      return { intent: resolvedIntent, data: rec, message: rec.message + multiWeekSuffix(message, rec.primaryRecommendation?.id) + statusNote(ctx) };
     }
     case "gap_analysis": {
       const gaps = runGapAnalysis(ctx);
+      const base = gaps.skillGaps.length
+        ? `Focus next on: ${gaps.skillGaps.slice(0, 3).map((g) => g.name).join(", ")}.`
+        : "Your skill targets for this phase are on track.";
       return {
         intent: resolvedIntent,
         data: gaps,
-        message: gaps.skillGaps.length
-          ? `Focus next on: ${gaps.skillGaps.slice(0, 3).map((g) => g.name).join(", ")}.`
-          : "Your skill targets for this phase are on track.",
+        message: base + statusNote(ctx),
       };
     }
     case "pathway_adapt":
@@ -917,7 +933,7 @@ function resolveCoachIntent(resolvedIntent, { message, exerciseId, skillId, skil
       return {
         intent: "pathway_adapt",
         data: { ...developmentPlan, recommendedPrograms: programs, pathwayDescription: pathway?.description, tiers: DEVELOPMENT_TIERS },
-        message: base + multiWeekSuffix(message, programs[0]?.id),
+        message: base + multiWeekSuffix(message, programs[0]?.id) + statusNote(ctx),
       };
     }
   }

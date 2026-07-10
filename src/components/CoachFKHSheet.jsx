@@ -1,12 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invokeCoachAgent } from "../lib/coachAgentApi.js";
-
-const QUICK_PROMPTS = [
-  { label: "What should I work on?", intent: "recommend_program" },
-  { label: "My skill gaps", intent: "gap_analysis" },
-  { label: "My development plan", intent: "pathway_adapt" },
-  { label: "Play like my legend", intent: "legend_plan" },
-];
+import { QUICK_PROMPTS } from "../lib/coachQuickPrompts.js";
 
 // Shown when an intent comes back needing more info (result.data is null) —
 // each one is a complete, self-sufficient message so tapping it produces a
