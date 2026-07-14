@@ -11,12 +11,23 @@ create table if not exists public.events (
   properties jsonb not null default '{}',
   app_version text,
   age_group text check (age_group in ('u10', 'u12', 'u14', 'u17', 'unknown')),
+  session_id uuid,
+  -- When the event actually happened client-side, distinct from created_at
+  -- (server insert time). Events queue locally and flush in batches every
+  -- 30s, so several events in one batch share the same created_at — any
+  -- duration/ordering math between them needs client_ts instead.
+  client_ts timestamptz,
   created_at timestamptz not null default now()
 );
+
+-- Existing installs: add the columns if the table predates them.
+alter table public.events add column if not exists session_id uuid;
+alter table public.events add column if not exists client_ts timestamptz;
 
 create index if not exists idx_events_athlete_time on public.events (athlete_id, created_at desc);
 create index if not exists idx_events_name_time on public.events (event_name, created_at desc);
 create index if not exists idx_events_created_at on public.events (created_at desc);
+create index if not exists idx_events_session_time on public.events (session_id, coalesce(client_ts, created_at)) where session_id is not null;
 
 -- Cohort anchor for retention (one row per device)
 create table if not exists public.athlete_analytics (
@@ -186,6 +197,73 @@ select
 from daily_training
 group by 1
 order by 1 desc;
+
+-- ── Session duration (duration_sec has always been logged on
+-- session_end, but was never aggregated anywhere until now) ────
+
+create or replace view public.analytics_avg_session_duration as
+select
+  (created_at at time zone 'utc')::date as day,
+  round(avg((properties->>'duration_sec')::numeric), 1) as avg_duration_sec,
+  count(*) as sessions
+from public.events
+where event_name = 'session_end'
+  and properties->>'duration_sec' is not null
+group by 1
+order by 1 desc;
+
+create or replace view public.analytics_session_duration_summary as
+select
+  round(avg((properties->>'duration_sec')::numeric), 1) as avg_duration_sec,
+  round((percentile_cont(0.5) within group (order by (properties->>'duration_sec')::numeric))::numeric, 1) as median_duration_sec,
+  count(*) as sessions
+from public.events
+where event_name = 'session_end'
+  and properties->>'duration_sec' is not null
+  and created_at >= now() - interval '30 days';
+
+-- ── Per-screen dwell time ────────────────────────────────────────
+-- Reconstructed from session_id + event order, not a separate
+-- "screen exit" event: dwell = time until the NEXT event of any kind
+-- in the same session (capped at 30 min so a backgrounded tab left
+-- open overnight doesn't skew the average). Sessions/screens with no
+-- following event (the last thing a kid did before closing the app)
+-- have no computable dwell time and are excluded, same as any
+-- last-click-in-a-funnel measurement.
+
+create or replace view public.analytics_screen_dwell as
+with ordered as (
+  select
+    session_id,
+    athlete_id,
+    event_name,
+    properties->>'screen' as screen,
+    coalesce(client_ts, created_at) as at,
+    lead(coalesce(client_ts, created_at)) over (partition by session_id order by coalesce(client_ts, created_at)) as next_at
+  from public.events
+  where session_id is not null
+)
+select
+  session_id,
+  athlete_id,
+  screen,
+  at as created_at,
+  least(extract(epoch from (next_at - at)), 1800)::numeric as dwell_sec
+from ordered
+where event_name = 'screen_view'
+  and screen is not null
+  and next_at is not null;
+
+create or replace view public.analytics_screen_dwell_summary as
+select
+  screen,
+  round(avg(dwell_sec), 1) as avg_dwell_sec,
+  round((percentile_cont(0.5) within group (order by dwell_sec))::numeric, 1) as median_dwell_sec,
+  count(*) as visits,
+  count(distinct athlete_id) as unique_athletes
+from public.analytics_screen_dwell
+group by 1
+order by visits desc;
 
 -- ── Feature usage ─────────────────────────────────────────────
 
@@ -359,6 +437,10 @@ alter view public.analytics_mau                    set (security_invoker = on);
 alter view public.analytics_retention              set (security_invoker = on);
 alter view public.analytics_sessions_per_week      set (security_invoker = on);
 alter view public.analytics_training_days_per_week set (security_invoker = on);
+alter view public.analytics_avg_session_duration    set (security_invoker = on);
+alter view public.analytics_session_duration_summary set (security_invoker = on);
+alter view public.analytics_screen_dwell            set (security_invoker = on);
+alter view public.analytics_screen_dwell_summary    set (security_invoker = on);
 alter view public.analytics_top_screens            set (security_invoker = on);
 alter view public.analytics_top_exercises          set (security_invoker = on);
 alter view public.analytics_top_favorited_exercises set (security_invoker = on);

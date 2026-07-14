@@ -14,6 +14,7 @@ const FLUSH_BATCH_SIZE = 40;
 const MAX_QUEUE_SIZE = 500;
 
 let sessionStartedAt = null;
+let sessionId = null;
 let flushTimer = null;
 let flushing = false;
 let context = { ageGroup: "unknown", isStandalone: false };
@@ -82,6 +83,7 @@ function basePayload() {
     athlete_id: activeAthleteId(),
     app_version: getAppVersion(),
     age_group: context.ageGroup || "unknown",
+    session_id: sessionId,
   };
 }
 
@@ -116,12 +118,19 @@ export async function flushEvents() {
   const batch = queue.slice(0, FLUSH_BATCH_SIZE);
   const remaining = queue.slice(batch.length);
 
-  const rows = batch.map(({ event_name, properties, athlete_id, app_version, age_group }) => ({
+  // client_ts (when the event actually happened, client-side) is distinct
+  // from the DB's created_at (when the batch was inserted) — events queue
+  // locally and flush together every 30s, so several events in one batch
+  // would otherwise share the same server insert time and make any
+  // duration/ordering math between them collapse to zero.
+  const rows = batch.map(({ event_name, properties, athlete_id, app_version, age_group, session_id, queued_at }) => ({
     athlete_id,
     event_name,
     properties: properties || {},
     app_version,
     age_group,
+    session_id: session_id || null,
+    client_ts: queued_at ? new Date(queued_at).toISOString() : null,
   }));
 
   const { error } = await sb.from("events").insert(rows);
@@ -215,6 +224,7 @@ function endSession() {
   const durationSec = Math.round((Date.now() - sessionStartedAt) / 1000);
   track(ANALYTICS_EVENTS.SESSION_END, { duration_sec: durationSec });
   sessionStartedAt = null;
+  sessionId = null;
   flushEvents();
 }
 
@@ -228,6 +238,7 @@ export function initAnalytics({ ageGroup = "unknown", isStandalone = false } = {
   if (isFirstEver) localStorage.setItem(FIRST_SESSION_KEY, new Date().toISOString());
 
   sessionStartedAt = Date.now();
+  sessionId = crypto.randomUUID();
   track(ANALYTICS_EVENTS.SESSION_START, {
     is_standalone: isStandalone,
     is_return: !isFirstEver,
@@ -239,6 +250,7 @@ export function initAnalytics({ ageGroup = "unknown", isStandalone = false } = {
       endSession();
     } else if (document.visibilityState === "visible" && !sessionStartedAt) {
       sessionStartedAt = Date.now();
+      sessionId = crypto.randomUUID();
       track(ANALYTICS_EVENTS.SESSION_START, { is_standalone: isStandalone, is_return: true });
       upsertAthleteAnalytics();
     }

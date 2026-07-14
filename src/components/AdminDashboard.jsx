@@ -133,6 +133,15 @@ function DrillPanel({ drill, data, loading, onBack, onClose, onRowClick }) {
   );
 }
 
+function fmtDuration(sec) {
+  if (sec == null) return "—";
+  const s = Math.round(sec);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  const rem = s % 60;
+  return rem ? `${m}m ${rem}s` : `${m}m`;
+}
+
 function btnStyle() {
   return {
     padding: "6px 12px",
@@ -209,6 +218,7 @@ export default function AdminDashboard() {
       try {
         const [
           summary, dau, wau, mau, retention, sessions, trainingDays,
+          sessionDurationSummary, screenDwell,
           screens, exercises, favoritedExercises, programs, mission, challenges, badges,
           feedbackSummary, backlog,
         ] = await Promise.all([
@@ -219,6 +229,8 @@ export default function AdminDashboard() {
           sb.from("analytics_retention").select("*").order("cohort_day", { ascending: false }).limit(12),
           sb.from("analytics_sessions_per_week").select("*").order("week_start", { ascending: false }).limit(8),
           sb.from("analytics_training_days_per_week").select("*").order("week_start", { ascending: false }).limit(8),
+          sb.from("analytics_session_duration_summary").select("*").maybeSingle(),
+          sb.from("analytics_screen_dwell_summary").select("*").limit(15),
           sb.from("analytics_top_screens").select("*").limit(15),
           sb.from("analytics_top_exercises").select("*").limit(15),
           sb.from("analytics_top_favorited_exercises").select("*").limit(15),
@@ -245,6 +257,8 @@ export default function AdminDashboard() {
           retention: retention.data,
           sessions: sessions.data,
           trainingDays: trainingDays.data,
+          sessionDurationSummary: sessionDurationSummary.data,
+          screenDwell: screenDwell.data,
           screens: screens.data,
           exercises: exercises.data,
           favoritedExercises: favoritedExercises.data,
@@ -363,6 +377,10 @@ export default function AdminDashboard() {
           <StatCard label="D30 retention" value={latestRetention?.d30_pct != null ? `${latestRetention.d30_pct}%` : "—"} />
           <StatCard label="Sessions / athlete / wk" value={latestSessions?.avg_sessions_per_athlete} sub={latestSessions?.week_start} />
           <StatCard label="Training days / wk" value={latestTraining?.avg_training_days_per_athlete} sub={latestTraining?.week_start} />
+          <StatCard label="Avg session (30d)" value={fmtDuration(data.sessionDurationSummary?.avg_duration_sec)}
+            sub={`median ${fmtDuration(data.sessionDurationSummary?.median_duration_sec)} · ${data.sessionDurationSummary?.sessions ?? 0} sessions`}
+            active={isActive("session_duration_trend")}
+            onClick={() => openDrill({ type: "session_duration_trend", label: "Avg session length — daily trend" })} />
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 12, marginBottom: 28 }}>
@@ -398,6 +416,21 @@ export default function AdminDashboard() {
           columns={[{ key: "screen", label: "Screen" }, { key: "views", label: "Views" }, { key: "unique_athletes", label: "Athletes" }]}
           rows={data.screens}
           onRowClick={row => openDrill({ type: "screen", value: row.screen, label: `Screen: ${row.screen}` })} />
+
+        <DataTable title="Screen dwell time" hint="Time until the next event in the same session, capped at 30 min. Click a row for recent visits."
+          columns={[
+            { key: "screen", label: "Screen" },
+            { key: "avg_dwell", label: "Avg time" },
+            { key: "median_dwell", label: "Median" },
+            { key: "visits", label: "Visits" },
+            { key: "unique_athletes", label: "Athletes" },
+          ]}
+          rows={(data.screenDwell || []).map(r => ({
+            ...r,
+            avg_dwell: fmtDuration(r.avg_dwell_sec),
+            median_dwell: fmtDuration(r.median_dwell_sec),
+          }))}
+          onRowClick={row => openDrill({ type: "screen_dwell", value: row.screen, label: `Dwell — ${row.screen}` })} />
 
         <DataTable title="Top exercises" hint="Click a row for recent completions"
           columns={[{ key: "exercise_id", label: "Exercise" }, { key: "completions", label: "Completions" }, { key: "unique_athletes", label: "Athletes" }]}

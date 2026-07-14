@@ -23,6 +23,15 @@ function fmtTime(ts) {
   return new Date(ts).toLocaleString();
 }
 
+function fmtDuration(sec) {
+  if (sec == null) return "—";
+  const s = Math.round(sec);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  const rem = s % 60;
+  return rem ? `${m}m ${rem}s` : `${m}m`;
+}
+
 export async function loadDrilldown(sb, drill) {
   if (!sb || !drill?.type) return { rows: [], columns: [], meta: {} };
 
@@ -180,6 +189,49 @@ export async function loadDrilldown(sb, drill) {
         { key: "d30_pct", label: "D30 %" },
       ],
       rows: data || [],
+    };
+  }
+
+  if (type === "session_duration_trend") {
+    const { data, error } = await sb
+      .from("analytics_avg_session_duration")
+      .select("*")
+      .order("day", { ascending: false })
+      .limit(30);
+    if (error) throw error;
+    return {
+      title: label || "Avg session length — last 30 days",
+      columns: [
+        { key: "day", label: "Day" },
+        { key: "avg_duration", label: "Avg length" },
+        { key: "sessions", label: "Sessions" },
+      ],
+      rows: (data || []).map(r => ({ ...r, avg_duration: fmtDuration(r.avg_duration_sec) })),
+    };
+  }
+
+  if (type === "screen_dwell") {
+    const { data, error } = await sb
+      .from("analytics_screen_dwell")
+      .select("created_at, athlete_id, dwell_sec")
+      .eq("screen", value)
+      .order("created_at", { ascending: false })
+      .limit(100);
+    if (error) throw error;
+    return {
+      title: label || `Dwell — ${value}`,
+      columns: [
+        { key: "created_at", label: "When" },
+        { key: "athlete_id", label: "Athlete" },
+        { key: "dwell", label: "Time on screen" },
+      ],
+      rows: (data || []).map(r => ({
+        created_at: fmtTime(r.created_at),
+        athlete_id: shortId(r.athlete_id),
+        _athlete_id: r.athlete_id,
+        dwell: fmtDuration(r.dwell_sec),
+      })),
+      rowDrill: { type: "athlete", idKey: "_athlete_id", labelKey: "athlete_id" },
     };
   }
 
