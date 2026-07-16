@@ -23,7 +23,7 @@ export const GUIDE_SECTIONS = [
       { label: "Find a drill — search any exercise" },
     ],
     howTo: "Your home base: Coach FKH up top for a personalized plan or any basketball question, then Daily Mission (bonus XP), enrolled programs, Train Like Legends, and Quick Workout. Tap section headers to expand or collapse. Tap any drill for video + coaching cues, then check it off to earn XP.",
-    tourBody: "Your daily mission, enrolled programs, legend progress, and a quick workout — all on one screen. Tap the Coach FKH card up top any time you want a personalized plan, skill gaps, or drill recommendations.",
+    tourBody: "Your daily mission, enrolled programs, legend progress, and a quick workout — all on one screen. Tap the Coach FKH card up top any time you want tips on what to work on next, drills for your goals, or how to play like your legend.",
   },
   {
     key: "squad",

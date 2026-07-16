@@ -15,6 +15,7 @@
     "verify:supabase": "node scripts/verify-supabase.mjs",
     "verify:exercise-skills": "node scripts/audit-exercise-skills.mjs",
     "verify:coach-agent": "node scripts/verify-coach-agent.mjs",
+    "verify:daily-mission": "node scripts/verify-daily-mission.mjs",
     "migrate:paths": "supabase db query --linked -f supabase/paths.sql --yes"
   },
   "dependencies": {

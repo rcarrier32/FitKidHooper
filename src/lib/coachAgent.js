@@ -707,6 +707,16 @@ export function runGapAnalysis(ctx) {
   };
 }
 
+// Kid-facing labels for development tiers (internal keys stay Foundation/Application/Game-Speed).
+const KID_TIER_LABEL = {
+  Foundation: "building basics",
+  Application: "game moves",
+  "Game-Speed": "game speed",
+};
+function kidTierLabel(tierLabel) {
+  return KID_TIER_LABEL[tierLabel] || (tierLabel || "").toLowerCase();
+}
+
 export function recommendProgram(ctx) {
   const analysis = runGapAnalysis(ctx);
   const top = analysis.recommendedPrograms[0];
@@ -714,8 +724,8 @@ export function recommendProgram(ctx) {
     ...analysis,
     primaryRecommendation: top,
     message: top
-      ? `Based on your ${analysis.tierLabel} phase, start with ${top.emoji || ""} ${top.name}.`
-      : "You're enrolled in the right programs for your current phase — keep stacking sessions.",
+      ? `For where you are now (${kidTierLabel(analysis.tierLabel)}), start with ${top.emoji || ""} ${top.name}.`
+      : "You're in the right programs for now — keep stacking sessions.",
   };
 }
 
@@ -800,7 +810,7 @@ function resolveCoachIntent(resolvedIntent, { message, exerciseId, skillId, skil
       return {
         intent: resolvedIntent,
         data: null,
-        message: "That's not something I can help with — I'm all about your basketball training. Ask me about drills, your development plan, or a workout and I'll build it.",
+        message: "That's not something I can help with — I'm all about your basketball training. Ask me about drills, what to work on next, or a workout and I'll build it.",
       };
     }
     case "explain_drill": {
@@ -917,7 +927,7 @@ function resolveCoachIntent(resolvedIntent, { message, exerciseId, skillId, skil
       const gaps = runGapAnalysis(ctx);
       const base = gaps.skillGaps.length
         ? `Focus next on: ${gaps.skillGaps.slice(0, 3).map((g) => g.name).join(", ")}.`
-        : "Your skill targets for this phase are on track.";
+        : "You're on track with what matters most right now — keep stacking.";
       return {
         intent: resolvedIntent,
         data: gaps,
@@ -929,7 +939,7 @@ function resolveCoachIntent(resolvedIntent, { message, exerciseId, skillId, skil
       const { developmentPlan } = buildAthleteContext(ctx);
       const pathway = DEVELOPMENT_PATHWAYS.find((p) => p.id === developmentPlan.pathwayId);
       const programs = enrichProgramIds(developmentPlan.recommendedPrograms);
-      const base = `${developmentPlan.pathwayName} · ${developmentPlan.tierLabel} phase. ${programs.length ? `Next program: ${programs[0].emoji || ""} ${programs[0].name || programs[0].id}.` : "Stay consistent with your current plan."}`;
+      const base = `${developmentPlan.pathwayName} — ${kidTierLabel(developmentPlan.tierLabel)}. ${programs.length ? `Next up: ${programs[0].emoji || ""} ${programs[0].name || programs[0].id}.` : "Stay consistent with your current plan."}`;
       return {
         intent: "pathway_adapt",
         data: { ...developmentPlan, recommendedPrograms: programs, pathwayDescription: pathway?.description, tiers: DEVELOPMENT_TIERS },

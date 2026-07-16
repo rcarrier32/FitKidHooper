@@ -65,6 +65,7 @@ import {
   saveDailyWorkoutStore,
   isQuickWorkoutCompleteToday,
 } from "./lib/dailyWorkouts.js";
+import { getOrCreateDailyMission, missionExerciseIds } from "./lib/dailyMission.js";
 import { useWakeLock } from "./lib/useWakeLock.js";
 import {
   getLastPushTime,
@@ -334,10 +335,17 @@ function isBirthday(dob) {
   return birth.getMonth() === today.getMonth() && birth.getDate() === today.getDate();
 }
 
-function buildCoachMessage(completed, xpData, earnedBadges, programProgress, weakAreas = []) {
+function buildCoachMessage(completed, xpData, earnedBadges, programProgress, weakAreas = [], settings = {}) {
   completed = asRecord(completed);
   programProgress = asRecord(programProgress);
   const todayKey = new Date().toLocaleDateString("en-CA");
+  const playLike = (settings.favoritePlayLike || "").trim();
+  const goalHint = (settings.goals || [])[0];
+  const GOAL_LABELS = {
+    handles: "handles", shooting: "shooting", finishing: "finishing",
+    defense: "defense", footwork: "footwork", get_stronger: "strength",
+    conditioning: "conditioning",
+  };
   const streak = (() => {
     let s = 0, d = new Date();
     for (let i = 0; i < 60; i++) {
@@ -386,7 +394,16 @@ function buildCoachMessage(completed, xpData, earnedBadges, programProgress, wea
   else if (shootingDone >= 3 && handlesDone < 2) balanceMsg = "Your shooting is ahead — your weak-hand development needs attention. 🤲";
 
   if (streak >= 3 && doneToday === 0) return `Keep your ${streak}-day streak alive — train today! 🔥`;
-  if (doneToday === 0 && streak === 0) return "Every champion started at zero. Let's get your first rep in. 🏀";
+  // Returning after a break (has history, no streak) — don't treat like day-one.
+  if (doneToday === 0 && streak === 0 && xpData.total > 0) {
+    if (playLike) return `Welcome back — channel that ${playLike} energy today. No pressure, just reps. 🏀`;
+    return "Welcome back — pick up where you left off. No pressure, just reps. 🏀";
+  }
+  if (doneToday === 0 && streak === 0) {
+    if (playLike) return `Let's build those ${playLike} skills — first drill starts now. 🏀`;
+    if (goalHint && GOAL_LABELS[goalHint]) return `Ready to level up your ${GOAL_LABELS[goalHint]}? Let's get your first rep in. 🏀`;
+    return "Every champion started at zero. Let's get your first rep in. 🏀";
+  }
   if (nextBadge && nextBadge.target - nextBadge.cur === 1) return `One more and you unlock the ${nextBadge.name} badge! 🏆`;
   if (nextLv && xpLeft <= 20) return `Only ${xpLeft} XP away from ${nextLv.name}. Finish strong! 🌟`;
   if (closeChallenge) return `Only ${closeChallenge.target - closeChallenge.cur} more to complete ${closeChallenge.name}. 🎯`;
@@ -559,6 +576,20 @@ function computeXP(completed, programProgress={}, missionLog={}) {
   }
 
   return { total:exXP+workoutXP+challengeXP+shotXP+streakXP+badgeXP+missionXP, exXP, workoutXP, challengeXP, shotXP, streakXP, badgeXP, missionXP };
+}
+
+/** XP gained by completing a practice session's drills today (includes bonuses that unlocked). */
+function computeSessionXpEarned(sessionExerciseIds, completed, programProgress, missionLog, todayStr) {
+  const ids = (sessionExerciseIds || []).filter(Boolean);
+  if (!ids.length) return 0;
+  const after = computeXP(completed, programProgress, missionLog);
+  const beforeCompleted = { ...asRecord(completed) };
+  for (const id of ids) {
+    delete beforeCompleted[`${todayStr}-${id}`];
+  }
+  const before = computeXP(beforeCompleted, programProgress, missionLog);
+  const delta = after.total - before.total;
+  return Math.max(delta, ids.length * 5);
 }
 
 /* ═══════════════════════ CALENDAR DATA ══════════════════════ */
@@ -821,13 +852,20 @@ const MAX_DAILY_MISSION_TASKS = 5;
  * Deterministically generates one mission per day based on user state.
  * Priority: active program → underworked skill category → day-of-week rotation.
  * Capped at MAX_DAILY_MISSION_TASKS — no unlimited stacking.
+ *
+ * Anti-repeat uses categories from the prior 3 days only (excludes today) so
+ * freestyle drills done before opening Today don't reshape the mission, and so
+ * completing today's mission never feeds back into its own definition.
  */
 function generateDailyMission(todayStr, settings, completed, enrolledPrograms, programProgress={}) {
   const age = calcAge(settings.dateOfBirth);
   const cutoff = new Date(Date.now()-3*86400000).toLocaleDateString("en-CA");
   const recentCats = new Set(
     Object.keys(completed)
-      .filter(k=>{ const d=k.split("-").slice(0,3).join("-"); return d>=cutoff&&completed[k]; })
+      .filter(k => {
+        const d = k.split("-").slice(0, 3).join("-");
+        return d >= cutoff && d < todayStr && completed[k];
+      })
       .map(k=>ALL_EXERCISES[k.split("-").slice(3).join("-")]?._cat)
       .filter(Boolean)
   );
@@ -2818,7 +2856,7 @@ function ExerciseSetTracker({
 /* ═══════════════════════ EXERCISE DETAIL SHEET ════════════ */
 function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onToggle, onClose, onNext, completed, favored, onToggleFav, navLabel,
   programContext, setLog, onSetLogChange, maxRepsMap, onMaxRepsChange, bilateralPrefs, onBilateralPrefChange, settings, today, onAskCoach,
-  sessionList, isSessionExerciseDone, totalXP, hasPendingCelebration }) {
+  sessionList, isSessionExerciseDone, totalXP, hasPendingCelebration, sessionXpEarned }) {
   useWakeLock(true);
 
   /* Practice session summary — only meaningful for a real multi-exercise
@@ -2830,8 +2868,11 @@ function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onTogg
     const minutes = Math.max(1, Math.round(
       sessionList.reduce((s, e) => s + (e.meta?.estimatedDuration || 180), 0) / 60,
     ));
-    return { total, done, minutes, xp: total * 5, isLast: exercise && sessionList.at(-1)?.id === exercise.id };
-  }, [sessionList, isSessionExerciseDone, programContext, exercise]);
+    const xp = typeof sessionXpEarned === "number" && sessionXpEarned > 0
+      ? sessionXpEarned
+      : total * 5;
+    return { total, done, minutes, xp, isLast: exercise && sessionList.at(-1)?.id === exercise.id };
+  }, [sessionList, isSessionExerciseDone, programContext, exercise, sessionXpEarned]);
 
   const [showComplete, setShowComplete] = useState(false);
   const [completePending, setCompletePending] = useState(false);
@@ -3444,9 +3485,14 @@ function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onTogg
                   🔥 {streak}-Day Streak Continues
                 </div>
               )}
-              <div style={{ padding:"10px 14px", borderRadius:12, background:`${color}14`,
-                border:`1px solid ${color}33`, fontSize:14, fontWeight:700, color }}>
+              <div style={{ padding:"12px 14px", borderRadius:14, background:`${color}14`,
+                border:`1px solid ${color}33`, fontSize:15, fontWeight:800, color }}>
                 +{session.xp} XP Earned
+                {session.xp > session.total * 5 && (
+                  <div style={{ fontSize:11, fontWeight:600, opacity:0.85, marginTop:4 }}>
+                    Includes workout & challenge bonuses
+                  </div>
+                )}
               </div>
               {levelAfter && (
                 <div style={{ fontSize:12, color:"var(--fkh-text-muted)" }}>
@@ -4099,7 +4145,7 @@ export default function FitKidHooperApp() {
   useEffect(() => {
     if (tourActive || showOnboarding || inPostOnboardingFlow) return;
     setShowTourPrompt(shouldShowTourPrompt());
-  }, [tourActive, showOnboarding, inPostOnboardingFlow]);
+  }, [tourActive, showOnboarding, inPostOnboardingFlow, completedSafe]);
 
   useEffect(() => {
     const onShow = () => setShowWhatsNew(true);
@@ -4379,6 +4425,15 @@ export default function FitKidHooperApp() {
     onAskCoach: askCoachAboutExercise,
     sessionList: detailList,
     isSessionExerciseDone: isExerciseDoneForPractice,
+    sessionXpEarned: detailList.length >= 2
+      ? computeSessionXpEarned(
+        detailList.map((e) => e.id),
+        completedSafe,
+        programProgressSafe,
+        missionLogSafe,
+        today,
+      )
+      : null,
     // Badge/mission celebrations are full-screen overlays with a semi-
     // transparent backdrop — showing the practice-complete screen underneath
     // at the same time bleeds both together. Defer to them instead of racing.
@@ -4397,10 +4452,14 @@ export default function FitKidHooperApp() {
 
   const recentExIds = useMemo(()=>{
     const cutoff = new Date(Date.now()-3*86400000).toLocaleDateString("en-CA");
+    // Exclude today's frozen mission drills from workout anti-repeat so completing
+    // the mission doesn't push those exercises out of Quick Workout shuffles.
+    const exclude = missionExerciseIds(missionLogSafe[today]?.mission);
     return Object.keys(completedSafe)
       .filter(k=>{ const d=k.split("-").slice(0,3).join("-"); return d>=cutoff && completedSafe[k]; })
-      .map(k=>k.split("-").slice(3).join("-"));
-  },[completedSafe]);
+      .map(k=>k.split("-").slice(3).join("-"))
+      .filter(id => !exclude.has(id));
+  },[completedSafe, missionLogSafe, today]);
 
   const loadWorkoutForTemplate = useCallback((templateKey, { forceRegenerate = false } = {}) => {
     if (!workoutStoreRef.current) {
@@ -4671,8 +4730,8 @@ export default function FitKidHooperApp() {
   const totalBadges = BADGES_DEF.length;
   const totalTracks = PATHS.length;
   const coachMsg = useMemo(
-    () => buildCoachMessage(completedSafe, xpData, earnedBadges, programProgressSafe, coachGapAnalysis.weakAreas),
-    [completedSafe, xpData, earnedBadges, programProgressSafe, coachGapAnalysis]
+    () => buildCoachMessage(completedSafe, xpData, earnedBadges, programProgressSafe, coachGapAnalysis.weakAreas, settings),
+    [completedSafe, xpData, earnedBadges, programProgressSafe, coachGapAnalysis, settings]
   );
   // Detect newly unlocked badges → queue celebration + record dates
   useEffect(()=>{
@@ -4794,27 +4853,55 @@ export default function FitKidHooperApp() {
       desc:`Certified: ${b.label} ${value}${b.unit}`, kind:"milestone" }]);
   },[]);
 
-  /* Daily Mission ─────────────────────────────────────────────── */
+  /* Daily Mission — generated once per day, frozen in missionLog[today].mission.
+     Progress still uses live completed/programProgress; only the definition sticks. */
   const todayMission = useMemo(() => {
+    const fallback = {
+      date: today,
+      title: "Daily Training",
+      tasks: [{
+        id: "task-fallback",
+        type: "category",
+        label: "Complete 3 drills from Programs",
+        exercises: [],
+        target: 3,
+        required: true,
+      }],
+      bonusXP: 50,
+    };
     try {
-      return generateDailyMission(today, settings, completedSafe, enrolledProgramsSafe, programProgressSafe);
+      const { mission } = getOrCreateDailyMission({
+        missionLog: missionLogSafe,
+        today,
+        generate: () => generateDailyMission(
+          today,
+          settings,
+          completedSafe,
+          enrolledProgramsSafe,
+          programProgressSafe,
+        ),
+      });
+      return mission || fallback;
     } catch (e) {
       console.error("[fkh] daily mission generation failed", e);
-      return {
-        date: today,
-        title: "Daily Training",
-        tasks: [{
-          id: "task-fallback",
-          type: "category",
-          label: "Complete 3 drills from Programs",
-          exercises: [],
-          target: 3,
-          required: true,
-        }],
-        bonusXP: 50,
-      };
+      return fallback;
     }
-  }, [today, settings, completedSafe, enrolledProgramsSafe, programProgressSafe]);
+  // completedSafe / programProgressSafe intentionally omitted: regenerating from
+  // live completion state was flipping the mission mid-day. First generation
+  // still sees them via the generate closure when there is no cache yet.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- freeze mission for the calendar day
+  }, [today, settings, enrolledProgramsSafe, missionLogSafe]);
+
+  // Persist a freshly generated mission into missionLog once (cloud-synced via fkh-missions).
+  useEffect(() => {
+    const cached = missionLogSafe[today]?.mission;
+    if (cached?.date === today && Array.isArray(cached.tasks) && cached.tasks.length) return;
+    if (!todayMission?.tasks?.length || todayMission.date !== today) return;
+    setMissionLog((prev) => {
+      if (prev[today]?.mission?.date === today && prev[today]?.mission?.tasks?.length) return prev;
+      return { ...prev, [today]: { ...prev[today], mission: todayMission } };
+    });
+  }, [today, todayMission, missionLogSafe]);
 
   const missionClaimed = !!missionLogSafe[today]?.claimed;
 
@@ -5107,7 +5194,9 @@ export default function FitKidHooperApp() {
           onClose={() => {
             setShowCoachFKH(false);
             setCoachInitialQuery(null);
-            if (tourPendingAfterCoach) { setTourPendingAfterCoach(false); startTour(); }
+            // Don't auto-start the guided tour — first practice comes first.
+            // Tour prompt appears after the first completed drill.
+            if (tourPendingAfterCoach) setTourPendingAfterCoach(false);
           }}
           P={P}
           SF={SF}
@@ -5878,6 +5967,7 @@ export default function FitKidHooperApp() {
             });
             if (!finalize) return;
             localStorage.setItem("s_onboarded", "1");
+            markWhatsNewSeen(); // baseline release so brand-new athletes skip changelog
             track(ANALYTICS_EVENTS.ONBOARDING_COMPLETE, {});
             setShowOnboarding(false);
             setShowCoachIntro(true);
@@ -5896,7 +5986,7 @@ export default function FitKidHooperApp() {
             setShowCoachFKH(true);
             setTourPendingAfterCoach(true);
           }}
-          onSkip={() => { setShowCoachIntro(false); startTour(); }}
+          onSkip={() => { setShowCoachIntro(false); /* tour waits until after first practice */ }}
         />
       )}
       <div style={{ padding:"26px 20px 16px",borderBottom:`1px solid ${P}14` }}>

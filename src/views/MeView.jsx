@@ -145,7 +145,7 @@ export default function MeView({
             >
               <div style={{ fontSize: 14, fontWeight: 800, color: P }}>🧠 Ask Coach FKH</div>
               <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 4, lineHeight: 1.45 }}>
-                Get a personalized development plan, skill gaps, and program recommendations.
+                Ask what to work on next, get drills for your goals, or learn how to play like your legend.
               </div>
             </button>
           )}

@@ -10,12 +10,22 @@ export function isTourComplete() {
   try { return !!localStorage.getItem(TOUR_STORAGE_KEY); } catch { return false; }
 }
 
-/** Profile setup done (`s_onboarded`) but guided tour not finished or dismissed. */
+/** Profile setup done (`s_onboarded`) but guided tour not finished or dismissed.
+ * Wait until the athlete has completed at least one drill so the tour doesn't
+ * block the first practice. */
 export function shouldShowTourPrompt() {
   try {
     if (localStorage.getItem(TOUR_STORAGE_KEY)) return false;
     if (localStorage.getItem(TOUR_PROMPT_DISMISS_KEY)) return false;
     if (!localStorage.getItem("s_onboarded")) return false;
+    if (!localStorage.getItem("fkh-analytics-first-exercise")) {
+      try {
+        const completed = JSON.parse(localStorage.getItem("s_done") || "{}");
+        if (!Object.keys(completed).some((k) => completed[k])) return false;
+      } catch {
+        return false;
+      }
+    }
     return true;
   } catch {
     return false;

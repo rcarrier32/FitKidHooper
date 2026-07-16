@@ -376,7 +376,10 @@ export default function CoachFKHSheet({
 
             {result.data?.tierLabel && (
               <div style={{ marginTop: 10, fontSize: 11, color: "#64748b" }}>
-                Phase: <span style={{ color: P, fontWeight: 700 }}>{result.data.tierLabel}</span>
+                Level: <span style={{ color: P, fontWeight: 700 }}>{
+                  ({ Foundation: "Building Basics", Application: "Game Moves", "Game-Speed": "Game Speed" })[result.data.tierLabel]
+                  || result.data.tierLabel
+                }</span>
                 {result.data.pathwayName ? ` · ${result.data.pathwayName}` : ""}
               </div>
             )}
