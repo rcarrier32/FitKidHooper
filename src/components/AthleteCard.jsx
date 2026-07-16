@@ -19,6 +19,9 @@ export default function AthleteCard({
   const frameC = frame?.color || null;
   const allTime = settings.favoriteAllTime?.trim() || primaryFavorite(settings);
   const playLike = settings.favoritePlayLike?.trim();
+  // Don't repeat the same name twice — only show "plays like" when it differs
+  // from the 🐐 favorite (e.g. plays like Curry, but 🐐 Kobe).
+  const showPlayLike = playLike && playLike.toLowerCase() !== (allTime || "").toLowerCase();
   const avatarUrl = readStoredAvatar();
 
   const cardStyle = {
@@ -80,7 +83,7 @@ export default function AthleteCard({
         <div style={{ fontSize: isCompact ? 10 : 11, color: "var(--fkh-text-muted)", marginTop: 3, lineHeight: 1.4 }}>
           {posEmoji} {position}
           {allTime ? ` · 🐐 ${allTime}` : ""}
-          {!isCompact && playLike ? ` · plays like ${playLike}` : ""}
+          {!isCompact && showPlayLike ? ` · plays like ${playLike}` : ""}
           {!isCompact && totalXP != null ? ` · ${totalXP.toLocaleString()} XP` : ""}
         </div>
       </div>
