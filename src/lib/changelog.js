@@ -1,6 +1,8 @@
 /**
  * Bump RELEASE_ID when shipping user-visible changes — drives the in-app "What's new" sheet.
  */
+import { athleteHasPriorUsage } from "./athleteExperience.js";
+
 export const RELEASE_ID = "2026.07.1";
 
 export const WHATS_NEW = {
@@ -17,24 +19,12 @@ export const WHATS_NEW = {
 };
 
 const SEEN_KEY = "fkh-last-seen-release";
-const FIRST_EXERCISE_KEY = "fkh-analytics-first-exercise";
 
 export const WHATS_NEW_EVENT = "fkh-show-whats-new";
 
 export function showWhatsNewSheet() {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new CustomEvent(WHATS_NEW_EVENT));
-}
-
-/** True when this device has real prior training history (not a brand-new athlete). */
-export function athleteHasPriorUsage() {
-  try {
-    if (localStorage.getItem(FIRST_EXERCISE_KEY)) return true;
-    const completed = JSON.parse(localStorage.getItem("s_done") || "{}");
-    return Object.keys(completed).some((k) => completed[k]);
-  } catch {
-    return false;
-  }
 }
 
 /**

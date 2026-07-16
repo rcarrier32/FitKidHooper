@@ -1,6 +1,9 @@
 /**
- * Persist today's Daily Mission once — same idea as fkh-daily-workouts.
- * Progress still reads live completed/programProgress; only the definition is frozen.
+ * Daily Mission contract (do not regress):
+ * - Generated once per calendar day (missionLog[today].mission).
+ * - After generation, today's mission definition must NOT change for the rest of that day.
+ * - Program enrollment, completed drills, or profile updates must NOT regenerate today's mission.
+ * - Live completion state still drives task progress; only the mission definition is frozen.
  */
 
 export function isValidCachedMission(mission, today) {
@@ -27,6 +30,7 @@ export function missionExerciseIds(mission) {
 /**
  * Read a cached mission from missionLog[today].mission, or generate + return
  * a patch to merge into missionLog. Does not write — caller persists.
+ * Callers must not add deps that would re-run generate() after the cache exists.
  */
 export function getOrCreateDailyMission({
   missionLog,

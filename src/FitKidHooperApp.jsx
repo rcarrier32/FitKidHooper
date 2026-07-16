@@ -579,7 +579,7 @@ function computeXP(completed, programProgress={}, missionLog={}) {
 }
 
 /** XP gained by completing a practice session's drills today (includes bonuses that unlocked). */
-function computeSessionXpEarned(sessionExerciseIds, completed, programProgress, missionLog, todayStr) {
+function computeSessionXpEarned(sessionExerciseIds, completed, programProgress, missionLog, todayStr, programContext) {
   const ids = (sessionExerciseIds || []).filter(Boolean);
   if (!ids.length) return 0;
   const after = computeXP(completed, programProgress, missionLog);
@@ -587,7 +587,21 @@ function computeSessionXpEarned(sessionExerciseIds, completed, programProgress, 
   for (const id of ids) {
     delete beforeCompleted[`${todayStr}-${id}`];
   }
-  const before = computeXP(beforeCompleted, programProgress, missionLog);
+  let beforeProgramProgress = asRecord(programProgress);
+  if (programContext?.programId) {
+    const { programId, week, sessionIdx } = programContext;
+    const slot = programSessionSlot(week, sessionIdx);
+    const prog = beforeProgramProgress[programId];
+    if (prog) {
+      const slotData = { ...(prog[slot] || {}) };
+      for (const id of ids) delete slotData[id];
+      beforeProgramProgress = {
+        ...beforeProgramProgress,
+        [programId]: { ...prog, [slot]: slotData },
+      };
+    }
+  }
+  const before = computeXP(beforeCompleted, beforeProgramProgress, missionLog);
   const delta = after.total - before.total;
   return Math.max(delta, ids.length * 5);
 }
@@ -4432,6 +4446,7 @@ export default function FitKidHooperApp() {
         programProgressSafe,
         missionLogSafe,
         today,
+        detailContext,
       )
       : null,
     // Badge/mission celebrations are full-screen overlays with a semi-
@@ -4853,8 +4868,8 @@ export default function FitKidHooperApp() {
       desc:`Certified: ${b.label} ${value}${b.unit}`, kind:"milestone" }]);
   },[]);
 
-  /* Daily Mission — generated once per day, frozen in missionLog[today].mission.
-     Progress still uses live completed/programProgress; only the definition sticks. */
+  /* Daily Mission contract — see dailyMission.js. Generated once per calendar day;
+     enrollment, completions, and profile changes must not regenerate today's mission. */
   const todayMission = useMemo(() => {
     const fallback = {
       date: today,

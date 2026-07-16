@@ -1,4 +1,5 @@
 import { getDeviceAthleteId as getAthleteId, readStoredAuthSession } from "./auth.js";
+import { FIRST_EXERCISE_KEY } from "./athleteExperience.js";
 import { getSupabaseClient, isSupabaseConfigured } from "./supabaseClient.js";
 import { ANALYTICS_EVENTS } from "./analyticsTypes.js";
 
@@ -6,7 +7,6 @@ const QUEUE_KEY = "fkh-analytics-queue";
 const TRACKED_CHALLENGES_KEY = "fkh-analytics-challenges";
 const TRACKED_PROGRAM_SESSIONS_KEY = "fkh-analytics-program-sessions";
 const TRACKED_WORKOUT_DAYS_KEY = "fkh-analytics-workout-days";
-const FIRST_EXERCISE_KEY = "fkh-analytics-first-exercise";
 const FIRST_SESSION_KEY = "fkh-analytics-first-session";
 
 const FLUSH_INTERVAL_MS = 30_000;

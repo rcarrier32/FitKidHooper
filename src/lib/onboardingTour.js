@@ -1,3 +1,4 @@
+import { athleteHasPriorUsage } from "./athleteExperience.js";
 import { buildTourSteps } from "./guideContent.js";
 
 export const TOUR_STORAGE_KEY = "fkh-tour-v1-complete";
@@ -18,14 +19,7 @@ export function shouldShowTourPrompt() {
     if (localStorage.getItem(TOUR_STORAGE_KEY)) return false;
     if (localStorage.getItem(TOUR_PROMPT_DISMISS_KEY)) return false;
     if (!localStorage.getItem("s_onboarded")) return false;
-    if (!localStorage.getItem("fkh-analytics-first-exercise")) {
-      try {
-        const completed = JSON.parse(localStorage.getItem("s_done") || "{}");
-        if (!Object.keys(completed).some((k) => completed[k])) return false;
-      } catch {
-        return false;
-      }
-    }
+    if (!athleteHasPriorUsage()) return false;
     return true;
   } catch {
     return false;
