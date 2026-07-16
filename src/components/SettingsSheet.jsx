@@ -161,6 +161,7 @@ function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenW
   const SURF = surf(settings), TXT = textPri(settings);
   const appInstalled = isPWAStandalone();
   const installIOS = isInstallIOS();
+  const donateUrl = import.meta.env.VITE_DONATE_URL || null;
 
   useEffect(() => {
     const handler = () => setInstallPrompt(window._installPrompt || null);
@@ -695,6 +696,18 @@ function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenW
               Open Feedback Center
             </button>
           </div>
+          {donateUrl && (
+            <div style={{ padding:"12px 14px",borderRadius:12,marginBottom:12,...actionBtnStyle(settings) }}>
+              <div style={{ fontSize:13,fontWeight:700,color:P,marginBottom:6 }}>🧡 Support Legends Youth Basketball</div>
+              <p style={{ fontSize:11,color:"var(--fkh-text-muted)",lineHeight:1.5,margin:"0 0 10px" }}>
+                FKH is built and run by Legends YBA, a nonprofit. Donations help fund training, camps, and gym time for kids.
+              </p>
+              <a href={donateUrl} target="_blank" rel="noopener noreferrer"
+                style={{ display:"inline-block",padding:"8px 16px",borderRadius:20,background:P,border:"none",color:"#000",fontSize:12,fontWeight:800,cursor:"pointer",textDecoration:"none" }}>
+                Donate
+              </a>
+            </div>
+          )}
         </div>
         {!embedded && onClose && (
           <button onClick={onClose} style={{ margin:"0 20px",display:"block",width:"calc(100% - 40px)",padding:"14px",borderRadius:14,border:"none",background:pri(settings),fontSize:15,fontWeight:800,color:"#000",cursor:"pointer" }}>

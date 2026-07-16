@@ -38,6 +38,7 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_APP_VERSION: ${{ github.sha }}
           VITE_ADMIN_DASHBOARD_KEY: ${{ secrets.VITE_ADMIN_DASHBOARD_KEY }}
+          VITE_DONATE_URL: ${{ secrets.VITE_DONATE_URL }}
       - run: npx playwright install chromium --with-deps
       - run: npm run verify:smoke
         env:

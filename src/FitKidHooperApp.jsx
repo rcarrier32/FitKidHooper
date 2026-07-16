@@ -3743,6 +3743,10 @@ export default function FitKidHooperApp() {
   const [avatarRevision, setAvatarRevision] = useState(0);
   const avatarUrl = useMemo(() => readStoredAvatar(), [avatarRevision]);
   const bumpAvatar = useCallback(() => setAvatarRevision(v => v + 1), []);
+  const headerFrameColor = useMemo(
+    () => (settings.equipped?.frame ? getAchievementMeta(settings.equipped.frame)?.color : null),
+    [settings.equipped],
+  );
 
   useEffect(() => {
     migrateAvatarOutOfSettings();
@@ -5739,7 +5743,10 @@ export default function FitKidHooperApp() {
           </div>
           <div style={{ position:"relative",width:56,height:56,flexShrink:0 }}>
             <div onClick={()=>{ setView("progress"); setProgressTab("overview"); }}
-              style={{ width:56,height:56,borderRadius:"50%",background:`${P}18`,border:`3px solid ${P}`,overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer" }}>
+              style={{ width:56,height:56,borderRadius:"50%",background:`${P}18`,
+                border:`3px solid ${headerFrameColor || P}`,
+                boxShadow:headerFrameColor ? `0 0 10px ${headerFrameColor}55` : "none",
+                overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer" }}>
               {avatarUrl ? <img src={avatarUrl} alt="" style={{ width:"100%",height:"100%",objectFit:"cover" }}/> : <span style={{ fontSize:24 }}>👤</span>}
             </div>
           </div>
