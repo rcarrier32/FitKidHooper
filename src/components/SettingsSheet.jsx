@@ -1,11 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { readStoredAvatar } from "../lib/avatarStorage.js";
-import { saveAvatarLocally } from "../lib/avatarCloud.js";
-import AvatarCropSheet from "./AvatarCropSheet.jsx";
 import NotificationSettings from "./NotificationSettings.jsx";
-import { getAgeGroup, getAgeGroupLabel, calcAge } from "../lib/periodStats.js";
+import { getAgeGroup, getAgeGroupLabel } from "../lib/periodStats.js";
 import { exportCanonicalSave, importCanonicalSave } from "../lib/canonicalSave.js";
-import { normalizeJerseyNumber, POSITIONS } from "../lib/identity.js";
 import {
   getLastPushTime,
   isLeaderboardConfigured,
@@ -24,14 +20,6 @@ import {
   hsl, pri, sec, bg, btn, surf, textPri, textMuted, str3,
   chipStyle, actionBtnStyle, hexToHsl, contrastOn,
 } from "../lib/themeColors.js";
-import PlayerPicker from "./PlayerPicker.jsx";
-
-function isBirthday(dob) {
-  if (!dob) return false;
-  const birth = new Date(dob + "T00:00:00");
-  const today = new Date();
-  return birth.getMonth() === today.getMonth() && birth.getDate() === today.getDate();
-}
 
 function ColorWheel({ hue, sat, light, onChange, size=168 }) {
   const ref = useRef(null);
@@ -147,15 +135,11 @@ function isInstallIOS() {
 }
 
 /* ═══════════════════════ SETTINGS SHEET ═══════════════════════ */
-function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenWhatsNew, onOpenAuth, onOpenGuide, isSignedIn, signedInUsername, onCloudSync, cloudSyncStatus, cloudSyncDetail, onLogout, embedded = false, avatarUrl, onAvatarChange }) {
+function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenWhatsNew, onOpenAuth, onOpenGuide, isSignedIn, signedInUsername, onCloudSync, cloudSyncStatus, cloudSyncDetail, onLogout, embedded = false }) {
   const [tab, setTab] = useState("accent");
   const [showAdvancedColors, setShowAdvancedColors] = useState(false);
   const [guardrailNote, setGuardrailNote] = useState(null);
-  const [avatarSaveNote, setAvatarSaveNote] = useState(null);
-  const [avatarSaving, setAvatarSaving] = useState(false);
-  const [cropSource, setCropSource] = useState(null);
   const [installPrompt, setInstallPrompt] = useState(() => window._installPrompt || null);
-  const fileRef = useRef(null);
   const importRef = useRef(null);
   const P = pri(settings), S = sec(settings), B = bg(settings), BTN = btn(settings), A = str3(settings);
   const SURF = surf(settings), TXT = textPri(settings);
@@ -268,190 +252,11 @@ function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenW
           borderBottom:"1px solid rgba(255,255,255,0.07)",
           position: embedded ? "static" : "sticky", top:0, background:SURF, zIndex:10,
         }}>
-          <span style={{ fontSize:16,fontWeight:700,color:"var(--fkh-text)" }}>Customize Your App</span>
+          <span style={{ fontSize:16,fontWeight:700,color:"var(--fkh-text)" }}>Settings</span>
           {!embedded && onClose && (
             <button onClick={onClose} aria-label="Close Settings"
               style={{ background:"none",border:"none",color:"#64748b",fontSize:22,cursor:"pointer",padding:"6px 10px",borderRadius:8,lineHeight:1 }}>✕</button>
           )}
-        </div>
-
-        {/* Profile */}
-        <div style={{ padding:"16px 20px 0" }}>
-          <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:"#334155",marginBottom:12,textTransform:"uppercase" }}>Athlete Profile</div>
-          <div style={{ display:"flex",gap:16,alignItems:"center",marginBottom:16 }}>
-            <div onClick={()=>fileRef.current?.click()} style={{ width:72,height:72,borderRadius:"50%",background:`${P}18`,border:`3px solid ${P}`,overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0 }}>
-              {(avatarUrl || readStoredAvatar()) ? <img src={avatarUrl || readStoredAvatar()} alt="" style={{ width:"100%",height:"100%",objectFit:"cover" }}/> : <span style={{ fontSize:30 }}>👤</span>}
-            </div>
-            <div style={{ flex:1 }}>
-              <input ref={fileRef} type="file" accept="image/*" style={{ display:"none" }} onChange={async e => {
-                const f = e.target.files?.[0]; if (!f) return;
-                e.target.value = "";
-                setAvatarSaving(true);
-                setAvatarSaveNote(null);
-                const reader = new FileReader();
-                reader.onload = ev => {
-                  setAvatarSaving(false);
-                  setCropSource(ev.target.result);
-                };
-                reader.onerror = () => {
-                  setAvatarSaving(false);
-                  setAvatarSaveNote("Couldn't read that photo");
-                };
-                reader.readAsDataURL(f);
-              }}/>
-              <button onClick={()=>fileRef.current?.click()} disabled={avatarSaving} style={{ display:"block",padding:"8px 14px",borderRadius:10,border:`1.5px solid ${P}`,background:"transparent",fontSize:12,fontWeight:600,cursor:avatarSaving?"wait":"pointer",color:P,marginBottom:8,opacity:avatarSaving?0.7:1 }}>
-                {avatarSaving ? "Saving photo…" : "📷 Choose Photo"}
-              </button>
-              {avatarSaveNote && (
-                <div style={{ fontSize:11,color:avatarSaveNote.includes("✓")?P:"#f87171",marginBottom:8 }}>{avatarSaveNote}</div>
-              )}
-              <input value={settings.athleteName} onChange={e=>setSettings(p=>({...p,athleteName:e.target.value}))}
-                placeholder="First name"
-                style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.05)",border:`1.5px solid ${P}44`,borderRadius:10,padding:"8px 12px",fontSize:14,fontWeight:700,color:P,outline:"none",marginBottom:8 }}/>
-              <input value={settings.lastName||""} onChange={e=>setSettings(p=>({...p,lastName:e.target.value}))}
-                placeholder="Last name (optional)"
-                style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.05)",border:`1.5px solid ${P}44`,borderRadius:10,padding:"8px 12px",fontSize:14,fontWeight:700,color:P,outline:"none",marginBottom:8 }}/>
-              <div style={{ fontSize:10,color:"#475569",marginBottom:8,marginTop:-2 }}>
-                Friends see your first name + last initial on Challenges leaderboards.
-              </div>
-              <div style={{ display:"flex",gap:8,marginBottom:8 }}>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:11,color:"#475569",marginBottom:4,fontWeight:600 }}>Jersey #</div>
-                  <input type="number" min={0} max={99} value={settings.jerseyNumber ?? ""} placeholder="—"
-                    onChange={e=>setSettings(p=>({...p,jerseyNumber:normalizeJerseyNumber(e.target.value)}))}
-                    style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.05)",border:`1.5px solid ${P}44`,borderRadius:10,padding:"8px 12px",fontSize:14,color:"var(--fkh-text)",outline:"none" }}/>
-                </div>
-                <div style={{ flex:2 }}>
-                  <div style={{ fontSize:11,color:"#475569",marginBottom:4,fontWeight:600 }}>Wants to play like 🎯</div>
-                  <PlayerPicker
-                    value={settings.favoritePlayLike || ""}
-                    onChange={v => setSettings(p => ({ ...p, favoritePlayLike: v }))}
-                    pool="both"
-                    placeholder="e.g. Curry — picks your journey"
-                    accent={P}
-                    maxInlineResults={18}
-                  />
-                </div>
-              </div>
-              <div style={{ marginBottom:14 }}>
-                <div style={{ fontSize:11,color:"#475569",marginBottom:6,fontWeight:600 }}>Favorite player (now)</div>
-                <PlayerPicker
-                  value={settings.favoriteCurrent || ""}
-                  onChange={v => setSettings(p => ({ ...p, favoriteCurrent: v }))}
-                  pool="active"
-                  placeholder="Current NBA star"
-                  accent={P}
-                  maxInlineResults={16}
-                />
-              </div>
-              <div style={{ marginBottom:14 }}>
-                <div style={{ fontSize:11,color:"#475569",marginBottom:6,fontWeight:600 }}>All-time favorite 🐐</div>
-                <PlayerPicker
-                  value={settings.favoriteAllTime || ""}
-                  onChange={v => setSettings(p => ({ ...p, favoriteAllTime: v }))}
-                  pool="legends"
-                  placeholder="Legend since 1990"
-                  accent={P}
-                  maxInlineResults={16}
-                />
-              </div>
-              <div style={{ fontSize:11,color:"#475569",marginBottom:4,fontWeight:600 }}>Training Start Date</div>
-              <input type="date" value={settings.startDate||''} onChange={e=>setSettings(p=>({...p,startDate:e.target.value}))}
-                style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.05)",border:`1.5px solid ${P}44`,borderRadius:10,padding:"8px 12px",fontSize:14,color:"var(--fkh-text)",outline:"none" }}/>
-            </div>
-          </div>
-        </div>
-
-        {/* Training Profile */}
-        <div style={{ padding:"0 20px 16px" }}>
-          <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:"#334155",marginBottom:12,textTransform:"uppercase" }}>Training Profile</div>
-
-          {/* Date of Birth */}
-          {(()=>{
-            const today = new Date();
-            const maxDOB = new Date(today.getFullYear()-8, today.getMonth(), today.getDate()).toLocaleDateString("en-CA");
-            const minDOB = new Date(today.getFullYear()-18,today.getMonth(), today.getDate()).toLocaleDateString("en-CA");
-            const age    = settings.dateOfBirth ? calcAge(settings.dateOfBirth) : null;
-            const bday   = settings.dateOfBirth && isBirthday(settings.dateOfBirth);
-            return (
-              <div style={{ marginBottom:14 }}>
-                <div style={{ fontSize:11,color:"#475569",fontWeight:600,marginBottom:6 }}>Date of Birth</div>
-                <input type="date"
-                  value={settings.dateOfBirth||''}
-                  min={minDOB} max={maxDOB}
-                  onChange={e=>setSettings(p=>({...p,dateOfBirth:e.target.value||null}))}
-                  style={{ width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.05)",
-                    border:`1.5px solid ${P}44`,borderRadius:10,padding:"8px 12px",
-                    fontSize:14,color:"var(--fkh-text)",outline:"none",colorScheme:"dark" }}/>
-                <div style={{ marginTop:7,display:"flex",alignItems:"center",gap:8 }}>
-                  {age!==null
-                    ? <span style={{ fontSize:12,color:"var(--fkh-text-muted)" }}>
-                        {bday
-                          ? <span style={{ color:P,fontWeight:700 }}>🎂 Happy Birthday! Age {age}</span>
-                          : `Age ${age} years old — updates automatically on each birthday`}
-                      </span>
-                    : <span style={{ fontSize:11,color:"#475569" }}>
-                        Enter DOB — age adjusts automatically every birthday
-                      </span>
-                  }
-                </div>
-              </div>
-            );
-          })()}
-
-          {/* Experience */}
-          <div style={{ marginBottom:14 }}>
-            <div style={{ fontSize:11,color:"#475569",fontWeight:600,marginBottom:7 }}>Experience Level</div>
-            <div style={{ display:"flex",gap:6 }}>
-              {[["beginner","🌱 Beginner"],["intermediate","⚡ Intermediate"],["advanced","🔥 Advanced"]].map(([val,lbl])=>(
-                <button key={val} onClick={()=>setSettings(p=>({...p,experience:val}))}
-                  style={{ flex:1,padding:"8px 4px",borderRadius:10,fontSize:11,fontWeight:700,cursor:"pointer",
-                    ...chipStyle(settings, settings.experience===val, P) }}>
-                  {lbl}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Goals */}
-          <div style={{ marginBottom:14 }}>
-            <div style={{ fontSize:11,color:"#475569",fontWeight:600,marginBottom:7 }}>
-              My Goals <span style={{ fontSize:10,fontWeight:400 }}>(pick up to 3)</span>
-            </div>
-            <div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>
-              {[["explosion","💥 Jump Higher"],["speed","⚡ Quick Feet"],["conditioning","🔥 Conditioning"],
-                ["handles","🤲 Ball Handling"],["shooting","🎯 Shooting"],["strength","💪 Strength"],
-                ["defense","🛡 Defense"],["coordination","🎶 Coordination"]].map(([val,lbl])=>{
-                const sel=(settings.goals||[]).includes(val);
-                return (
-                  <button key={val} onClick={()=>setSettings(p=>{
-                    const g=p.goals||[];
-                    return {...p,goals:sel?g.filter(x=>x!==val):g.length<3?[...g,val]:g};
-                  })}
-                    style={{ padding:"6px 11px",borderRadius:20,fontSize:11,fontWeight:600,cursor:"pointer",
-                      background:sel?`${P}20`:"rgba(255,255,255,0.04)",
-                      border:`1.5px solid ${sel?P:"rgba(255,255,255,0.1)"}`,
-                      color:sel?P:"#64748b" }}>
-                    {lbl}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Position */}
-          <div>
-            <div style={{ fontSize:11,color:"#475569",fontWeight:600,marginBottom:7 }}>Position</div>
-            <div style={{ display:"flex",gap:6 }}>
-              {POSITIONS.map(pos=>(
-                <button key={pos.id} onClick={()=>setSettings(p=>({...p,playStyle:pos.id}))}
-                  style={{ flex:1,padding:"8px 4px",borderRadius:10,fontSize:11,fontWeight:700,cursor:"pointer",
-                    ...chipStyle(settings, settings.playStyle===pos.id, P) }}>
-                  {pos.emoji} {pos.label}
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
 
         {/* Workout Timers */}
@@ -724,25 +529,6 @@ function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenW
 
   return (
     <>
-      <AvatarCropSheet
-        open={Boolean(cropSource)}
-        imageSrc={cropSource}
-        accent={P}
-        busy={avatarSaving}
-        onCancel={() => { setCropSource(null); setAvatarSaving(false); }}
-        onConfirm={async (cropped) => {
-          setAvatarSaving(true);
-          const result = await saveAvatarLocally(cropped);
-          setAvatarSaving(false);
-          setCropSource(null);
-          if (result.ok) {
-            setAvatarSaveNote("Photo saved ✓");
-            onAvatarChange?.();
-          } else {
-            setAvatarSaveNote("Couldn't save photo — try a smaller picture");
-          }
-        }}
-      />
       {embedded ? (
         <div style={{ padding:"0 0 8px" }}>{inner}</div>
       ) : (

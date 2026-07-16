@@ -1,5 +1,6 @@
 import ProfileView from "../components/ProfileView.jsx";
 import ProgressJourney from "../components/ProgressJourney.jsx";
+import IdentityEditor from "../components/IdentityEditor.jsx";
 import ProgressionView from "../components/ProgressionView.jsx";
 import SettingsSheet from "../components/SettingsSheet.jsx";
 import ViewErrorBoundary from "../components/ViewErrorBoundary.jsx";
@@ -73,13 +74,16 @@ export default function MeView({
   onOpenCoach,
   renderBottomNav,
 }) {
+  // Settings is intentionally NOT a sub-tab — it lives behind the gear in the
+  // header so the tab row is purely "your player," and app config is one
+  // obvious, always-visible tap away (fixes "Settings feels hidden").
   const subTabs = [
     { id:"overview", label:"Overview" },
     { id:"skills",   label:"Skills" },
     { id:"locker",   label:"🏅 Badges" },
     { id:"stats",    label:"Stats" },
-    { id:"settings", label:"⚙ Settings" },
   ];
+  const inSettings = progressTab === "settings";
   const statTile = (label, value) => (
     <div style={{ flex:1,minWidth:120,background:SF,border:`1px solid ${bd}`,borderRadius:14,padding:"12px 14px" }}>
       <div style={{ fontSize:10,color:"#64748b",fontWeight:700,letterSpacing:"0.04em",textTransform:"uppercase" }}>{label}</div>
@@ -103,6 +107,11 @@ export default function MeView({
             style={{ background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:8,color:"var(--fkh-text-muted)",fontSize:12,fontWeight:700,cursor:"pointer",padding:"5px 10px" }}>
             📖 Guide
           </button>
+          <button onClick={() => setProgressTab(inSettings ? "overview" : "settings")}
+            aria-label="Settings" title="Settings"
+            style={{ background:inSettings?`${P}20`:"rgba(255,255,255,0.05)",border:`1px solid ${inSettings?P:"rgba(255,255,255,0.12)"}`,borderRadius:8,color:inSettings?P:"var(--fkh-text-muted)",fontSize:14,fontWeight:700,cursor:"pointer",padding:"5px 10px" }}>
+            ⚙
+          </button>
         </div>
       </div>
 
@@ -122,15 +131,8 @@ export default function MeView({
 
       {progressTab === "overview" && (
         <>
-          <ProgressJourney
-            journey={journey}
-            currentLevel={currentLevel}
-            totalXP={xpData.total}
-            P={P}
-            SF={SF}
-            bd={bd}
-            onStartPractice={onStartPractice}
-          />
+          {/* Identity first — the athlete's player card is immediately visible
+              (Braylen: find your player without hunting through Settings). */}
           <ProfileView
             settings={settings}
             totalXP={xpData.total}
@@ -146,6 +148,22 @@ export default function MeView({
             pushBusy={pushBusy}
             pushError={pushError}
           />
+          {/* Edit your player right here — moved out of Settings. */}
+          <IdentityEditor
+            settings={settings}
+            setSettings={setSettings}
+            avatarUrl={avatarUrl}
+            onAvatarChange={onAvatarChange}
+          />
+          <ProgressJourney
+            journey={journey}
+            currentLevel={currentLevel}
+            totalXP={xpData.total}
+            P={P}
+            SF={SF}
+            bd={bd}
+            onStartPractice={onStartPractice}
+          />
           {onOpenCoach && (
             <button
               type="button"
@@ -158,6 +176,21 @@ export default function MeView({
               <div style={{ fontSize: 14, fontWeight: 800, color: P }}>🧠 Ask Coach FKH</div>
               <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 4, lineHeight: 1.45 }}>
                 Ask what to work on next, get drills for your goals, or learn how to play like your legend.
+              </div>
+            </button>
+          )}
+          {onOpenFeedback && (
+            <button
+              type="button"
+              onClick={onOpenFeedback}
+              style={{
+                display: "block", width: "calc(100% - 36px)", margin: "0 18px 16px", textAlign: "left",
+                padding: "14px 16px", borderRadius: 14, border: `1px solid ${bd}`, background: SF, cursor: "pointer",
+              }}
+            >
+              <div style={{ fontSize: 14, fontWeight: 800, color: "var(--fkh-text)" }}>💬 Feedback</div>
+              <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 4, lineHeight: 1.45 }}>
+                Something not working, an idea, or just love it? Tell us — it goes straight to the team.
               </div>
             </button>
           )}
@@ -230,8 +263,6 @@ export default function MeView({
             cloudSyncStatus={cloudSyncStatus}
             cloudSyncDetail={cloudSyncDetail}
             onLogout={onLogout}
-            avatarUrl={avatarUrl}
-            onAvatarChange={onAvatarChange}
           />
         </ViewErrorBoundary>
       )}

@@ -94,12 +94,12 @@ export default function FeedbackCenter({ settings, onClose }) {
               </div>
 
               <div style={{ marginBottom:16 }}>
-                <div style={{ fontSize:11,fontWeight:700,color:"#64748b",marginBottom:8 }}>Type</div>
+                <div style={{ fontSize:11,fontWeight:700,color:"#64748b",marginBottom:8 }}>What's up?</div>
                 <div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>
                   {[
-                    [FEEDBACK_CATEGORIES.GENERAL, "💬 General"],
-                    [FEEDBACK_CATEGORIES.BUG, "🐛 Bug"],
-                    [FEEDBACK_CATEGORIES.FEATURE, "💡 Feature idea"],
+                    [FEEDBACK_CATEGORIES.BUG, "😟 Something isn't working"],
+                    [FEEDBACK_CATEGORIES.FEATURE, "💡 I have an idea"],
+                    [FEEDBACK_CATEGORIES.GENERAL, "🧡 I love this"],
                   ].map(([val, lbl]) => (
                     <button key={val} type="button" onClick={() => setCategory(val)}
                       style={{ padding:"7px 12px",borderRadius:20,fontSize:11,fontWeight:700,cursor:"pointer",
