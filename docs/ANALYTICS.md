@@ -68,6 +68,62 @@ Events are queued in `localStorage` (`fkh-analytics-queue`) and flushed every 30
 | `level_up` | XP rank increased |
 | `leaderboard_push` | Opt-in stats push to Ranks |
 
+## Sprint funnel (product decisions → behavior)
+
+Five lightweight events to validate whether home UX changes actually move kids through practice. All use the same offline queue as everything else — no new SDK.
+
+| Step | Event | When | Key properties |
+|------|-------|------|----------------|
+| 1 | `home_viewed` | Today tab opened | — |
+| 2 | `cta_clicked` | Primary home CTA tapped | `cta_id`, `location` (always `home` for now) |
+| 3 | `practice_started` | Multi-drill session opened | `source`, `exercise_count`, `program_id?` |
+| 4 | `practice_finished` | All drills in that session marked done | `source`, `exercise_count`, `duration_sec` |
+| 5 | `mission_completed` | All required mission tasks done (auto-claim) | `mission_day`, `bonus_xp`, `title` |
+
+`mission_claim` still fires alongside `mission_completed` for backward compatibility with existing views.
+
+### `cta_id` values (home)
+
+| `cta_id` | Button |
+|----------|--------|
+| `start_practice` | Orange "Start Today's Practice" / "Continue session" hero CTA |
+| `coach_fkh` | Coach FKH bar |
+| `squad_activity` | Squad updates banner |
+| `mission_start_session` | Mission card → Start session |
+| `program_start_session` | My Programs → Start session |
+| `start_workout` | Quick Workout → Start Workout |
+| `try_workout_template` | Challenge nudge → Try X workout |
+| `bonus_workout` | Post-mission Keep Going → Bonus Workout |
+
+### `source` values (practice)
+
+| `source` | Entry point |
+|----------|-------------|
+| `mission` | Hero CTA → mission drill list |
+| `mission_task` | Mission task chip |
+| `program` | Program session (mission or My Programs) |
+| `workout` | Quick Workout template |
+| `schedule` | Today's Training day plan (non-program) |
+
+### Example funnel query (Supabase SQL)
+
+```sql
+-- Unique athletes per funnel step, last 7 days
+select
+  count(distinct athlete_id) filter (where event_name = 'home_viewed') as home,
+  count(distinct athlete_id) filter (where event_name = 'cta_clicked') as cta,
+  count(distinct athlete_id) filter (where event_name = 'practice_started') as practice_start,
+  count(distinct athlete_id) filter (where event_name = 'practice_finished') as practice_finish,
+  count(distinct athlete_id) filter (where event_name = 'mission_completed') as mission
+from public.events
+where created_at > now() - interval '7 days'
+  and event_name in ('home_viewed','cta_clicked','practice_started','practice_finished','mission_completed');
+```
+
+```js
+import { trackCtaClicked, trackHomeViewed, trackPracticeStarted } from "./lib/analytics.js";
+```
+
 ## SQL views (Supabase SQL editor)
 
 | View | Metric |

@@ -18,6 +18,12 @@ export const ANALYTICS_EVENTS = {
   VIDEO_PLAY: "video_play",
   LEVEL_UP: "level_up",
   LEADERBOARD_PUSH: "leaderboard_push",
+  // Sprint funnel — Home → CTA → Practice → Mission (see docs/ANALYTICS.md)
+  HOME_VIEWED: "home_viewed",
+  CTA_CLICKED: "cta_clicked",
+  PRACTICE_STARTED: "practice_started",
+  PRACTICE_FINISHED: "practice_finished",
+  MISSION_COMPLETED: "mission_completed",
 };
 
 export const FEEDBACK_CATEGORIES = {

@@ -77,6 +77,10 @@ import {
   setAnalyticsAgeGroup,
   track,
   trackScreen,
+  trackHomeViewed,
+  trackPracticeStarted,
+  trackPracticeFinished,
+  trackMissionCompleted,
   trackExerciseComplete,
   trackShotSession,
   trackChallengeIfNew,
@@ -4196,13 +4200,50 @@ export default function FitKidHooperApp() {
   const doneCnt = Object.keys(completedSafe).filter(k=>k.startsWith(today)).length;
 
   /* Exercise Detail helpers ────────────────────────────────── */
-  const openDetail = useCallback((ex, list=[], context=null) => {
+  const activePracticeRef = useRef(null);
+
+  const isExerciseDoneForPractice = useCallback((exId, programContext) => {
+    if (programContext && !isWarmupExercise({ id: exId })) {
+      return isProgramExerciseDone(
+        programProgress,
+        programContext.programId,
+        programContext.week,
+        programContext.sessionIdx,
+        exId,
+      );
+    }
+    return !!completed[`${today}-${exId}`];
+  }, [completed, programProgress, today]);
+
+  const openDetail = useCallback((ex, list = [], context = null, practiceSource = null) => {
     const enrich = e => ({ ...e, _cat:e._cat||"speed", meta:e.meta||EXERCISE_META[e.id]||{} });
+    const enrichedList = list.map(enrich);
     setActiveExercise(enrich(ex));
-    setDetailList(list.map(enrich));
+    setDetailList(enrichedList);
     setDetailContext(context);
-  }, []);
-  const openSessionWithWarmup = useCallback((exList, ctx, startEx = null) => {
+
+    if (practiceSource && enrichedList.length > 0) {
+      const exerciseIds = enrichedList.map(e => e.id);
+      const allAlreadyDone = exerciseIds.every(id => isExerciseDoneForPractice(id, context));
+      if (!allAlreadyDone) {
+        activePracticeRef.current = {
+          source: practiceSource,
+          exerciseIds,
+          startedAt: Date.now(),
+          programContext: context,
+        };
+        trackPracticeStarted(practiceSource, {
+          exerciseCount: exerciseIds.length,
+          programId: context?.programId ?? null,
+        });
+      } else {
+        activePracticeRef.current = null;
+      }
+    } else if (!enrichedList.length) {
+      activePracticeRef.current = null;
+    }
+  }, [isExerciseDoneForPractice]);
+  const openSessionWithWarmup = useCallback((exList, ctx, startEx = null, practiceSource = null) => {
     const list = withSessionWarmup(
       (exList || []).map(e => ({ ...e, meta: e.meta || EXERCISE_META[e.id] || {} })),
       WORKOUTS,
@@ -4210,11 +4251,11 @@ export default function FitKidHooperApp() {
       { categories: categoriesFromExercises(exList, ALL_EXERCISES) },
     );
     const first = startEx || list[0];
-    if (first) openDetail(first, list, ctx);
+    if (first) openDetail(first, list, ctx, practiceSource);
   }, [openDetail]);
   const detailIdx  = activeExercise ? detailList.findIndex(e=>e.id===activeExercise.id) : -1;
   const nextExDetail = detailIdx>=0 && detailIdx<detailList.length-1 ? detailList[detailIdx+1] : null;
-  const closeDetail  = () => { setActiveExercise(null); setDetailContext(null); };
+  const closeDetail  = () => { setActiveExercise(null); setDetailContext(null); activePracticeRef.current = null; };
 
   const askCoachAboutExercise = useCallback((exerciseId) => {
     setCoachInitialQuery({ intent: "explain_drill", exerciseId, label: "Tell me about this drill" });
@@ -4442,7 +4483,20 @@ export default function FitKidHooperApp() {
     else if (view === "cat" && activeCat) screen = `cat_${activeCat}`;
     else if (view === "schedule") screen = `schedule_${schedTab}`;
     trackScreen(screen);
+    if (view === "home") trackHomeViewed();
   }, [view, selectedProgram, activeCat, schedTab]);
+
+  useEffect(() => {
+    const ap = activePracticeRef.current;
+    if (!ap) return;
+    const allDone = ap.exerciseIds.every((id) => isExerciseDoneForPractice(id, ap.programContext));
+    if (!allDone) return;
+    trackPracticeFinished(ap.source, {
+      exerciseCount: ap.exerciseIds.length,
+      durationSec: Math.round((Date.now() - ap.startedAt) / 1000),
+    });
+    activePracticeRef.current = null;
+  }, [completed, programProgress, isExerciseDoneForPractice]);
 
   const prevWorkoutCompleteRef = useRef(false);
   useEffect(() => {
@@ -4828,6 +4882,7 @@ export default function FitKidHooperApp() {
         celebratedTasks: [...celebratedMissionTasksRef.current] };
       setMissionLog(prev => ({ ...prev, [today]: entry }));
       track(ANALYTICS_EVENTS.MISSION_CLAIM, { mission_day: today, bonus_xp: todayMission.bonusXP, title: todayMission.title });
+      trackMissionCompleted({ missionDay: today, bonusXp: todayMission.bonusXP, title: todayMission.title });
       setMissionCelebration({ title: todayMission.title, bonusXP: todayMission.bonusXP });
     }
   },[requiredTasksDone, missionClaimed, today, todayMission.bonusXP, todayMission.title]);

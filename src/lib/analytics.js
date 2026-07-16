@@ -165,6 +165,44 @@ export function trackScreen(screen, extra = {}) {
   track(ANALYTICS_EVENTS.SCREEN_VIEW, { screen, ...extra });
 }
 
+/** Today / home tab opened — sprint funnel step 1. */
+export function trackHomeViewed() {
+  track(ANALYTICS_EVENTS.HOME_VIEWED);
+}
+
+/** Primary home CTA tapped — sprint funnel step 2. `ctaId` is a stable slug (e.g. start_practice). */
+export function trackCtaClicked(ctaId, extra = {}) {
+  if (!ctaId) return;
+  track(ANALYTICS_EVENTS.CTA_CLICKED, { cta_id: ctaId, location: "home", ...extra });
+}
+
+/** Multi-drill session opened — sprint funnel step 3. */
+export function trackPracticeStarted(source, { exerciseCount = 0, programId = null } = {}) {
+  track(ANALYTICS_EVENTS.PRACTICE_STARTED, {
+    source: source || "unknown",
+    exercise_count: exerciseCount,
+    program_id: programId,
+  });
+}
+
+/** All drills in a started session marked done — sprint funnel step 4. */
+export function trackPracticeFinished(source, { exerciseCount = 0, durationSec = null } = {}) {
+  track(ANALYTICS_EVENTS.PRACTICE_FINISHED, {
+    source: source || "unknown",
+    exercise_count: exerciseCount,
+    duration_sec: durationSec,
+  });
+}
+
+/** All required mission tasks done for the day — sprint funnel step 5. */
+export function trackMissionCompleted({ missionDay, bonusXp, title } = {}) {
+  track(ANALYTICS_EVENTS.MISSION_COMPLETED, {
+    mission_day: missionDay,
+    bonus_xp: bonusXp,
+    title,
+  });
+}
+
 export function trackExerciseComplete(exerciseId, source = "unknown", extra = {}) {
   if (!exerciseId) return;
 

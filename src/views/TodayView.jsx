@@ -10,6 +10,7 @@ import NotificationPromptBanner from "../components/NotificationPromptBanner.jsx
 import DayPlanPanel from "../components/DayPlanPanel.jsx";
 import { buildTrainingDayPlan } from "../lib/trainingDayPlan.js";
 import { withSessionWarmup, categoriesFromExercises } from "../lib/sessionWarmup.js";
+import { trackCtaClicked } from "../lib/analytics.js";
 
 const hsl = (h, s, l) => `hsl(${h},${s}%,${l}%)`;
 const pri = s => hsl(s.primaryHue ?? 38, s.primarySat ?? 92, s.primaryLight ?? 55);
@@ -197,13 +198,13 @@ export default function TodayView({
     };
   }, [hasTodayPlan, todayPlan, allExercises, exerciseMeta, cats]);
 
-  const startExerciseList = (exercises) => {
+  const startExerciseList = (exercises, practiceSource = "mission") => {
     const list = withSessionWarmup(
       (exercises || []).map(e => ({ ...e, meta: e.meta || exerciseMeta[e.id] || {} })),
       workouts,
       exerciseMeta,
     );
-    if (list[0]) openDetail(list[0], list);
+    if (list[0]) openDetail(list[0], list, null, practiceSource);
   };
 
   const startProgramSession = (task) => {
@@ -216,7 +217,7 @@ export default function TodayView({
     const list = withSessionWarmup(base, workouts, exerciseMeta, {
       categories: categoriesFromExercises(base, allExercises),
     });
-    if (list[0]) openDetail(list[0], list, ctx);
+    if (list[0]) openDetail(list[0], list, ctx, "program");
   };
 
   const openProgramExercise = (task, exId) => {
@@ -232,7 +233,7 @@ export default function TodayView({
     });
     const ex = allExercises[exId];
     if (!ex) return;
-    openDetail({ ...ex, meta: ex.meta || exerciseMeta[exId] || {} }, list, ctx);
+    openDetail({ ...ex, meta: ex.meta || exerciseMeta[exId] || {} }, list, ctx, "program");
   };
 
   // Hoisted so both the header's at-a-glance badge and the bottom progress
@@ -270,7 +271,7 @@ export default function TodayView({
       {/* Coach FKH — compact motivational bar */}
       <button
         type="button"
-        onClick={onOpenCoach}
+        onClick={() => { trackCtaClicked("coach_fkh"); onOpenCoach?.(); }}
         style={{ margin:"8px 20px 10px", padding:"10px 14px", borderRadius:12, background:`${P}0d`, border:`1px solid ${P}22`,
           display:"flex", alignItems:"flex-start", gap:10, width:"calc(100% - 40px)", cursor:"pointer", textAlign:"left",
           position:"relative", overflow:"visible",
@@ -295,7 +296,7 @@ export default function TodayView({
       </button>
 
       {practiceCTA && (
-        <button type="button" onClick={practiceCTA.run}
+        <button type="button" onClick={() => { trackCtaClicked("start_practice", { label: practiceCTA.label }); practiceCTA.run(); }}
           style={{ margin:"0 20px 12px", padding:"16px 18px", borderRadius:16, border:"none", cursor:"pointer",
             width:"calc(100% - 40px)", textAlign:"left", display:"flex", alignItems:"center", gap:12,
             background:`linear-gradient(135deg, ${P}, ${P}cc)`, boxShadow:`0 4px 20px ${P}44` }}>
@@ -319,7 +320,7 @@ export default function TodayView({
       {hasSquadActivity && (
         <button
           type="button"
-          onClick={onOpenMessages || onFocusFriends}
+          onClick={() => { trackCtaClicked("squad_activity"); (onOpenMessages || onFocusFriends)?.(); }}
           style={{
             display: "block",
             width: "calc(100% - 40px)",
@@ -453,7 +454,8 @@ export default function TodayView({
                                 if (task.type === "program") openProgramExercise(task, exId);
                                 else {
                                   const enriched = { ...ex, _cat:ex._cat, meta:ex.meta || exerciseMeta[exId] || {} };
-                                  openDetail(enriched, task.exercises.map(id => allExercises[id]).filter(Boolean).map(e => ({ ...e, meta:e.meta || exerciseMeta[e.id] || {} })));
+                                  const taskList = task.exercises.map(id => allExercises[id]).filter(Boolean).map(e => ({ ...e, meta:e.meta || exerciseMeta[e.id] || {} }));
+                                  openDetail(enriched, taskList, null, "mission_task");
                                 }
                               }}
                               style={{ fontSize:9, padding:"3px 8px", borderRadius:99, cursor:"pointer",
@@ -466,7 +468,7 @@ export default function TodayView({
                         })}
                       </div>
                       {task.type === "program" && !taskDone && (
-                        <button type="button" onClick={() => startProgramSession(task)}
+                        <button type="button" onClick={() => { trackCtaClicked("mission_start_session", { label: task.kindLabel }); startProgramSession(task); }}
                           style={{ width:"100%", marginTop:8, padding:"8px 10px", borderRadius:8, border:"none",
                             background: accent, color:"#fff", fontSize:11, fontWeight:800, cursor:"pointer" }}>
                           Start {task.kindLabel || "session"} →
@@ -491,6 +493,7 @@ export default function TodayView({
               {dailyAction.workoutTemplate && workoutTemplates[dailyAction.workoutTemplate] && (
                 <button
                   onClick={() => {
+                    trackCtaClicked("try_workout_template", { template: dailyAction.workoutTemplate });
                     selectTemplate(dailyAction.workoutTemplate);
                     onOpenWorkout();
                   }}
@@ -591,7 +594,7 @@ export default function TodayView({
                   exerciseMeta,
                   { categories: categoriesFromExercises(list || [ex], allExercises) },
                 );
-                openDetail(enriched, fullList, ctx);
+                openDetail(enriched, fullList, ctx, ctx ? "program" : "schedule");
               }}
               onStartProgramSession={(exList, ctx) => {
                 const list = withSessionWarmup(
@@ -600,7 +603,7 @@ export default function TodayView({
                   exerciseMeta,
                   { categories: categoriesFromExercises(exList, allExercises) },
                 );
-                if (list[0]) openDetail(list[0], list, ctx);
+                if (list[0]) openDetail(list[0], list, ctx, "program");
               }}
               onStartCustomWorkout={startExerciseList}
               onOpenCalendar={onOpenSchedule}
@@ -658,7 +661,7 @@ export default function TodayView({
                             const list = withSessionWarmup(base, workouts, exerciseMeta, {
                               categories: categoriesFromExercises(base, allExercises),
                             });
-                            if (list[0]) openDetail(list[0], list, ctx);
+                            if (list[0]) openDetail(list[0], list, ctx, "program");
                           }}
                           style={{ textAlign:"left", padding:"6px 8px", borderRadius:8, border:`1px solid ${prog.color}33`,
                             background:"rgba(255,255,255,0.04)", color:"var(--fkh-text)", fontSize:11, fontWeight:600, cursor:"pointer" }}>
@@ -672,7 +675,8 @@ export default function TodayView({
                           const list = withSessionWarmup(base, workouts, exerciseMeta, {
                             categories: categoriesFromExercises(base, allExercises),
                           });
-                          if (list[0]) openDetail(list[0], list, ctx);
+                          trackCtaClicked("program_start_session", { program_id: prog.id });
+                          if (list[0]) openDetail(list[0], list, ctx, "program");
                         }}
                         style={{ marginTop:4, padding:"7px 10px", borderRadius:8, border:"none",
                           background: prog.color, color:"#fff", fontSize:11, fontWeight:800, cursor:"pointer" }}>
@@ -715,9 +719,10 @@ export default function TodayView({
           <div style={{ fontSize:10, fontWeight:800, color:"#64748b", letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:10 }}>Keep Going</div>
           <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
             <button type="button" onClick={() => {
+              trackCtaClicked("bonus_workout");
               loadWorkoutForTemplate(selectedTemplate);
               const exs = todaysWorkout?.exercises?.map(e => ({ ...e, meta: e.meta || exerciseMeta[e.id] || {} })) || [];
-              if (exs[0]) openDetail(exs[0], exs);
+              if (exs[0]) openDetail(exs[0], exs, null, "workout");
             }}
               style={{ flex:1, minWidth:120, padding:"10px 12px", borderRadius:10, border:`1px solid ${P}44`, background:`${P}12`, color:P, fontWeight:800, fontSize:12, cursor:"pointer" }}>
               Bonus Workout
@@ -825,7 +830,7 @@ export default function TodayView({
                     {exs.map(ex => {
                       const done2 = isDone(ex.id);
                       return (
-                        <div key={ex.id} onClick={() => openDetail(ex, todaysWorkout.exercises)}
+                        <div key={ex.id} onClick={() => openDetail(ex, todaysWorkout.exercises, null, "workout")}
                           style={{ display:"flex", alignItems:"center", gap:8, padding:"7px 8px", borderRadius:10, marginBottom:3, cursor:"pointer",
                             background:done2 ? "rgba(34,197,94,0.08)" : "rgba(255,255,255,0.03)",
                             border:`1px solid ${done2 ? "rgba(34,197,94,0.15)" : "transparent"}` }}>
@@ -851,7 +856,7 @@ export default function TodayView({
                   <div style={{ display:"flex", gap:8 }}>
                     <button onClick={() => {
                       const exs = todaysWorkout.exercises.map(e => ({ ...e, meta: e.meta || exerciseMeta[e.id] || {} }));
-                      if (exs[0]) openDetail(exs[0], exs);
+                      if (exs[0]) openDetail(exs[0], exs, null, "workout");
                     }}
                       style={{ flex:1, padding:"11px", borderRadius:12, background:"rgba(34,197,94,0.12)", border:"1px solid rgba(34,197,94,0.25)", color:"#22c55e", fontSize:13, fontWeight:700, cursor:"pointer" }}>
                       Review Drills
@@ -870,7 +875,8 @@ export default function TodayView({
                       workouts,
                       exerciseMeta,
                     );
-                    if (exs[0]) openDetail(exs[0], exs);
+                    trackCtaClicked("start_workout", { template: selectedTemplate });
+                    if (exs[0]) openDetail(exs[0], exs, null, "workout");
                   }}
                     style={{ flex:1, padding:"11px", borderRadius:12, background:P, border:"none", color:"#000", fontSize:13, fontWeight:800, cursor:"pointer" }}>
                     Start Workout →
