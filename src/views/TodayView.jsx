@@ -170,6 +170,33 @@ export default function TodayView({
     || todayPlan.scheduleDay.cats.length > 0
     || (todayPlan.customSessions?.length || 0) > 0;
 
+  // Session-at-a-glance: duration/XP/focus so the athlete can size up today's
+  // training before scrolling a full drill list. Same estimatedDuration field
+  // and flat 5-XP-per-exercise rate the history/XP screens already use.
+  const todayTrainingSummary = useMemo(() => {
+    if (!hasTodayPlan) return null;
+    const exIds = new Set([
+      ...todayPlan.programSessions.flatMap(s => s.session.exercises || []),
+      ...(todayPlan.customSessions || []).flatMap(c => c.exerciseIds || []),
+      ...(todayPlan.scheduleExerciseIds || []),
+    ]);
+    if (!exIds.size) return null;
+    let seconds = 0;
+    const catSet = new Set();
+    for (const id of exIds) {
+      const ex = allExercises[id];
+      if (!ex) continue;
+      seconds += exerciseMeta[id]?.estimatedDuration || ex.meta?.estimatedDuration || 180;
+      if (ex._cat) catSet.add(ex._cat);
+    }
+    const focusLabels = [...catSet].map(c => cats[c]?.label?.split(" ")[0] || c).slice(0, 3);
+    return {
+      minutes: Math.round(seconds / 60),
+      xp: exIds.size * 5,
+      focusLabels,
+    };
+  }, [hasTodayPlan, todayPlan, allExercises, exerciseMeta, cats]);
+
   const startExerciseList = (exercises) => {
     const list = withSessionWarmup(
       (exercises || []).map(e => ({ ...e, meta: e.meta || exerciseMeta[e.id] || {} })),
@@ -208,6 +235,36 @@ export default function TodayView({
     openDetail({ ...ex, meta: ex.meta || exerciseMeta[exId] || {} }, list, ctx);
   };
 
+  // Hoisted so both the header's at-a-glance badge and the bottom progress
+  // bar read the same numbers instead of computing them twice.
+  const reqTasks = mission.tasks.filter(t => t.required);
+  const totalReq = reqTasks.reduce((s, t) => { const { target } = getMissionTaskProgress(t, completed, today, programProgress); return s + target; }, 0);
+  const doneReq = reqTasks.reduce((s, t) => { const { cur, target } = getMissionTaskProgress(t, completed, today, programProgress); return s + Math.min(cur, target); }, 0);
+  const overallPct = totalReq > 0 ? doneReq / totalReq : 0;
+
+  // Single "one obvious action" entry point — follows dailyAction.primaryCTA's
+  // existing precedence (program session beats mission) rather than inventing
+  // a new rule, then jumps to whichever mission task is actually next undone.
+  const nextMissionTask = mission.tasks.find(t => {
+    const { cur, target } = getMissionTaskProgress(t, completed, today, programProgress);
+    return cur < target;
+  });
+  const practiceCTA = (() => {
+    if (claimed) return null;
+    if (dailyAction.primaryCTA?.focus === "program") {
+      const programTask = mission.tasks.find(t => t.type === "program"
+        && getMissionTaskProgress(t, completed, today, programProgress).cur < getMissionTaskProgress(t, completed, today, programProgress).target);
+      if (programTask) return { label: `Continue ${programTask.kindLabel || "session"}`, run: () => startProgramSession(programTask) };
+    }
+    if (!nextMissionTask) return null;
+    if (nextMissionTask.type === "program") {
+      return { label: `Continue ${nextMissionTask.kindLabel || "session"}`, run: () => startProgramSession(nextMissionTask) };
+    }
+    const exList = (nextMissionTask.exercises || []).map(id => allExercises[id]).filter(Boolean);
+    if (!exList.length) return null;
+    return { label: "Start Today's Practice", run: () => startExerciseList(exList) };
+  })();
+
   return (
     <>
       {/* Coach FKH — compact motivational bar */}
@@ -237,11 +294,21 @@ export default function TodayView({
         )}
       </button>
 
-      {showTourPrompt && (
-        <TourPromptBanner P={P} onStartTour={onStartTour} onOpenGuide={onOpenGuide} onDismiss={onDismissTourPrompt} />
+      {practiceCTA && (
+        <button type="button" onClick={practiceCTA.run}
+          style={{ margin:"0 20px 12px", padding:"16px 18px", borderRadius:16, border:"none", cursor:"pointer",
+            width:"calc(100% - 40px)", textAlign:"left", display:"flex", alignItems:"center", gap:12,
+            background:`linear-gradient(135deg, ${P}, ${P}cc)`, boxShadow:`0 4px 20px ${P}44` }}>
+          <span style={{ fontSize:22, flexShrink:0 }}>▶</span>
+          <span style={{ fontSize:16, fontWeight:800, color:"#000" }}>{practiceCTA.label}</span>
+        </button>
       )}
 
-      {showNotificationPrompt && (
+      {/* Only one onboarding nudge at a time — tour takes priority over the
+          notification prompt so they never stack and eat the top of Today. */}
+      {showTourPrompt ? (
+        <TourPromptBanner P={P} onStartTour={onStartTour} onOpenGuide={onOpenGuide} onDismiss={onDismissTourPrompt} />
+      ) : showNotificationPrompt && (
         <NotificationPromptBanner
           P={P}
           onEnable={onEnableNotifications}
@@ -306,7 +373,7 @@ export default function TodayView({
                   ? <span style={{ fontSize:9, padding:"2px 8px", borderRadius:99,
                       background:"rgba(34,197,94,0.18)", color:"#22c55e", fontWeight:800 }}>✓ COMPLETE</span>
                   : <span style={{ fontSize:9, padding:"2px 8px", borderRadius:99,
-                      background:`${P}18`, color:P, fontWeight:700 }}>TODAY</span>
+                      background:`${P}18`, color:P, fontWeight:700 }}>{doneReq}/{totalReq} TODAY</span>
                 }
               </div>
               <div style={{ fontSize:13, fontWeight:700, color:"var(--fkh-text)",
@@ -436,10 +503,6 @@ export default function TodayView({
           )}
 
           {(() => {
-            const reqTasks = mission.tasks.filter(t => t.required);
-            const totalReq = reqTasks.reduce((s, t) => { const { target } = getMissionTaskProgress(t, completed, today, programProgress); return s + target; }, 0);
-            const doneReq = reqTasks.reduce((s, t) => { const { cur, target } = getMissionTaskProgress(t, completed, today, programProgress); return s + Math.min(cur, target); }, 0);
-            const overallPct = totalReq > 0 ? doneReq / totalReq : 0;
             return (
               <div style={{ padding:"0 12px 12px" }}>
                 <div style={{ height:4, borderRadius:99, background:"rgba(255,255,255,0.05)" }}>
@@ -458,16 +521,56 @@ export default function TodayView({
         </div>
       </HomeCollapsibleSection>
 
+      {/* Aspiration before the drill list — Train Like Legends is the "why keep
+          practicing," so it leads Today's Training / My Programs, not trails them. */}
+      <HomeCollapsibleSection
+        title="Train Like Legends"
+        open={homeOpen.legends}
+        onToggle={() => toggleHome("legends")}
+        labelStyle={homeLbl}
+        accentColor={P}
+      >
+        <ProgressRail
+          settings={settings}
+          ctx={progressCtx}
+          P={P}
+          onOpenPath={onOpenPath}
+          onSetFavorite={onSetFavorite}
+          onOpenPlayerHighlight={onOpenPlayerHighlight}
+        />
+      </HomeCollapsibleSection>
+
       {hasTodayPlan && (
         <HomeCollapsibleSection
           title="Today's Training"
-          hint={todayPlan.programSessions.length ? `${todayPlan.programSessions.length} program${todayPlan.programSessions.length === 1 ? "" : "s"}` : "scheduled"}
+          hint={todayTrainingSummary ? `${todayTrainingSummary.minutes} min · +${todayTrainingSummary.xp} XP` : "scheduled"}
           open={homeOpen.training}
           onToggle={() => toggleHome("training")}
           labelStyle={homeLbl}
           accentColor={P}
         >
           <div style={{ margin: "0 20px 14px" }}>
+            {todayTrainingSummary && (
+              <div style={{ display:"flex", alignItems:"center", gap:14, padding:"10px 12px", marginBottom:10,
+                borderRadius:12, background:`${P}0a`, border:`1px solid ${P}22`, flexWrap:"wrap" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+                  <span style={{ fontSize:14 }}>⏱</span>
+                  <span style={{ fontSize:12, fontWeight:700, color:"var(--fkh-text)" }}>{todayTrainingSummary.minutes} min</span>
+                </div>
+                <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+                  <span style={{ fontSize:14 }}>🏆</span>
+                  <span style={{ fontSize:12, fontWeight:700, color:P }}>+{todayTrainingSummary.xp} XP</span>
+                </div>
+                {todayTrainingSummary.focusLabels.length > 0 && (
+                  <div style={{ display:"flex", alignItems:"center", gap:5, minWidth:0 }}>
+                    <span style={{ fontSize:14 }}>🎯</span>
+                    <span style={{ fontSize:12, color:"#94a3b8", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                      {todayTrainingSummary.focusLabels.join(", ")}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
             <DayPlanPanel
               plan={todayPlan}
               cats={cats}
@@ -583,23 +686,6 @@ export default function TodayView({
           </div>
         </HomeCollapsibleSection>
       )}
-
-      <HomeCollapsibleSection
-        title="Train Like Legends"
-        open={homeOpen.legends}
-        onToggle={() => toggleHome("legends")}
-        labelStyle={homeLbl}
-        accentColor={P}
-      >
-        <ProgressRail
-          settings={settings}
-          ctx={progressCtx}
-          P={P}
-          onOpenPath={onOpenPath}
-          onSetFavorite={onSetFavorite}
-          onOpenPlayerHighlight={onOpenPlayerHighlight}
-        />
-      </HomeCollapsibleSection>
 
       <HomeCollapsibleSection
         title="Squad & Challenges"
