@@ -2817,8 +2817,45 @@ function ExerciseSetTracker({
 
 /* ═══════════════════════ EXERCISE DETAIL SHEET ════════════ */
 function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onToggle, onClose, onNext, completed, favored, onToggleFav, navLabel,
-  programContext, setLog, onSetLogChange, maxRepsMap, onMaxRepsChange, bilateralPrefs, onBilateralPrefChange, settings, today, onAskCoach }) {
+  programContext, setLog, onSetLogChange, maxRepsMap, onMaxRepsChange, bilateralPrefs, onBilateralPrefChange, settings, today, onAskCoach,
+  sessionList, isSessionExerciseDone, totalXP, hasPendingCelebration }) {
   useWakeLock(true);
+
+  /* Practice session summary — only meaningful for a real multi-exercise
+     session, not a single drill opened via "learn about this exercise". */
+  const session = useMemo(() => {
+    if (!sessionList || sessionList.length < 2 || !isSessionExerciseDone) return null;
+    const total = sessionList.length;
+    const done = sessionList.filter(e => isSessionExerciseDone(e.id, programContext)).length;
+    const minutes = Math.max(1, Math.round(
+      sessionList.reduce((s, e) => s + (e.meta?.estimatedDuration || 180), 0) / 60,
+    ));
+    return { total, done, minutes, xp: total * 5, isLast: exercise && sessionList.at(-1)?.id === exercise.id };
+  }, [sessionList, isSessionExerciseDone, programContext, exercise]);
+
+  const [showComplete, setShowComplete] = useState(false);
+  const [completePending, setCompletePending] = useState(false);
+  const triggerComplete = () => {
+    if (hasPendingCelebration) setCompletePending(true);
+    else setShowComplete(true);
+  };
+  useEffect(() => {
+    if (completePending && !hasPendingCelebration) {
+      setShowComplete(true);
+      setCompletePending(false);
+    }
+  }, [completePending, hasPendingCelebration]);
+  const streak = useMemo(() => {
+    if (!completed) return 0;
+    let s = 0, d = new Date();
+    for (let i = 0; i < 60; i++) {
+      const k = d.toLocaleDateString("en-CA");
+      if (Object.keys(completed).some(c => c.startsWith(k) && completed[c])) { s++; d.setDate(d.getDate() - 1); }
+      else break;
+    }
+    return s;
+  }, [completed]);
+  const levelAfter = totalXP != null ? getLevel(totalXP + (session?.xp || 0)) : null;
 
   const meta      = exercise.meta || {};
   const cat       = exercise._cat || "speed";
@@ -2887,6 +2924,18 @@ function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onTogg
   const handleAllSetsComplete = () => {
     if (!isDone) onToggle();
     if (onNext) setTimeout(() => onNext(), 600);
+    else if (session) setTimeout(() => triggerComplete(), 500);
+  };
+
+  // Mirrors handleAllSetsComplete's existing auto-advance timing for the
+  // plain (non-sets-tracking) footer button, so both paths feel continuous
+  // instead of requiring a second "Next" tap.
+  const handleMarkComplete = () => {
+    const wasNotDone = !isDone;
+    onToggle();
+    if (!wasNotDone) return;
+    if (onNext) setTimeout(() => onNext(), 900);
+    else if (session) setTimeout(() => triggerComplete(), 500);
   };
 
   return (
@@ -2934,6 +2983,25 @@ function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onTogg
                   padding:"7px 14px",background:"#22c55e",border:"none",borderRadius:20,cursor:"pointer",whiteSpace:"nowrap" }}>✓ Mark Done</button>}
           </div>
         </div>
+
+        {/* Practice session progress — only when this is a real multi-drill
+            session, not a single "learn about this drill" open. */}
+        {session && (
+          <div style={{ padding:"10px 16px", borderBottom:`1px solid ${color}14`, flexShrink:0 }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6, flexWrap:"wrap", gap:4 }}>
+              <span style={{ fontSize:11, fontWeight:800, color, letterSpacing:"0.04em" }}>
+                🏀 Today's Practice · {session.minutes} min · {session.total} exercises · +{session.xp} XP
+              </span>
+              <span style={{ fontSize:11, fontWeight:700, color:"var(--fkh-text-muted)" }}>
+                {session.done} of {session.total} complete
+              </span>
+            </div>
+            <div style={{ height:5, borderRadius:99, background:"rgba(255,255,255,0.06)" }}>
+              <div style={{ height:"100%", width:`${(session.done / session.total) * 100}%`, borderRadius:99,
+                background:color, transition:"width 0.35s" }} />
+            </div>
+          </div>
+        )}
 
         {/* Scrollable body */}
         <div style={{ flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch" }}>
@@ -3345,7 +3413,7 @@ function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onTogg
           paddingBottom:"calc(12px + env(safe-area-inset-bottom, 0px))",
           borderTop:`1px solid ${color}20`,background:BG,
           display:"flex",gap:10,flexShrink:0 }}>
-          <button onClick={onToggle}
+          <button onClick={handleMarkComplete}
             style={{ flex:1,padding:"13px",borderRadius:12,fontSize:14,fontWeight:800,cursor:"pointer",
               background:isDone?"rgba(34,197,94,0.12)":color,
               border:isDone?"1px solid rgba(34,197,94,0.3)":"none",
@@ -3358,6 +3426,46 @@ function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onTogg
             {onNext?"Next →":"Close"}
           </button>
         </div>
+
+        {/* Practice-complete celebration — covers the panel once the last
+            drill in a real multi-exercise session is marked done. */}
+        {showComplete && session && (
+          <div style={{ position:"absolute", inset:0, zIndex:5, background:BG,
+            display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+            padding:"32px 28px", textAlign:"center" }}>
+            <div style={{ fontSize:56, marginBottom:12, animation:"fkh-bounce 0.6s ease-out 0.1s both" }}>🎉</div>
+            <div style={{ fontSize:22, fontWeight:800, color:"var(--fkh-text)", marginBottom:18 }}>
+              Today's Practice Complete
+            </div>
+            <div style={{ display:"flex", flexDirection:"column", gap:10, width:"100%", maxWidth:320, marginBottom:22 }}>
+              {streak >= 2 && (
+                <div style={{ padding:"10px 14px", borderRadius:12, background:"rgba(249,115,22,0.1)",
+                  border:"1px solid rgba(249,115,22,0.3)", fontSize:14, fontWeight:700, color:"#f97316" }}>
+                  🔥 {streak}-Day Streak Continues
+                </div>
+              )}
+              <div style={{ padding:"10px 14px", borderRadius:12, background:`${color}14`,
+                border:`1px solid ${color}33`, fontSize:14, fontWeight:700, color }}>
+                +{session.xp} XP Earned
+              </div>
+              {levelAfter && (
+                <div style={{ fontSize:12, color:"var(--fkh-text-muted)" }}>
+                  {levelAfter.xpNext != null
+                    ? `One step closer to ${LEVELS.find(l => l.rank === levelAfter.rank + 1)?.name || "the next level"}`
+                    : `${levelAfter.emoji} ${levelAfter.name} — the top of the mountain`}
+                </div>
+              )}
+            </div>
+            <div style={{ fontSize:13, color:"var(--fkh-text-muted)", marginBottom:22 }}>
+              See you tomorrow. 🏀
+            </div>
+            <button onClick={onClose}
+              style={{ padding:"13px 28px", borderRadius:12, border:"none", background:color,
+                color:"#000", fontSize:14, fontWeight:800, cursor:"pointer" }}>
+              Done
+            </button>
+          </div>
+        )}
       </div>
     </>
   );
@@ -4269,6 +4377,12 @@ export default function FitKidHooperApp() {
     bilateralPrefs, onBilateralPrefChange: handleBilateralPrefChange,
     settings, today,
     onAskCoach: askCoachAboutExercise,
+    sessionList: detailList,
+    isSessionExerciseDone: isExerciseDoneForPractice,
+    // Badge/mission celebrations are full-screen overlays with a semi-
+    // transparent backdrop — showing the practice-complete screen underneath
+    // at the same time bleeds both together. Defer to them instead of racing.
+    hasPendingCelebration: celebrationQueue.length > 0 || !!missionCelebration,
   };
 
   const todayIdx  = new Date().getDay()===0?6:new Date().getDay()-1;
@@ -4931,6 +5045,7 @@ export default function FitKidHooperApp() {
       completed={completedSafe}
       favored={isFav("exercises",activeExercise.id)}
       onToggleFav={()=>toggleFav("exercises",activeExercise.id)}
+      totalXP={xpData.total}
       {...detailSheetProps}/>
   ) : null;
 
@@ -5298,6 +5413,7 @@ export default function FitKidHooperApp() {
           favored={isFav("exercises",activeExercise.id)}
           onToggleFav={()=>toggleFav("exercises",activeExercise.id)}
           navLabel={activeCat&&CATS[activeCat]?`${CATS[activeCat].emoji} ${CATS[activeCat].label}`:undefined}
+          totalXP={xpData.total}
           {...detailSheetProps}/>}
         {renderBottomNav()}
       </div>
@@ -5339,6 +5455,7 @@ export default function FitKidHooperApp() {
           completed={completedSafe}
           favored={isFav("exercises",activeExercise.id)}
           onToggleFav={()=>toggleFav("exercises",activeExercise.id)}
+          totalXP={xpData.total}
           {...detailSheetProps}/>}
 
         {/* Header */}
@@ -5744,6 +5861,7 @@ export default function FitKidHooperApp() {
         completed={completedSafe}
         favored={isFav("exercises",activeExercise.id)}
         onToggleFav={()=>toggleFav("exercises",activeExercise.id)}
+        totalXP={xpData.total}
         {...detailSheetProps}/>}
       {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]}
         onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}

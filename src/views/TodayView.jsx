@@ -263,7 +263,9 @@ export default function TodayView({
     }
     const exList = (nextMissionTask.exercises || []).map(id => allExercises[id]).filter(Boolean);
     if (!exList.length) return null;
-    return { label: "Start Today's Practice", run: () => startExerciseList(exList) };
+    // Progress already made today (even on a different task) means this is a
+    // resume, not a fresh start — the label should say so.
+    return { label: doneReq > 0 ? "Continue Practice" : "Start Today's Practice", run: () => startExerciseList(exList) };
   })();
 
   return (
