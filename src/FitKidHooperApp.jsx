@@ -28,6 +28,7 @@ import { migrateIdentitySettings } from "./lib/identity.js";
 import { getSupabaseClient } from "./lib/supabaseClient.js";
 import { CATS, CAT_DOT_COLORS } from "./lib/categories.js";
 import { BADGES_DEF, BADGE_CATS, getEarnedBadges, getBadgeProgress } from "./lib/badges.js";
+import { buildProgressJourney } from "./lib/progressJourney.js";
 import { PROGRESSION_CHAINS, getChainForExercise, getChainStatus } from "./lib/progressionChains.js";
 import { claimChallengeRewards } from "./lib/challengesApi.js";
 import {
@@ -4805,6 +4806,36 @@ export default function FitKidHooperApp() {
     [progressCtx]
   );
 
+  // Progress Journey view-model for Me › Overview — reframes existing training
+  // data (completed drills, shots, badges, ledger, XP) as identity + growth.
+  // Pure derivation, no new tracking. Level context comes from LEVELS here
+  // since that table lives in this file.
+  const progressJourney = useMemo(() => {
+    const nextLv = LEVELS.find(l => l.rank === currentLevel.rank + 1) || null;
+    const levelContext = nextLv ? {
+      nextLevelName: nextLv.name,
+      nextLevelEmoji: nextLv.emoji,
+      xpToNext: Math.max(0, nextLv.xpMin - xpData.total),
+      xpInto: xpData.total - currentLevel.xpMin,
+      xpSpan: nextLv.xpMin - currentLevel.xpMin,
+      pct: Math.min(1, (xpData.total - currentLevel.xpMin) / Math.max(1, nextLv.xpMin - currentLevel.xpMin)),
+    } : null;
+    return buildProgressJourney({
+      completed: completedSafe,
+      shotLog: readShotLog(),
+      getCategory: getExerciseCategory,
+      settings,
+      earnedBadges,
+      badgeDates: badgeDates || {},
+      ledger: ledger || {},
+      catCounts: progressCtx.catCounts,
+      programProgress: programProgressSafe,
+      programs: PROGRAMS,
+      badgesDef: BADGES_DEF,
+      levelContext,
+    });
+  }, [completedSafe, settings, earnedBadges, badgeDates, ledger, progressCtx, programProgressSafe, currentLevel, xpData.total, shotLogTick]);
+
   // Progression ledger — the single grant path.
   // journey milestones/titles/cosmetics, syncs to the cloud ledger, and celebrates
   // newly reached ranks with the same confetti moment as badges.
@@ -5339,6 +5370,8 @@ export default function FitKidHooperApp() {
         setProgressTab={setProgressTab}
         xpData={xpData}
         currentLevel={currentLevel}
+        journey={progressJourney}
+        onStartPractice={() => setView("home")}
         earnedBadges={earnedBadges}
         completed={completedSafe}
         programProgress={programProgress}

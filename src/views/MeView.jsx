@@ -1,4 +1,5 @@
 import ProfileView from "../components/ProfileView.jsx";
+import ProgressJourney from "../components/ProgressJourney.jsx";
 import ProgressionView from "../components/ProgressionView.jsx";
 import SettingsSheet from "../components/SettingsSheet.jsx";
 import ViewErrorBoundary from "../components/ViewErrorBoundary.jsx";
@@ -13,6 +14,8 @@ export default function MeView({
   setProgressTab,
   xpData,
   currentLevel,
+  journey,
+  onStartPractice,
   earnedBadges,
   completed,
   programProgress,
@@ -119,6 +122,15 @@ export default function MeView({
 
       {progressTab === "overview" && (
         <>
+          <ProgressJourney
+            journey={journey}
+            currentLevel={currentLevel}
+            totalXP={xpData.total}
+            P={P}
+            SF={SF}
+            bd={bd}
+            onStartPractice={onStartPractice}
+          />
           <ProfileView
             settings={settings}
             totalXP={xpData.total}
