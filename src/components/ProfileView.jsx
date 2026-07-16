@@ -8,13 +8,26 @@ function isBirthday(dob) {
   return birth.getMonth() === today.getMonth() && birth.getDate() === today.getDate();
 }
 
+/**
+ * ProfileView renders the athlete's Me › Overview identity + progress cards.
+ * `variant` splits it so the Overview can place the editable "My Player" editor
+ * directly under the card (identity), with the progress cards (Challenges,
+ * Badges) below it:
+ *   "card"     — Athlete Card + age only
+ *   "progress" — Challenges + Badges & Path only
+ *   undefined  — both (full view, back-compat)
+ */
 export default function ProfileView({
   settings, totalXP, currentLevel, earnedBadges,
   totalBadges, tracksComplete, totalTracks,
   P, onViewBadges, onViewLeaderboard, onPushStats, pushBusy, pushError,
+  variant,
 }) {
+  const showCard = variant !== "progress";
+  const showProgress = variant !== "card";
   return (
     <div style={{ padding:"0 20px 16px" }}>
+      {showCard && (
       <div style={{ padding:"20px 0 16px" }}>
         <AthleteCard settings={settings} currentLevel={currentLevel} totalXP={totalXP} variant="full" P={P} />
         {settings.dateOfBirth ? (
@@ -24,10 +37,12 @@ export default function ProfileView({
               : `Age ${calcAge(settings.dateOfBirth)}`}
           </div>
         ) : (
-          <div style={{ fontSize:11,color:"#334155",textAlign:"center",marginTop:10 }}>Set your birthday in Settings</div>
+          <div style={{ fontSize:11,color:"#334155",textAlign:"center",marginTop:10 }}>Set your birthday below in My Player</div>
         )}
       </div>
+      )}
 
+      {showProgress && (<>
       <div style={{ background:`${P}08`,border:`1px solid ${P}1c`,borderRadius:14,padding:"14px 16px",marginBottom:16 }}>
         <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10 }}>
           <span style={{ fontSize:13,fontWeight:700,color:P }}>🏆 Challenges</span>
@@ -72,6 +87,7 @@ export default function ProfileView({
           </div>
         </div>
       </button>
+      </>)}
     </div>
   );
 }

@@ -131,24 +131,18 @@ export default function MeView({
 
       {progressTab === "overview" && (
         <>
-          {/* Identity first — the athlete's player card is immediately visible
-              (Braylen: find your player without hunting through Settings). */}
+          {/* Seeing yourself, then editing yourself — adjacent (Braylen: the
+              problem wasn't finding his player, it was editing it). Card first,
+              then the editable My Player block directly beneath it, then the
+              progress cards (Challenges, Badges). */}
           <ProfileView
+            variant="card"
             settings={settings}
             totalXP={xpData.total}
             currentLevel={currentLevel}
-            earnedBadges={earnedBadges}
-            totalBadges={totalBadges}
-            tracksComplete={tracksComplete}
-            totalTracks={totalTracks}
             P={P}
-            onViewBadges={() => setProgressTab("locker")}
-            onViewLeaderboard={onViewLeaderboard}
-            onPushStats={onPushStats}
-            pushBusy={pushBusy}
-            pushError={pushError}
           />
-          {/* Edit your player right here — moved out of Settings. */}
+          {/* Edit your player right here — moved out of Settings, directly under the card. */}
           <IdentityEditor
             settings={settings}
             setSettings={setSettings}
@@ -163,6 +157,21 @@ export default function MeView({
             SF={SF}
             bd={bd}
             onStartPractice={onStartPractice}
+          />
+          {/* Progress cards — Challenges + Badges & Path below the growth story. */}
+          <ProfileView
+            variant="progress"
+            settings={settings}
+            earnedBadges={earnedBadges}
+            totalBadges={totalBadges}
+            tracksComplete={tracksComplete}
+            totalTracks={totalTracks}
+            P={P}
+            onViewBadges={() => setProgressTab("locker")}
+            onViewLeaderboard={onViewLeaderboard}
+            onPushStats={onPushStats}
+            pushBusy={pushBusy}
+            pushError={pushError}
           />
           {onOpenCoach && (
             <button
