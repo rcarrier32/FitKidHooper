@@ -4085,6 +4085,14 @@ export default function FitKidHooperApp() {
   tourStepRef.current = tourStep;
   const [showTourPrompt, setShowTourPrompt] = useState(() => shouldShowTourPrompt());
   const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
+  // Existing-guest "save your player" nudge — dismissible, persists per device.
+  const [guestSaveDismissed, setGuestSaveDismissed] = useState(() => {
+    try { return localStorage.getItem("fkh-save-prompt-dismissed") === "1"; } catch { return false; }
+  });
+  const dismissGuestSavePrompt = useCallback(() => {
+    setGuestSaveDismissed(true);
+    try { localStorage.setItem("fkh-save-prompt-dismissed", "1"); } catch { /* ignore */ }
+  }, []);
   const [homeMissionFocus, setHomeMissionFocus] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
   const [pushError, setPushError] = useState(null);
@@ -6218,6 +6226,11 @@ export default function FitKidHooperApp() {
         showNotificationPrompt={showNotificationPrompt && !tourActive && !showOnboarding}
         onEnableNotifications={enableNotificationsFromPrompt}
         onDismissNotificationPrompt={dismissNotificationPromptBanner}
+        showGuestSavePrompt={!auth.isSignedIn && !auth.loading && !showOnboarding && !tourActive && !guestSaveDismissed && xpData.total > 0}
+        guestSaveXp={xpData.total}
+        guestSaveStreak={getStreak(completedSafe)}
+        onSavePlayer={openSavePlayer}
+        onDismissGuestSavePrompt={dismissGuestSavePrompt}
         onOpenSchedule={() => openSchedule("home", "week")}
         onOpenCoach={() => setShowCoachFKH(true)}
         focusMissionSection={homeMissionFocus}

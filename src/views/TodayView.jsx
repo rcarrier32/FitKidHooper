@@ -7,6 +7,7 @@ import FindDrillsSheet from "../components/FindDrillsSheet.jsx";
 import HomeCollapsibleSection from "../components/HomeCollapsibleSection.jsx";
 import TourPromptBanner from "../components/TourPromptBanner.jsx";
 import NotificationPromptBanner from "../components/NotificationPromptBanner.jsx";
+import GuestSaveBanner from "../components/GuestSaveBanner.jsx";
 import DayPlanPanel from "../components/DayPlanPanel.jsx";
 import { buildTrainingDayPlan } from "../lib/trainingDayPlan.js";
 import { withSessionWarmup, categoriesFromExercises } from "../lib/sessionWarmup.js";
@@ -132,6 +133,11 @@ export default function TodayView({
   showNotificationPrompt,
   onEnableNotifications,
   onDismissNotificationPrompt,
+  showGuestSavePrompt,
+  guestSaveXp = 0,
+  guestSaveStreak = 0,
+  onSavePlayer,
+  onDismissGuestSavePrompt,
   onOpenSchedule,
   focusMissionSection = false,
   onMissionFocusHandled,
@@ -311,6 +317,14 @@ export default function TodayView({
           notification prompt so they never stack and eat the top of Today. */}
       {showTourPrompt ? (
         <TourPromptBanner P={P} onStartTour={onStartTour} onOpenGuide={onOpenGuide} onDismiss={onDismissTourPrompt} />
+      ) : showGuestSavePrompt ? (
+        <GuestSaveBanner
+          P={P}
+          xpTotal={guestSaveXp}
+          streak={guestSaveStreak}
+          onSave={onSavePlayer}
+          onDismiss={onDismissGuestSavePrompt}
+        />
       ) : showNotificationPrompt && (
         <NotificationPromptBanner
           P={P}
