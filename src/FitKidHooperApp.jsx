@@ -2872,7 +2872,8 @@ function ExerciseSetTracker({
 /* ═══════════════════════ EXERCISE DETAIL SHEET ════════════ */
 function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onToggle, onClose, onNext, completed, favored, onToggleFav, navLabel,
   programContext, setLog, onSetLogChange, maxRepsMap, onMaxRepsChange, bilateralPrefs, onBilateralPrefChange, settings, today, onAskCoach,
-  sessionList, isSessionExerciseDone, totalXP, hasPendingCelebration, sessionXpEarned }) {
+  sessionList, isSessionExerciseDone, totalXP, hasPendingCelebration, sessionXpEarned,
+  isSignedIn, onSavePlayer }) {
   useWakeLock(true);
 
   /* Practice session summary — only meaningful for a real multi-exercise
@@ -3518,14 +3519,34 @@ function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onTogg
                 </div>
               )}
             </div>
-            <div style={{ fontSize:13, color:"var(--fkh-text-muted)", marginBottom:22 }}>
-              See you tomorrow. 🏀
-            </div>
-            <button onClick={onClose}
-              style={{ padding:"13px 28px", borderRadius:12, border:"none", background:color,
-                color:"#000", fontSize:14, fontWeight:800, cursor:"pointer" }}>
-              Done
-            </button>
+            {!isSignedIn && onSavePlayer ? (
+              <>
+                <div style={{ fontSize:13, color:"var(--fkh-text-muted)", marginBottom:18, maxWidth:300 }}>
+                  Save your player so you never lose your streak, badges, or XP.
+                </div>
+                <button onClick={onSavePlayer}
+                  style={{ padding:"14px 28px", borderRadius:12, border:"none", background:color,
+                    color:"#000", fontSize:15, fontWeight:800, cursor:"pointer" }}>
+                  💾 Save My Player
+                </button>
+                <button onClick={onClose}
+                  style={{ marginTop:10, padding:"8px 16px", borderRadius:10, border:"none",
+                    background:"transparent", color:"var(--fkh-text-muted)", fontSize:13, fontWeight:600, cursor:"pointer" }}>
+                  Not now
+                </button>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize:13, color:"var(--fkh-text-muted)", marginBottom:22 }}>
+                  See you tomorrow. 🏀
+                </div>
+                <button onClick={onClose}
+                  style={{ padding:"13px 28px", borderRadius:12, border:"none", background:color,
+                    color:"#000", fontSize:14, fontWeight:800, cursor:"pointer" }}>
+                  Done
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -3884,6 +3905,10 @@ export default function FitKidHooperApp() {
   const [prevView, setPrevView] = useState("home");
   const [activeCat, setActiveCat] = useState(null);
   const [activeExercise, setActiveExercise] = useState(null);
+  // From the practice-complete celebration, a guest taps "Save My Player" →
+  // close the sheet and open the reframed signup (parent-consent). This is the
+  // "earn it, then save it" wall: it fires after real success, not at cold open.
+  const openSavePlayer = () => { setActiveExercise(null); setAuthInitialMode("signup"); setShowAuth(true); };
   const [detailList, setDetailList] = useState([]);
   const [schedTab, setSchedTab] = useState("week");
   const [scheduleDetailDate, setScheduleDetailDate] = useState(null);
@@ -5166,7 +5191,7 @@ export default function FitKidHooperApp() {
   ) : null;
 
   const programDetailSheet = activeExercise ? (
-    <ExerciseDetailSheet exercise={activeExercise} color={P}
+    <ExerciseDetailSheet exercise={activeExercise} color={P} isSignedIn={auth.isSignedIn} onSavePlayer={openSavePlayer}
       bg2={SF} brd={bd} BG={BG} SF={SF}
       isDone={detailContext && !isWarmupExercise(activeExercise)
         ? isProgramExerciseDone(programProgress, detailContext.programId, detailContext.week, detailContext.sessionIdx, activeExercise.id)
@@ -5540,7 +5565,7 @@ export default function FitKidHooperApp() {
               favored={isFav("exercises",w.id)} onFav={()=>toggleFav("exercises",w.id)}/>
           ))}
         </div>
-        {activeExercise&&<ExerciseDetailSheet
+        {activeExercise&&<ExerciseDetailSheet isSignedIn={auth.isSignedIn} onSavePlayer={openSavePlayer}
           exercise={activeExercise} color={catColor(activeExercise._cat)}
           bg2={catBg(activeExercise._cat)} brd={catBrd(activeExercise._cat)}
           BG={BG} SF={SF} isDone={isDone(activeExercise.id)}
@@ -5586,7 +5611,7 @@ export default function FitKidHooperApp() {
         {shellOverlays}
         {celebrationQueue.length>0&&<BadgeCelebration badge={celebrationQueue[0]} onDismiss={()=>setCelebrationQueue(q=>q.slice(1))}/>}
         {renderMissionOverlays()}
-        {activeExercise&&<ExerciseDetailSheet exercise={activeExercise} color={P}
+        {activeExercise&&<ExerciseDetailSheet exercise={activeExercise} color={P} isSignedIn={auth.isSignedIn} onSavePlayer={openSavePlayer}
           bg2={SF} brd={bd} BG={BG} SF={SF}
           isDone={isDone(activeExercise.id)} onToggle={()=>toggle(activeExercise.id)}
           onClose={closeDetail} onNext={nextExDetail?()=>setActiveExercise(nextExDetail):null}
@@ -5989,7 +6014,7 @@ export default function FitKidHooperApp() {
   return (
     <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"var(--fkh-text)",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
       {shellOverlays}
-      {activeExercise&&<ExerciseDetailSheet
+      {activeExercise&&<ExerciseDetailSheet isSignedIn={auth.isSignedIn} onSavePlayer={openSavePlayer}
         exercise={activeExercise} color={catColor(activeExercise._cat)}
         bg2={catBg(activeExercise._cat)} brd={catBrd(activeExercise._cat)}
         BG={BG} SF={SF} isDone={isDone(activeExercise.id)}
