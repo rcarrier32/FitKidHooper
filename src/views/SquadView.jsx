@@ -49,7 +49,7 @@ export default function SquadView({
           {!isSignedIn && (
           <button type="button" onClick={onOpenAuth}
             style={{ padding:"6px 12px",borderRadius:8,border:`1px solid ${P}44`,background:`${P}14`,color:P,fontSize:11,fontWeight:700,cursor:"pointer" }}>
-            Sign in
+            Save player
           </button>
         )}
         </div>
@@ -57,7 +57,7 @@ export default function SquadView({
 
       {!isSignedIn && (
         <div style={{ margin:"12px 20px 0",padding:"12px 14px",borderRadius:12,border:`1px solid ${P}33`,background:`${P}0c`,fontSize:12,color:"#94a3b8",lineHeight:1.5 }}>
-          Sign in to message friends, accept requests, and compete in squad challenges.
+          🔒 Save your player to message friends, accept requests, and compete in squad challenges.
         </div>
       )}
 

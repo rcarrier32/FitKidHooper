@@ -464,11 +464,11 @@ export default function BoardView({
                   marginBottom: 12, padding: "10px 12px", borderRadius: 10,
                   background: `${P}12`, border: `1px solid ${P}28`, fontSize: 11, color: "var(--fkh-text-muted)", lineHeight: 1.5,
                 }}>
-                  Sign in to see your squad and message friends.
+                  🔒 Save your player to see your squad and message friends.
                   <button type="button" onClick={onOpenAuth} style={{
                     display: "block", marginTop: 8, padding: "8px 12px", borderRadius: 8, border: `1px solid ${P}44`,
                     background: "transparent", color: P, fontSize: 11, fontWeight: 700, cursor: "pointer", width: "100%",
-                  }}>Sign in</button>
+                  }}>Save your player</button>
                 </div>
               )}
 
@@ -534,11 +534,11 @@ export default function BoardView({
               />
             ) : (
               <div style={{ padding: "20px 12px", fontSize: 12, color: "#94a3b8", textAlign: "center", lineHeight: 1.5 }}>
-                Sign in to message friends.
+                🔒 Save your player to message friends.
                 <button type="button" onClick={onOpenAuth} style={{
                   display: "block", margin: "10px auto 0", padding: "8px 16px", borderRadius: 8,
                   border: `1px solid ${P}44`, background: "transparent", color: P, fontSize: 11, fontWeight: 700, cursor: "pointer",
-                }}>Sign in</button>
+                }}>Save your player</button>
               </div>
             )
           )}

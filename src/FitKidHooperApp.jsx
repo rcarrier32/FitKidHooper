@@ -5355,7 +5355,7 @@ export default function FitKidHooperApp() {
         lbl={lbl}
         initialInviteCode={inviteCode}
         isSignedIn={auth.isSignedIn}
-        onOpenAuth={() => setShowAuth(true)}
+        onOpenAuth={() => { setAuthInitialMode("signup"); setShowAuth(true); }}
         focusFriendsTick={friendsFocusTick}
         onPushSuccess={() => setPushError(null)}
         unreadMessages={unreadMessages}
@@ -5494,7 +5494,7 @@ export default function FitKidHooperApp() {
         lbl={lbl}
         initialInviteCode={inviteCode}
         isSignedIn={auth.isSignedIn}
-        onOpenAuth={() => setShowAuth(true)}
+        onOpenAuth={() => { setAuthInitialMode("signup"); setShowAuth(true); }}
             onAddFriends={focusSquad}
         focusFriendsTick={friendsFocusTick}
         onPushSuccess={() => setPushError(null)}
