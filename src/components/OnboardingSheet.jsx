@@ -8,6 +8,7 @@ import {
   signUpWithUsername,
   signInWithUsername,
   verifySignupEmail,
+  recordParentalConsent,
 } from "../lib/auth.js";
 import { calcAge } from "../lib/periodStats.js";
 import { POSITIONS } from "../lib/identity.js";
@@ -63,6 +64,9 @@ export default function OnboardingSheet({ P = "#f97316", onComplete, onAuthSucce
   const [pendingEmail, setPendingEmail] = useState("");
   const [pendingUsername, setPendingUsername] = useState("");
   const [otpCode, setOtpCode] = useState("");
+  // Parent consent (COPPA) — required only when the kid chooses to save an account.
+  const [isParent, setIsParent] = useState(false);
+  const [readPrivacy, setReadPrivacy] = useState(false);
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -133,7 +137,8 @@ export default function OnboardingSheet({ P = "#f97316", onComplete, onAuthSucce
     if (usernameStatus === "checking") return "Still checking username…";
     if (!/^\d{6}$/.test(passcode)) return "Passcode must be exactly 6 digits";
     if (passcode !== passcode2) return "Passcodes do not match";
-    if (!recoveryEmail.trim().includes("@")) return "Add a recovery email (parent's email works)";
+    if (!recoveryEmail.trim().includes("@")) return "Ask a parent for their email to save your player";
+    if (!isParent || !readPrivacy) return "A parent needs to check both boxes to save your player";
     return null;
   };
 
@@ -232,6 +237,8 @@ export default function OnboardingSheet({ P = "#f97316", onComplete, onAuthSucce
     setError(null);
     try {
       await verifySignupEmail({ email: pendingEmail, code: otpCode, username: pendingUsername });
+      // Parent email is now verified → record the consent. Non-fatal.
+      try { await recordParentalConsent({ parentEmail: pendingEmail }); } catch { /* non-fatal */ }
       await onAuthSuccess?.();
       onComplete?.({ settings: buildProfilePatch(), finalize: true });
       setVerifyMode(false);
@@ -446,11 +453,11 @@ export default function OnboardingSheet({ P = "#f97316", onComplete, onAuthSucce
 
       {authEnabled && (
         <>
-          <div style={sectionStyle}>Create account</div>
+          <div style={sectionStyle}>💾 Save your player</div>
           <p style={{ fontSize: 11, color: "#64748b", margin: "0 0 10px", lineHeight: 1.45 }}>
-            Optional — sync across devices, add friends, and get message alerts.
+            Optional — keep your streak, badges &amp; XP, play with friends, and never lose your progress.
           </p>
-          <label style={labelStyle}>Username</label>
+          <label style={labelStyle}>Jersey Name</label>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
             <span style={{ color: "#64748b", fontSize: 16, fontWeight: 700 }}>@</span>
             <input type="text" value={username} onChange={e => setUsername(e.target.value)}
@@ -466,13 +473,30 @@ export default function OnboardingSheet({ P = "#f97316", onComplete, onAuthSucce
           <input type="password" inputMode="numeric" maxLength={6} value={passcode2}
             onChange={e => setPasscode2(e.target.value.replace(/\D/g, ""))}
             placeholder="••••••" style={inputStyle} />
-          <label style={labelStyle}>Recovery email</label>
+
+          {/* Kid → parent hand-off: make the moment to fetch a grown-up obvious. */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "6px 0 12px" }}>
+            <div style={{ flex: 1, height: 1, background: "rgba(148,163,184,0.2)" }} />
+            <span style={{ fontSize: 11, fontWeight: 700, color: P, whiteSpace: "nowrap" }}>🙌 Grab a grown-up</span>
+            <div style={{ flex: 1, height: 1, background: "rgba(148,163,184,0.2)" }} />
+          </div>
+          <label style={labelStyle}>Parent&apos;s email</label>
           <input type="email" value={recoveryEmail} onChange={e => setRecoveryEmail(e.target.value)}
-            placeholder="parent@email.com" style={inputStyle} />
+            placeholder="grown-up@email.com" style={inputStyle} />
+          <label style={{ display: "flex", gap: 9, alignItems: "flex-start", cursor: "pointer", fontSize: 11.5, color: "#94a3b8", lineHeight: 1.4, marginBottom: 8 }}>
+            <input type="checkbox" checked={isParent} onChange={e => setIsParent(e.target.checked)}
+              style={{ accentColor: P, width: 16, height: 16, flexShrink: 0, marginTop: 1 }} />
+            <span>I&apos;m the parent/guardian and I give permission for my athlete to use Fit Kid Hooper.</span>
+          </label>
+          <label style={{ display: "flex", gap: 9, alignItems: "flex-start", cursor: "pointer", fontSize: 11.5, color: "#94a3b8", lineHeight: 1.4, marginBottom: 10 }}>
+            <input type="checkbox" checked={readPrivacy} onChange={e => setReadPrivacy(e.target.checked)}
+              style={{ accentColor: P, width: 16, height: 16, flexShrink: 0, marginTop: 1 }} />
+            <span>I&apos;ve read the <a href={`${import.meta.env.BASE_URL}privacy.html`} target="_blank" rel="noopener noreferrer" style={{ color: P, fontWeight: 700 }}>privacy notice</a>.</span>
+          </label>
           <button type="button" onClick={goToLogin} disabled={busy}
             style={{ background: "none", border: "none", color: P, fontSize: 11, fontWeight: 700,
               cursor: "pointer", padding: "0 0 10px", textAlign: "left" }}>
-            Already have an account? Log in
+            Already have a player? Log in
           </button>
         </>
       )}
@@ -480,13 +504,13 @@ export default function OnboardingSheet({ P = "#f97316", onComplete, onAuthSucce
       {error && <div style={{ fontSize: 11, color: "#f87171", marginBottom: 10, lineHeight: 1.45 }}>{error}</div>}
 
       <button type="submit" disabled={busy} style={btnPrimary}>
-        {busy ? "…" : wantsAccount ? "Let's go! 🏀" : "Finish setup 🏀"}
+        {busy ? "…" : wantsAccount ? "💾 Save My Player" : "Finish setup 🏀"}
       </button>
       {authEnabled && (
         <button type="button" onClick={finishWithoutAccount} disabled={busy}
           style={{ width: "100%", background: "transparent", border: "none", color: "#64748b",
             fontSize: 11, fontWeight: 700, cursor: "pointer", marginTop: 10, padding: 8 }}>
-          Skip account for now
+          I&apos;ll save later
         </button>
       )}
     </form>,
