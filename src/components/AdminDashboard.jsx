@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { getSupabaseClient, isSupabaseConfigured } from "../lib/supabaseClient.js";
 import { loadDrilldown } from "../lib/adminDrilldown.js";
+import { exitAdminDashboard } from "../lib/adminAccess.js";
 import AuthSheet from "./AuthSheet.jsx";
+import TodayDigest from "./TodayDigest.jsx";
 
 const panelStyle = {
   background: "rgba(15,23,42,0.98)",
@@ -157,6 +159,16 @@ function btnStyle() {
 
 export default function AdminDashboard() {
   const configured = isSupabaseConfigured();
+
+  // The static boot splash (#fkh-boot-shell in index.html) is torn down by
+  // BootErrorBoundary.componentDidMount — but the admin route returns this
+  // component *before* that boundary ever mounts, so nothing was hiding the
+  // splash. It sits above #root and pushes the whole dashboard below the fold,
+  // which reads as an endless "Loading your training…". Hide it on mount.
+  useEffect(() => {
+    const shell = document.getElementById("fkh-boot-shell");
+    if (shell) shell.style.display = "none";
+  }, []);
   const [data, setData] = useState(null);
   const [error, setError] = useState(configured ? null : "Supabase is not configured.");
   const [loading, setLoading] = useState(configured);
@@ -216,58 +228,71 @@ export default function AdminDashboard() {
       setNeedsAuth(false);
       setLoading(true);
       try {
-        const [
-          summary, dau, wau, mau, retention, sessions, trainingDays,
-          sessionDurationSummary, screenDwell,
-          screens, exercises, favoritedExercises, programs, mission, challenges, badges,
-          feedbackSummary, backlog,
-        ] = await Promise.all([
-          sb.from("analytics_athlete_summary").select("*").maybeSingle(),
-          sb.from("analytics_dau").select("*").order("day", { ascending: false }).limit(14),
-          sb.from("analytics_wau").select("*").order("week_start", { ascending: false }).limit(8),
-          sb.from("analytics_mau").select("*").order("month_start", { ascending: false }).limit(6),
-          sb.from("analytics_retention").select("*").order("cohort_day", { ascending: false }).limit(12),
-          sb.from("analytics_sessions_per_week").select("*").order("week_start", { ascending: false }).limit(8),
-          sb.from("analytics_training_days_per_week").select("*").order("week_start", { ascending: false }).limit(8),
-          sb.from("analytics_session_duration_summary").select("*").maybeSingle(),
-          sb.from("analytics_screen_dwell_summary").select("*").limit(15),
-          sb.from("analytics_top_screens").select("*").limit(15),
-          sb.from("analytics_top_exercises").select("*").limit(15),
-          sb.from("analytics_top_favorited_exercises").select("*").limit(15),
-          sb.from("analytics_top_programs").select("*").limit(15),
-          sb.from("analytics_mission_completion").select("*").order("day", { ascending: false }).limit(14),
-          sb.from("analytics_challenge_completion").select("*").limit(15),
-          sb.from("analytics_badge_distribution").select("*").limit(15),
-          sb.from("feedback_summary").select("*").maybeSingle(),
-          sb.from("feedback_backlog").select("created_at, status, category, title, app_version, message")
+        // Each panel is its own query, settled independently: one slow or
+        // failed request must not hang the whole dashboard (the old Promise.all
+        // spun forever on any single stuck fetch). Every query also races a
+        // timeout so a request that never settles can't freeze "Loading…".
+        const queries = {
+          todayDigest: sb.from("analytics_today_digest").select("*").maybeSingle(),
+          needsAttention: sb.from("analytics_needs_attention").select("*").limit(25),
+          needsAttentionSummary: sb.from("analytics_needs_attention_summary").select("*"),
+          summary: sb.from("analytics_athlete_summary").select("*").maybeSingle(),
+          dau: sb.from("analytics_dau").select("*").order("day", { ascending: false }).limit(14),
+          wau: sb.from("analytics_wau").select("*").order("week_start", { ascending: false }).limit(8),
+          mau: sb.from("analytics_mau").select("*").order("month_start", { ascending: false }).limit(6),
+          retention: sb.from("analytics_retention").select("*").order("cohort_day", { ascending: false }).limit(12),
+          sessions: sb.from("analytics_sessions_per_week").select("*").order("week_start", { ascending: false }).limit(8),
+          trainingDays: sb.from("analytics_training_days_per_week").select("*").order("week_start", { ascending: false }).limit(8),
+          sessionDurationSummary: sb.from("analytics_session_duration_summary").select("*").maybeSingle(),
+          screenDwell: sb.from("analytics_screen_dwell_summary").select("*").limit(15),
+          screens: sb.from("analytics_top_screens").select("*").limit(15),
+          exercises: sb.from("analytics_top_exercises").select("*").limit(15),
+          favoritedExercises: sb.from("analytics_top_favorited_exercises").select("*").limit(15),
+          programs: sb.from("analytics_top_programs").select("*").limit(15),
+          mission: sb.from("analytics_mission_completion").select("*").order("day", { ascending: false }).limit(14),
+          challenges: sb.from("analytics_challenge_completion").select("*").limit(15),
+          badges: sb.from("analytics_badge_distribution").select("*").limit(15),
+          feedbackSummary: sb.from("feedback_summary").select("*").maybeSingle(),
+          backlog: sb.from("feedback_backlog").select("created_at, status, category, title, app_version, message")
             .in("status", ["open", "triaged", "in_progress"]).limit(15),
+        };
+
+        const TIMEOUT_MS = 12000;
+        const withTimeout = (p, key) => Promise.race([
+          Promise.resolve(p),
+          new Promise((_, reject) => setTimeout(() => reject(new Error(`${key} timed out after ${TIMEOUT_MS / 1000}s`)), TIMEOUT_MS)),
         ]);
 
+        const keys = Object.keys(queries);
+        const settled = await Promise.allSettled(keys.map(k => withTimeout(queries[k], k)));
         if (cancelled) return;
-        const err = [summary, dau, wau, retention, screens, exercises, programs, feedbackSummary, backlog]
-          .map(r => r.error).find(Boolean);
-        if (err) throw err;
+
+        const out = {};
+        const failures = [];
+        settled.forEach((res, i) => {
+          const key = keys[i];
+          if (res.status === "fulfilled" && !res.value?.error) {
+            out[key] = res.value?.data ?? null;
+          } else {
+            out[key] = null;
+            const msg = res.status === "rejected" ? res.reason?.message : res.value?.error?.message;
+            failures.push(`${key}: ${msg || "failed"}`);
+          }
+        });
+
+        // Only a total wipeout is a hard error (bad session / RLS / offline) —
+        // otherwise render every panel that did load and note the rest.
+        if (failures.length === keys.length) {
+          throw new Error(failures[0] || "All dashboard queries failed");
+        }
+        if (failures.length) {
+          console.warn("[fkh-admin] some panels failed:", failures);
+        }
 
         setError(null);
         setData({
-          summary: summary.data,
-          dau: dau.data,
-          wau: wau.data,
-          mau: mau.data,
-          retention: retention.data,
-          sessions: sessions.data,
-          trainingDays: trainingDays.data,
-          sessionDurationSummary: sessionDurationSummary.data,
-          screenDwell: screenDwell.data,
-          screens: screens.data,
-          exercises: exercises.data,
-          favoritedExercises: favoritedExercises.data,
-          programs: programs.data,
-          mission: mission.data,
-          challenges: challenges.data,
-          badges: badges.data,
-          feedbackSummary: feedbackSummary.data,
-          backlog: (backlog.data || []).map(r => ({
+          ...out,
+          backlog: (out.backlog || []).map(r => ({
             ...r,
             created_at: r.created_at ? new Date(r.created_at).toLocaleString() : "—",
           })),
@@ -345,10 +370,16 @@ export default function AdminDashboard() {
             <h1 style={{ fontSize: 24, fontWeight: 800, margin: "0 0 4px", letterSpacing: "-0.02em" }}>FKH Product Dashboard</h1>
             <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>Click any metric or table row to drill down</p>
           </div>
-          <button type="button" onClick={() => openDrill({ type: "recent_events", label: "Recent events" })}
-            style={{ ...btnStyle(), padding: "8px 14px", color: "#38bdf8", borderColor: "rgba(56,189,248,0.35)" }}>
-            Live event feed ↗
-          </button>
+          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+            <button type="button" onClick={() => openDrill({ type: "recent_events", label: "Recent events" })}
+              style={{ ...btnStyle(), padding: "8px 14px", color: "#38bdf8", borderColor: "rgba(56,189,248,0.35)" }}>
+              Live event feed ↗
+            </button>
+            <button type="button" onClick={exitAdminDashboard} title="Back to the athlete app"
+              style={{ ...btnStyle(), padding: "8px 14px" }}>
+              ← Exit
+            </button>
+          </div>
         </div>
 
         <DrillPanel
@@ -358,6 +389,22 @@ export default function AdminDashboard() {
           onBack={drillStack.length ? drillBack : null}
           onClose={closeDrill}
           onRowClick={(next, push) => openDrill(next, push)}
+        />
+
+        <TodayDigest
+          digest={data.todayDigest}
+          attention={data.needsAttention}
+          attentionSummary={data.needsAttentionSummary}
+          onOpenAthlete={row => openDrill({
+            type: "athlete",
+            value: row.athlete_id,
+            label: row.label,
+          })}
+          onOpenFeedback={() => openDrill({
+            type: "feedback",
+            value: "backlog",
+            label: "Feedback backlog",
+          })}
         />
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(160px,1fr))", gap: 12, marginBottom: 28 }}>
