@@ -33,7 +33,7 @@ begin
   select display_name into v_sender from public.athlete_profiles where id = v_me;
   perform net.http_post(
     url := 'https://jjwaspyuldkwasfyrqbw.supabase.co/functions/v1/send-push',
-    body := jsonb_build_object('secret', 'fkh_push_9Qx2Re7Yk3Lm8Wp4Zb6Td0Vn5Hs1Ac',
+    body := jsonb_build_object('secret', current_setting('app.push_secret', true),
       'category', 'messages', 'onlyUserId', p_recipient,
       'title', '💬 ' || coalesce(v_sender, 'A friend'),
       'body', left(v_text, 80), 'url', '/FitKidHooper/?messages=1'),

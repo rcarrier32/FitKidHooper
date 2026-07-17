@@ -1,13 +1,16 @@
 // Deployed Supabase Edge Function (verify_jwt = false; gated by PUSH_SECRET).
 // Sends web-push notifications for a category to eligible subscribers. Called by
-// pg_cron (daily reminder) and the friend_requests trigger. VAPID keys embedded
-// (server-side only; can be moved to Supabase secrets later).
+// pg_cron (daily reminder) and the friend_requests trigger.
+//
+// Secrets live in Supabase Edge Function secrets, NOT in source:
+//   supabase secrets set VAPID_PRIVATE=... PUSH_SECRET=...
+// The public VAPID key is safe to ship (it's sent to browsers to subscribe).
 import webpush from "npm:web-push@3.6.7";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-const VAPID_PUBLIC = "BKTyb_hHdQoeCzVSQ6DuBqolJMNKBdMh3hjY73gevAl-qwwyVTWy6bVnHuQP2tx6LaYiefRmz02vtHxSiu0As8w";
-const VAPID_PRIVATE = "GtWmgmxTkyRDZBUVk3MEgKCavg-1Jt5i1HKTQQlDHfQ";
-const PUSH_SECRET = "fkh_push_9Qx2Re7Yk3Lm8Wp4Zb6Td0Vn5Hs1Ac";
+const VAPID_PUBLIC = "BC63C8Q7EhvzNVenK402rXcfq1EbgZq5v5fTPl5Mf7bKzGpzVhuCJt87qGMLjLeY6kUL0_RDMyTNHtFNSxuYCn0";
+const VAPID_PRIVATE = Deno.env.get("VAPID_PRIVATE")!;
+const PUSH_SECRET = Deno.env.get("PUSH_SECRET")!;
 const APP_ORIGIN = "https://rcarrier32.github.io";
 
 function toAbsoluteAppUrl(url?: string | null): string {

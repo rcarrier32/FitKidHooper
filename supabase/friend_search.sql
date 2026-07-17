@@ -19,7 +19,7 @@ begin
   perform net.http_post(
     url := 'https://jjwaspyuldkwasfyrqbw.supabase.co/functions/v1/send-push',
     body := jsonb_build_object(
-      'secret', 'fkh_push_9Qx2Re7Yk3Lm8Wp4Zb6Td0Vn5Hs1Ac',
+      'secret', current_setting('app.push_secret', true),
       'category', 'friendRequest',
       'onlyUserId', p_user_id,
       'title', p_title,

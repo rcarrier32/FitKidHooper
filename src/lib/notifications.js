@@ -8,7 +8,7 @@ const PREFS_KEY = "fkh-notify-prefs";
 
 // Public VAPID key (safe to ship). Private key is a Supabase secret used by the
 // send-push edge function.
-const VAPID_PUBLIC_KEY = "BKTyb_hHdQoeCzVSQ6DuBqolJMNKBdMh3hjY73gevAl-qwwyVTWy6bVnHuQP2tx6LaYiefRmz02vtHxSiu0As8w";
+const VAPID_PUBLIC_KEY = "BC63C8Q7EhvzNVenK402rXcfq1EbgZq5v5fTPl5Mf7bKzGpzVhuCJt87qGMLjLeY6kUL0_RDMyTNHtFNSxuYCn0";
 
 // Notification categories — all default ON; the athlete can uncheck any.
 export const NOTIFICATION_CATEGORIES = [
