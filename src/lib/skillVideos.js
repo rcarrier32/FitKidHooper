@@ -8,6 +8,11 @@
  * Consume from a skill card:  import { SKILL_VIDEOS } from "./skillVideos";
  *                             const v = SKILL_VIDEOS[skill.id];   // may be undefined
  *
+ * Optional clip fields: an entry may carry `start` / `end` (whole seconds) to play
+ * only a segment — pass them to youtubeEmbedUrl(v.videoId, { start: v.start, end: v.end }).
+ * Useful for longer clips where the actual move is a portion (e.g. the Jr. NBA fundamentals).
+ * NOTE: this map is not yet rendered by any UI — it feeds a future player-development layer.
+ *
  * 58 of ~70 leaf skills covered. Missing ones (rebounding micro-cues, a few handle
  * sub-moves) had no distinct clip in search and are left out on purpose rather than mislabeled.
  */
@@ -46,13 +51,13 @@ export const SKILL_VIDEOS = {
   hesitation:            { videoId: "TxyQaGXPJ3U", title: "WORK ON YOUR HESITATION MOVES", channel: "HoopStudy", seconds: 31, source: "youtube", trusted: true },
   in_out:                { videoId: "dF61fgRPa3g", title: "it's Dribbling Basic.「In And Out」.basketball skill. #animation #basketballtraining", channel: "KaKaBasketball", seconds: 10, source: "youtube" },
   pound:                 { videoId: "ZFUzXbAMcgU", title: "High Pound Dribbling Drill #ballhandling", channel: "No Excuse Produce ", seconds: 10, source: "youtube" },
-  pullback:              { videoId: "Xa3axxbIL5U", title: "Check out this to improve your Pullback Dribble", channel: "Billy Clapper Basketball", seconds: 9, source: "youtube" },
+  pullback:              { videoId: "HDHFyQ0DwS4", title: "Fundamentals Of The Pull-Back Dribble", channel: "Jr. NBA Jr. WNBA", seconds: 59, source: "youtube", trusted: true },
   push_cross:            { videoId: "TwsnggwSBfc", title: "✅ How To Cross Jab In 10 Seconds ⏱️", channel: "Get Handles Basketball", seconds: 9, source: "youtube", trusted: true },
-  retreat:               { videoId: "GV8tuux5R9Q", title: "Retreat Dribble", channel: "NODAT Training", seconds: 8, source: "youtube" },
+  retreat:               { videoId: "LY31S_8yyOA", title: "Fundamentals Of The Retreat Dribble", channel: "Jr. NBA Jr. WNBA", seconds: 88, source: "youtube", trusted: true },
   shamgod:               { videoId: "BmTh9Wqz1dc", title: "Crazy New Ball Handling Drill! Drill To Help Your Shamgod Move!", channel: "ILoveBasketballTV", seconds: 58, source: "youtube", trusted: true },
   snatch:                { videoId: "NTS_8LFX9No", title: "5 Snatch Back Moves! Which Is The Best?", channel: "ILoveBasketballTV", seconds: 25, source: "youtube", trusted: true },
   spin:                  { videoId: "R-NdxJLMPLw", title: "4 Drills For A Nasty Spin Move (Beginners & Advanced)", channel: "Get Handles Basketball", seconds: 31, source: "youtube", trusted: true },
-  stutter:               { videoId: "mLlGsR0LTrw", title: "👟FULL COURT STUTTER SERIES👟 | Elite Ball Handling & Footwork", channel: "Hoop Dreams Basketball 🏀🧠", seconds: 12, source: "youtube" },
+  stutter:               { videoId: "06a9mc2gThU", title: "Stutter Step Dribbling for Youth Basketball", channel: "AvcssBasketball", seconds: 45, source: "youtube", trusted: true },
 
   // ── passing ──
   bounce:                { videoId: "Guig8aK0DxU", title: "Bounce Passing Drill", channel: "STACK Basketball Training", seconds: 14, source: "youtube" },

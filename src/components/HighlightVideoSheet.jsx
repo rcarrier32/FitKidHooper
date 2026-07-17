@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import { useWakeLock } from "../lib/useWakeLock.js";
+import { youtubeEmbedUrl } from "../lib/youtubeEmbedUrl.js";
 
-/** Inline YouTube player for path legend highlights — same embed pattern as exercise videos. */
-export default function HighlightVideoSheet({ videoId, title, color = "#f97316", BG = "#0b1220", onClose }) {
+/** Inline YouTube player for path legend highlights — same embed pattern as exercise videos.
+ *  Optional `start`/`end` (whole seconds) clip playback to a segment of the video. */
+export default function HighlightVideoSheet({ videoId, title, start, end, color = "#f97316", BG = "#0b1220", onClose }) {
   useWakeLock(!!videoId);
 
   useEffect(() => {
@@ -50,7 +52,7 @@ export default function HighlightVideoSheet({ videoId, title, color = "#f97316",
         </div>
         <div style={{ position: "relative", background: "#000", aspectRatio: "16/9", overflow: "hidden" }}>
           <iframe
-            src={`https://www.youtube.com/embed/${videoId}?autoplay=1&playsinline=1&rel=0&modestbranding=1`}
+            src={youtubeEmbedUrl(videoId, { start, end })}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
             title={title || "Player highlights"}

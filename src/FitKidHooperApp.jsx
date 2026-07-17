@@ -19,6 +19,7 @@ import { exportCanonicalSave, importCanonicalSave } from "./lib/canonicalSave.js
 import { recoverFromSyncBackupIfNeeded } from "./lib/syncBackup.js";
 import { writeStoredAvatar, readStoredAvatar, stripAvatarForCloud, migrateAvatarOutOfSettings } from "./lib/avatarStorage.js";
 import { safePersistKey } from "./lib/dataSafety.js";
+import { youtubeEmbedUrl } from "./lib/youtubeEmbedUrl.js";
 import { readStoredObject, parseStoredObject, repairStoredObjectKeys, asRecord, readStoredArray } from "./lib/storageParse.js";
 import { mergeUserSettings } from "./lib/settingsMerge.js";
 import { persistHydratedSettings, normalizeProfileFields, fetchAthleteProfilePatch, mergeProfilePatch } from "./lib/profileHydrate.js";
@@ -3076,7 +3077,7 @@ function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onTogg
               ) : (
                 /* YouTube iframe embed */
                 <iframe
-                  src={`https://www.youtube.com/embed/${exercise.videoId}?autoplay=1&playsinline=1&rel=0&modestbranding=1`}
+                  src={youtubeEmbedUrl(exercise.videoId, { start: exercise.videoStart, end: exercise.videoEnd })}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   allowFullScreen
                   title={exercise.videoTitle || exercise.name}
