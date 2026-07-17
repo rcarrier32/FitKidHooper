@@ -8,8 +8,29 @@ const LAST_USERNAME_KEY = "fkh-last-username";
 const USERNAME_RE = /^[a-z0-9_]{3,20}$/;
 const PASSCODE_RE = /^\d{6}$/;
 
+// Bump when the consent/privacy text materially changes — stored on each
+// consent record so we always know which version a parent agreed to (COPPA).
+export const CONSENT_VERSION = "2026-07-17";
+
 export function isAuthConfigured() {
   return isSupabaseConfigured();
+}
+
+/**
+ * Record verifiable parental consent for the current (just-verified) account.
+ * Call right after the parent's email is verified at signup. Writes the
+ * caller's own row server-side via the record_parental_consent RPC.
+ */
+export async function recordParentalConsent({ parentEmail, consentVersion = CONSENT_VERSION, method = "email_verification" } = {}) {
+  const sb = getSupabaseClient();
+  if (!sb) return { ok: false, error: "not configured" };
+  const { data, error } = await sb.rpc("record_parental_consent", {
+    p_parent_email: parentEmail,
+    p_consent_version: consentVersion,
+    p_method: method,
+  });
+  if (error) return { ok: false, error: error.message };
+  return data || { ok: false, error: "no response" };
 }
 
 export function normalizeUsername(raw) {

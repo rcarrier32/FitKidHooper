@@ -332,6 +332,7 @@ export default function AdminDashboard() {
         <AuthSheet
           P="#f97316"
           SF="#0d1526"
+          parentConsent={false}
           onClose={() => {}}
           onSignedIn={() => { setLoading(true); setNeedsAuth(false); setReloadKey(k => k + 1); }}
         />

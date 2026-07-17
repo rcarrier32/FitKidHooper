@@ -7,6 +7,7 @@ import {
   sendRecoveryCode,
   resetPasscodeWithCode,
   verifySignupEmail,
+  recordParentalConsent,
 } from "../lib/auth.js";
 
 const inputStyle = (P) => ({
@@ -27,7 +28,7 @@ const btnGhost = (P) => ({
   fontSize: 12, fontWeight: 700, cursor: "pointer",
 });
 
-export default function AuthSheet({ P, SF, onClose, onSignedIn, initialMode = "signin", zIndex = 350 }) {
+export default function AuthSheet({ P, SF, onClose, onSignedIn, initialMode = "signin", zIndex = 350, parentConsent = true }) {
   const [mode, setMode] = useState(initialMode);
   const [username, setUsername] = useState(getLastUsername());
   const [passcode, setPasscode] = useState("");
@@ -36,9 +37,17 @@ export default function AuthSheet({ P, SF, onClose, onSignedIn, initialMode = "s
   const [otpCode, setOtpCode] = useState("");
   const [pendingEmail, setPendingEmail] = useState("");
   const [pendingUsername, setPendingUsername] = useState("");
+  const [isParent, setIsParent] = useState(false);
+  const [readPrivacy, setReadPrivacy] = useState(false);
   const [status, setStatus] = useState(null);
   const [busy, setBusy] = useState(false);
   const configured = isAuthConfigured();
+
+  // In the athlete app, creating an account means a kid saving their player —
+  // so it collects a PARENT's email + consent (COPPA). Admin sign-in passes
+  // parentConsent={false} to keep the plain form.
+  const nameLabel = parentConsent ? "Jersey Name" : "username";
+  const consentOk = !parentConsent || (isParent && readPrivacy);
 
   const isError = status && !status.includes("sent") && !status.includes("Check") && !status.includes("created");
 
@@ -67,6 +76,10 @@ export default function AuthSheet({ P, SF, onClose, onSignedIn, initialMode = "s
       setStatus("Passcodes do not match");
       return;
     }
+    if (parentConsent && !consentOk) {
+      setStatus("A parent or guardian needs to check both boxes to continue.");
+      return;
+    }
     setBusy(true);
     setStatus(null);
     try {
@@ -92,6 +105,12 @@ export default function AuthSheet({ P, SF, onClose, onSignedIn, initialMode = "s
     setStatus(null);
     try {
       await verifySignupEmail({ email: pendingEmail, code: otpCode, username: pendingUsername });
+      // Account now exists + parent email verified → record the consent
+      // (the verified email IS the parent's email). Non-fatal if it fails;
+      // the account is still created.
+      if (parentConsent) {
+        try { await recordParentalConsent({ parentEmail: pendingEmail }); } catch { /* non-fatal */ }
+      }
       await finish();
     } catch (err) {
       setStatus(err.message || "Verification failed");
@@ -140,9 +159,9 @@ export default function AuthSheet({ P, SF, onClose, onSignedIn, initialMode = "s
 
   const title = {
     signin: "Sign In",
-    signup: "Create Account",
+    signup: parentConsent ? "Save My Player" : "Create Account",
     forgot: "Forgot Passcode",
-    verify: "Verify Email",
+    verify: parentConsent ? "One step for a grown-up" : "Verify Email",
     reset: "New Passcode",
   }[mode];
 
@@ -161,9 +180,13 @@ export default function AuthSheet({ P, SF, onClose, onSignedIn, initialMode = "s
         </div>
         <p style={{ fontSize: 12, color: "var(--fkh-text-muted)", lineHeight: 1.55, marginBottom: 16 }}>
           {mode === "signin" && "Back up progress, sync across devices, and add friends on Challenges."}
-          {mode === "signup" && "Pick a username and 6-digit passcode. Add a recovery email in case you forget."}
-          {mode === "forgot" && "Enter your username or recovery email. We'll send a 6-digit code."}
-          {mode === "verify" && "Check your recovery email for a 6-digit code."}
+          {mode === "signup" && (parentConsent
+            ? "Save your player so you never lose your streak, badges, or XP. Pick a Jersey Name and passcode — then a parent finishes one quick step."
+            : "Pick a username and 6-digit passcode. Add a recovery email in case you forget.")}
+          {mode === "forgot" && "Enter your Jersey Name or parent email. We'll send a 6-digit code."}
+          {mode === "verify" && (parentConsent
+            ? "We sent a 6-digit code to the parent's email. Enter it to save this player."
+            : "Check your recovery email for a 6-digit code.")}
           {mode === "reset" && "Enter the code from your email and choose a new 6-digit passcode."}
         </p>
 
@@ -174,7 +197,7 @@ export default function AuthSheet({ P, SF, onClose, onSignedIn, initialMode = "s
             <input
               value={username}
               onChange={e => setUsername(e.target.value)}
-              placeholder="username"
+              placeholder={nameLabel}
               autoCapitalize="none"
               autoCorrect="off"
               style={inputStyle(P)}
@@ -193,7 +216,7 @@ export default function AuthSheet({ P, SF, onClose, onSignedIn, initialMode = "s
               {busy ? "Signing in…" : "Sign in"}
             </button>
             <button type="button" onClick={() => { setMode("signup"); setStatus(null); }} style={btnGhost(P)}>
-              Create account
+              {parentConsent ? "New here? Save your player" : "Create account"}
             </button>
             <button type="button" onClick={() => { setMode("forgot"); setStatus(null); }} style={btnGhost(P)}>
               Forgot passcode?
@@ -204,7 +227,7 @@ export default function AuthSheet({ P, SF, onClose, onSignedIn, initialMode = "s
             <input
               value={username}
               onChange={e => setUsername(e.target.value)}
-              placeholder="username"
+              placeholder={nameLabel}
               autoCapitalize="none"
               autoCorrect="off"
               style={inputStyle(P)}
@@ -231,14 +254,28 @@ export default function AuthSheet({ P, SF, onClose, onSignedIn, initialMode = "s
               type="email"
               value={recoveryEmail}
               onChange={e => setRecoveryEmail(e.target.value)}
-              placeholder="recovery email"
+              placeholder={parentConsent ? "Parent / guardian email" : "recovery email"}
               style={inputStyle(P)}
             />
-            <button type="submit" disabled={busy} style={btnPrimary(P, busy)}>
-              {busy ? "Creating…" : "Create account"}
+            {parentConsent && (
+              <div style={{ display: "grid", gap: 10, margin: "2px 0 14px" }}>
+                <label style={{ display: "flex", gap: 10, alignItems: "flex-start", cursor: "pointer", fontSize: 12.5, color: "var(--fkh-text-muted)", lineHeight: 1.45 }}>
+                  <input type="checkbox" checked={isParent} onChange={e => setIsParent(e.target.checked)}
+                    style={{ accentColor: P, width: 17, height: 17, flexShrink: 0, marginTop: 1 }} />
+                  <span>I'm the parent or guardian, and I give permission for my athlete to use Fit Kid Hooper.</span>
+                </label>
+                <label style={{ display: "flex", gap: 10, alignItems: "flex-start", cursor: "pointer", fontSize: 12.5, color: "var(--fkh-text-muted)", lineHeight: 1.45 }}>
+                  <input type="checkbox" checked={readPrivacy} onChange={e => setReadPrivacy(e.target.checked)}
+                    style={{ accentColor: P, width: 17, height: 17, flexShrink: 0, marginTop: 1 }} />
+                  <span>I've read the <a href={`${import.meta.env.BASE_URL}privacy.html`} target="_blank" rel="noopener noreferrer" style={{ color: P, fontWeight: 700 }}>privacy notice</a> — what we collect and why.</span>
+                </label>
+              </div>
+            )}
+            <button type="submit" disabled={busy || !consentOk} style={btnPrimary(P, busy || !consentOk)}>
+              {busy ? "Saving…" : parentConsent ? "Save My Player" : "Create account"}
             </button>
             <button type="button" onClick={() => { setMode("signin"); setStatus(null); }} style={btnGhost(P)}>
-              Already have an account? Sign in
+              {parentConsent ? "Already have a player? Log in" : "Already have an account? Sign in"}
             </button>
           </form>
         ) : mode === "forgot" ? (
