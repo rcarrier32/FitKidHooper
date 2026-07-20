@@ -52,7 +52,7 @@ begin
   foreach r in array v_recipients loop
     perform net.http_post(
       url := 'https://jjwaspyuldkwasfyrqbw.supabase.co/functions/v1/send-push',
-      body := jsonb_build_object('secret', current_setting('app.push_secret', true),
+      body := jsonb_build_object('secret', (select value from private.app_config where key = 'push_secret'),
         'category', 'friendActivity', 'onlyUserId', r,
         'title', '🏀 New comment', 'body', v_author || ' commented on the feed',
         'url', '/FitKidHooper/?view=boards'),
