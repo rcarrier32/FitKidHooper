@@ -19,25 +19,36 @@ select
   ap.display_name                                       as athlete_name,
   aa.last_session_at,
   extract(day from now() - aa.last_session_at)::int     as days_inactive,
-  pc.consented_at
+  pc.consented_at,
+  pc.last_reengagement_email_at
 from public.parental_consent pc
 join public.athlete_profiles ap on ap.id = pc.athlete_id
 left join public.athlete_analytics aa on aa.athlete_id = pc.athlete_id
 where aa.last_session_at is not null
   and aa.last_session_at < now() - interval '7 days'
+  -- Frequency cap: never email a parent more than once every 14 days.
+  and (pc.last_reengagement_email_at is null
+       or pc.last_reengagement_email_at < now() - interval '14 days')
 order by aa.last_session_at asc;
+
+-- Frequency-cap column (set by the send-parent-email edge function after a send).
+alter table public.parental_consent
+  add column if not exists last_reengagement_email_at timestamptz;
 
 -- Admin-gated: inherits the admin-only RLS on parental_consent / athlete_analytics.
 alter view public.parent_reengagement_queue set (security_invoker = on);
 
--- ── Sender sketch (NOT deployed) ──────────────────────────────
--- Edge function `send-parent-email`, gated by PUSH_SECRET like send-push:
+-- ── Sender: supabase/functions/send-parent-email (DEPLOYED, inert) ────
+-- Gated by PUSH_SECRET. Reads RESEND_API_KEY + FKH_FROM_EMAIL from Edge
+-- Function secrets; no-ops until both are set + consented parents exist.
+-- Writes parental_consent.last_reengagement_email_at after each send so the
+-- 14-day cap above kicks in.
 --
 --   const rows = await supabase.from("parent_reengagement_queue").select("*");
 --   for (const r of rows) {
---     await fetch("https://api.<provider>.com/emails", {
+--     await fetch("https://api.resend.com/emails", {
 --       method: "POST",
---       headers: { Authorization: `Bearer ${Deno.env.get("EMAIL_API_KEY")}` },
+--       headers: { Authorization: `Bearer ${Deno.env.get("RESEND_API_KEY")}` },
 --       body: JSON.stringify({
 --         to: r.parent_email,
 --         subject: `${r.athlete_name} hasn't trained in ${r.days_inactive} days`,
