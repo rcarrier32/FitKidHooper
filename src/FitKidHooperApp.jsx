@@ -2513,6 +2513,7 @@ function ExerciseSetTracker({
   const [activeSideIdx, setActiveSideIdx] = useState(0);
   const [liveReps, setLiveReps] = useState(0);
   const liveRepsRef = useRef(0);
+  const timerSecsRef = useRef(0);
   const warnedRef = useRef({ fifteen:false });
   const phaseRef = useRef(null);
   const setIdxRef = useRef(null);
@@ -2596,63 +2597,72 @@ function ExerciseSetTracker({
     if (!timerPhase) return;
     phaseRef.current = timerPhase;
     const id = setInterval(() => {
-      setTimerSecs(prev => {
-        const next = prev - 1;
-        const phase = phaseRef.current;
-        const idx = setIdxRef.current;
+      // Read seconds from a ref and do all state changes here in the interval
+      // callback — NOT inside a setState updater — so completing a set never
+      // fires a parent setState during render.
+      const next = timerSecsRef.current - 1;
+      const phase = phaseRef.current;
+      const idx = setIdxRef.current;
+      const setSecs = v => { timerSecsRef.current = v; setTimerSecs(v); };
 
-        if (phase === "prep") {
-          if (next >= 1 && next <= TIMER_WARN_SECS) timerAlert("count", next);
-          if (next <= 0) {
-            timerAlert("begin");
-            if (prescription.type === "time") return armWorkInterval(idx, 0);
-            stopTimer();
-            return 0;
-          }
-          return next;
+      if (phase === "prep") {
+        if (next >= 1 && next <= TIMER_WARN_SECS) timerAlert("count", next);
+        if (next <= 0) {
+          timerAlert("begin");
+          if (prescription.type === "time") { setSecs(armWorkInterval(idx, 0)); return; }
+          stopTimer();
+          return;
         }
-        if (phase === "switch") {
-          if (next >= 1 && next <= TIMER_WARN_SECS) timerAlert("count", next);
-          if (next <= 0) {
-            timerAlert("begin");
-            return armWorkInterval(idx, 1);
-          }
-          return next;
+        setSecs(next);
+        return;
+      }
+      if (phase === "switch") {
+        if (next >= 1 && next <= TIMER_WARN_SECS) timerAlert("count", next);
+        if (next <= 0) {
+          timerAlert("begin");
+          setSecs(armWorkInterval(idx, 1));
+          return;
         }
-        if (phase === "work") {
-          if (next >= 1 && next <= TIMER_WARN_SECS) timerAlert("count", next);
-          if (next <= 0) {
-            if (isBilateral && sideIdxRef.current === 0) return armSwitchInterval();
-            completeSet(idx, liveRepsRef.current);
-            return 0;
-          }
-          return next;
+        setSecs(next);
+        return;
+      }
+      if (phase === "work") {
+        if (next >= 1 && next <= TIMER_WARN_SECS) timerAlert("count", next);
+        if (next <= 0) {
+          if (isBilateral && sideIdxRef.current === 0) { setSecs(armSwitchInterval()); return; }
+          setSecs(0);
+          completeSet(idx, liveRepsRef.current);
+          return;
         }
-        if (phase === "rest") {
-          if (next === TIMER_REST_WARN_SECS && !warnedRef.current.fifteen) {
-            warnedRef.current.fifteen = true;
-            timerAlert("warn");
-          }
-          if (next >= 1 && next <= TIMER_WARN_SECS) timerAlert("count", next);
-          if (next <= 0) {
-            const nextIdx = idx + 1;
-            timerAlert("begin");
-            if (timersEnabled && prescription.type === "time") {
-              resetSide();
-              return armWorkInterval(nextIdx, 0);
-            }
-            stopTimer();
-            return 0;
-          }
-          return next;
+        setSecs(next);
+        return;
+      }
+      if (phase === "rest") {
+        if (next === TIMER_REST_WARN_SECS && !warnedRef.current.fifteen) {
+          warnedRef.current.fifteen = true;
+          timerAlert("warn");
         }
-        return next;
-      });
+        if (next >= 1 && next <= TIMER_WARN_SECS) timerAlert("count", next);
+        if (next <= 0) {
+          const nextIdx = idx + 1;
+          timerAlert("begin");
+          if (timersEnabled && prescription.type === "time") {
+            resetSide();
+            setSecs(armWorkInterval(nextIdx, 0));
+            return;
+          }
+          stopTimer();
+          return;
+        }
+        setSecs(next);
+        return;
+      }
     }, 1000);
     return () => clearInterval(id);
   }, [timerPhase, prescription, timersEnabled, isBilateral, armWorkInterval, armSwitchInterval, completeSet, stopTimer, resetSide]);
 
   useEffect(() => { liveRepsRef.current = liveReps; }, [liveReps]);
+  useEffect(() => { timerSecsRef.current = timerSecs; }, [timerSecs]);
 
   useEffect(() => () => stopTimer(), [exercise?.id, stopTimer]);
 
