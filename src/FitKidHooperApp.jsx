@@ -4645,6 +4645,8 @@ export default function FitKidHooperApp() {
       SF={surf(settings)}
       zIndex={showOnboarding ? 450 : 350}
       initialMode={authInitialMode}
+      firstName={settings.athleteName || ""}
+      lastName={settings.lastName || ""}
       onClose={() => { setShowAuth(false); setAuthInitialMode("signin"); }}
       onSignedIn={async () => {
         setShowAuth(false);

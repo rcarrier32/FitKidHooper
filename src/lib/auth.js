@@ -12,6 +12,21 @@ const PASSCODE_RE = /^\d{6}$/;
 // consent record so we always know which version a parent agreed to (COPPA).
 export const CONSENT_VERSION = "2026-07-17";
 
+/**
+ * Privacy guard: a Jersey Name (username) must not reveal the child's real
+ * name. Blocks the FULL first or last name as a substring; a short nickname
+ * (e.g. "bray" for "Braylen") is fine. Names under 3 chars are ignored to
+ * avoid false positives. Returns true if the username reveals the real name.
+ */
+export function usernameRevealsRealName(username, firstName, lastName) {
+  const u = String(username || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (!u) return false;
+  return [firstName, lastName]
+    .map(n => String(n || "").toLowerCase().replace(/[^a-z0-9]/g, ""))
+    .filter(n => n.length >= 3)
+    .some(n => u.includes(n));
+}
+
 export function isAuthConfigured() {
   return isSupabaseConfigured();
 }

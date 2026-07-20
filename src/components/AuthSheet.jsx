@@ -8,6 +8,7 @@ import {
   resetPasscodeWithCode,
   verifySignupEmail,
   recordParentalConsent,
+  usernameRevealsRealName,
 } from "../lib/auth.js";
 
 const inputStyle = (P) => ({
@@ -28,7 +29,7 @@ const btnGhost = (P) => ({
   fontSize: 12, fontWeight: 700, cursor: "pointer",
 });
 
-export default function AuthSheet({ P, SF, onClose, onSignedIn, initialMode = "signin", zIndex = 350, parentConsent = true }) {
+export default function AuthSheet({ P, SF, onClose, onSignedIn, initialMode = "signin", zIndex = 350, parentConsent = true, firstName = "", lastName = "" }) {
   const [mode, setMode] = useState(initialMode);
   const [username, setUsername] = useState(getLastUsername());
   const [passcode, setPasscode] = useState("");
@@ -78,6 +79,10 @@ export default function AuthSheet({ P, SF, onClose, onSignedIn, initialMode = "s
     }
     if (parentConsent && !consentOk) {
       setStatus("A parent or guardian needs to check both boxes to continue.");
+      return;
+    }
+    if (usernameRevealsRealName(username, firstName, lastName)) {
+      setStatus("Your Jersey Name can't include your real name — try a nickname or something creative!");
       return;
     }
     setBusy(true);

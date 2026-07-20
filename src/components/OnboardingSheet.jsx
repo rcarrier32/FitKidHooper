@@ -9,6 +9,7 @@ import {
   signInWithUsername,
   verifySignupEmail,
   recordParentalConsent,
+  usernameRevealsRealName,
 } from "../lib/auth.js";
 import { calcAge } from "../lib/periodStats.js";
 import { POSITIONS } from "../lib/identity.js";
@@ -135,6 +136,7 @@ export default function OnboardingSheet({ P = "#f97316", onComplete, onAuthSucce
     if (userErr) return userErr;
     if (usernameStatus === "taken") return "That username is taken — try another";
     if (usernameStatus === "checking") return "Still checking username…";
+    if (usernameRevealsRealName(normUser, firstName, lastName)) return "Your Jersey Name can't include your real name — try a nickname or something creative!";
     if (!/^\d{6}$/.test(passcode)) return "Passcode must be exactly 6 digits";
     if (passcode !== passcode2) return "Passcodes do not match";
     if (!recoveryEmail.trim().includes("@")) return "Ask a parent for their email to save your player";
