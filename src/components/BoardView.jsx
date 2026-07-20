@@ -346,7 +346,7 @@ export default function BoardView({
     setSendingRequest(true);
     try {
       const res = await sendFriendRequestTo(id);
-      const label = name || (u ? `@${u}` : "them");
+      const label = u ? `@${u}` : (name || "them");
       if (res.status === "accepted") {
         setFriendMsg(`You're now friends with ${label}!`);
         await load();
@@ -583,7 +583,7 @@ export default function BoardView({
                       <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 10, background: `${P}10`, border: `1px solid ${P}22`, marginBottom: 6 }}>
                         <FriendAvatar
                           profile={prof}
-                          displayName={r.display_name || r.username}
+                          displayName={r.username || "athlete"}
                           size={36}
                           P={P}
                           onPress={() => viewFriend(r.requester_id)}
@@ -600,7 +600,6 @@ export default function BoardView({
                           >
                             @{r.username || "athlete"}
                           </button>
-                          {r.display_name ? <span style={{ color: "#64748b", fontWeight: 400 }}> · {r.display_name}</span> : null}
                         </div>
                         <button type="button" onClick={() => handleRespond(r.id, true)} style={{ padding: "6px 12px", borderRadius: 8, border: "none", background: P, color: "#000", fontSize: 11, fontWeight: 800, cursor: "pointer" }}>Accept</button>
                         <button type="button" onClick={() => handleRespond(r.id, false)} style={{ padding: "6px 10px", borderRadius: 8, border: `1px solid ${bd}`, background: "transparent", color: "#94a3b8", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Decline</button>
@@ -637,9 +636,13 @@ export default function BoardView({
                       <div style={{ fontSize: 11, color: "#64748b", padding: "6px 2px" }}>No athletes found</div>
                     )}
                     {searchResults.map(a => {
+                      // Search still matches on real name, but results show the
+                      // username only — never a browsable directory of kids' real
+                      // names (privacy). Avatar initial comes from the username too.
+                      const handle = a.username || "athlete";
                       const prof = profileSnippet({
                         id: a.user_id,
-                        display_name: a.display_name,
+                        display_name: handle,
                         avatar_url: a.avatar_url,
                       });
                       const selected = selectedAthlete?.user_id === a.user_id;
@@ -656,14 +659,11 @@ export default function BoardView({
                             textAlign: "left",
                           }}
                         >
-                          <FriendAvatar profile={prof} displayName={a.display_name || a.username} size={36} P={P} />
+                          <FriendAvatar profile={prof} displayName={handle} size={36} P={P} />
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 12, fontWeight: 700, color: "var(--fkh-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                              {a.display_name || a.username || "Athlete"}
+                              @{handle}
                             </div>
-                            {a.username && (
-                              <div style={{ fontSize: 10, color: "#64748b" }}>@{a.username}</div>
-                            )}
                           </div>
                         </button>
                       );
@@ -702,7 +702,7 @@ export default function BoardView({
                         borderRadius: 8, background: "rgba(255,255,255,0.03)", border: `1px solid ${bd}`, marginBottom: 4,
                       }}>
                         <div style={{ flex: 1, minWidth: 0, fontSize: 12, color: "var(--fkh-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {r.display_name || (r.username ? `@${r.username}` : "Athlete")}
+                          {r.username ? `@${r.username}` : "Athlete"}
                         </div>
                         <span style={{ fontSize: 10, fontWeight: 700, color: statusColor, flexShrink: 0 }}>{statusLabel}</span>
                       </div>
