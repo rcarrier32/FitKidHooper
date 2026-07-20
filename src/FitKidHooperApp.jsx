@@ -2825,26 +2825,31 @@ function ExerciseSetTracker({
                   </div>
                 )}
               </div>
-              {s.reps != null && s.done && isTimed && (
-                <span style={{ fontSize:10,fontWeight:700,color:"#fbbf24" }}>{s.reps} reps</span>
-              )}
               {isTimed ? (
-                s.done ? (
-                  <button onClick={()=>toggleRepSet(idx)}
-                    style={{ width:32,height:32,borderRadius:8,border:"1px solid #22c55e",background:"#22c55e",color:"#fff",fontSize:14,fontWeight:800,cursor:"pointer" }}>✓</button>
-                ) : timersEnabled ? (
-                  <button onClick={()=>startTimedSet(idx)} disabled={!!timerPhase}
-                    style={{ padding:"6px 12px",borderRadius:8,border:"none",background:timerPhase?`${color}44`:color,color:timerPhase?"#64748b":"#000",fontSize:11,fontWeight:800,cursor:timerPhase?"default":"pointer" }}>
-                    ▶ Start
-                  </button>
-                ) : (
-                  <div style={{ display:"flex",alignItems:"center",gap:6 }}>
-                    <button onClick={()=>{ const r=Math.max(0,(s.reps||0)-1); onSetsChange(sets.map((x,i)=>i===idx?{...x,reps:r}:x)); }}
+                <div style={{ display:"flex",alignItems:"center",gap:8 }}>
+                  {/* Reps stay editable before the set starts AND after it finishes —
+                      not only during the live timer — so a count can always be
+                      logged or corrected without stopping the exercise. */}
+                  <div style={{ display:"flex",alignItems:"center",gap:4 }}>
+                    <button type="button" onClick={()=>{ const r=Math.max(0,(s.reps||0)-1); onSetsChange(sets.map((x,i)=>i===idx?{...x,reps:r}:x)); }}
                       style={{ width:26,height:26,borderRadius:6,border:`1px solid ${color}44`,background:"transparent",color,fontSize:14,cursor:"pointer" }}>−</button>
-                    <span style={{ fontSize:12,fontWeight:700,color,minWidth:16,textAlign:"center" }}>{s.reps||0}</span>
-                    <button onClick={()=>{ const r=(s.reps||0)+1; onSetsChange(sets.map((x,i)=>i===idx?{...x,reps:r}:x)); }}
+                    <div style={{ minWidth:32,textAlign:"center",lineHeight:1 }}>
+                      <div style={{ fontSize:13,fontWeight:800,color }}>{s.reps||0}</div>
+                      <div style={{ fontSize:8,color:"#64748b",marginTop:1 }}>reps</div>
+                    </div>
+                    <button type="button" onClick={()=>{ const r=(s.reps||0)+1; onSetsChange(sets.map((x,i)=>i===idx?{...x,reps:r}:x)); if (r>(maxReps||0)) onMaxRepsChange(r); }}
                       style={{ width:26,height:26,borderRadius:6,border:"none",background:color,color:"#000",fontSize:14,fontWeight:800,cursor:"pointer" }}>+</button>
-                    <button onClick={()=>{
+                  </div>
+                  {s.done ? (
+                    <button type="button" onClick={()=>toggleRepSet(idx)}
+                      style={{ width:32,height:32,borderRadius:8,border:"1px solid #22c55e",background:"#22c55e",color:"#fff",fontSize:14,fontWeight:800,cursor:"pointer" }}>✓</button>
+                  ) : timersEnabled ? (
+                    <button type="button" onClick={()=>startTimedSet(idx)} disabled={!!timerPhase}
+                      style={{ padding:"6px 12px",borderRadius:8,border:"none",background:timerPhase?`${color}44`:color,color:timerPhase?"#64748b":"#000",fontSize:11,fontWeight:800,cursor:timerPhase?"default":"pointer" }}>
+                      ▶ Start
+                    </button>
+                  ) : (
+                    <button type="button" onClick={()=>{
                       const r=s.reps||0;
                       const next=sets.map((x,i)=>i===idx?{...x,done:true,reps:r,sidesDone:isBilateral?[true,true]:x.sidesDone}:x);
                       onSetsChange(next);
@@ -2852,8 +2857,8 @@ function ExerciseSetTracker({
                       if (next.every(x=>x.done)) onAllSetsComplete?.();
                     }}
                       style={{ width:32,height:32,borderRadius:8,border:`1.5px solid ${color}60`,background:"transparent",color,fontSize:14,fontWeight:800,cursor:"pointer" }}>○</button>
-                  </div>
-                )
+                  )}
+                </div>
               ) : (
                 <button onClick={()=>toggleRepSet(idx)}
                   title={isBilateral && sidesDone[0] && !sidesDone[1] ? `Mark ${exerciseSideLabel(prescription, 1)} done` : isBilateral ? `Mark ${exerciseSideLabel(prescription, 0)} done` : undefined}
