@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import NotificationSettings from "./NotificationSettings.jsx";
+import VideoTrainingSettings from "./VideoTrainingSettings.jsx";
 import { getAgeGroup, getAgeGroupLabel } from "../lib/periodStats.js";
 import { exportCanonicalSave, importCanonicalSave } from "../lib/canonicalSave.js";
 import {
@@ -411,6 +412,8 @@ function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenW
             )}
             <div style={{ fontSize:11,fontWeight:800,color:"#64748b",letterSpacing:"0.06em",textTransform:"uppercase",margin:"4px 2px 8px" }}>🔔 Notifications</div>
             <NotificationSettings P={P} isSignedIn={isSignedIn} onNeedAuth={onOpenAuth} />
+            <div style={{ fontSize:11,fontWeight:800,color:"#64748b",letterSpacing:"0.06em",textTransform:"uppercase",margin:"16px 2px 8px" }}>🎥 Video Training</div>
+            <VideoTrainingSettings P={P} isSignedIn={isSignedIn} />
           </div>
         </div>
 
