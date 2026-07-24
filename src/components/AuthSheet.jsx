@@ -10,6 +10,7 @@ import {
   recordParentalConsent,
   usernameRevealsRealName,
 } from "../lib/auth.js";
+import { checkLegendsAccess } from "../lib/legendsAccess.js";
 
 const inputStyle = (P) => ({
   width: "100%", boxSizing: "border-box", padding: "12px 14px", borderRadius: 10,
@@ -35,6 +36,7 @@ export default function AuthSheet({ P, SF, onClose, onSignedIn, initialMode = "s
   const [passcode, setPasscode] = useState("");
   const [passcode2, setPasscode2] = useState("");
   const [recoveryEmail, setRecoveryEmail] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [pendingEmail, setPendingEmail] = useState("");
   const [pendingUsername, setPendingUsername] = useState("");
@@ -88,6 +90,16 @@ export default function AuthSheet({ P, SF, onClose, onSignedIn, initialMode = "s
     setBusy(true);
     setStatus(null);
     try {
+      // Legends access gate: a registered Legends family (by the parent email) OR a one-time
+      // invite code an admin generated. Shared with the onboarding signup path so the two
+      // can't drift; honors VITE_LEGENDS_GATE_MODE (warn-only by default).
+      setStatus("Checking your Legends access…");
+      const gate = await checkLegendsAccess({ email: recoveryEmail, code: inviteCode });
+      if (!gate.allow) {
+        setStatus(gate.message);
+        setBusy(false);
+        return;
+      }
       const result = await signUpWithUsername({ username, passcode, recoveryEmail });
       if (result.needsEmailVerification) {
         setPendingEmail(result.email);
@@ -260,6 +272,14 @@ export default function AuthSheet({ P, SF, onClose, onSignedIn, initialMode = "s
               value={recoveryEmail}
               onChange={e => setRecoveryEmail(e.target.value)}
               placeholder={parentConsent ? "Parent / guardian email" : "recovery email"}
+              style={inputStyle(P)}
+            />
+            <input
+              value={inviteCode}
+              onChange={e => setInviteCode(e.target.value)}
+              placeholder="Legends invite code (only if not a registered family)"
+              autoCapitalize="characters"
+              autoCorrect="off"
               style={inputStyle(P)}
             />
             {parentConsent && (

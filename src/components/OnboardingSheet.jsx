@@ -11,6 +11,7 @@ import {
   recordParentalConsent,
   usernameRevealsRealName,
 } from "../lib/auth.js";
+import { checkLegendsAccess } from "../lib/legendsAccess.js";
 import { calcAge } from "../lib/periodStats.js";
 import { POSITIONS } from "../lib/identity.js";
 import PlayerPicker from "./PlayerPicker.jsx";
@@ -212,6 +213,15 @@ export default function OnboardingSheet({ P = "#f97316", onComplete, onAuthSucce
 
     setBusy(true);
     try {
+      // Same Legends gate the sign-in sheet uses. Onboarding is the FRONT DOOR for
+      // a new athlete, so leaving it ungated made the gate decorative.
+      const gate = await checkLegendsAccess({ email: recoveryEmail });
+      if (!gate.allow) {
+        setError(gate.message);
+        setBusy(false);
+        return;
+      }
+
       const result = await signUpWithUsername({
         username: normUser,
         passcode,
