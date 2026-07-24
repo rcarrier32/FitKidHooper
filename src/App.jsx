@@ -3,7 +3,9 @@ import FitKidHooperApp from './FitKidHooperApp.jsx'
 import UpdateBanner from './UpdateBanner'
 import InstallBanner from './InstallBanner'
 import AdminDashboard from './components/AdminDashboard.jsx'
+import ParentConsentPage from './components/ParentConsentPage.jsx'
 import { isAdminDashboardEnabled } from './lib/adminAccess.js'
+import { consentTokenFromUrl } from './lib/parentConsent.js'
 import { repairStoredObjectKeys } from './lib/storageParse.js'
 import { migrateAvatarOutOfSettings } from './lib/avatarStorage.js'
 
@@ -83,6 +85,12 @@ class BootErrorBoundary extends Component {
 }
 
 export default function App() {
+  // A parent following the approval link is not an athlete — they get the
+  // consent page, never the kid's app. Checked first so the link always wins.
+  if (consentTokenFromUrl()) {
+    return <ParentConsentPage />
+  }
+
   if (isAdminDashboardEnabled()) {
     return <AdminDashboard />
   }

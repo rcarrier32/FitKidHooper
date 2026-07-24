@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import NotificationSettings from "./NotificationSettings.jsx";
 import VideoTrainingSettings from "./VideoTrainingSettings.jsx";
+import ParentConsentInvite from "./ParentConsentInvite.jsx";
 import { getAgeGroup, getAgeGroupLabel } from "../lib/periodStats.js";
 import { exportCanonicalSave, importCanonicalSave } from "../lib/canonicalSave.js";
 import {
@@ -410,7 +411,9 @@ function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenW
               </button>
               </>
             )}
-            <div style={{ fontSize:11,fontWeight:800,color:"#64748b",letterSpacing:"0.06em",textTransform:"uppercase",margin:"4px 2px 8px" }}>🔔 Notifications</div>
+            <div style={{ fontSize:11,fontWeight:800,color:"#64748b",letterSpacing:"0.06em",textTransform:"uppercase",margin:"4px 2px 8px" }}>🙌 Parent Approval</div>
+            <ParentConsentInvite P={P} isSignedIn={isSignedIn} athleteName={settings?.athleteName} />
+            <div style={{ fontSize:11,fontWeight:800,color:"#64748b",letterSpacing:"0.06em",textTransform:"uppercase",margin:"16px 2px 8px" }}>🔔 Notifications</div>
             <NotificationSettings P={P} isSignedIn={isSignedIn} onNeedAuth={onOpenAuth} />
             <div style={{ fontSize:11,fontWeight:800,color:"#64748b",letterSpacing:"0.06em",textTransform:"uppercase",margin:"16px 2px 8px" }}>🎥 Video Training</div>
             <VideoTrainingSettings P={P} isSignedIn={isSignedIn} />
