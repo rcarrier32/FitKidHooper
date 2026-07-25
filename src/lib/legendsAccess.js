@@ -55,7 +55,9 @@ export function legendsGateMessage(reason, { hasCode } = {}) {
     case "invalid_code":
       return "That invite code isn't valid or has already been used. Double-check it, or ask a Legends admin for one.";
     case "not_registered":
-      return "We found your family, but there's no season registration yet. Register at legendsyba.com, or ask a Legends admin for an invite code.";
+      // Not shown as a block anymore — interest-list families are let in. Kept
+      // for logs / any surface that wants to nudge toward registration.
+      return "You're in! Register for a Legends season at legendsyba.com to unlock everything.";
     case "invalid_email":
       return "That email doesn't look right — double-check it.";
     case "missing_input":
@@ -89,16 +91,30 @@ export async function checkLegendsAccess({ email, code } = {}) {
   }
 
   const res = await verifyLegendsEligibility({ email, code });
-  if (res.eligible) return { allow: true, reason: "eligible", via: res.via };
+  if (res.eligible) {
+    // Registered family or a redeemed invite. videoEligible gates the
+    // registered-only extras (e.g. Buddy Video) — only a season registration
+    // clears it; an admin invite gets the app but not video until they register.
+    return { allow: true, reason: "eligible", via: res.via, videoEligible: res.via === "family" };
+  }
 
   const reason = res.reason || res.error || "not_found";
   const message = legendsGateMessage(reason, { hasCode });
+
+  // Interest-list families (known to Legends, no season registration) are
+  // WELCOME in the app — that's the funnel: train free today, register to
+  // unlock more. They just don't get the registered-only extras. Blocking them
+  // would mean FKH can only serve families you already have, never recruit new
+  // ones. A genuinely unknown email (not_found) still needs an invite code.
+  if (reason === "not_registered") {
+    return { allow: true, reason, via: "interest", videoEligible: false };
+  }
 
   if (LEGENDS_GATE_MODE !== "block") {
     // Warn mode: let them through, but leave a breadcrumb for the founder so the
     // roster gap is visible BEFORE enforcement starts turning families away.
     try { console.warn("[fkh] Legends gate (warn-only) would have blocked:", reason); } catch { /* noop */ }
-    return { allow: true, reason, message, warnOnly: true };
+    return { allow: true, reason, message, warnOnly: true, videoEligible: false };
   }
-  return { allow: false, reason, message };
+  return { allow: false, reason, message, videoEligible: false };
 }
