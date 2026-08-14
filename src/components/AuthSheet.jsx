@@ -10,7 +10,7 @@ import {
   recordParentalConsent,
   usernameRevealsRealName,
 } from "../lib/auth.js";
-import { checkLegendsAccess } from "../lib/legendsAccess.js";
+import { checkLegendsAccess, rememberLegendsAccess } from "../lib/legendsAccess.js";
 
 const inputStyle = (P) => ({
   width: "100%", boxSizing: "border-box", padding: "12px 14px", borderRadius: 10,
@@ -95,6 +95,8 @@ export default function AuthSheet({ P, SF, onClose, onSignedIn, initialMode = "s
       // can't drift; honors VITE_LEGENDS_GATE_MODE (warn-only by default).
       setStatus("Checking your Legends access…");
       const gate = await checkLegendsAccess({ email: recoveryEmail, code: inviteCode });
+      // The gate never runs again after signup — write its answer down.
+      rememberLegendsAccess(gate);
       if (!gate.allow) {
         setStatus(gate.message);
         setBusy(false);
