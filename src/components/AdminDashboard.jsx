@@ -306,13 +306,25 @@ export default function AdminDashboard() {
 
     // Wait for the restored session before the first fetch.
     (async () => {
-      const { data: { session } } = await sb.auth.getSession();
-      if (cancelled) return;
-      if (session?.user) {
-        fetchAll();
-      } else {
-        setLoading(false);
-        setNeedsAuth(true);
+      try {
+        const sessionPromise = sb.auth.getSession();
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Auth session timeout")), 8000)
+        );
+        const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]);
+        if (cancelled) return;
+        if (session?.user) {
+          fetchAll();
+        } else {
+          setLoading(false);
+          setNeedsAuth(true);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          console.warn("[fkh-admin] Failed to get session:", e.message);
+          setLoading(false);
+          setNeedsAuth(true);
+        }
       }
     })();
 
