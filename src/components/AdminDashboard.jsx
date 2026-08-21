@@ -264,7 +264,11 @@ export default function AdminDashboard() {
         ]);
 
         const keys = Object.keys(queries);
-        const settled = await Promise.allSettled(keys.map(k => withTimeout(queries[k], k)));
+        const settledPromise = Promise.allSettled(keys.map(k => withTimeout(queries[k], k)));
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Dashboard query timeout — check your admin permissions in Supabase")), 30000)
+        );
+        const settled = await Promise.race([settledPromise, timeoutPromise]);
         if (cancelled) return;
 
         const out = {};
@@ -283,7 +287,9 @@ export default function AdminDashboard() {
         // Only a total wipeout is a hard error (bad session / RLS / offline) —
         // otherwise render every panel that did load and note the rest.
         if (failures.length === keys.length) {
-          throw new Error(failures[0] || "All dashboard queries failed");
+          const msg = failures[0] || "All dashboard queries failed";
+          console.error("[fkh-admin] All queries failed:", failures);
+          throw new Error(msg);
         }
         if (failures.length) {
           console.warn("[fkh-admin] some panels failed:", failures);
@@ -298,7 +304,10 @@ export default function AdminDashboard() {
           })),
         });
       } catch (e) {
-        if (!cancelled) setError(e.message || "Failed to load dashboard");
+        if (!cancelled) {
+          console.error("[fkh-admin] Dashboard error:", e.message);
+          setError(e.message || "Failed to load dashboard");
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
