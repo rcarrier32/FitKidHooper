@@ -27,6 +27,7 @@ async function expectAppBooted(page) {
 async function openMeSettings(page) {
   await nav(page).getByRole("button", { name: "⭐ Me" }).click();
   await expect(page.getByRole("heading", { name: "⭐ Me" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "⚙ Settings" })).toBeVisible({ timeout: 20_000 });
   await page.getByRole("button", { name: "⚙ Settings" }).click();
   await expect(page.getByText("Customize Your App")).toBeVisible();
   await expect(page.getByText("Athlete Profile")).toBeVisible();
