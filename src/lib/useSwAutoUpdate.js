@@ -9,14 +9,23 @@ import { useRegisterSW } from 'virtual:pwa-register/react'
  * the admin dashboard, the parent-consent page — never registered a
  * refresh check at all. A stale service worker already controlling the
  * origin would then serve pre-fix JS on those routes forever, with nothing
- * in the page able to notice or self-heal. Calling this at the top of
- * App() makes every route check for updates.
+ * in the page able to notice or self-heal. Mounting UpdateBanner (which
+ * calls this) unconditionally in App() makes every route check for
+ * updates.
  *
- * `silent` skips the "new version" banner and immediately reloads once an
- * update is found — used for the admin/consent routes, where there's no
- * athlete mid-session to protect from a surprise refresh.
+ * This deliberately does NOT force a reload on its own: vite.config's
+ * workbox `skipWaiting`+`clientsClaim` already activate a new build and
+ * take over open pages as soon as one is found, so the next navigation
+ * picks up fresh code by itself. An earlier version of this hook called
+ * `updateServiceWorker(true)` automatically whenever `needRefresh` flipped
+ * true, which caused a reload loop: each reload re-ran the immediate
+ * `.update()` check below, which could re-detect a refresh was needed and
+ * reload again before the page ever settled. `updateServiceWorker` is
+ * still returned so UpdateBanner can apply an update immediately, but only
+ * in response to an athlete tapping the button — a one-shot, user-driven
+ * call, not an automatic loop.
  */
-export function useSwAutoUpdate({ silent = false } = {}) {
+export function useSwAutoUpdate() {
   const { needRefresh: [needRefresh], updateServiceWorker } = useRegisterSW({
     onRegistered(registration) {
       if (!registration) return
@@ -33,10 +42,6 @@ export function useSwAutoUpdate({ silent = false } = {}) {
     document.addEventListener('visibilitychange', onVisible)
     return () => document.removeEventListener('visibilitychange', onVisible)
   }, [])
-
-  useEffect(() => {
-    if (silent && needRefresh) updateServiceWorker(true)
-  }, [silent, needRefresh, updateServiceWorker])
 
   return { needRefresh, updateServiceWorker }
 }
