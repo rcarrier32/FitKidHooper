@@ -8,6 +8,7 @@ import { isAdminDashboardEnabled } from './lib/adminAccess.js'
 import { consentTokenFromUrl } from './lib/parentConsent.js'
 import { repairStoredObjectKeys } from './lib/storageParse.js'
 import { migrateAvatarOutOfSettings } from './lib/avatarStorage.js'
+import { useSwAutoUpdate } from './lib/useSwAutoUpdate.js'
 
 class BootErrorBoundary extends Component {
   state = { error: null, attempt: 0 }
@@ -85,13 +86,25 @@ class BootErrorBoundary extends Component {
 }
 
 export default function App() {
+  const consentToken = consentTokenFromUrl()
+  const adminEnabled = isAdminDashboardEnabled()
+
+  // UpdateBanner (and its SW-update check) only mounts inside the athlete
+  // app tree below, so the admin dashboard and parent-consent routes never
+  // ran any update logic at all — a service worker already caching an old
+  // build just kept serving it forever on those URLs with nothing to
+  // notice or self-heal. Running the check here, on every route, fixes
+  // that; silent=true skips the banner and reloads immediately since
+  // there's no athlete mid-session to protect from a surprise refresh.
+  useSwAutoUpdate({ silent: adminEnabled || Boolean(consentToken) })
+
   // A parent following the approval link is not an athlete — they get the
   // consent page, never the kid's app. Checked first so the link always wins.
-  if (consentTokenFromUrl()) {
+  if (consentToken) {
     return <ParentConsentPage />
   }
 
-  if (isAdminDashboardEnabled()) {
+  if (adminEnabled) {
     return <AdminDashboard />
   }
 

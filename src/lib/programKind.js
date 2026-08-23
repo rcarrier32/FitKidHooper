@@ -6,6 +6,7 @@ export const PROGRAM_KIND = {
   "become-shooter": "skill",
   "first-step-explosion": "skill",
   "complete-hooper": "skill",
+  "smooth-handles": "skill",
 };
 
 export function getProgramKind(programId) {

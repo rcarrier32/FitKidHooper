@@ -3133,7 +3133,7 @@ function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF, isDone, onTogg
                 color:"#fff",fontSize:9,fontWeight:800,letterSpacing:"0.12em",
                 padding:"4px 9px",borderRadius:6,textTransform:"uppercase",
                 boxShadow:"0 2px 8px rgba(0,0,0,0.5)",border:"1px solid rgba(255,255,255,0.2)",pointerEvents:"none" }}>
-                ✦ FKH Original
+                ✦ {exercise.trainer || "FKH Original"}
               </div>
               <div style={{ position:"absolute",bottom:10,left:12,right:12,
                 fontSize:11,color:"rgba(255,255,255,0.9)",fontWeight:600,
@@ -3583,7 +3583,7 @@ function DrillCard({ w, color, bg2, brd, isDone, onToggle, onViewDetail, favored
         <img src={w.videoSource==="fkh"&&w.thumbnailUrl ? w.thumbnailUrl : `https://img.youtube.com/vi/${w.videoId}/mqdefault.jpg`}
           alt="" style={{ width:128,height:90,objectFit:"cover",display:"block" }}/>
         <div style={{ position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-55%)",width:26,height:26,borderRadius:"50%",background:`${color}cc`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#000",fontWeight:700,border:`1px solid ${color}` }}>▶</div>
-        {w.videoSource==="fkh"&&<div style={{ position:"absolute",top:4,right:4,background:"#15803d",color:"#fff",fontSize:7,fontWeight:800,padding:"2px 5px",borderRadius:4,letterSpacing:"0.06em" }}>✦ FKH</div>}
+        {w.videoSource==="fkh"&&<div style={{ position:"absolute",top:4,right:4,background:"#15803d",color:"#fff",fontSize:7,fontWeight:800,padding:"2px 5px",borderRadius:4,letterSpacing:"0.06em" }}>{w.trainer?"✦ ORIGINAL":"✦ FKH"}</div>}
       </div>
       <div style={{ flex:1,padding:"11px 13px",minWidth:0 }}>
         <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8,marginBottom:6 }}>

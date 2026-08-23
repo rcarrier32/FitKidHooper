@@ -23,10 +23,16 @@
 | Metric | Count |
 |--------|-------|
 | Total exercises needing video | ~198 |
-| FKH original videos recorded | 0 |
-| FKH original videos published | 0 |
+| FKH original videos recorded | 22 |
+| FKH original videos published | **22** — 2nd To None “Smooth Handles”, live in `fkh-videos` |
 | Third-party videos in use | ~198 |
 | Target by RC2 | 20 FKH originals |
+
+> **First batch shipped:** the 22 **2nd To None — "Smooth Handles"** clips are filmed, transcoded,
+> uploaded, and playing in the app. All 44 objects (22 `.mp4` + 22 `.jpg`) verified byte-for-byte
+> against the local encodes, all 44 public URLs return HTTP 200, and inline playback is confirmed
+> for both landscape and portrait sources.
+> See [2nd To None — Smooth Handles](#2nd-to-none--smooth-handles-batch-1) below.
 
 ---
 
@@ -240,6 +246,133 @@ Film when P1–P4 complete, or if observation data shows high traffic.
 
 ---
 
+---
+
+## 2nd To None — Smooth Handles (Batch 1)
+
+The first set of FKH originals. 22 coach-filmed drills from **2nd To None**, added as new catalog
+exercises (not replacements for existing third-party entries) and sequenced into the 4-week
+**Smooth Handles** program (`smooth-handles`).
+
+**Source:** `Online Training` — 22 `.MOV` clips, 621 MB total, 1080p/4K HEVC.
+**Transcoded to:** H.264 / yuv420p, long side capped at **720p**, CRF 26, `+faststart`, mono AAC 64 k.
+**Result:** 621 MB → **53 MB** (avg 2.4 MB/clip). Largest single file 8 MB (bucket limit is 100 MB).
+Every clip decodes clean. Each drill also has a 640 px poster JPEG pulled from 15% into the clip (avg 31 KB).
+
+720p/CRF26 was chosen over 1080p/CRF24 after comparing a 2× center crop of both — indistinguishable at
+the size these actually play (a 16:9 box on a phone), for **54% fewer bytes**. Posters were dropped from
+1280 px to 640 px for a further 69% cut; they matter more than the video for egress, because thumbnails
+load whenever a kid browses a category (a dozen at once) while video only loads on an explicit tap.
+The `<video>` element isn't rendered until tap, so there is no preload waste.
+
+Files staged for upload at `~/Downloads/fkh-smooth-handles-upload/` (22 `.mp4` + 22 `.jpg`, 43 MB total).
+
+**Attribution:** 2nd To None granted permission to add and use the footage. The in-app badge credits
+them by name rather than reading "FKH Original" — these are their drills, filmed by them, so the
+detail-sheet badge renders `✦ 2ND TO NONE` and the drill-card chip reads `✦ ORIGINAL` (the card
+already carries a separate `📹 2nd To None` pill). "FKH Original" is still shown for any future
+self-filmed drill that sets no `trainer`.
+
+| # | Exercise | Catalog id / file slug | Category | Recorded | Published |
+|---|----------|------------------------|----------|----------|-----------|
+| 1 | 2 Ball Warmup | `tn-2ball-warmup` | Ball Handling Foundations | ✅ | ✅ |
+| 2 | 2 Ball Windshield Wipers | `tn-2ball-wipers` | Ball Handling Foundations | ✅ | ✅ |
+| 3 | Tennis Ball Catch — Tween & Behind | `tn-tennis-catch` | Ball Handling Foundations | ✅ | ✅ |
+| 4 | Pocket Dribble | `tn-pocket` | Game Handles | ✅ | ✅ |
+| 5 | Pocket Dribble → Between the Legs | `tn-pocket-tween` | Game Handles | ✅ | ✅ |
+| 6 | Pocket Dribble Split | `tn-pocket-split` | Game Handles | ✅ | ✅ |
+| 7 | Pocket Drop → Between the Legs | `tn-pocket-drop-tween` | Game Handles | ✅ | ✅ |
+| 8 | Glide Dribble Drop | `tn-glide-drop` | Game Handles | ✅ | ✅ |
+| 9 | Between the Legs → Crossover | `tn-tween-cross` | Game Handles | ✅ | ✅ |
+| 10 | Curved Angle Run — Crossover | `tn-curved-cross` | Game Handles | ✅ | ✅ |
+| 11 | Curved Angle Run — Between the Legs | `tn-curved-tween` | Game Handles | ✅ | ✅ |
+| 12 | Curved Angle Run — Behind the Back | `tn-curved-behind` | Game Handles | ✅ | ✅ |
+| 13 | Side Hand Layups — Beginner | `tn-side-hand-layup` | Finishing School | ✅ | ✅ |
+| 14 | Side Hand Layups — Advanced | `tn-side-hand-layup-adv` | Finishing School | ✅ | ✅ |
+| 15 | Glide → Drop → Ball-Side Foot Finish | `tn-glide-ballside-finish` | Finishing School | ✅ | ✅ |
+| 16 | Glide → Drop → Low Pickup → Inside Hand | `tn-glide-low-inside` | Finishing School | ✅ | ✅ |
+| 17 | Glide → Drop → Swing Step → Inside Hand | `tn-glide-swing-inside` | Finishing School | ✅ | ✅ |
+| 18 | Glide → Drop → Swing Step → Outside Hand | `tn-glide-swing-outside` | Finishing School | ✅ | ✅ |
+| 19 | Ball Drop → 1 Dribble Pull-Up | `tn-balldrop-pullup` | Shooting Lab | ✅ | ✅ |
+| 20 | Ball Drop → Snatchback Pull-Up | `tn-balldrop-snatch-pullup` | Shooting Lab | ✅ | ✅ |
+| 21 | Half-Court Pace Dribble → Middle Shot | `tn-pace-middle-shot` | Shooting Lab | ✅ | ✅ |
+| 22 | Half-Court Pace Dribble → Short Corner Shot | `tn-pace-corner-shot` | Shooting Lab | ✅ | ✅ |
+
+### Prescriptions — reviewed against the footage
+
+Sets, reps, rest, difficulty, and age minimums were derived by reviewing frames from all 22 clips
+(contact sheets at 16 frames per clip). What the review changed:
+
+| Drill | Correction |
+|---|---|
+| Side Hand Layups — Beginner | Footage is a **stationary one-hand release** drill under the rim — no drive, no dribble. Rewritten; was described as a driving layup. |
+| Side Hand Layups — Advanced | Adds a cone approach and a one-foot takeoff. Rewritten to build on the beginner version. |
+| All 4 Pocket drills + Tween→Cross | Footage is **stationary and continuously alternating**. Changed from `3×8 each side` to `3×30 s continuous`. |
+| 2 Ball Warmup | One ~60 s flow through several two-ball patterns, not a single repeated pattern. Now `2 rounds of the full sequence`. |
+| Tennis Ball Catch | Tennis ball is **self-tossed** — no partner needed. Cue clarified. |
+| Half-court pace shots | Each rep is a full-length push, so per-set reps lowered to `4×4 trips`. |
+| Glide finishes | Observed 2 reps per clip at a deliberate pace; per-set reps lowered to `3×5 each side`. |
+
+Still unverified: the clips have audio but no usable speech transcription was available, so **any
+prescription the coach states out loud has not been captured**. The numbers above are read off what
+the footage shows, not off what 2nd To None prescribes. Worth a confirmation pass with the trainer.
+
+### Provenance — the 22 clips are not all one shoot
+
+Frame review shows at least **three distinct settings**, which matters for attribution since all 22
+are currently tagged `trainer: "2nd To None"`:
+
+- **19 clips** — the main shoot (Freeland ICSA floor, the volleyball-net gym, and the white-wall gym),
+  same athlete in a black or navy tank.
+- **2 clips** — `tn-2ball-warmup`, `tn-2ball-wipers`: a "SportZone" gym, different athlete in teal/black.
+  `2 Ball Warmup` is also the only 720p H.264 source; everything else is 1080p HEVC.
+- **1 clip** — `tn-tennis-catch`: an indoor turf facility ("STAY HUNGRY STAY HUMBLE" wall sign),
+  portrait 4K, different athlete again.
+
+Confirm 2nd To None is the right credit for all three groups before publishing.
+
+### Reuse outside the program
+
+The 22 drills are catalog exercises, not program-only content, so they surface in drill browse and
+search on their own. Wiring them into the generated workouts surfaced a much larger pre-existing gap:
+**89 of 298 drills (30%) sat in categories no quick workout or Daily Mission ever pooled** — eleven
+whole categories, including the entire finishing and footwork families.
+
+Fixed by pooling the orphaned categories:
+
+| Change | Unlocks |
+|---|---|
+| New **🏁 Finishing & Footwork** quick workout (`finishing_school`, `finishing`, `footwork_lab`, `footwork`) | 36 drills — the family had no quick workout at all |
+| **🤲 Ball Handling** now also pools `ballhandling` + `basketball_iq` | 13 drills |
+| **🎯 Shooting Session** now also pools `shootingdrills` | 13 drills |
+| `SCHED_TO_TEMPLATE` routes for the newly-pooled categories | fixes `basketball_iq`, which pointed at a template that never pooled it |
+
+Unreachable drills: **89 → 27**. All 22 Smooth Handles drills are now servable by a quick workout
+(12 via Ball Handling, 6 via Finishing & Footwork, 4 via Shooting Session).
+
+Still orphaned, because each needs a genuinely new workout concept rather than re-wiring:
+`postmoves` (8), `passing` (8), `rebounding` (5), `partner_games` (6).
+
+### Upload — done
+
+Uploaded via the Supabase CLI. Two gotchas worth recording for the next batch:
+
+- `supabase storage` needs the **`--experimental`** flag or it silently prints usage and exits 0.
+- Run it from the **repo root**, not the folder holding the files. The CLI resolves the linked
+  project from `supabase/.temp/` in the working directory; from anywhere else every upload fails.
+
+```bash
+for f in ~/Downloads/<batch-dir>/*; do
+  supabase storage cp "$f" "ss:///fkh-videos/$(basename "$f")" --experimental
+done
+```
+
+Verified after upload: 44/44 objects present, sizes match the local encodes byte-for-byte, no
+zero-byte objects, all 44 public URLs return HTTP 200, and range requests return HTTP 206 — so a
+partial watch does not pull the whole file.
+
+---
+
 ## Video Production Guidelines
 
 ### Format
@@ -303,5 +436,5 @@ When a video is filmed and ready:
 ---
 
 *Created: 2026-05-30*  
-*Last updated: 2026-05-30*  
+*Last updated: 2026-08-23*  
 *Target: 20 FKH originals by RC2*

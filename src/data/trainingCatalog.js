@@ -1582,6 +1582,211 @@ const W_DEFENSE = [
     trainer:"Jr. NBA", videoId:"aSvFDJcIzys", videoChannel:"Jr. NBA Jr. WNBA", trusted:true, videoTitle:"Closeout, Slide & Backpedal Drill — Jr. NBA" },
 ];
 
+/* ═══════════════════════════════════════════════════════════════
+   2ND TO NONE — "SMOOTH HANDLES" LIBRARY (FKH ORIGINALS)
+   22 coach-filmed drills hosted in Supabase Storage (`fkh-videos`).
+   Every entry sets videoSource:"fkh" — unlocks the ✦ FKH Original badge
+   and plays inline via the native <video> element instead of a YouTube embed.
+   Grouped by the category they get browsed under; the "Smooth Handles"
+   program (below) is what strings them into a 4-week progression.
+═══════════════════════════════════════════════════════════════ */
+const TN_VIDEO_BASE = "https://jjwaspyuldkwasfyrqbw.supabase.co/storage/v1/object/public/fkh-videos";
+/** Build the FKH-original video fields for a 2nd To None clip. */
+const tnVideo = (slug) => ({
+  trainer: "2nd To None",
+  videoSource: "fkh",
+  videoUrl: `${TN_VIDEO_BASE}/${slug}.mp4`,
+  thumbnailUrl: `${TN_VIDEO_BASE}/${slug}.jpg`,
+});
+
+/* ─── 2nd To None → Ball Handling Foundations ─── */
+const TN_HANDLES = [
+  { id:"tn-2ball-warmup", name:"2 Ball Warmup", tag:"Warmup", difficulty:"beginner", ageRange:[9,17], funScore:8, estimatedDuration:180,
+    sets:"2 rounds of the full sequence (~60 s each)", rest:"30 s",
+    transferTags:["ball-handling","weak-hand","warmup"],
+    progressionTrack:"Step 1 — Ball Feel",
+    desc:"Two balls, both hands working at the same time. It's the fastest way to wake your hands up and the only drill where your weak hand can't hide — it has to keep pace with your strong hand or the rhythm falls apart. Start every handles session here.",
+    cues:["Both balls pound to the same height","Eyes up — feel the ball, don't watch it","Weak hand matches the strong hand's rhythm","Stay low in an athletic stance the whole set"],
+    ...tnVideo("tn-2ball-warmup") },
+
+  { id:"tn-2ball-wipers", name:"2 Ball Windshield Wipers", tag:"Coordination", difficulty:"intermediate", ageRange:[10,17], funScore:8, estimatedDuration:150,
+    sets:"3×30 s", rest:"25 s",
+    transferTags:["ball-handling","weak-hand","ball-control"],
+    progressionTrack:"Step 1 — Ball Feel",
+    desc:"Two balls sweeping side to side like wipers — one hand pushing the ball wide while the other pulls its ball back. Your hands have to run two different jobs at once, which is exactly what a wide, deceptive dribble demands in a game.",
+    cues:["Push the ball wide — don't just bounce it in place","Opposite hands going opposite directions","Both dribbles stay below the waist","Chest tall, eyes forward"],
+    ...tnVideo("tn-2ball-wipers") },
+
+  { id:"tn-tennis-catch", name:"Tennis Ball Catch — Tween & Behind", tag:"Hand-Eye", difficulty:"advanced", ageRange:[11,17], funScore:9, estimatedDuration:180,
+    sets:"3×10 catches each move", rest:"30 s",
+    transferTags:["ball-handling","reaction","eyes-up"],
+    progressionTrack:"Step 3 — Handle Under Pressure",
+    desc:"Dribble between the legs or behind the back while catching a tossed tennis ball. Splitting your attention like this is exactly what a live defender does to you — it builds a handle that still works when your eyes are busy somewhere else.",
+    cues:["Toss the tennis ball to yourself before the move, not during it","Never look down at the basketball","Finish the dribble move completely — no shortcuts","Soft hands on the tennis ball catch"],
+    ...tnVideo("tn-tennis-catch") },
+];
+
+/* ─── 2nd To None → Game Handles ─── */
+const TN_GAME_HANDLES = [
+  { id:"tn-pocket", name:"Pocket Dribble", tag:"Foundation", difficulty:"beginner", ageRange:[9,17], funScore:7, estimatedDuration:120,
+    sets:"3×30 s continuous", rest:"20 s",
+    transferTags:["ball-protection","change-of-pace","attacking"],
+    progressionTrack:"Step 1 — Find the Pocket",
+    desc:"The pocket is where the ball lives right before you decide what to do — low, tucked beside your hip, shielded from the defender. Every combo in this program starts from the pocket, so this is the drill everything else is built on.",
+    cues:["Ball stays at hip height or lower","Off-arm up as a shield","Low athletic stance — bend the knees, not the back","Find the pocket by feel, eyes up"],
+    ...tnVideo("tn-pocket") },
+
+  { id:"tn-pocket-tween", name:"Pocket Dribble → Between the Legs", tag:"Combo", difficulty:"intermediate", ageRange:[10,17], funScore:8, estimatedDuration:150,
+    sets:"3×30 s continuous", rest:"25 s",
+    transferTags:["crossover","change-of-direction","deception"],
+    progressionTrack:"Step 2 — Pocket Combos",
+    desc:"From the protected pocket, snap the ball between your legs. Because it starts low and hidden, the between-the-legs comes out faster and gives the defender almost nothing to read until it's already gone.",
+    cues:["Set the pocket first — don't rush into the tween","Snap the ball through, don't roll it","Front foot splits wide enough to clear cleanly","Come out of the move going somewhere — not standing still"],
+    ...tnVideo("tn-pocket-tween") },
+
+  { id:"tn-pocket-split", name:"Pocket Dribble Split", tag:"Attack", difficulty:"intermediate", ageRange:[10,17], funScore:9, estimatedDuration:150,
+    sets:"3×30 s continuous", rest:"30 s",
+    transferTags:["attacking","first-step","ball-protection"],
+    progressionTrack:"Step 2 — Pocket Combos",
+    desc:"Ride the pocket dribble, then split — attack straight through the defender's front foot instead of going around them. The pocket makes them settle; the split punishes them for settling.",
+    cues:["Pocket low first, then explode through the gap","Get your shoulder past their hip","Long first step — cover real ground","Keep the ball on the far side from the pressure"],
+    ...tnVideo("tn-pocket-split") },
+
+  { id:"tn-pocket-drop-tween", name:"Pocket Drop → Between the Legs", tag:"Combo", difficulty:"advanced", ageRange:[11,17], funScore:8, estimatedDuration:150,
+    sets:"3×30 s continuous", rest:"30 s",
+    transferTags:["deception","change-of-direction","change-of-pace"],
+    progressionTrack:"Step 2 — Pocket Combos",
+    desc:"Drop the pocket dribble even lower to bait the defender forward, then flip it between your legs the other way. A change of level before a change of direction — two things to react to instead of one.",
+    cues:["Sink your hips on the drop — don't just lower your arm","Hold the drop a beat to sell it","Explosive tween coming out of the drop","Push off hard the opposite way"],
+    ...tnVideo("tn-pocket-drop-tween") },
+
+  { id:"tn-glide-drop", name:"Glide Dribble Drop", tag:"On the Move", difficulty:"intermediate", ageRange:[10,17], funScore:8, estimatedDuration:150,
+    sets:"3×6 glides each direction", rest:"30 s",
+    transferTags:["change-of-pace","ball-protection","attacking"],
+    progressionTrack:"Step 2 — Glide & Drop",
+    desc:"Glide sideways with one long dribble, then drop the ball low to reset your angle. The glide covers ground and the drop buys the extra half-second you need to actually read what the defense gave you.",
+    cues:["Long glide — cover real distance, don't shuffle","Ball stays out in front through the glide","Drop low and gather your balance","Eyes up scanning the whole time"],
+    ...tnVideo("tn-glide-drop") },
+
+  { id:"tn-tween-cross", name:"Between the Legs → Crossover", tag:"Combo", difficulty:"intermediate", ageRange:[10,17], funScore:8, estimatedDuration:150,
+    sets:"3×30 s continuous", rest:"25 s",
+    transferTags:["crossover","change-of-direction","deception"],
+    progressionTrack:"Step 2 — Pocket Combos",
+    desc:"Two moves in one rhythm — between the legs to move the defender one way, then an immediate crossover back the other. The second move is the one that scores. The first one only exists to sell it.",
+    cues:["Both moves at the same low height","No pause between them — one rhythm, not two moves","Sell the tween with your shoulders and eyes","Explode out on the crossover"],
+    ...tnVideo("tn-tween-cross") },
+
+  { id:"tn-curved-cross", name:"Curved Angle Run — Crossover", tag:"On the Move", difficulty:"intermediate", ageRange:[10,17], funScore:8, estimatedDuration:150,
+    sets:"4 curves each direction", rest:"30 s",
+    transferTags:["attacking","change-of-direction","crossover"],
+    progressionTrack:"Step 3 — Handle on the Curve",
+    desc:"Dribble along a curving path and cross over as you bend the angle. Real drives are almost never straight lines — this trains the handle to hold up while your body is leaning through a turn.",
+    cues:["Lean into the curve — don't run it flat","Cross at the top of the bend","Ball stays tight to your body through the turn","Hold your speed through the move"],
+    ...tnVideo("tn-curved-cross") },
+
+  { id:"tn-curved-tween", name:"Curved Angle Run — Between the Legs", tag:"On the Move", difficulty:"intermediate", ageRange:[10,17], funScore:8, estimatedDuration:150,
+    sets:"4 curves each direction", rest:"30 s",
+    transferTags:["attacking","change-of-direction","ball-protection"],
+    progressionTrack:"Step 3 — Handle on the Curve",
+    desc:"Same curved path, but the ball goes between your legs as you bend it. Harder than it looks — your stride and the tween have to sync up while you're already leaning.",
+    cues:["Time the tween to your stride — don't break rhythm","Stay leaned into the curve through the move","Ball comes through low and fast","Eyes up on the rim or a target, not the floor"],
+    ...tnVideo("tn-curved-tween") },
+
+  { id:"tn-curved-behind", name:"Curved Angle Run — Behind the Back", tag:"On the Move", difficulty:"advanced", ageRange:[11,17], funScore:9, estimatedDuration:150,
+    sets:"4 curves each direction", rest:"30 s",
+    transferTags:["ball-protection","change-of-direction","attacking"],
+    progressionTrack:"Step 3 — Handle on the Curve",
+    desc:"The hardest of the three curved runs — behind the back while bending the angle. Behind-the-back keeps the ball furthest from a trailing defender, which is exactly who's chasing you on a curved drive.",
+    cues:["Wrap the ball around your hip, not your back","Push it to where you're going, not straight down","Don't slow down to make the move","Pick it up in stride and keep attacking"],
+    ...tnVideo("tn-curved-behind") },
+];
+
+/* ─── 2nd To None → Finishing School ─── */
+const TN_FINISHING = [
+  { id:"tn-side-hand-layup", name:"Side Hand Layups — Beginner", tag:"Foundation", difficulty:"beginner", ageRange:[9,17], funScore:7, estimatedDuration:180,
+    sets:"3×10 each hand", rest:"30 s",
+    transferTags:["finishing","touch","mechanics"],
+    progressionTrack:"Step 1 — Angles at the Rim",
+    desc:"Standing work under the rim — no drive, no dribble. Just the side-hand release, over and over, until the hand position and the touch off the glass are automatic. Groove it standing still before you ever try it at speed.",
+    cues:["Ball on the outside hand — away from where a defender would be","Release from the side, not scooped across your chest","Soft touch off the glass — don't fire it","Stay under control — this drill is about the hand, not the legs"],
+    ...tnVideo("tn-side-hand-layup") },
+
+  { id:"tn-side-hand-layup-adv", name:"Side Hand Layups — Advanced", tag:"Game Speed", difficulty:"advanced", ageRange:[11,17], funScore:8, estimatedDuration:150,
+    sets:"3×6 each side", rest:"35 s",
+    transferTags:["finishing","touch","contact-finishing"],
+    progressionTrack:"Step 3 — Finish at Speed",
+    desc:"Now add the approach. Attack the cone, go up off one foot, and release the same side-hand finish you grooved standing still. Arriving at speed changes everything — the hand has to stay the same while your legs are doing something completely different.",
+    cues:["Same release as the beginner version — only the approach changed","Go up off one foot, not a two-foot gather","Extend away from where the rim protector would be","Land balanced and reset for the next rep"],
+    ...tnVideo("tn-side-hand-layup-adv") },
+
+  { id:"tn-glide-ballside-finish", name:"Glide → Drop → Ball-Side Foot Finish", tag:"Combo", difficulty:"intermediate", ageRange:[10,17], funScore:8, estimatedDuration:180,
+    sets:"3×5 each side", rest:"35 s",
+    transferTags:["finishing","footwork","attacking"],
+    progressionTrack:"Step 2 — Glide Into the Finish",
+    desc:"Glide, drop the ball into the pocket, then take off from the foot on the same side as the ball. Taking off ball-side keeps your body between the defender and the shot the whole way up.",
+    cues:["Glide first — cover ground before you gather","Drop into the pocket, then go","Take off from the ball-side foot","Shield with your off shoulder through the finish"],
+    ...tnVideo("tn-glide-ballside-finish") },
+
+  { id:"tn-glide-low-inside", name:"Glide → Drop → Low Pickup → Inside Hand", tag:"Combo", difficulty:"intermediate", ageRange:[10,17], funScore:8, estimatedDuration:180,
+    sets:"3×5 each side", rest:"35 s",
+    transferTags:["finishing","touch","ball-protection"],
+    progressionTrack:"Step 2 — Glide Into the Finish",
+    desc:"After the glide and drop, pick the ball up low and finish with the inside hand. The low pickup keeps the ball out of the reach of a digging defender and lets you go up without ever raising it into traffic.",
+    cues:["Pick it up LOW — below the waist","Two long steps into the finish","Inside hand keeps the ball tight to your body","Eyes on the target, not the defender"],
+    ...tnVideo("tn-glide-low-inside") },
+
+  { id:"tn-glide-swing-inside", name:"Glide → Drop → Swing Step → Inside Hand", tag:"Advanced", difficulty:"advanced", ageRange:[11,17], funScore:9, estimatedDuration:180,
+    sets:"3×5 each side", rest:"40 s",
+    transferTags:["finishing","footwork","deception"],
+    progressionTrack:"Step 3 — Finish at Speed",
+    desc:"Add a swing step — a wide step that changes your angle after you've already gathered. The defender commits to where you were headed, then you swing across them and finish inside hand from a completely different spot.",
+    cues:["Gather first, then swing the step wide","The swing changes your angle — commit to it","Inside hand finish, ball tight to your body","Don't rush it — the swing needs room to work"],
+    ...tnVideo("tn-glide-swing-inside") },
+
+  { id:"tn-glide-swing-outside", name:"Glide → Drop → Swing Step → Outside Hand", tag:"Advanced", difficulty:"advanced", ageRange:[11,17], funScore:9, estimatedDuration:180,
+    sets:"3×5 each side", rest:"40 s",
+    transferTags:["finishing","footwork","touch"],
+    progressionTrack:"Step 3 — Finish at Speed",
+    desc:"The counter to the inside-hand version. Same swing step, but you finish with the outside hand — extending away from the help instead of tucking into it. Learn both and the rim protector can't guess right.",
+    cues:["Same swing step — only the finishing hand changes","Extend the ball AWAY from the help defender","Full arm extension on the release","Land balanced and ready to rebound your own miss"],
+    ...tnVideo("tn-glide-swing-outside") },
+];
+
+/* ─── 2nd To None → Shooting Lab ─── */
+const TN_SHOOTING = [
+  { id:"tn-balldrop-pullup", name:"Ball Drop → 1 Dribble Pull-Up", tag:"Off the Dribble", difficulty:"intermediate", ageRange:[10,17], funScore:8, estimatedDuration:240,
+    sets:"3×6 reps", rest:"35 s",
+    transferTags:["shooting","off-the-dribble","footwork"],
+    progressionTrack:"Step 2 — Shots Off the Bounce",
+    desc:"Drop the ball to start yourself moving, take exactly one dribble, and rise into the pull-up. One dribble is all you usually get in a game — this drill makes that single bounce enough to get a clean shot off.",
+    cues:["One dribble — count it every rep","Get your feet under you before you rise","Same shot pocket as your catch-and-shoot","Land where you took off — no drifting"],
+    ...tnVideo("tn-balldrop-pullup") },
+
+  { id:"tn-balldrop-snatch-pullup", name:"Ball Drop → Snatchback Pull-Up", tag:"Separation", difficulty:"advanced", ageRange:[11,17], funScore:9, estimatedDuration:240,
+    sets:"3×6 reps", rest:"40 s",
+    transferTags:["shooting","off-the-dribble","deception"],
+    progressionTrack:"Step 3 — Create Your Own Shot",
+    desc:"Attack forward, then snatch the ball back hard to create space and rise into the jumper. The snatchback is how guards get a shot off against a defender who's actually guarding them.",
+    cues:["Sell the drive before you snatch — lean in","Snatch it back HARD, not gently","Hips drop back with the ball","Rise straight up — don't fade away"],
+    ...tnVideo("tn-balldrop-snatch-pullup") },
+
+  { id:"tn-pace-middle-shot", name:"Half-Court Pace Dribble → Middle Shot", tag:"Game Speed", difficulty:"advanced", ageRange:[11,17], funScore:9, estimatedDuration:300,
+    sets:"4×4 trips", rest:"45 s",
+    transferTags:["shooting","change-of-pace","conditioning"],
+    progressionTrack:"Step 3 — Create Your Own Shot",
+    desc:"Push the ball from half court at real pace, then pull up in the middle of the floor. This is the transition shot — the one that comes when you're breathing hard and the defense hasn't set. Shoot it tired, on purpose.",
+    cues:["Real pace from half court — don't jog it","Decelerate under control before you rise","Same mechanics even with your heart rate up","Middle of the floor — square to the rim"],
+    ...tnVideo("tn-pace-middle-shot") },
+
+  { id:"tn-pace-corner-shot", name:"Half-Court Pace Dribble → Short Corner Shot", tag:"Game Speed", difficulty:"advanced", ageRange:[11,17], funScore:9, estimatedDuration:300,
+    sets:"4×3 trips each side", rest:"45 s",
+    transferTags:["shooting","change-of-pace","footwork"],
+    progressionTrack:"Step 3 — Create Your Own Shot",
+    desc:"Same half-court push, but you finish in the short corner instead of the middle. Different angle, no backboard help, and you're moving toward the baseline — the shot most players never practice and constantly get in games.",
+    cues:["Attack the angle, then stop your momentum","Square your shoulders to the rim — you're moving sideways","No backboard from here — clean arc","Balanced landing, both feet down together"],
+    ...tnVideo("tn-pace-corner-shot") },
+];
+
 const WORKOUTS = {
   speed:        W_SPEED,
   balance:      W_BALANCE,
@@ -1591,17 +1796,17 @@ const WORKOUTS = {
   coordination: W_COORDINATION,
   deceleration: W_DECELERATION,
   athletic:     W_ATHLETIC,
-  handles:      W_HANDLES,
+  handles:      [...W_HANDLES, ...TN_HANDLES],
   shooting:     W_SHOOTING,
   ballhandling: W_BALL_HANDLING,
   footwork:     W_FOOTWORK,
   finishing:    W_FINISHING,
   shootingdrills: W_SHOOTING_DRILLS,
   postmoves:      W_POST_MOVES,
-  finishing_school: W_FINISHING_SCHOOL,
+  finishing_school: [...W_FINISHING_SCHOOL, ...TN_FINISHING],
   footwork_lab:     W_FOOTWORK_LAB,
-  game_handles:     W_GAME_HANDLES,
-  shooting_lab:     W_SHOOTING_LAB,
+  game_handles:     [...W_GAME_HANDLES, ...TN_GAME_HANDLES],
+  shooting_lab:     [...W_SHOOTING_LAB, ...TN_SHOOTING],
   basketball_iq:    W_BASKETBALL_IQ,
   passing:          W_PASSING,
   rebounding:       W_REBOUNDING,
@@ -1848,6 +2053,32 @@ const EXERCISE_META = {
   "iq-spacing":          { difficulty:"beginner",     impactLevel:"low",    intensityLevel:"low",    movementType:"skill",        bodyFocus:["mind","feet","coordination"],      basketballTransfer:["spacing","basketball-IQ","team-offense","off-ball"], equipment:"basketball",  spaceRequired:"large",  ageRange:[9,14],  estimatedDuration:120, funScore:7,  workoutRole:["main"],          progressionTrack:"Step 2 — Off-Ball Intelligence" },
   "iq-help-side":        { difficulty:"intermediate", impactLevel:"low",    intensityLevel:"low",    movementType:"skill",        bodyFocus:["mind","feet","coordination"],      basketballTransfer:["defense","basketball-IQ","help-defense","team-defense"], equipment:"none",      spaceRequired:"large",  ageRange:[10,14], estimatedDuration:120, funScore:7,  workoutRole:["main"],          progressionTrack:"Step 3 — Defensive IQ" },
   "iq-transition":       { difficulty:"intermediate", impactLevel:"low",    intensityLevel:"low",    movementType:"skill",        bodyFocus:["mind","feet","coordination"],      basketballTransfer:["transition","basketball-IQ","decision-making","team-offense"], equipment:"basketball", spaceRequired:"large", ageRange:[10,14], estimatedDuration:120, funScore:9, workoutRole:["main"],           progressionTrack:"Step 3 — Defensive IQ" },
+  /* ─── 2ND TO NONE — SMOOTH HANDLES ───
+     Derived from the source footage: stance/laterality, whether the drill travels,
+     equipment actually in shot, and the court space each one needs. The generators read
+     THIS map (not the inline fields on the drill), so difficulty and age gating live here. */
+  "tn-2ball-warmup":         { difficulty:"beginner",     impactLevel:"low",    intensityLevel:"medium", movementType:"skill",     bodyFocus:["hands","forearms","coordination"], basketballTransfer:["ball-handling","weak-hand"],                 equipment:"2 basketballs",        spaceRequired:"small",  ageRange:[9,17],  estimatedDuration:150, funScore:8, workoutRole:["warmup"],        progressionTrack:"Step 1 — Ball Feel" },
+  "tn-2ball-wipers":         { difficulty:"intermediate", impactLevel:"low",    intensityLevel:"medium", movementType:"skill",     bodyFocus:["hands","forearms","coordination"], basketballTransfer:["ball-handling","weak-hand"],                 equipment:"2 basketballs",        spaceRequired:"small",  ageRange:[10,17], estimatedDuration:150, funScore:8, workoutRole:["warmup","main"], progressionTrack:"Step 1 — Ball Feel" },
+  "tn-tennis-catch":         { difficulty:"advanced",     impactLevel:"low",    intensityLevel:"medium", movementType:"skill",     bodyFocus:["hands","eyes","coordination"],     basketballTransfer:["ball-handling","reaction"],                  equipment:"basketball + tennis ball", spaceRequired:"small", ageRange:[11,17], estimatedDuration:180, funScore:9, workoutRole:["main"],          progressionTrack:"Step 3 — Handle Under Pressure" },
+  "tn-pocket":               { difficulty:"beginner",     impactLevel:"low",    intensityLevel:"medium", movementType:"skill",     bodyFocus:["hands","hips","legs"],             basketballTransfer:["ball-protection","change-of-pace"],           equipment:"basketball",           spaceRequired:"small",  ageRange:[9,17],  estimatedDuration:120, funScore:7, workoutRole:["main"],          progressionTrack:"Step 1 — Find the Pocket" },
+  "tn-pocket-tween":         { difficulty:"intermediate", impactLevel:"low",    intensityLevel:"medium", movementType:"skill",     bodyFocus:["hands","hips","legs"],             basketballTransfer:["crossover","change-of-direction"],            equipment:"basketball",           spaceRequired:"small",  ageRange:[10,17], estimatedDuration:150, funScore:8, workoutRole:["main"],          progressionTrack:"Step 2 — Pocket Combos" },
+  "tn-pocket-split":         { difficulty:"intermediate", impactLevel:"medium", intensityLevel:"medium", movementType:"skill",     bodyFocus:["hands","hips","legs"],             basketballTransfer:["attacking","first-step"],                    equipment:"basketball",           spaceRequired:"small",  ageRange:[10,17], estimatedDuration:150, funScore:9, workoutRole:["main"],          progressionTrack:"Step 2 — Pocket Combos" },
+  "tn-pocket-drop-tween":    { difficulty:"advanced",     impactLevel:"low",    intensityLevel:"medium", movementType:"skill",     bodyFocus:["hands","hips","legs"],             basketballTransfer:["deception","change-of-direction"],            equipment:"basketball",           spaceRequired:"small",  ageRange:[11,17], estimatedDuration:150, funScore:8, workoutRole:["main"],          progressionTrack:"Step 2 — Pocket Combos" },
+  "tn-glide-drop":           { difficulty:"intermediate", impactLevel:"medium", intensityLevel:"medium", movementType:"skill",     bodyFocus:["hands","hips","legs"],             basketballTransfer:["change-of-pace","ball-protection"],           equipment:"basketball",           spaceRequired:"medium", ageRange:[10,17], estimatedDuration:150, funScore:8, workoutRole:["main"],          progressionTrack:"Step 2 — Glide & Drop" },
+  "tn-tween-cross":          { difficulty:"intermediate", impactLevel:"low",    intensityLevel:"medium", movementType:"skill",     bodyFocus:["hands","hips","legs"],             basketballTransfer:["crossover","deception"],                     equipment:"basketball",           spaceRequired:"small",  ageRange:[10,17], estimatedDuration:150, funScore:8, workoutRole:["main"],          progressionTrack:"Step 2 — Pocket Combos" },
+  "tn-curved-cross":         { difficulty:"intermediate", impactLevel:"medium", intensityLevel:"high",   movementType:"athletic",  bodyFocus:["hands","legs","hips"],             basketballTransfer:["attacking","change-of-direction","crossover"], equipment:"basketball",          spaceRequired:"large",  ageRange:[10,17], estimatedDuration:150, funScore:8, workoutRole:["main"],          progressionTrack:"Step 3 — Handle on the Curve" },
+  "tn-curved-tween":         { difficulty:"intermediate", impactLevel:"medium", intensityLevel:"high",   movementType:"athletic",  bodyFocus:["hands","legs","hips"],             basketballTransfer:["attacking","change-of-direction"],            equipment:"basketball",           spaceRequired:"large",  ageRange:[10,17], estimatedDuration:150, funScore:8, workoutRole:["main"],          progressionTrack:"Step 3 — Handle on the Curve" },
+  "tn-curved-behind":        { difficulty:"advanced",     impactLevel:"medium", intensityLevel:"high",   movementType:"athletic",  bodyFocus:["hands","legs","hips"],             basketballTransfer:["ball-protection","change-of-direction"],      equipment:"basketball",           spaceRequired:"large",  ageRange:[11,17], estimatedDuration:150, funScore:9, workoutRole:["main"],          progressionTrack:"Step 3 — Handle on the Curve" },
+  "tn-side-hand-layup":      { difficulty:"beginner",     impactLevel:"low",    intensityLevel:"low",    movementType:"skill",     bodyFocus:["hands","shoulders","touch"],       basketballTransfer:["finishing","touch"],                         equipment:"basketball + hoop",    spaceRequired:"small",  ageRange:[9,17],  estimatedDuration:180, funScore:7, workoutRole:["main"],          progressionTrack:"Step 1 — Angles at the Rim" },
+  "tn-side-hand-layup-adv":  { difficulty:"advanced",     impactLevel:"high",   intensityLevel:"high",   movementType:"athletic",  bodyFocus:["legs","hands","touch"],            basketballTransfer:["finishing","contact-finishing"],              equipment:"basketball + hoop + cones", spaceRequired:"medium", ageRange:[11,17], estimatedDuration:150, funScore:8, workoutRole:["main"],     progressionTrack:"Step 3 — Finish at Speed" },
+  "tn-glide-ballside-finish":{ difficulty:"intermediate", impactLevel:"high",   intensityLevel:"high",   movementType:"athletic",  bodyFocus:["legs","hips","hands"],             basketballTransfer:["finishing","footwork"],                      equipment:"basketball + hoop",    spaceRequired:"medium", ageRange:[10,17], estimatedDuration:180, funScore:8, workoutRole:["main"],          progressionTrack:"Step 2 — Glide Into the Finish" },
+  "tn-glide-low-inside":     { difficulty:"intermediate", impactLevel:"high",   intensityLevel:"high",   movementType:"athletic",  bodyFocus:["legs","hips","hands"],             basketballTransfer:["finishing","ball-protection"],               equipment:"basketball + hoop",    spaceRequired:"medium", ageRange:[10,17], estimatedDuration:180, funScore:8, workoutRole:["main"],          progressionTrack:"Step 2 — Glide Into the Finish" },
+  "tn-glide-swing-inside":   { difficulty:"advanced",     impactLevel:"high",   intensityLevel:"high",   movementType:"athletic",  bodyFocus:["legs","hips","hands"],             basketballTransfer:["finishing","footwork","deception"],          equipment:"basketball + hoop",    spaceRequired:"medium", ageRange:[11,17], estimatedDuration:180, funScore:9, workoutRole:["main"],          progressionTrack:"Step 3 — Finish at Speed" },
+  "tn-glide-swing-outside":  { difficulty:"advanced",     impactLevel:"high",   intensityLevel:"high",   movementType:"athletic",  bodyFocus:["legs","hips","hands"],             basketballTransfer:["finishing","footwork","touch"],              equipment:"basketball + hoop",    spaceRequired:"medium", ageRange:[11,17], estimatedDuration:180, funScore:9, workoutRole:["main"],          progressionTrack:"Step 3 — Finish at Speed" },
+  "tn-balldrop-pullup":      { difficulty:"intermediate", impactLevel:"medium", intensityLevel:"medium", movementType:"skill",     bodyFocus:["legs","hands","core"],             basketballTransfer:["shooting","off-the-dribble"],                equipment:"basketball + hoop",    spaceRequired:"medium", ageRange:[10,17], estimatedDuration:240, funScore:8, workoutRole:["main"],          progressionTrack:"Step 2 — Shots Off the Bounce" },
+  "tn-balldrop-snatch-pullup":{ difficulty:"advanced",    impactLevel:"medium", intensityLevel:"high",   movementType:"skill",     bodyFocus:["legs","hands","core"],             basketballTransfer:["shooting","separation","off-the-dribble"],   equipment:"basketball + hoop",    spaceRequired:"medium", ageRange:[11,17], estimatedDuration:240, funScore:9, workoutRole:["main"],          progressionTrack:"Step 3 — Create Your Own Shot" },
+  "tn-pace-middle-shot":     { difficulty:"advanced",     impactLevel:"high",   intensityLevel:"high",   movementType:"athletic",  bodyFocus:["legs","lungs","hands"],            basketballTransfer:["shooting","transition","conditioning"],      equipment:"basketball + full court", spaceRequired:"large", ageRange:[11,17], estimatedDuration:300, funScore:9, workoutRole:["main","finisher"], progressionTrack:"Step 3 — Create Your Own Shot" },
+  "tn-pace-corner-shot":     { difficulty:"advanced",     impactLevel:"high",   intensityLevel:"high",   movementType:"athletic",  bodyFocus:["legs","lungs","hands"],            basketballTransfer:["shooting","transition","footwork"],          equipment:"basketball + full court", spaceRequired:"large", ageRange:[11,17], estimatedDuration:300, funScore:9, workoutRole:["main","finisher"], progressionTrack:"Step 3 — Create Your Own Shot" },
 };
 
 /* Cross-list existing agility/movement drills that transfer to on-ball defense into the Defense
@@ -1917,12 +2148,13 @@ const WORKOUT_TEMPLATES = {
   quickFeet: { name:"Quick Feet",        emoji:"⚡", desc:"Foot speed, agility, and reaction time.",  cats:["speed","coordination","athletic"],          structure:{warmup:2,main:3,finisher:1,recovery:0}, ageMin:9  },
   fullBody:  { name:"Full Body Athlete", emoji:"🏃", desc:"Strength, speed, and conditioning.",       cats:["strength","conditioning","athletic"],       structure:{warmup:1,main:3,finisher:1,recovery:1}, ageMin:9  },
   recovery:  { name:"Recovery Day",      emoji:"🔄", desc:"Light movement, balance, and mobility.",   cats:["balance","coordination"],                   structure:{warmup:2,main:2,finisher:0,recovery:2}, ageMin:9  },
-  handles:   { name:"Ball Handling",     emoji:"🤲", desc:"Dribbling, footwork, and court IQ.",       cats:["handles","game_handles","coordination"],    structure:{warmup:1,main:4,finisher:1,recovery:0}, ageMin:9  },
-  shooting:  { name:"Shooting Session",  emoji:"🎯", desc:"Form, range, and shooting consistency.",   cats:["shooting","shooting_lab"],                  structure:{warmup:1,main:3,finisher:1,recovery:0}, ageMin:9  },
+  handles:   { name:"Ball Handling",     emoji:"🤲", desc:"Dribbling, footwork, and court IQ.",       cats:["handles","game_handles","ballhandling","basketball_iq","coordination"], structure:{warmup:1,main:4,finisher:1,recovery:0}, ageMin:9  },
+  shooting:  { name:"Shooting Session",  emoji:"🎯", desc:"Form, range, and shooting consistency.",   cats:["shooting","shooting_lab","shootingdrills"], structure:{warmup:1,main:3,finisher:1,recovery:0}, ageMin:9  },
   defense:   { name:"Defense",           emoji:"🛡️", desc:"On-ball footwork, closeouts, and containment.", cats:["defense","athletic","coordination"],   structure:{warmup:2,main:3,finisher:1,recovery:0}, ageMin:9  },
+  finishing: { name:"Finishing & Footwork", emoji:"🏁", desc:"Attack the rim, finish off either hand, and land the footwork.", cats:["finishing_school","finishing","footwork_lab","footwork"], structure:{warmup:1,main:4,finisher:1,recovery:0}, ageMin:9  },
 };
 
-const SCHED_TO_TEMPLATE = { explosion:"jump",deceleration:"jump",speed:"quickFeet",coordination:"quickFeet",athletic:"quickFeet",strength:"fullBody",conditioning:"fullBody",balance:"recovery",handles:"handles",game_handles:"handles",basketball_iq:"handles",shooting:"shooting",shooting_lab:"shooting",defense:"defense" };
+const SCHED_TO_TEMPLATE = { explosion:"jump",deceleration:"jump",speed:"quickFeet",coordination:"quickFeet",athletic:"quickFeet",strength:"fullBody",conditioning:"fullBody",balance:"recovery",handles:"handles",game_handles:"handles",ballhandling:"handles",basketball_iq:"handles",shooting:"shooting",shooting_lab:"shooting",shootingdrills:"shooting",defense:"defense",finishing:"finishing",finishing_school:"finishing",footwork:"finishing",footwork_lab:"finishing" };
 
 
 /* ═══════════════════════ BENEFIT MAP ════════════════════════ */
@@ -2297,6 +2529,39 @@ const PROGRAMS = [
         ]},
     ],
   },
+
+  {
+    id:"smooth-handles", name:"Smooth Handles", emoji:"🌊", color:"#38bdf8",
+    badgeId:"pgm-smooth-handles", duration:4, daysPerWeek:3, ageRange:[10,17],
+    trainer:"2nd To None",
+    desc:"Four weeks with 2nd To None. Build the pocket dribble, add the glide-and-drop, then turn both into finishes and pull-ups at game pace. Every drill is an FKH original filmed with the coach.",
+    weeks:[
+      { week:1, goal:"Wake the hands up and learn the pocket — the low, protected spot every move starts from.",
+        sessions:[
+          { day:"Session 1", focus:"Wake Up the Hands",   exercises:["tn-2ball-warmup","tn-2ball-wipers","tn-pocket"] },
+          { day:"Session 2", focus:"Live in the Pocket",  exercises:["tn-pocket","tn-pocket-tween","tn-2ball-warmup"] },
+          { day:"Session 3", focus:"First Pocket Combos", exercises:["tn-pocket-tween","tn-pocket-split","tn-2ball-wipers"] },
+        ]},
+      { week:2, goal:"Add the glide and the drop, then take the handle onto a curved path.",
+        sessions:[
+          { day:"Session 1", focus:"Glide & Drop",         exercises:["tn-glide-drop","tn-pocket-drop-tween","tn-2ball-warmup"] },
+          { day:"Session 2", focus:"Two-Move Combos",      exercises:["tn-tween-cross","tn-pocket-split","tn-pocket-drop-tween"] },
+          { day:"Session 3", focus:"Handle on the Curve",  exercises:["tn-curved-cross","tn-curved-tween","tn-glide-drop"] },
+        ]},
+      { week:3, goal:"Turn the glide and drop into points — angles, low pickups, and swing-step finishes.",
+        sessions:[
+          { day:"Session 1", focus:"Angles at the Rim",    exercises:["tn-side-hand-layup","tn-glide-ballside-finish","tn-glide-drop"] },
+          { day:"Session 2", focus:"Low Pickup Finishes",  exercises:["tn-glide-low-inside","tn-glide-ballside-finish","tn-curved-behind"] },
+          { day:"Session 3", focus:"Swing Step Both Hands",exercises:["tn-glide-swing-inside","tn-glide-swing-outside","tn-side-hand-layup"] },
+        ]},
+      { week:4, goal:"Game pace — pull-ups, full-speed finishes, and shots off a real transition push.",
+        sessions:[
+          { day:"Session 1", focus:"Pull-Up Game",         exercises:["tn-balldrop-pullup","tn-balldrop-snatch-pullup","tn-tennis-catch"] },
+          { day:"Session 2", focus:"Full Speed Finishing", exercises:["tn-side-hand-layup-adv","tn-glide-swing-outside","tn-curved-behind"] },
+          { day:"Session 3", focus:"Transition Shots",     exercises:["tn-pace-middle-shot","tn-pace-corner-shot","tn-balldrop-snatch-pullup"] },
+        ]},
+    ],
+  },
 ];
 
 /* Development tier per program week — the same T1 Foundation → T2 Application → T3 Game-Speed
@@ -2314,6 +2579,7 @@ const PROGRAM_WEEK_TIERS = {
   "own-the-glass":        [1, 2, 3],
   "lockdown-defender":    [1, 2, 2, 3],
   "passing-fundamentals": [1, 1, 2],
+  "smooth-handles":       [1, 2, 2, 3],
   "floor-general":        [1, 2, 2, 3],
 };
 const TIER_LABELS = { 1: "Foundation", 2: "Application", 3: "Game-Speed" };

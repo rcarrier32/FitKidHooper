@@ -1,29 +1,14 @@
-import { useEffect } from 'react'
-import { useRegisterSW } from 'virtual:pwa-register/react'
+import { useSwAutoUpdate } from './lib/useSwAutoUpdate.js'
 import { showWhatsNewSheet } from './lib/changelog.js'
 
 /**
- * Auto-applies new builds (see vite.config registerType: autoUpdate).
- * Shows a brief banner when a reload is pending so athletes know why the app refreshed.
+ * Shows a brief banner when a reload is pending so athletes know why the
+ * app refreshed. The actual SW registration/update-check now lives in
+ * useSwAutoUpdate so every route (including admin/consent) can run it —
+ * see App.jsx.
  */
 export default function UpdateBanner() {
-  const { needRefresh: [needRefresh], updateServiceWorker } = useRegisterSW({
-    onRegistered(registration) {
-      if (!registration) return
-      registration.update()
-      setInterval(() => registration.update(), 5 * 60 * 1000)
-    },
-  })
-
-  // Check for updates when the athlete returns to the app.
-  useEffect(() => {
-    const onVisible = () => {
-      if (document.visibilityState !== 'visible') return
-      navigator.serviceWorker?.getRegistration()?.then(r => r?.update())
-    }
-    document.addEventListener('visibilitychange', onVisible)
-    return () => document.removeEventListener('visibilitychange', onVisible)
-  }, [])
+  const { needRefresh, updateServiceWorker } = useSwAutoUpdate()
 
   if (!needRefresh) return null
 
