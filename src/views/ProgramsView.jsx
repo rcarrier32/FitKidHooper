@@ -427,19 +427,27 @@ export default function ProgramsView({
     { id: "completed", label: "Completed" },
   ];
 
+  /* Featured programs lead every list. This has to be applied to the whole catalog BEFORE the
+     "For You" fallback slices the first three — a featured program sitting at the end of
+     PROGRAMS would otherwise never make that cut. Array.prototype.sort is stable, so
+     equal-ranked programs keep their catalog order. */
+  const featuredFirst = (list) =>
+    [...list].sort((a, b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0));
+
   const segmentPrograms = (() => {
+    const ranked = featuredFirst(programs);
     if (programSegment === "forYou") {
       const ids = new Set(recommendedProgramIds);
-      return ids.size ? programs.filter(p => ids.has(p.id)) : programs.slice(0, 3);
+      return ids.size ? ranked.filter(p => ids.has(p.id)) : ranked.slice(0, 3);
     }
-    if (programSegment === "myPlan") return programs.filter(p => enrolledPrograms[p.id]);
+    if (programSegment === "myPlan") return ranked.filter(p => enrolledPrograms[p.id]);
     if (programSegment === "completed") {
-      return programs.filter(p =>
+      return ranked.filter(p =>
         earnedBadges.includes(p.badgeId) ||
         (enrolledPrograms[p.id] && computeProgramProgress(p, programProgress) >= 1),
       );
     }
-    return programs;
+    return ranked;
   })();
 
   const segmentLabel = {
@@ -470,6 +478,7 @@ export default function ProgramsView({
               <span style={{ fontSize:14,fontWeight:800,color:"var(--fkh-text)" }}>{prog.name}</span>
               {enrolled && <span style={{ fontSize:9,padding:"2px 7px",borderRadius:99,background:prog.color,color:"#fff",fontWeight:700 }}>ENROLLED</span>}
               {completedBadge && <span style={{ fontSize:9,padding:"2px 7px",borderRadius:99,background:"rgba(34,197,94,0.2)",color:"#22c55e",fontWeight:700 }}>✓ DONE</span>}
+              {prog.trainer && <span style={{ fontSize:9,padding:"2px 7px",borderRadius:99,background:"linear-gradient(135deg,#16a34a,#15803d)",color:"#fff",fontWeight:800,letterSpacing:"0.06em" }}>✦ {prog.trainer}</span>}
             </div>
             <div style={{ fontSize:11,color:"#64748b",marginBottom:6 }}>{prog.duration} weeks · {prog.daysPerWeek}x/week · Ages {prog.ageRange[0]}–{prog.ageRange[1]}</div>
             {(() => {

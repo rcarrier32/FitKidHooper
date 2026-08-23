@@ -2561,8 +2561,11 @@ const PROGRAMS = [
   {
     id:"smooth-handles", name:"Smooth Handles", emoji:"🌊", color:"#38bdf8",
     badgeId:"pgm-smooth-handles", duration:4, daysPerWeek:3, ageRange:[10,17],
-    trainer:"2nd To None",
-    desc:"Four weeks with 2nd To None. Build the pocket dribble, add the glide-and-drop, then turn both into finishes and pull-ups at game pace. Every drill is an FKH original filmed with the coach.",
+    /* `featured` floats a program to the top of every Programs list; `trainer` renders as a
+       credit badge on its card. Set both here because this is the first program built on
+       coach-filmed FKH-hosted video rather than third-party YouTube clips. */
+    trainer:"2nd To None", featured:true,
+    desc:"Four weeks with 2nd To None. Build the pocket dribble, add the glide-and-drop, then turn both into finishes and pull-ups at game pace. Every drill is filmed with the coach — no stock clips.",
     weeks:[
       { week:1, goal:"Wake the hands up and learn the pocket — the low, protected spot every move starts from.",
         sessions:[
