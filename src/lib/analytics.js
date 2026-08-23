@@ -87,9 +87,22 @@ function basePayload() {
   };
 }
 
+/**
+ * True for automated browser contexts (Playwright, Selenium, etc.), which
+ * set this flag on navigator by spec. Every CI deploy's Playwright smoke
+ * suite boots the real app against the production Supabase project (see
+ * deploy.yml), so without this guard each run wrote a fresh random guest
+ * athlete + session_start event into real analytics — this is why the
+ * admin dashboard's athlete list included obvious bot/test entries.
+ */
+function isAutomatedBrowser() {
+  try { return Boolean(navigator.webdriver); } catch { return false; }
+}
+
 /** Queue an event for batched upload. No-op when Supabase is not configured. */
 export function track(eventName, properties = {}) {
   if (!isSupabaseConfigured()) return;
+  if (isAutomatedBrowser()) return;
   if (!activeAthleteId()) return;
 
   const queue = readQueue();
@@ -141,6 +154,7 @@ export async function flushEvents() {
 }
 
 async function upsertAthleteAnalytics({ isFirstSession = false } = {}) {
+  if (isAutomatedBrowser()) return;
   const sb = getSupabaseClient();
   const athleteId = activeAthleteId();
   if (!sb || !athleteId) return;
@@ -269,6 +283,7 @@ function endSession() {
 /** Call once on app mount. */
 export function initAnalytics({ ageGroup = "unknown", isStandalone = false } = {}) {
   if (!isSupabaseConfigured()) return () => {};
+  if (isAutomatedBrowser()) return () => {};
 
   context = { ageGroup, isStandalone };
 
