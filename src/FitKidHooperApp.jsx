@@ -5079,6 +5079,7 @@ export default function FitKidHooperApp() {
       setFriendsFocusTick(t => t + 1);
     }
     if (navDeepLink.openFriends) setFriendsFocusTick(t => t + 1);
+    if (navDeepLink.openProgram) setSelectedProgram(navDeepLink.openProgram);
     setNavDeepLink(null);
   }, [navDeepLink]);
 

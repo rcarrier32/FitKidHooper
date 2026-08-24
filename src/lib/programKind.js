@@ -7,6 +7,7 @@ export const PROGRAM_KIND = {
   "first-step-explosion": "skill",
   "complete-hooper": "skill",
   "smooth-handles": "skill",
+  "cramer-29": "skill",
 };
 
 export function getProgramKind(programId) {
@@ -31,6 +32,9 @@ export function missionTitleForDuePrograms(sortedEntries) {
   if (!sortedEntries.length) return "Daily Training";
   if (sortedEntries.length === 1) {
     const { prog, due } = sortedEntries[0];
+    /* A daily program is numbered in days, not weeks, and its own name already carries the
+       span ("29 Day Challenge") — "— Week 3" on top of that just reads as a contradiction. */
+    if (prog.cadence === "daily") return `${prog.emoji} ${prog.name}`;
     return `${prog.emoji} ${prog.name} — Week ${due.week}`;
   }
   const kinds = new Set(sortedEntries.map(e => getProgramKind(e.prog.id)));

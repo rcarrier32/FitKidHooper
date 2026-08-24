@@ -79,9 +79,18 @@ export function programWeekDayIndex(startDate, todayStr) {
   return ((daysSinceStart % 7) + 7) % 7;
 }
 
-/** Session slot days within a program week — every other day for built-in rest (0, 2, 4…). */
+/**
+ * Session slot days within a program week.
+ *
+ * Up to four sessions a week they sit every other day so rest is built in (0, 2, 4, 6) —
+ * the shape every week-based program uses. A daily program needs more than that, and at
+ * two-day spacing its later sessions would land on week days 8, 10, 12…, which never
+ * arrive: findDueProgramSession() would return null forever and the athlete would stall
+ * partway through every week. Above four sessions, they run on consecutive days instead.
+ */
 export function programSessionScheduleDays(sessionCount) {
-  return Array.from({ length: sessionCount }, (_, i) => i * 2);
+  const spacing = sessionCount > 4 ? 1 : 2;
+  return Array.from({ length: sessionCount }, (_, i) => i * spacing);
 }
 
 export function getProgramSessionCompletionDate(programProgress, program, programId, week, sessionIdx) {

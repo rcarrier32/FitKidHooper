@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { pathTagForProgram } from "../lib/achievements.js";
+import { getBrandLogo } from "../lib/brandLogos.js";
 import { track, ANALYTICS_EVENTS } from "../lib/analytics.js";
 import {
   computeProgramProgress,
@@ -8,6 +9,7 @@ import {
   isProgramSessionComplete,
   countProgramSessionsDone,
   getActiveProgramScheduleStatus,
+  programWeekDayIndex,
 } from "../lib/programProgress.js";
 import {
   readCustomWorkouts,
@@ -28,6 +30,50 @@ import { withSessionWarmup, categoriesFromExercises } from "../lib/sessionWarmup
 import GuideNavButton from "../components/GuideNavButton.jsx";
 
 const todayKey = () => new Date().toLocaleDateString("en-CA");
+
+/**
+ * Programs come in two cadences. Week-based ones (all but Cramer 29) read as
+ * "4 weeks · 3×/week"; a daily program reads as "29 days · daily", because its
+ * real unit is the day and "5 weeks · 7×/week" both undersells it and reads oddly
+ * against a week-5 that holds a single capstone day.
+ */
+const programCadenceLabel = (prog, per = "×/week") =>
+  prog.cadence === "daily"
+    ? `${prog.totalDays} days · daily`
+    : `${prog.duration} weeks · ${prog.daysPerWeek}${per}`;
+
+/**
+ * Partner credit badge. Programs with a `brandLogo` show the partner's real mark; the rest
+ * keep the plain "✦ Trainer" pill. Boxed artwork (its own background) gets a rounded tile
+ * and a hairline so it reads as a badge rather than a rectangle dropped on the card; free
+ * artwork is white-on-transparent and sits directly on the surface.
+ */
+function TrainerCredit({ prog, size = 16 }) {
+  if (!prog.trainer) return null;
+  const brand = getBrandLogo(prog.brandLogo);
+  if (!brand) {
+    return (
+      <span style={{ fontSize:9,padding:"2px 7px",borderRadius:99,background:"linear-gradient(135deg,#16a34a,#15803d)",color:"#fff",fontWeight:800,letterSpacing:"0.06em" }}>
+        ✦ {prog.trainer}
+      </span>
+    );
+  }
+  const boxed = brand.style === "boxed";
+  return (
+    <span style={{ display:"inline-flex",alignItems:"center",gap:5,padding:boxed ? "2px 7px 2px 3px" : "2px 8px",borderRadius:99,background:"rgba(255,255,255,0.07)",border:"1px solid rgba(255,255,255,0.12)" }}>
+      <img
+        src={brand.mark}
+        alt=""
+        style={{ height:size,width:boxed ? size : "auto",objectFit:"contain",borderRadius:boxed ? 4 : 0,display:"block" }}
+      />
+      <span style={{ fontSize:9,fontWeight:800,letterSpacing:"0.05em",color:"var(--fkh-text)" }}>{prog.trainer}</span>
+    </span>
+  );
+}
+
+/** Day number (1-indexed) an enrolled athlete is on in a daily program. */
+const programDayNumber = (prog, startDate, week) =>
+  Math.min(prog.totalDays, (week - 1) * 7 + programWeekDayIndex(startDate, todayKey()) + 1);
 
 const HUB_SECTIONS = [
   { id: "plans", label: "Plans", emoji: "📋" },
@@ -254,9 +300,30 @@ export default function ProgramsView({
               </div>
               <div>
                 <div style={{ fontSize:20,fontWeight:800,color:"var(--fkh-text)",lineHeight:1.2 }}>{prog.name}</div>
-                <div style={{ fontSize:11,color:"#64748b",marginTop:2 }}>{prog.duration} weeks · {prog.daysPerWeek}×/week · Ages {prog.ageRange[0]}–{prog.ageRange[1]}</div>
+                <div style={{ fontSize:11,color:"#64748b",marginTop:2 }}>{programCadenceLabel(prog)} · Ages {prog.ageRange[0]}–{prog.ageRange[1]}</div>
               </div>
             </div>
+            {(() => {
+              /* The detail page is where the partner's mark gets real size. Free artwork shows
+                 at its natural aspect; boxed artwork stays square in a rounded tile. */
+              const brand = getBrandLogo(prog.brandLogo);
+              if (!brand) return null;
+              const boxed = brand.style === "boxed";
+              return (
+                <div style={{ display:"flex",alignItems:"center",gap:12,marginBottom:14,padding:"12px 14px",borderRadius:12,background:"rgba(255,255,255,0.04)",border:`1px solid ${prog.color}22` }}>
+                  <img
+                    src={brand.mark}
+                    alt={brand.name}
+                    style={{ height:52,width:boxed ? 52 : "auto",maxWidth:132,objectFit:"contain",borderRadius:boxed ? 10 : 0,flexShrink:0,display:"block" }}
+                  />
+                  <div style={{ minWidth:0 }}>
+                    <div style={{ fontSize:9,fontWeight:800,letterSpacing:"0.1em",color:"#64748b" }}>PROGRAM BY</div>
+                    <div style={{ fontSize:13,fontWeight:800,color:"var(--fkh-text)",marginTop:2 }}>{brand.name}</div>
+                  </div>
+                </div>
+              );
+            })()}
+
             <p style={{ fontSize:13,color:"var(--fkh-text-muted)",lineHeight:1.6,margin:"0 0 14px" }}>{prog.desc}</p>
 
             <div style={{ background:SF,borderRadius:12,padding:"12px 14px",border:`1px solid ${prog.color}22`,marginBottom:14 }}>
@@ -269,7 +336,9 @@ export default function ProgramsView({
               </div>
               {enrollment && (
                 <div style={{ marginTop:8,fontSize:11,color:"#475569" }}>
-                  Currently on <span style={{ color:prog.color,fontWeight:700 }}>Week {curWeekNum}</span> of {prog.duration}
+                  {prog.cadence === "daily"
+                    ? <>Currently on <span style={{ color:prog.color,fontWeight:700 }}>Day {programDayNumber(prog, enrollment.startDate, curWeekNum)}</span> of {prog.totalDays}</>
+                    : <>Currently on <span style={{ color:prog.color,fontWeight:700 }}>Week {curWeekNum}</span> of {prog.duration}</>}
                 </div>
               )}
             </div>
@@ -286,7 +355,19 @@ export default function ProgramsView({
             }
 
             <div style={{ fontSize:11,color:"#64748b",lineHeight:1.55,margin:"-8px 0 16px",padding:"10px 12px",borderRadius:10,background:"rgba(255,255,255,0.03)",border:`1px solid ${bd}` }}>
-              Each session is <span style={{ color:"var(--fkh-text)",fontWeight:700 }}>3 focused drills</span>, {prog.daysPerWeek}× per week with rest days in between.
+              {(() => {
+                /* Both numbers used to be hardcoded (3 drills, rest days between). Cramer 29 is
+                   one drill a day with no rest days, so read the shape off the program. */
+                const perSession = prog.weeks[0]?.sessions[0]?.exercises.length ?? 3;
+                return (
+                  <>
+                    Each session is <span style={{ color:"var(--fkh-text)",fontWeight:700 }}>{perSession} focused drill{perSession === 1 ? "" : "s"}</span>
+                    {prog.cadence === "daily"
+                      ? <>, every day for {prog.totalDays} days straight — no rest days, that's the challenge.</>
+                      : <>, {prog.daysPerWeek}× per week with rest days in between.</>}
+                  </>
+                );
+              })()}
               {enrollment && todayPlan?.scheduleDay?.cats?.length > 0 && (
                 <> On program days, your general plan ({todayPlan.scheduleDay.label}) adds more drills — see <span style={{ color:prog.color,fontWeight:700 }}>Today → Training</span> or the calendar.</>
               )}
@@ -437,8 +518,13 @@ export default function ProgramsView({
   const segmentPrograms = (() => {
     const ranked = featuredFirst(programs);
     if (programSegment === "forYou") {
+      /* Featured programs survive the recommendation filter. Once an athlete picks a legend,
+         recommendProgramsForFavorite() returns that path's programs and this used to filter
+         the list down to exactly them — which silently hid every featured program from the
+         default tab, the one place merchandising most needs to land. Featuring is a
+         deliberate editorial call, so it outranks path fit rather than competing with it. */
       const ids = new Set(recommendedProgramIds);
-      return ids.size ? ranked.filter(p => ids.has(p.id)) : ranked.slice(0, 3);
+      return ids.size ? ranked.filter(p => p.featured || ids.has(p.id)) : ranked.slice(0, 3);
     }
     if (programSegment === "myPlan") return ranked.filter(p => enrolledPrograms[p.id]);
     if (programSegment === "completed") {
@@ -478,9 +564,9 @@ export default function ProgramsView({
               <span style={{ fontSize:14,fontWeight:800,color:"var(--fkh-text)" }}>{prog.name}</span>
               {enrolled && <span style={{ fontSize:9,padding:"2px 7px",borderRadius:99,background:prog.color,color:"#fff",fontWeight:700 }}>ENROLLED</span>}
               {completedBadge && <span style={{ fontSize:9,padding:"2px 7px",borderRadius:99,background:"rgba(34,197,94,0.2)",color:"#22c55e",fontWeight:700 }}>✓ DONE</span>}
-              {prog.trainer && <span style={{ fontSize:9,padding:"2px 7px",borderRadius:99,background:"linear-gradient(135deg,#16a34a,#15803d)",color:"#fff",fontWeight:800,letterSpacing:"0.06em" }}>✦ {prog.trainer}</span>}
+              <TrainerCredit prog={prog} />
             </div>
-            <div style={{ fontSize:11,color:"#64748b",marginBottom:6 }}>{prog.duration} weeks · {prog.daysPerWeek}x/week · Ages {prog.ageRange[0]}–{prog.ageRange[1]}</div>
+            <div style={{ fontSize:11,color:"#64748b",marginBottom:6 }}>{programCadenceLabel(prog, "x/week")} · Ages {prog.ageRange[0]}–{prog.ageRange[1]}</div>
             {(() => {
               const pathTag = pathTagForProgram(prog.id);
               return pathTag ? (

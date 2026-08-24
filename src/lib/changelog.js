@@ -3,18 +3,16 @@
  */
 import { athleteHasPriorUsage } from "./athleteExperience.js";
 
-export const RELEASE_ID = "2026.07.1";
+export const RELEASE_ID = "2026.08.1";
 
 export const WHATS_NEW = {
   id: RELEASE_ID,
-  headline: "July update — Ask Coach FKH",
+  headline: "August update — train with real coaches",
   items: [
-    { emoji: "🧠", text: "Ask Coach FKH — get tips on what to work on next, drills for your goals, or how to train like your legend (Me tab or Today)" },
-    { emoji: "🏀", text: "Build a custom workout — tell Coach how long you've got and what to focus on (shooting, handles, strength, defense)" },
-    { emoji: "📅", text: "Week plans — ask for a different workout every day this week and Coach builds the whole week in one shot" },
-    { emoji: "⭐", text: "Train Like Legends — \"shoot like Steph\" or \"play like LeBron\" and get signature drills plus programs for your level" },
-    { emoji: "🎯", text: "Check your stats — \"18 out of 25 free throws\" and Coach tells you if you hit a real benchmark" },
-    { emoji: "💡", text: "Every drill has Ask Coach FKH — tap from any exercise to learn what it builds and why it matters" },
+    { emoji: "🔥", text: "Cramer 29 Day Challenge — 29 days in a row with Coach Cramer, one short video every day. No rest days, that's the challenge (Programs)" },
+    { emoji: "🌊", text: "Smooth Handles — four weeks with 2nd To None. Pocket dribble, glide-and-drop, then finishes and pull-ups at game pace" },
+    { emoji: "🏀", text: "Every drill in both programs is filmed with the actual coach — no stock clips" },
+    { emoji: "🤲", text: "29 new ball handling drills added to the drill library, so you can train them on their own too" },
   ],
 };
 

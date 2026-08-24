@@ -1787,6 +1787,263 @@ const TN_SHOOTING = [
     ...tnVideo("tn-pace-corner-shot") },
 ];
 
+/* ══════════════════════════════════════════════════════════════
+   CRAMER BASKETBALL — 29 DAY BALL HANDLING CHALLENGE
+   Coach Cramer published these one per day across February 2024 (playlist
+   PL0EiKjxg0EBGJgmHnKVFuUbUVeiWA8mQy), so playlist order IS day order — day N
+   below is literally the video he posted on Feb N. Reproduced here with the
+   coach's permission; the clips stream from (and are attributed to) his
+   YouTube channel, nothing is re-hosted.
+
+   Unlike the 2nd To None library these stay on YouTube (no videoSource:"fkh"),
+   so they render in the normal embed. Runtimes are 1:43–6:56, avg 3:36 —
+   comfortably inside a normal FKH drill slot, so no ?start=/?end= clipping.
+
+   The "Cramer 29" program (below) strings all 29 into a day-by-day run.
+══════════════════════════════════════════════════════════════ */
+/** Shared credit fields for a Cramer Basketball clip. */
+const cramerVideo = (videoId, videoTitle) => ({
+  trainer: "Cramer Basketball",
+  videoChannel: "Cramer Basketball",
+  trusted: true,
+  videoId,
+  videoTitle,
+});
+
+const CRAMER_29 = [
+  { id:"cr29-d01", name:"Crossover: Four Variations", tag:"Basic Moves", difficulty:"beginner", ageRange:[9,17], funScore:8, estimatedDuration:240,
+    sets:"4 x 20 reps (one set per variation)", rest:"30 s",
+    transferTags:["handles","change-of-direction","attacking"],
+    progressionTrack:"Week 1 — Build the Base",
+    desc:"Day 1 opens the challenge with the move every defender has to respect — four different ways to cross the ball over. Learn all four now; the rest of the month keeps coming back to them.",
+    cues:["Keep the ball below the knee — high crossovers get picked","Sell it with your shoulders and eyes before the hands","Snap the ball across, don't float it","Work all four variations, not just your favorite"],
+    ...cramerVideo("lZR6U0kG1oU", "How to Crossover Dribble: FOUR Variations — Cramer Basketball") },
+
+  { id:"cr29-d02", name:"V Dribble Series", tag:"Foundation", difficulty:"beginner", ageRange:[9,17], funScore:7, estimatedDuration:240,
+    sets:"3 x 30 s each pattern", rest:"25 s",
+    transferTags:["ball-control","off-hand","touch"],
+    progressionTrack:"Week 1 — Build the Base",
+    desc:"The ball traces a V in front of you, side of you, and through the legs. It is the simplest way to teach your hand to push the ball out and pull it back on command instead of just bouncing it straight down.",
+    cues:["Fingertips only — never the palm","Push the ball out wide, then pull it straight back","Stay low the whole set, don't stand up between reps","Same rhythm with both hands"],
+    ...cramerVideo("LMy9MUEd0Q0", "V Dribble Series: 29 Day Challenge — Cramer Basketball") },
+
+  { id:"cr29-d03", name:"Dribbling Hop Scotch", tag:"Footwork", difficulty:"beginner", ageRange:[9,17], funScore:9, estimatedDuration:240,
+    sets:"3 x 8 trips", rest:"30 s",
+    transferTags:["footwork","coordination","ball-control"],
+    progressionTrack:"Week 1 — Build the Base",
+    desc:"Hop scotch footwork with a live dribble. Your feet run one pattern while your hand runs another — that split is the whole point, because in a game your feet are never doing the same thing as the ball.",
+    cues:["Feet hit the pattern, the dribble never stops","Eyes up — the floor pattern is muscle memory, not something to watch","Land soft on the balls of your feet","Start slow and clean before you add speed"],
+    ...cramerVideo("Es6zumLpsII", "Ball Handling and Footwork: Dribbling Hop Scotch Drill — Cramer Basketball") },
+
+  { id:"cr29-d04", name:"Pull Dribbles: Ball in Hand Time", tag:"Ball Feel", difficulty:"beginner", ageRange:[9,17], funScore:7, estimatedDuration:240,
+    sets:"3 x 30 s each hand", rest:"25 s",
+    transferTags:["ball-control","ball-protection","touch"],
+    progressionTrack:"Week 1 — Build the Base",
+    desc:"Coach Cramer calls it ball-in-hand time — riding the ball a beat longer on each dribble instead of slapping it away instantly. That extra contact is what lets you change your mind mid-move.",
+    cues:["Ride the ball, don't just hit it","Feel the ball load into your fingers before you push","Wrist and forearm do the work, not the shoulder","Same hold time on your weak hand"],
+    ...cramerVideo("uz9RgTvJE7s", "Pull Dribbles: Ball in Hand Time — Cramer Basketball") },
+
+  { id:"cr29-d05", name:"Three Reads: Protect the Ball", tag:"Ball Protection", difficulty:"intermediate", ageRange:[10,17], funScore:7, estimatedDuration:270,
+    sets:"3 x 6 reps of each read", rest:"30 s",
+    transferTags:["ball-protection","decision-making","footwork"],
+    progressionTrack:"Week 1 — Build the Base",
+    desc:"Three answers for a defender who is on you: front hip turn, square up, or spin. Cramer teaches them as reads, not moves — you pick based on where the pressure actually is, instead of guessing.",
+    cues:["Front hip turn when they crowd your lead shoulder","Square up when they back off — now you can see the floor","Spin when they cut off your path completely","Off-arm stays up as a shield on every read"],
+    ...cramerVideo("COsP5G6d7V0", "How to Protect the Basketball: Three Reads — Cramer Basketball") },
+
+  { id:"cr29-d06", name:"Youth Handling Circuit", tag:"Circuit", difficulty:"beginner", ageRange:[9,17], funScore:8, estimatedDuration:240,
+    sets:"2 rounds through the full circuit", rest:"45 s",
+    transferTags:["ball-control","off-hand","coordination"],
+    progressionTrack:"Week 1 — Build the Base",
+    desc:"A stack of short handling drills run back to back. Nothing here is hard on its own — the challenge is keeping your hands clean when you are already a few drills deep and starting to get tired.",
+    cues:["Move straight from one drill to the next, no long breaks","Quality does not drop just because you are tired","Eyes up through the whole circuit","Both hands get equal work"],
+    ...cramerVideo("0PCOiLlC9lg", "Youth Ball Handling Drill — Cramer Basketball") },
+
+  { id:"cr29-d07", name:"Create Space off the Dribble", tag:"Separation", difficulty:"intermediate", ageRange:[10,17], funScore:8, estimatedDuration:270,
+    sets:"3 x 8 reps each direction", rest:"30 s",
+    transferTags:["separation","change-of-pace","shot-creation"],
+    progressionTrack:"Week 1 — Build the Base",
+    desc:"Getting open is a skill, not luck. This is how you push a defender back and buy yourself the foot of room you need to shoot or pass — the difference between a contested shot and a clean one.",
+    cues:["Get them moving toward you before you retreat","Push off hard — a soft step back creates nothing","Stay balanced and on-target as you separate","Come out of it ready to shoot, not just standing"],
+    ...cramerVideo("iobhNEHrK00", "How to Create Space off the Dribble — Cramer Basketball") },
+
+  { id:"cr29-d08", name:"Float Dribble", tag:"Deception", difficulty:"intermediate", ageRange:[10,17], funScore:8, estimatedDuration:270,
+    sets:"3 x 30 s continuous", rest:"30 s",
+    transferTags:["deception","change-of-pace","ball-protection"],
+    progressionTrack:"Week 2 — Moves & Deception",
+    desc:"The float lets the ball hang for a beat while you drift. It looks like you have given up on the drive, which is exactly why it works — the defender relaxes and you go.",
+    cues:["Let the ball hang — don't rush the next bounce","Keep your feet alive while the ball floats","Sell that the play is over with your body language","Explode out of the float, no half speed"],
+    ...cramerVideo("NIXXvWomX0Q", "How to Float Dribble — Cramer Basketball") },
+
+  { id:"cr29-d09", name:"Killer Crossover", tag:"Signature Move", difficulty:"intermediate", ageRange:[10,17], funScore:9, estimatedDuration:270,
+    sets:"3 x 10 reps each direction", rest:"30 s",
+    transferTags:["change-of-direction","deception","attacking"],
+    progressionTrack:"Week 2 — Moves & Deception",
+    desc:"The crossover that actually moves a defender. The trick is not the hand speed — it is committing your weight and shoulders one way hard enough that they have to honor it before you snap back.",
+    cues:["Sell it with your whole body, not just the ball","Weight has to genuinely shift — a fake with no commitment fools no one","Snap the ball low and tight on the return","Long first step out of the cross"],
+    ...cramerVideo("ikxux0AS2bQ", "How to Killer Cross — Cramer Basketball") },
+
+  { id:"cr29-d10", name:"Hopscotch Handling", tag:"Footwork", difficulty:"beginner", ageRange:[9,17], funScore:9, estimatedDuration:180,
+    sets:"4 x 6 trips", rest:"25 s",
+    transferTags:["footwork","coordination","ball-control"],
+    progressionTrack:"Week 2 — Moves & Deception",
+    desc:"The shortest drill of the whole challenge and one of the best. Hopscotch feet with a live dribble — quick, light, and a genuine test of whether your handle survives while your feet are busy.",
+    cues:["Quick light feet, quiet landings","The dribble never pauses when the feet change","Chest tall, eyes forward","Speed up only once the pattern is clean"],
+    ...cramerVideo("uEL-25owC3Q", "Hopscotch Ball Handling — Cramer Basketball") },
+
+  { id:"cr29-d11", name:"Lane Slide Finish", tag:"Finishing", difficulty:"intermediate", ageRange:[10,17], funScore:8, estimatedDuration:300,
+    sets:"3 x 6 finishes each side", rest:"40 s",
+    transferTags:["finishing","footwork","ball-protection"],
+    progressionTrack:"Week 2 — Moves & Deception",
+    desc:"Slide across the lane off the dribble and finish. Defenders in the paint move sideways to meet you, so your finish has to work while you are still drifting — not just when you are square to the rim.",
+    cues:["Stay low through the slide — don't stand up","Ball stays away from the help defender","Pick the ball up in stride, no gather stutter","Finish off the correct foot for the side you're on"],
+    ...cramerVideo("rQVOhe48u-E", "Lane Slide: Finishing Drill — Cramer Basketball") },
+
+  { id:"cr29-d12", name:"Cross Jab", tag:"Combo", difficulty:"intermediate", ageRange:[10,17], funScore:8, estimatedDuration:240,
+    sets:"3 x 10 reps each direction", rest:"30 s",
+    transferTags:["deception","change-of-direction","attacking"],
+    progressionTrack:"Week 2 — Moves & Deception",
+    desc:"A crossover with a jab step built into it. The jab freezes the defender's feet for a split second, and a defender whose feet are stuck cannot slide with the crossover that follows.",
+    cues:["Jab hard enough that they actually react","Ball and jab foot move together, one rhythm","Stay low — don't rise up on the jab","Attack the shoulder you just moved them off of"],
+    ...cramerVideo("nhlcg9S-yCo", "How to Cross Jab: Dribble Series — Cramer Basketball") },
+
+  { id:"cr29-d13", name:"Speed Stop off the Dribble", tag:"Deceleration", difficulty:"intermediate", ageRange:[10,17], funScore:8, estimatedDuration:270,
+    sets:"3 x 8 stops", rest:"35 s",
+    transferTags:["deceleration","balance","shot-creation"],
+    progressionTrack:"Week 2 — Moves & Deception",
+    desc:"Going full speed and stopping under control on two feet. Most turnovers and travels at speed are stopping problems, not dribbling problems — this fixes the stop.",
+    cues:["Sink your hips to stop, don't stiffen your legs","Both feet land together — that keeps your pivot options open","Stay balanced, chest up, not falling forward","Stop on target, ready to shoot or pass"],
+    ...cramerVideo("5CW3JQZ3pmU", "How to Speed Stop off the Dribble — Cramer Basketball") },
+
+  { id:"cr29-d14", name:"Handling to Finishing", tag:"Multi-Skill", difficulty:"intermediate", ageRange:[10,17], funScore:8, estimatedDuration:300,
+    sets:"3 rounds of the full sequence", rest:"45 s",
+    transferTags:["finishing","attacking","ball-control"],
+    progressionTrack:"Week 3 — Combos at Speed",
+    desc:"Chain a handling sequence straight into a finish at the rim. This is the first day of the challenge where the handle has to actually produce points instead of just looking clean in place.",
+    cues:["No pause between the last move and the drive","Handle stays tight while you're moving at speed","Decide the finish before you leave the floor","Same sequence off your weak hand"],
+    ...cramerVideo("FcmY7RWDPEI", "Multi Skill Basketball Drills: Ball Handling to Finishing — Cramer Basketball") },
+
+  { id:"cr29-d15", name:"Competitive Handling: Beat the Clock", tag:"Competition", difficulty:"intermediate", ageRange:[10,17], funScore:10, estimatedDuration:180,
+    sets:"3 timed runs — beat your best", rest:"45 s",
+    transferTags:["ball-control","competitiveness","conditioning"],
+    progressionTrack:"Week 3 — Combos at Speed",
+    desc:"Same drills, but now you are on the clock. Racing changes everything: your hands speed up, your form wants to fall apart, and holding it together under that pressure is the whole exercise.",
+    cues:["Time every run and write it down","Speed does not excuse a sloppy handle","Beat your own number, not somebody else's","Rest fully between runs so each one is a real effort"],
+    ...cramerVideo("FsM7x8nqqpM", "Competitive Ball Handling Drills — Cramer Basketball") },
+
+  { id:"cr29-d16", name:"Float on the Move", tag:"On the Move", difficulty:"intermediate", ageRange:[10,17], funScore:8, estimatedDuration:270,
+    sets:"3 x 6 floats each direction", rest:"30 s",
+    transferTags:["deception","change-of-pace","attacking"],
+    progressionTrack:"Week 3 — Combos at Speed",
+    desc:"Day 8's float dribble, now while you are actually travelling. Floating in place is a drill; floating on the move is a move — it is what changes a defender's speed mid-drive.",
+    cues:["Keep covering ground through the float","Change speed, not just the ball's height","Ball stays out in front where you can still attack","Explode out of it going somewhere"],
+    ...cramerVideo("7dEMm5A7FBw", "Floating with the Dribble — Cramer Basketball") },
+
+  { id:"cr29-d17", name:"Move Combinations", tag:"Combo", difficulty:"intermediate", ageRange:[10,17], funScore:9, estimatedDuration:270,
+    sets:"3 x 30 s continuous", rest:"30 s",
+    transferTags:["handles","change-of-direction","creativity"],
+    progressionTrack:"Week 3 — Combos at Speed",
+    desc:"Stringing moves together instead of doing them one at a time. Defenders recover from single moves — the second and third move in a chain is where you actually get past somebody.",
+    cues:["One rhythm across the whole combo, not separate moves","Every move stays low and tight","The first move only exists to set up the second","Come out of the combo attacking, not resetting"],
+    ...cramerVideo("um_DfElhABk", "Dribble Moves & Combinations — Cramer Basketball") },
+
+  { id:"cr29-d18", name:"Two Ball Pound to Pass", tag:"Two Ball", difficulty:"intermediate", ageRange:[10,17], funScore:8, estimatedDuration:180,
+    sets:"3 x 30 s", rest:"30 s",
+    transferTags:["weak-hand","passing","coordination"],
+    progressionTrack:"Week 3 — Combos at Speed",
+    desc:"Pound two balls, then fire one into the wall and keep the other alive. Your hands have to do two different jobs at the same instant, which is exactly what happens when you pass out of a live dribble.",
+    cues:["Both balls pound to the same height before the pass","The dribbling hand never stops when the other passes","Catch the return without looking at it","Switch which hand passes each set"],
+    ...cramerVideo("xz7IWKzEEGw", "Two Ball Pound to Pass Drill — Cramer Basketball") },
+
+  { id:"cr29-d19", name:"Math + Ball Handling", tag:"Eyes Up", difficulty:"beginner", ageRange:[9,17], funScore:10, estimatedDuration:240,
+    sets:"3 x 45 s", rest:"30 s",
+    transferTags:["eyes-up","ball-control","reaction"],
+    progressionTrack:"Week 3 — Combos at Speed",
+    desc:"Solve math problems out loud while you dribble. It sounds silly and it is genuinely hard — you cannot do arithmetic and stare at the ball at the same time, which is exactly the point.",
+    cues:["Answer out loud — thinking silently is cheating","Never drop your eyes to the ball","The dribble has to stay live while you think","Get someone to call out problems if you can"],
+    ...cramerVideo("6gj_0osLpnw", "Math + Ball Handling — Cramer Basketball") },
+
+  { id:"cr29-d20", name:"Weak Hand Dribble Series", tag:"Weak Hand", difficulty:"beginner", ageRange:[9,17], funScore:7, estimatedDuration:270,
+    sets:"3 x 45 s — weak hand only", rest:"30 s",
+    transferTags:["weak-hand","ball-control","touch"],
+    progressionTrack:"Week 3 — Combos at Speed",
+    desc:"A full series with your off hand and nothing else. This is the day that separates the challenge from a highlight reel — nobody enjoys it, and it is the single biggest reason your handle improves this month.",
+    cues:["Weak hand only — no bailing out to the strong hand","Match the reps you'd do with your good hand","Expect it to feel bad; do it anyway","Slow and clean beats fast and out of control"],
+    ...cramerVideo("1YY1UstGFqM", "Improve: Weak Hand Dribble Series — Cramer Basketball") },
+
+  { id:"cr29-d21", name:"Combos to Finishes", tag:"Combo", difficulty:"advanced", ageRange:[11,17], funScore:9, estimatedDuration:300,
+    sets:"3 x 6 reps each side", rest:"40 s",
+    transferTags:["attacking","finishing","change-of-direction"],
+    progressionTrack:"Week 4 — Attack, Protect, Finish",
+    desc:"Full combos that end at the rim. Everything from the first three weeks — the crossover, the float, the space you learned to create — now has to survive all the way through a live finish.",
+    cues:["Combo flows straight into the drive, no reset","Pick the finish based on where the help is","Handle stays tight through the whole chain","Both sides of the floor, both hands"],
+    ...cramerVideo("h6Raqajdh9Q", "Combos, Moves & Finishes — Cramer Basketball") },
+
+  { id:"cr29-d22", name:"Three Game Actions", tag:"Game Reads", difficulty:"intermediate", ageRange:[10,17], funScore:8, estimatedDuration:300,
+    sets:"3 x 5 reps of each action", rest:"40 s",
+    transferTags:["decision-making","attacking","basketball-IQ"],
+    progressionTrack:"Week 4 — Attack, Protect, Finish",
+    desc:"Three real actions you will actually run in a game, taken from the top with no defender. The handle is the easy part now — the work is reading what the action gives you and taking it.",
+    cues:["Run it at game speed, not walk-through speed","Same footwork every rep so it's repeatable","Know what each action is trying to create","Finish the play — don't stop at the move"],
+    ...cramerVideo("NoCJ-O2oA20", "Three Youth Basketball Actions 2-0 — Cramer Basketball") },
+
+  { id:"cr29-d23", name:"Lateral Moves to Finishing", tag:"Finishing", difficulty:"intermediate", ageRange:[10,17], funScore:8, estimatedDuration:300,
+    sets:"3 x 6 finishes each direction", rest:"40 s",
+    transferTags:["finishing","change-of-direction","footwork"],
+    progressionTrack:"Week 4 — Attack, Protect, Finish",
+    desc:"Move sideways, then finish. Most drives are not straight lines — you get bumped off your path and have to score from an angle you did not plan on. This trains that finish.",
+    cues:["Stay low through the lateral move","Ball on the far side from the defender","Get your shoulder past them before you gather","Finish off either foot — the angle decides, not habit"],
+    ...cramerVideo("-jnBHz51EiU", "Lateral Moves to Finishing — Cramer Basketball") },
+
+  { id:"cr29-d24", name:"Handling Warm Up", tag:"Warmup", difficulty:"beginner", ageRange:[9,17], funScore:7, estimatedDuration:240,
+    sets:"2 rounds of the full sequence", rest:"30 s",
+    transferTags:["warmup","ball-control","off-hand"],
+    progressionTrack:"Week 4 — Attack, Protect, Finish",
+    desc:"Cramer's own warm-up sequence — the one to run before every workout from here on. Short, complete, and it wakes both hands up without burning the energy you need for the real session.",
+    cues:["Run this before you train, not instead of training","Both hands get identical work","Start slow, build the speed across the two rounds","Eyes up from the first rep"],
+    ...cramerVideo("JyaARskn5hM", "Ball Handling Warm Up — Cramer Basketball") },
+
+  { id:"cr29-d25", name:"Create Space & Protect", tag:"Ball Protection", difficulty:"intermediate", ageRange:[10,17], funScore:8, estimatedDuration:270,
+    sets:"3 x 8 reps each direction", rest:"30 s",
+    transferTags:["ball-protection","separation","decision-making"],
+    progressionTrack:"Week 4 — Attack, Protect, Finish",
+    desc:"The two halves of handling under pressure in one drill — make room when you can, and shield the ball when you cannot. Knowing which one the moment calls for is the skill.",
+    cues:["Off-arm up and firm — shield, don't push off","Read whether there's room to attack or only room to protect","Keep your dribble alive while you shield","Never pick the ball up just because you got bumped"],
+    ...cramerVideo("CHT5eU-_408", "How to Create Space and Protect the Ball — Cramer Basketball") },
+
+  { id:"cr29-d26", name:"Attack & Protect Warm Up", tag:"Warmup", difficulty:"beginner", ageRange:[9,17], funScore:8, estimatedDuration:240,
+    sets:"2 rounds of the full sequence", rest:"30 s",
+    transferTags:["warmup","ball-protection","attacking"],
+    progressionTrack:"Week 4 — Attack, Protect, Finish",
+    desc:"A warm-up with attacking and protecting built into it, so you are rehearsing decisions from the first minute instead of just loosening up your hands.",
+    cues:["Attack reps go at real speed","Off-arm comes up on every protect rep","Both hands, both directions","Treat it as practice, not just a warm-up"],
+    ...cramerVideo("K86MyuvR6nM", "Attack and Protect the Basketball Warm Up — Cramer Basketball") },
+
+  { id:"cr29-d27", name:"Two Ball to Finish", tag:"Two Ball", difficulty:"advanced", ageRange:[11,17], funScore:9, estimatedDuration:270,
+    sets:"3 x 6 finishes", rest:"40 s",
+    transferTags:["weak-hand","finishing","coordination"],
+    progressionTrack:"Week 4 — Attack, Protect, Finish",
+    desc:"Two balls into a live finish. It is the hardest coordination drill in the challenge — by the time you get to the rim your hands are fried, which is roughly how they feel late in a real game.",
+    cues:["Both balls under control before you attack","Drop the second ball cleanly, don't fling it","Finish under control even with tired hands","Run it off both sides"],
+    ...cramerVideo("2hPSZydCbt4", "Two Ball Handling & Finishing Drill — Cramer Basketball") },
+
+  { id:"cr29-d28", name:"Behind the Back: Four Options", tag:"Signature Move", difficulty:"advanced", ageRange:[11,17], funScore:9, estimatedDuration:300,
+    sets:"4 x 10 reps (one set per option)", rest:"35 s",
+    transferTags:["ball-protection","change-of-direction","deception"],
+    progressionTrack:"Week 4 — Attack, Protect, Finish",
+    desc:"Four ways to go behind the back. It keeps the ball further from a defender than any other move, which is why it is the answer when someone is trailing you or reaching from the side.",
+    cues:["Wrap it around your hip, not around your back","Push the ball to where you're going, not straight down","Don't slow down to make the move","Learn all four — each one answers a different defender"],
+    ...cramerVideo("8Tj31pXdPUo", "How to Behind the Back Dribble: 4 Options — Cramer Basketball") },
+
+  { id:"cr29-d29", name:"Build Your Own Handling Program", tag:"Capstone", difficulty:"beginner", ageRange:[9,17], funScore:8, estimatedDuration:300,
+    sets:"Watch, then build and run your own 20-minute session", rest:"—",
+    transferTags:["ball-control","self-coaching","basketball-IQ"],
+    progressionTrack:"Week 4 — Attack, Protect, Finish",
+    desc:"The last day is not a drill — it is Coach Cramer showing you how to build your own handling workout. Twenty-nine days gave you the pieces; this is how you keep going without a video telling you what to do.",
+    cues:["Pick a warm-up, two ball-feel drills, two moves, one finish","Always include weak-hand work — it's the first thing people cut","Write the session down before you start","Run the one you just built, today"],
+    ...cramerVideo("qUGi4auRVTo", "How to Create a Ball Handling Program — Cramer Basketball") },
+];
+
 const WORKOUTS = {
   speed:        W_SPEED,
   balance:      W_BALANCE,
@@ -1798,7 +2055,7 @@ const WORKOUTS = {
   athletic:     W_ATHLETIC,
   handles:      [...W_HANDLES, ...TN_HANDLES],
   shooting:     W_SHOOTING,
-  ballhandling: W_BALL_HANDLING,
+  ballhandling: [...W_BALL_HANDLING, ...CRAMER_29],
   footwork:     W_FOOTWORK,
   finishing:    W_FINISHING,
   shootingdrills: W_SHOOTING_DRILLS,
@@ -2101,6 +2358,39 @@ const EXERCISE_META = {
   "tn-balldrop-snatch-pullup":{ difficulty:"advanced",    impactLevel:"medium", intensityLevel:"high",   movementType:"skill",     bodyFocus:["legs","hands","core"],             basketballTransfer:["shooting","separation","off-the-dribble"],   equipment:"basketball + hoop",    spaceRequired:"medium", ageRange:[11,17], estimatedDuration:240, funScore:9, workoutRole:["main"],          progressionTrack:"Step 3 — Create Your Own Shot" },
   "tn-pace-middle-shot":     { difficulty:"advanced",     impactLevel:"high",   intensityLevel:"high",   movementType:"athletic",  bodyFocus:["legs","lungs","hands"],            basketballTransfer:["shooting","transition","conditioning"],      equipment:"basketball + full court", spaceRequired:"large", ageRange:[11,17], estimatedDuration:300, funScore:9, workoutRole:["main","finisher"], progressionTrack:"Step 3 — Create Your Own Shot" },
   "tn-pace-corner-shot":     { difficulty:"advanced",     impactLevel:"high",   intensityLevel:"high",   movementType:"athletic",  bodyFocus:["legs","lungs","hands"],            basketballTransfer:["shooting","transition","footwork"],          equipment:"basketball + full court", spaceRequired:"large", ageRange:[11,17], estimatedDuration:300, funScore:9, workoutRole:["main","finisher"], progressionTrack:"Step 3 — Create Your Own Shot" },
+  /* ─── CRAMER BASKETBALL — 29 DAY CHALLENGE ───
+     One row per challenge day. Equipment reflects what the video actually needs — most
+     days are a ball and a small space, but the finishing days (11, 14, 21–23, 27) need a
+     hoop and days 18/27 need a second ball, so the generators gate them correctly. */
+  "cr29-d01":    { difficulty:"beginner", impactLevel:"low", intensityLevel:"medium", movementType:"skill", bodyFocus:["hands","hips","legs"], basketballTransfer:["ball-handling","change-of-direction"], equipment:"basketball", spaceRequired:"small", ageRange:[9,17], estimatedDuration:240, funScore:8, workoutRole:["main"], progressionTrack:"Week 1 — Build the Base" },
+  "cr29-d02":    { difficulty:"beginner", impactLevel:"low", intensityLevel:"medium", movementType:"skill", bodyFocus:["hands","forearms","hips"], basketballTransfer:["ball-handling","weak-hand"], equipment:"basketball", spaceRequired:"small", ageRange:[9,17], estimatedDuration:240, funScore:7, workoutRole:["warmup","main"], progressionTrack:"Week 1 — Build the Base" },
+  "cr29-d03":    { difficulty:"beginner", impactLevel:"medium", intensityLevel:"medium", movementType:"skill", bodyFocus:["feet","hands","coordination"], basketballTransfer:["ball-handling","footwork"], equipment:"basketball", spaceRequired:"medium", ageRange:[9,17], estimatedDuration:240, funScore:9, workoutRole:["warmup","main"], progressionTrack:"Week 1 — Build the Base" },
+  "cr29-d04":    { difficulty:"beginner", impactLevel:"low", intensityLevel:"low", movementType:"skill", bodyFocus:["hands","forearms","wrists"], basketballTransfer:["ball-handling","ball-protection"], equipment:"basketball", spaceRequired:"small", ageRange:[9,17], estimatedDuration:240, funScore:7, workoutRole:["warmup","main"], progressionTrack:"Week 1 — Build the Base" },
+  "cr29-d05":    { difficulty:"intermediate", impactLevel:"low", intensityLevel:"medium", movementType:"skill", bodyFocus:["hips","legs","hands"], basketballTransfer:["ball-protection","decision-making"], equipment:"basketball", spaceRequired:"small", ageRange:[10,17], estimatedDuration:270, funScore:7, workoutRole:["main"], progressionTrack:"Week 1 — Build the Base" },
+  "cr29-d06":    { difficulty:"beginner", impactLevel:"low", intensityLevel:"medium", movementType:"skill", bodyFocus:["hands","forearms","legs"], basketballTransfer:["ball-handling","weak-hand"], equipment:"basketball", spaceRequired:"small", ageRange:[9,17], estimatedDuration:240, funScore:8, workoutRole:["warmup","main"], progressionTrack:"Week 1 — Build the Base" },
+  "cr29-d07":    { difficulty:"intermediate", impactLevel:"medium", intensityLevel:"medium", movementType:"skill", bodyFocus:["legs","hips","hands"], basketballTransfer:["separation","shot-creation"], equipment:"basketball", spaceRequired:"medium", ageRange:[10,17], estimatedDuration:270, funScore:8, workoutRole:["main"], progressionTrack:"Week 1 — Build the Base" },
+  "cr29-d08":    { difficulty:"intermediate", impactLevel:"low", intensityLevel:"medium", movementType:"skill", bodyFocus:["hands","hips","legs"], basketballTransfer:["deception","change-of-pace"], equipment:"basketball", spaceRequired:"small", ageRange:[10,17], estimatedDuration:270, funScore:8, workoutRole:["main"], progressionTrack:"Week 2 — Moves & Deception" },
+  "cr29-d09":    { difficulty:"intermediate", impactLevel:"medium", intensityLevel:"medium", movementType:"skill", bodyFocus:["hips","legs","hands"], basketballTransfer:["change-of-direction","deception"], equipment:"basketball", spaceRequired:"medium", ageRange:[10,17], estimatedDuration:270, funScore:9, workoutRole:["main"], progressionTrack:"Week 2 — Moves & Deception" },
+  "cr29-d10":    { difficulty:"beginner", impactLevel:"medium", intensityLevel:"medium", movementType:"skill", bodyFocus:["feet","hands","coordination"], basketballTransfer:["ball-handling","footwork"], equipment:"basketball", spaceRequired:"medium", ageRange:[9,17], estimatedDuration:180, funScore:9, workoutRole:["warmup","main"], progressionTrack:"Week 2 — Moves & Deception" },
+  "cr29-d11":    { difficulty:"intermediate", impactLevel:"high", intensityLevel:"high", movementType:"athletic", bodyFocus:["legs","hips","hands"], basketballTransfer:["finishing","footwork"], equipment:"basketball + hoop", spaceRequired:"medium", ageRange:[10,17], estimatedDuration:300, funScore:8, workoutRole:["main"], progressionTrack:"Week 2 — Moves & Deception" },
+  "cr29-d12":    { difficulty:"intermediate", impactLevel:"low", intensityLevel:"medium", movementType:"skill", bodyFocus:["feet","hips","hands"], basketballTransfer:["deception","change-of-direction"], equipment:"basketball", spaceRequired:"small", ageRange:[10,17], estimatedDuration:240, funScore:8, workoutRole:["main"], progressionTrack:"Week 2 — Moves & Deception" },
+  "cr29-d13":    { difficulty:"intermediate", impactLevel:"high", intensityLevel:"high", movementType:"athletic", bodyFocus:["legs","hips","core"], basketballTransfer:["deceleration","balance"], equipment:"basketball", spaceRequired:"medium", ageRange:[10,17], estimatedDuration:270, funScore:8, workoutRole:["main"], progressionTrack:"Week 2 — Moves & Deception" },
+  "cr29-d14":    { difficulty:"intermediate", impactLevel:"high", intensityLevel:"high", movementType:"athletic", bodyFocus:["legs","hands","core"], basketballTransfer:["ball-handling","finishing"], equipment:"basketball + hoop", spaceRequired:"medium", ageRange:[10,17], estimatedDuration:300, funScore:8, workoutRole:["main"], progressionTrack:"Week 3 — Combos at Speed" },
+  "cr29-d15":    { difficulty:"intermediate", impactLevel:"medium", intensityLevel:"high", movementType:"skill", bodyFocus:["hands","forearms","lungs"], basketballTransfer:["ball-handling","competitiveness"], equipment:"basketball", spaceRequired:"small", ageRange:[10,17], estimatedDuration:180, funScore:10, workoutRole:["main","finisher"], progressionTrack:"Week 3 — Combos at Speed" },
+  "cr29-d16":    { difficulty:"intermediate", impactLevel:"medium", intensityLevel:"medium", movementType:"skill", bodyFocus:["hands","hips","legs"], basketballTransfer:["deception","change-of-pace"], equipment:"basketball", spaceRequired:"medium", ageRange:[10,17], estimatedDuration:270, funScore:8, workoutRole:["main"], progressionTrack:"Week 3 — Combos at Speed" },
+  "cr29-d17":    { difficulty:"intermediate", impactLevel:"medium", intensityLevel:"medium", movementType:"skill", bodyFocus:["hands","hips","legs"], basketballTransfer:["ball-handling","change-of-direction"], equipment:"basketball", spaceRequired:"medium", ageRange:[10,17], estimatedDuration:270, funScore:9, workoutRole:["main"], progressionTrack:"Week 3 — Combos at Speed" },
+  "cr29-d18":    { difficulty:"intermediate", impactLevel:"low", intensityLevel:"medium", movementType:"skill", bodyFocus:["hands","forearms","coordination"], basketballTransfer:["ball-handling","passing"], equipment:"2 basketballs + wall", spaceRequired:"small", ageRange:[10,17], estimatedDuration:180, funScore:8, workoutRole:["main"], progressionTrack:"Week 3 — Combos at Speed" },
+  "cr29-d19":    { difficulty:"beginner", impactLevel:"low", intensityLevel:"medium", movementType:"skill", bodyFocus:["hands","eyes","coordination"], basketballTransfer:["ball-handling","eyes-up"], equipment:"basketball", spaceRequired:"small", ageRange:[9,17], estimatedDuration:240, funScore:10, workoutRole:["warmup","main"], progressionTrack:"Week 3 — Combos at Speed" },
+  "cr29-d20":    { difficulty:"beginner", impactLevel:"low", intensityLevel:"medium", movementType:"skill", bodyFocus:["hands","forearms","wrists"], basketballTransfer:["weak-hand","ball-handling"], equipment:"basketball", spaceRequired:"small", ageRange:[9,17], estimatedDuration:270, funScore:7, workoutRole:["warmup","main"], progressionTrack:"Week 3 — Combos at Speed" },
+  "cr29-d21":    { difficulty:"advanced", impactLevel:"high", intensityLevel:"high", movementType:"athletic", bodyFocus:["legs","hips","hands"], basketballTransfer:["attacking","finishing"], equipment:"basketball + hoop", spaceRequired:"medium", ageRange:[11,17], estimatedDuration:300, funScore:9, workoutRole:["main"], progressionTrack:"Week 4 — Attack, Protect, Finish" },
+  "cr29-d22":    { difficulty:"intermediate", impactLevel:"high", intensityLevel:"high", movementType:"athletic", bodyFocus:["legs","hips","core"], basketballTransfer:["decision-making","attacking"], equipment:"basketball + hoop", spaceRequired:"large", ageRange:[10,17], estimatedDuration:300, funScore:8, workoutRole:["main"], progressionTrack:"Week 4 — Attack, Protect, Finish" },
+  "cr29-d23":    { difficulty:"intermediate", impactLevel:"high", intensityLevel:"high", movementType:"athletic", bodyFocus:["legs","hips","hands"], basketballTransfer:["finishing","change-of-direction"], equipment:"basketball + hoop", spaceRequired:"medium", ageRange:[10,17], estimatedDuration:300, funScore:8, workoutRole:["main"], progressionTrack:"Week 4 — Attack, Protect, Finish" },
+  "cr29-d24":    { difficulty:"beginner", impactLevel:"low", intensityLevel:"low", movementType:"skill", bodyFocus:["hands","forearms","coordination"], basketballTransfer:["ball-handling","weak-hand"], equipment:"basketball", spaceRequired:"small", ageRange:[9,17], estimatedDuration:240, funScore:7, workoutRole:["warmup"], progressionTrack:"Week 4 — Attack, Protect, Finish" },
+  "cr29-d25":    { difficulty:"intermediate", impactLevel:"medium", intensityLevel:"medium", movementType:"skill", bodyFocus:["hips","legs","hands"], basketballTransfer:["ball-protection","separation"], equipment:"basketball", spaceRequired:"medium", ageRange:[10,17], estimatedDuration:270, funScore:8, workoutRole:["main"], progressionTrack:"Week 4 — Attack, Protect, Finish" },
+  "cr29-d26":    { difficulty:"beginner", impactLevel:"medium", intensityLevel:"medium", movementType:"skill", bodyFocus:["hands","hips","legs"], basketballTransfer:["ball-protection","attacking"], equipment:"basketball", spaceRequired:"medium", ageRange:[9,17], estimatedDuration:240, funScore:8, workoutRole:["warmup","main"], progressionTrack:"Week 4 — Attack, Protect, Finish" },
+  "cr29-d27":    { difficulty:"advanced", impactLevel:"high", intensityLevel:"high", movementType:"athletic", bodyFocus:["hands","legs","coordination"], basketballTransfer:["weak-hand","finishing"], equipment:"2 basketballs + hoop", spaceRequired:"medium", ageRange:[11,17], estimatedDuration:270, funScore:9, workoutRole:["main"], progressionTrack:"Week 4 — Attack, Protect, Finish" },
+  "cr29-d28":    { difficulty:"advanced", impactLevel:"medium", intensityLevel:"medium", movementType:"skill", bodyFocus:["hands","hips","legs"], basketballTransfer:["ball-protection","change-of-direction"], equipment:"basketball", spaceRequired:"medium", ageRange:[11,17], estimatedDuration:300, funScore:9, workoutRole:["main"], progressionTrack:"Week 4 — Attack, Protect, Finish" },
+  "cr29-d29":    { difficulty:"beginner", impactLevel:"low", intensityLevel:"medium", movementType:"skill", bodyFocus:["hands","coordination","eyes"], basketballTransfer:["ball-handling","basketball-IQ"], equipment:"basketball", spaceRequired:"small", ageRange:[9,17], estimatedDuration:300, funScore:8, workoutRole:["main"], progressionTrack:"Week 4 — Attack, Protect, Finish" },
 };
 
 /* Cross-list existing agility/movement drills that transfer to on-ball defense into the Defense
@@ -2562,9 +2852,10 @@ const PROGRAMS = [
     id:"smooth-handles", name:"Smooth Handles", emoji:"🌊", color:"#38bdf8",
     badgeId:"pgm-smooth-handles", duration:4, daysPerWeek:3, ageRange:[10,17],
     /* `featured` floats a program to the top of every Programs list; `trainer` renders as a
-       credit badge on its card. Set both here because this is the first program built on
+       credit badge on its card, and `brandLogo` upgrades that badge to the partner's actual
+       mark (see lib/brandLogos.js). Set here because this is the first program built on
        coach-filmed FKH-hosted video rather than third-party YouTube clips. */
-    trainer:"2nd To None", featured:true,
+    trainer:"2nd To None", brandLogo:"2nd-to-none", featured:true,
     desc:"Four weeks with 2nd To None. Build the pocket dribble, add the glide-and-drop, then turn both into finishes and pull-ups at game pace. Every drill is filmed with the coach — no stock clips.",
     weeks:[
       { week:1, goal:"Wake the hands up and learn the pocket — the low, protected spot every move starts from.",
@@ -2593,6 +2884,65 @@ const PROGRAMS = [
         ]},
     ],
   },
+
+  {
+    id:"cramer-29", name:"Cramer 29 Day Challenge", emoji:"🔥", color:"#f97316",
+    badgeId:"pgm-cramer-29", duration:5, daysPerWeek:7, ageRange:[9,17],
+    /* The only DAILY program in the catalog — 29 straight days, one Cramer Basketball video
+       each. That cadence is why programSessionScheduleDays() drops to one-day spacing above
+       four sessions a week; at the old every-other-day spacing days 4–7 of each week would
+       never unlock. `cadence:"daily"` is what the UI reads to say "29 days · daily" instead
+       of "5 weeks · 7x/week", and to drop the rest-day copy. Week 5 is the single capstone
+       day — 7+7+7+7+1 = 29. */
+    trainer:"Cramer Basketball", brandLogo:"cramer-basketball", featured:true, cadence:"daily", totalDays:29,
+    desc:"29 straight days with Coach Cramer. One video a day, three to four minutes each — crossovers and ball feel in week 1, moves that actually beat a defender in week 2, combos at speed in week 3, then attacking and finishing in week 4. Day 29 he teaches you to build your own workout.",
+    weeks:[
+      { week:1, goal:"Build the base — the crossover, the V dribble, and real ball-in-hand time.",
+        sessions:[
+          { day:"Day 1", focus:"Crossover Four Ways",           exercises:["cr29-d01"] },
+          { day:"Day 2", focus:"V Dribble Series",              exercises:["cr29-d02"] },
+          { day:"Day 3", focus:"Hop Scotch Feet",               exercises:["cr29-d03"] },
+          { day:"Day 4", focus:"Ball in Hand Time",             exercises:["cr29-d04"] },
+          { day:"Day 5", focus:"Three Reads",                   exercises:["cr29-d05"] },
+          { day:"Day 6", focus:"Handling Circuit",              exercises:["cr29-d06"] },
+          { day:"Day 7", focus:"Create Space",                  exercises:["cr29-d07"] },
+        ]},
+      { week:2, goal:"Learn to move a defender — the float, the killer cross, and your first finishes off the handle.",
+        sessions:[
+          { day:"Day 8", focus:"Float Dribble",                 exercises:["cr29-d08"] },
+          { day:"Day 9", focus:"Killer Cross",                  exercises:["cr29-d09"] },
+          { day:"Day 10", focus:"Hopscotch Handling",            exercises:["cr29-d10"] },
+          { day:"Day 11", focus:"Lane Slide Finish",             exercises:["cr29-d11"] },
+          { day:"Day 12", focus:"Cross Jab",                     exercises:["cr29-d12"] },
+          { day:"Day 13", focus:"Speed Stop",                    exercises:["cr29-d13"] },
+          { day:"Day 14", focus:"Handling to Finishing",         exercises:["cr29-d14"] },
+        ]},
+      { week:3, goal:"Chain moves together and keep the handle clean once the clock and your weak hand get involved.",
+        sessions:[
+          { day:"Day 15", focus:"Beat the Clock",                exercises:["cr29-d15"] },
+          { day:"Day 16", focus:"Float on the Move",             exercises:["cr29-d16"] },
+          { day:"Day 17", focus:"Move Combinations",             exercises:["cr29-d17"] },
+          { day:"Day 18", focus:"Two Ball to Pass",              exercises:["cr29-d18"] },
+          { day:"Day 19", focus:"Eyes Up Math",                  exercises:["cr29-d19"] },
+          { day:"Day 20", focus:"Weak Hand Only",                exercises:["cr29-d20"] },
+          { day:"Day 21", focus:"Combos to Finishes",            exercises:["cr29-d21"] },
+        ]},
+      { week:4, goal:"Attack, protect, and finish — everything from the month, now at game speed.",
+        sessions:[
+          { day:"Day 22", focus:"Three Game Actions",            exercises:["cr29-d22"] },
+          { day:"Day 23", focus:"Lateral to Finish",             exercises:["cr29-d23"] },
+          { day:"Day 24", focus:"Cramer's Warm Up",              exercises:["cr29-d24"] },
+          { day:"Day 25", focus:"Space & Protection",            exercises:["cr29-d25"] },
+          { day:"Day 26", focus:"Attack & Protect",              exercises:["cr29-d26"] },
+          { day:"Day 27", focus:"Two Ball to Finish",            exercises:["cr29-d27"] },
+          { day:"Day 28", focus:"Behind the Back Four Ways",     exercises:["cr29-d28"] },
+        ]},
+      { week:5, goal:"Graduation — build the handling program you'll run after the challenge ends.",
+        sessions:[
+          { day:"Day 29", focus:"Build Your Own",                exercises:["cr29-d29"] },
+        ]},
+    ],
+  },
 ];
 
 /* Development tier per program week — the same T1 Foundation → T2 Application → T3 Game-Speed
@@ -2612,6 +2962,7 @@ const PROGRAM_WEEK_TIERS = {
   "passing-fundamentals": [1, 1, 2],
   "smooth-handles":       [1, 2, 2, 3],
   "floor-general":        [1, 2, 2, 3],
+  "cramer-29":            [1, 2, 2, 3, 3],
 };
 const TIER_LABELS = { 1: "Foundation", 2: "Application", 3: "Game-Speed" };
 const programWeekTier = (programId, weekNum) => PROGRAM_WEEK_TIERS[programId]?.[weekNum - 1] ?? null;
