@@ -260,8 +260,14 @@ function searchParamsFromInput(input) {
 }
 
 /**
- * Parse ?view=, ?messages=, ?friends= navigation deep links (push / notification).
- * Returns { tab, openMessages?, openFriends? } or null.
+ * Parse ?view=, ?messages=, ?friends=, ?program= navigation deep links
+ * (push / notification / emailed invite).
+ * Returns { tab, openMessages?, openFriends?, openProgram? } or null.
+ *
+ * ?program=<id> opens that program's detail page directly, which is what an emailed
+ * invite wants — landing on the Programs tab still asks the reader to go hunting.
+ * An unknown id is harmless: ProgramsView guards on the lookup and falls back to the
+ * normal list, so a typo'd link degrades to "the app opened" rather than a blank screen.
  */
 export function parseNavigationDeepLink(input) {
   const params = searchParamsFromInput(input);
@@ -269,6 +275,7 @@ export function parseNavigationDeepLink(input) {
   const view = params.get("view");
   const messages = params.get("messages") === "1";
   const friends = params.get("friends") === "1";
+  const program = params.get("program");
 
   let tab = null;
   let openMessages = false;
@@ -283,8 +290,11 @@ export function parseNavigationDeepLink(input) {
   else if (view === "messages" || messages) { tab = "squad"; openMessages = true; }
   else if (friends) { tab = "squad"; openFriends = true; }
 
+  /* A bare ?program= link carries no ?view=, so it implies the Programs tab. */
+  if (program && !tab) tab = "programs";
+
   if (!tab) return null;
-  return { tab, openMessages, openFriends };
+  return { tab, openMessages, openFriends, openProgram: program || null };
 }
 
 function stripNavigationParamsFromLocation() {
@@ -292,10 +302,12 @@ function stripNavigationParamsFromLocation() {
   const view = params.get("view");
   const messages = params.get("messages") === "1";
   const friends = params.get("friends") === "1";
-  if (!view && !messages && !friends) return;
+  const program = params.get("program");
+  if (!view && !messages && !friends && !program) return;
   if (view) params.delete("view");
   if (messages) params.delete("messages");
   if (friends) params.delete("friends");
+  if (program) params.delete("program");
   const qs = params.toString();
   const path = window.location.pathname + (qs ? `?${qs}` : "");
   window.history.replaceState({}, "", path);
