@@ -40,10 +40,12 @@ export const BADGES_DEF = [
   { id:"pgm-complete-hooper",cat:"program", name:"Complete Hooper",   emoji:"🏆", desc:"Complete the Complete Hooper program",       color:"#f59e0b" },
   { id:"pgm-bodyweight",     cat:"program", name:"Bodyweight Beast",  emoji:"💪", desc:"Complete the Bodyweight Beast program",      color:"#22c55e" },
   { id:"pgm-own-the-glass",  cat:"program", name:"Glass Cleaner",     emoji:"🪃", desc:"Complete the Own the Glass program",          color:"#22c55e" },
+  { id:"pgm-step-back-legends", cat:"program", name:"Step Back Legend", emoji:"↩️", desc:"Complete the Step Back Legends program",   color:"#7c3aed" },
   { id:"pgm-lockdown-defender", cat:"program", name:"Lockdown Defender", emoji:"🛡️", desc:"Complete the Lockdown Defender program",    color:"#0ea5e9" },
   { id:"pgm-passing-fundamentals", cat:"program", name:"Passing Certified", emoji:"🤝", desc:"Complete Passing Fundamentals",          color:"#14b8a6" },
   { id:"pgm-floor-general",  cat:"program", name:"Floor General",     emoji:"🧠", desc:"Complete the Floor General program",           color:"#6366f1" },
   { id:"pgm-smooth-handles", cat:"program", name:"Smooth Operator",  emoji:"🌊", desc:"Complete the Smooth Handles program",         color:"#38bdf8" },
+  { id:"pgm-cramer-29",      cat:"program", name:"29 Days Straight", emoji:"🔥", desc:"Complete the Cramer 29 Day Challenge",       color:"#f97316" },
 ];
 
 const CHAIN_BADGE_MAP = {
