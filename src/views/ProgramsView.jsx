@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { pathTagForProgram } from "../lib/achievements.js";
 import { getBrandLogo } from "../lib/brandLogos.js";
+import ProgramIcon from "../components/ProgramIcon.jsx";
 import { track, ANALYTICS_EVENTS } from "../lib/analytics.js";
 import {
   computeProgramProgress,
@@ -295,9 +296,7 @@ export default function ProgramsView({
               ← Programs
             </button>
             <div style={{ display:"flex",alignItems:"center",gap:12,marginBottom:12 }}>
-              <div style={{ width:52,height:52,borderRadius:14,background:`${prog.color}18`,border:`2px solid ${prog.color}40`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:26,flexShrink:0 }}>
-                {prog.emoji}
-              </div>
+              <ProgramIcon prog={prog} size={72} active />
               <div>
                 <div style={{ fontSize:20,fontWeight:800,color:"var(--fkh-text)",lineHeight:1.2 }}>{prog.name}</div>
                 <div style={{ fontSize:11,color:"#64748b",marginTop:2 }}>{programCadenceLabel(prog)} · Ages {prog.ageRange[0]}–{prog.ageRange[1]}</div>
@@ -554,11 +553,7 @@ export default function ProgramsView({
           padding:"16px",marginBottom:10,cursor:"pointer",
           boxShadow:enrolled?`0 2px 12px ${prog.color}18`:"none" }}>
         <div style={{ display:"flex",gap:12,alignItems:"flex-start" }}>
-          <div style={{ width:48,height:48,borderRadius:12,
-            background:`${prog.color}18`,border:`2px solid ${prog.color}${enrolled?"55":"33"}`,
-            display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0 }}>
-            {prog.emoji}
-          </div>
+          <ProgramIcon prog={prog} size={48} active={enrolled} />
           <div style={{ flex:1,minWidth:0 }}>
             <div style={{ display:"flex",alignItems:"center",gap:6,marginBottom:3,flexWrap:"wrap" }}>
               <span style={{ fontSize:14,fontWeight:800,color:"var(--fkh-text)" }}>{prog.name}</span>

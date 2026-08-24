@@ -2849,12 +2849,15 @@ const PROGRAMS = [
   },
 
   {
-    id:"smooth-handles", name:"Smooth Handles", emoji:"🌊", color:"#38bdf8",
+    id:"smooth-handles", name:"Smooth Handles", emoji:"🌊", icon:"handles", color:"#38bdf8",
     badgeId:"pgm-smooth-handles", duration:4, daysPerWeek:3, ageRange:[10,17],
     /* `featured` floats a program to the top of every Programs list; `trainer` renders as a
        credit badge on its card, and `brandLogo` upgrades that badge to the partner's actual
        mark (see lib/brandLogos.js). Set here because this is the first program built on
-       coach-filmed FKH-hosted video rather than third-party YouTube clips. */
+       coach-filmed FKH-hosted video rather than third-party YouTube clips. `icon` swaps the
+       emoji tile for bespoke line art (see components/ProgramIcon.jsx) — a stock emoji next
+       to a partner's real mark reads like a placeholder. `emoji` stays required either way:
+       it is what the inline text placements print. */
     trainer:"2nd To None", brandLogo:"2nd-to-none", featured:true,
     desc:"Four weeks with 2nd To None. Build the pocket dribble, add the glide-and-drop, then turn both into finishes and pull-ups at game pace. Every drill is filmed with the coach — no stock clips.",
     weeks:[
@@ -2886,7 +2889,7 @@ const PROGRAMS = [
   },
 
   {
-    id:"cramer-29", name:"Cramer 29 Day Challenge", emoji:"🔥", color:"#f97316",
+    id:"cramer-29", name:"Cramer 29 Day Challenge", emoji:"🔥", icon:"streak29", color:"#f97316",
     badgeId:"pgm-cramer-29", duration:5, daysPerWeek:7, ageRange:[9,17],
     /* The only DAILY program in the catalog — 29 straight days, one Cramer Basketball video
        each. That cadence is why programSessionScheduleDays() drops to one-day spacing above
