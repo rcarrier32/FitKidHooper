@@ -18,6 +18,7 @@ export const ANALYTICS_EVENTS = {
   VIDEO_PLAY: "video_play",
   LEVEL_UP: "level_up",
   LEADERBOARD_PUSH: "leaderboard_push",
+  PROGRAM_SHARE: "program_share",
   // Sprint funnel — Home → CTA → Practice → Mission (see docs/ANALYTICS.md)
   HOME_VIEWED: "home_viewed",
   CTA_CLICKED: "cta_clicked",

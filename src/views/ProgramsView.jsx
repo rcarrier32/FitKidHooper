@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { pathTagForProgram } from "../lib/achievements.js";
 import { getBrandLogo } from "../lib/brandLogos.js";
 import ProgramIcon from "../components/ProgramIcon.jsx";
+import { shareProgram } from "../lib/programShare.js";
 import { track, ANALYTICS_EVENTS } from "../lib/analytics.js";
 import {
   computeProgramProgress,
@@ -133,6 +134,14 @@ export default function ProgramsView({
   const [buildMode, setBuildMode] = useState("day");
   const [buildWeekDays, setBuildWeekDays] = useState(emptyWeekDays);
   const [activeBuildDay, setActiveBuildDay] = useState(getTodayWeekDayKey);
+  /* Transient "Link copied" confirmation — cleared on a timer, so it never needs to
+     survive a re-render or be threaded anywhere. */
+  const [shareNote, setShareNote] = useState(null);
+  /* Set only when both the share sheet and the clipboard are unavailable (an unfocused
+     document refuses a clipboard write, and some in-app browsers block both). Shows the
+     link in a selectable field so it is still copyable by hand — no timer, because the
+     reader needs as long as it takes. */
+  const [shareFallbackUrl, setShareFallbackUrl] = useState(null);
   const [missionFocus, setMissionFocus] = useState("mission");
   const [missionIntensity, setMissionIntensity] = useState("medium");
   const [buildCatFilter, setBuildCatFilter] = useState("all");
@@ -268,6 +277,20 @@ export default function ProgramsView({
     openExercise(w.exercises[0], w.exercises);
   };
 
+  const onShareProgram = async (prog) => {
+    setShareFallbackUrl(null);
+    const res = await shareProgram(prog);
+    track(ANALYTICS_EVENTS.PROGRAM_SHARE, { program_id: prog.id, method: res.method });
+    /* Backing out of the OS sheet is a non-event — showing "copied" there would be a lie. */
+    if (res.method === "dismissed" || res.method === "shared") return;
+    if (res.method === "copied") {
+      setShareNote("Link copied");
+      setTimeout(() => setShareNote(null), 2400);
+      return;
+    }
+    setShareFallbackUrl(res.url || null);
+  };
+
   if (selectedProgram) {
     const prog = programs.find(p => p.id === selectedProgram);
     if (prog) {
@@ -291,10 +314,33 @@ export default function ProgramsView({
           {detailSheet}
 
           <div style={{ padding:"16px 18px 0" }}>
-            <button onClick={() => setSelectedProgram(null)}
-              style={{ marginBottom:14,padding:"6px 14px",borderRadius:8,border:`1px solid ${prog.color}30`,background:`${prog.color}14`,color:prog.color,fontSize:12,fontWeight:700,cursor:"pointer" }}>
-              ← Programs
-            </button>
+            <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:14 }}>
+              <button onClick={() => setSelectedProgram(null)}
+                style={{ padding:"6px 14px",borderRadius:8,border:`1px solid ${prog.color}30`,background:`${prog.color}14`,color:prog.color,fontSize:12,fontWeight:700,cursor:"pointer" }}>
+                ← Programs
+              </button>
+              <div style={{ flex:1 }} />
+              {shareNote && (
+                <span style={{ fontSize:11,fontWeight:700,color:prog.color,maxWidth:170,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>
+                  {shareNote}
+                </span>
+              )}
+              <button onClick={() => onShareProgram(prog)} aria-label={`Share ${prog.name}`}
+                style={{ padding:"6px 14px",borderRadius:8,border:`1px solid ${prog.color}30`,background:`${prog.color}14`,color:prog.color,fontSize:12,fontWeight:700,cursor:"pointer",flexShrink:0 }}>
+                Share
+              </button>
+            </div>
+            {shareFallbackUrl && (
+              <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:14,padding:"10px 12px",borderRadius:10,background:"rgba(255,255,255,0.04)",border:`1px solid ${prog.color}22` }}>
+                <input readOnly value={shareFallbackUrl} onFocus={(e) => e.target.select()}
+                  aria-label="Program link"
+                  style={{ flex:1,minWidth:0,background:"transparent",border:"none",color:"var(--fkh-text)",fontSize:11,outline:"none" }} />
+                <button onClick={() => setShareFallbackUrl(null)}
+                  style={{ background:"none",border:"none",color:"#64748b",fontSize:11,fontWeight:700,cursor:"pointer",flexShrink:0 }}>
+                  Done
+                </button>
+              </div>
+            )}
             <div style={{ display:"flex",alignItems:"center",gap:12,marginBottom:12 }}>
               <ProgramIcon prog={prog} size={72} active />
               <div>
