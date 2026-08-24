@@ -24,13 +24,18 @@ async function expectAppBooted(page) {
   await expect(nav(page).getByRole("button", { name: "☀️ Today" })).toBeVisible({ timeout: 20_000 });
 }
 
-async function openMeSettings(page) {
+async function openMeTab(page) {
   await nav(page).getByRole("button", { name: "⭐ Me" }).click();
   await expect(page.getByRole("heading", { name: "⭐ Me" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "⚙ Settings" })).toBeVisible({ timeout: 20_000 });
-  await page.getByRole("button", { name: "⚙ Settings" }).click();
-  await expect(page.getByText("Customize Your App")).toBeVisible();
-  await expect(page.getByText("Athlete Profile")).toBeVisible();
+}
+
+// The gear button's accessible name comes from its aria-label ("Settings"),
+// not its visible "⚙" glyph — a bare-glyph locator never matches.
+async function openMeSettings(page) {
+  await openMeTab(page);
+  await expect(page.getByRole("button", { name: "Settings", exact: true })).toBeVisible({ timeout: 20_000 });
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await expect(page.getByText("Workout Timers")).toBeVisible();
 }
 
 test.describe("FKH pre-deploy smoke", () => {
@@ -58,15 +63,23 @@ test.describe("FKH pre-deploy smoke", () => {
     await expect(nav(page).getByRole("button", { name: "👥 Squad" })).toBeVisible();
   });
 
-  test.skip("Me settings opens with stored profile photo", async ({ page }) => {
-    // TODO: Settings UI removed or renamed - test needs updating
+  test("Me overview shows stored profile photo and editable identity", async ({ page }) => {
+    // Avatar/name editing lives directly on the Me overview via IdentityEditor
+    // now, not behind Settings — it moved out ("Braylen: the problem wasn't
+    // finding his player, it was editing it", see MeView.jsx).
     await seedAthleteStorage(page, { "fkh-avatar": TINY_AVATAR_DATA_URL });
     await page.goto("/");
     await expectAppBooted(page);
-    await openMeSettings(page);
-    await expect(page.getByRole("button", { name: "📷 Choose Photo" })).toBeVisible();
-    await expect(page.getByText("Profile changes save automatically")).toBeVisible();
+    await openMeTab(page);
+    await expect(page.getByRole("button", { name: "📷 Choose Photo" })).toBeVisible({ timeout: 20_000 });
     await expect(page.getByPlaceholder("First name")).toHaveValue("Braylen");
+  });
+
+  test("Me settings sheet opens", async ({ page }) => {
+    await seedAthleteStorage(page);
+    await page.goto("/");
+    await expectAppBooted(page);
+    await openMeSettings(page);
   });
 
   test("core tabs render without boot crash", async ({ page }) => {
