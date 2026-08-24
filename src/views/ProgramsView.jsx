@@ -518,8 +518,13 @@ export default function ProgramsView({
   const segmentPrograms = (() => {
     const ranked = featuredFirst(programs);
     if (programSegment === "forYou") {
+      /* Featured programs survive the recommendation filter. Once an athlete picks a legend,
+         recommendProgramsForFavorite() returns that path's programs and this used to filter
+         the list down to exactly them — which silently hid every featured program from the
+         default tab, the one place merchandising most needs to land. Featuring is a
+         deliberate editorial call, so it outranks path fit rather than competing with it. */
       const ids = new Set(recommendedProgramIds);
-      return ids.size ? ranked.filter(p => ids.has(p.id)) : ranked.slice(0, 3);
+      return ids.size ? ranked.filter(p => p.featured || ids.has(p.id)) : ranked.slice(0, 3);
     }
     if (programSegment === "myPlan") return ranked.filter(p => enrolledPrograms[p.id]);
     if (programSegment === "completed") {
