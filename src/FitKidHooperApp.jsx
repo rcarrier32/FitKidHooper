@@ -4262,7 +4262,6 @@ export default function FitKidHooperApp() {
     try { localStorage.setItem("fkh-save-prompt-dismissed", "1"); } catch { /* ignore */ }
   }, []);
   const [homeMissionFocus, setHomeMissionFocus] = useState(false);
-  const [pushBusy, setPushBusy] = useState(false);
   const [pushError, setPushError] = useState(null);
   const openSchedule = useCallback((returnView = "home", tab = "calendar") => {
     setPrevView(returnView);
@@ -4413,22 +4412,6 @@ export default function FitKidHooperApp() {
     const timer = setTimeout(() => syncLeaderboardRef.current(), 90_000);
     return () => clearTimeout(timer);
   }, [completed, missionLog, settings.athleteName]);
-
-  const handlePushStats = useCallback(async ({ goToRanks = false } = {}) => {
-    setPushBusy(true);
-    setPushError(null);
-    try {
-      const result = await syncLeaderboard({ force: true });
-      if (!result.ok) throw new Error(result.error || "Sync failed");
-      if (goToRanks) setView("boards");
-    } catch (e) {
-      const msg = e.message || "Sync failed";
-      setPushError(msg);
-      if (goToRanks) alert(msg);
-    } finally {
-      setPushBusy(false);
-    }
-  }, [syncLeaderboard]);
 
 
   const calcWeek = startDate => {
@@ -5622,8 +5605,6 @@ export default function FitKidHooperApp() {
         onOpenSchedule={() => openSchedule("progress", "calendar")}
         onViewReport={() => { setPrevView("progress"); setView("report"); }}
         onViewLeaderboard={() => setView("boards")}
-        onPushStats={() => handlePushStats({ goToRanks: false })}
-        pushBusy={pushBusy}
         pushError={pushError}
         onLogBenchmark={handleLogBenchmark}
         onEquipTitle={handleEquipTitle}

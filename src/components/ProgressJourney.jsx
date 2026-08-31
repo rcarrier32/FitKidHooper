@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 /**
  * Progress Journey — the "who am I becoming / what improved / what's next"
  * block at the top of Me › Overview. Presentation only; all data comes from
@@ -10,6 +12,25 @@ function prettyDate(d) {
   const dt = new Date(`${d}T12:00:00`);
   if (Number.isNaN(dt.getTime())) return "";
   return dt.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+/* Reference material rather than the answer to "how am I doing" — shut by
+   default, with the number that matters in the header. */
+function JourneyCollapsible({ title, hint, cardStyle, labelStyle, children }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={cardStyle}>
+      <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open}
+        style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: 0,
+          background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}>
+        <span style={{ ...labelStyle, marginBottom: 0, flex: 1, minWidth: 0 }}>{title}</span>
+        {hint && <span style={{ fontSize: 11, fontWeight: 700, color: "#64748b" }}>{hint}</span>}
+        <span style={{ fontSize: 12, color: "#475569", lineHeight: 1,
+          transform: open ? "rotate(90deg)" : "none", transition: "transform 0.2s" }}>›</span>
+      </button>
+      {open && <div style={{ marginTop: 12 }}>{children}</div>}
+    </div>
+  );
 }
 
 export default function ProgressJourney({ journey, currentLevel, totalXP, P, SF, bd, onStartPractice }) {
@@ -116,8 +137,8 @@ export default function ProgressJourney({ journey, currentLevel, totalXP, P, SF,
 
       {/* ── Skill Growth: simple bars, no charts ── */}
       {skills.length > 0 && (
-        <div style={card}>
-          <div style={sectionLabel}>💪 Skill Growth</div>
+        <JourneyCollapsible title="💪 Skill Growth" cardStyle={card} labelStyle={sectionLabel}
+          hint={`${skills.reduce((n, s) => n + s.count, 0)} drills`}>
           <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
             {skills.map((s) => (
               <div key={s.area}>
@@ -131,13 +152,13 @@ export default function ProgressJourney({ journey, currentLevel, totalXP, P, SF,
               </div>
             ))}
           </div>
-        </div>
+        </JourneyCollapsible>
       )}
 
       {/* ── Milestone Timeline: recent wins, newest first ── */}
       {milestones.length > 0 && (
-        <div style={card}>
-          <div style={sectionLabel}>🏆 Recent Milestones</div>
+        <JourneyCollapsible title="🏆 Recent Milestones" cardStyle={card} labelStyle={sectionLabel}
+          hint={`${milestones.length} new`}>
           <div style={{ display: "flex", flexDirection: "column" }}>
             {milestones.map((m, i) => (
               <div key={m.id} style={{
@@ -150,7 +171,7 @@ export default function ProgressJourney({ journey, currentLevel, totalXP, P, SF,
               </div>
             ))}
           </div>
-        </div>
+        </JourneyCollapsible>
       )}
     </div>
   );

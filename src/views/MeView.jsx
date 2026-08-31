@@ -1,3 +1,4 @@
+import { useState } from "react";
 import ProfileView from "../components/ProfileView.jsx";
 import ProgressJourney from "../components/ProgressJourney.jsx";
 import IdentityEditor from "../components/IdentityEditor.jsx";
@@ -61,8 +62,6 @@ export default function MeView({
   onOpenSchedule,
   onViewReport,
   onViewLeaderboard,
-  onPushStats,
-  pushBusy,
   pushError,
   onLogBenchmark,
   onEquipTitle,
@@ -75,16 +74,20 @@ export default function MeView({
   onOpenCoach,
   renderBottomNav,
 }) {
-  // Settings is intentionally NOT a sub-tab — it lives behind the gear in the
-  // header so the tab row is purely "your player," and app config is one
-  // obvious, always-visible tap away (fixes "Settings feels hidden").
+  /* Settings is a visible pill, not just a gear: the gear used to set a tab
+     the pill row had no pill for, so all four went dark and the user lost
+     their place. Skills merged into Badges — both pills rendered the same
+     component. */
   const subTabs = [
-    { id:"overview", label:"Overview" },
-    { id:"skills",   label:"Skills" },
+    { id:"overview", label:"Progress" },
     { id:"locker",   label:"🏅 Badges" },
     { id:"stats",    label:"Stats" },
+    { id:"settings", label:"⚙ Settings" },
   ];
   const inSettings = progressTab === "settings";
+  // Anyone whose stored tab is the retired Skills pill lands on Badges.
+  const activeTab = progressTab === "skills" ? "locker" : progressTab;
+  const [editingPlayer, setEditingPlayer] = useState(false);
   const statTile = (label, value) => (
     <div style={{ flex:1,minWidth:120,background:SF,border:`1px solid ${bd}`,borderRadius:14,padding:"12px 14px" }}>
       <div style={{ fontSize:10,color:"#64748b",fontWeight:700,letterSpacing:"0.04em",textTransform:"uppercase" }}>{label}</div>
@@ -121,9 +124,9 @@ export default function MeView({
         {subTabs.map(t => (
           <button key={t.id} onClick={() => setProgressTab(t.id)} style={{
             flexShrink:0,padding:"7px 14px",borderRadius:999,fontSize:12,fontWeight:800,cursor:"pointer",
-            border:`1px solid ${progressTab===t.id?P:bd}`,
-            background:progressTab===t.id?`${P}20`:"transparent",
-            color:progressTab===t.id?P:"#64748b",
+            border:`1px solid ${activeTab===t.id?P:bd}`,
+            background:activeTab===t.id?`${P}20`:"transparent",
+            color:activeTab===t.id?P:"#64748b",
             display:"inline-flex",alignItems:"center",gap:6,
           }}>
             <span>{t.label}</span>
@@ -131,7 +134,7 @@ export default function MeView({
         ))}
       </div>
 
-      {progressTab === "overview" && (
+      {activeTab === "overview" && (
         <>
           {/* Seeing yourself, then editing yourself — adjacent (Braylen: the
               problem wasn't finding his player, it was editing it). Card first,
@@ -144,13 +147,25 @@ export default function MeView({
             currentLevel={currentLevel}
             P={P}
           />
-          {/* Edit your player right here — moved out of Settings, directly under the card. */}
-          <IdentityEditor
-            settings={settings}
-            setSettings={setSettings}
-            avatarUrl={avatarUrl}
-            onAvatarChange={onAvatarChange}
-          />
+          {/* One-time setup, so it sits behind Edit rather than filling the
+              second and third screenful of a screen people open to check
+              progress. Nothing is removed — the whole form is one tap away. */}
+          <div style={{ display:"flex",justifyContent:"flex-end",padding:"0 18px",margin:"-6px 0 10px" }}>
+            <button type="button" onClick={() => setEditingPlayer(e => !e)}
+              aria-expanded={editingPlayer}
+              style={{ padding:"5px 13px",borderRadius:99,cursor:"pointer",fontSize:11.5,fontWeight:800,
+                border:`1px solid ${P}55`,background:`${P}14`,color:P }}>
+              {editingPlayer ? "Done" : "Edit"}
+            </button>
+          </div>
+          {editingPlayer && (
+            <IdentityEditor
+              settings={settings}
+              setSettings={setSettings}
+              avatarUrl={avatarUrl}
+              onAvatarChange={onAvatarChange}
+            />
+          )}
           <ProgressJourney
             journey={journey}
             currentLevel={currentLevel}
@@ -171,15 +186,13 @@ export default function MeView({
             P={P}
             onViewBadges={() => setProgressTab("locker")}
             onViewLeaderboard={onViewLeaderboard}
-            onPushStats={onPushStats}
-            pushBusy={pushBusy}
             pushError={pushError}
           />
           {/* Coach lives in the header on every tab; Feedback lives in Settings. */}
         </>
       )}
 
-      {progressTab === "locker" && (
+      {activeTab === "locker" && (
         <div style={{ padding:"0 18px 4px" }}>
           <div style={{ fontSize:11,color:"#64748b",margin:"2px 2px 10px",lineHeight:1.5 }}>
             🔓 Earned badges are lit up. <b style={{ color:P }}>Locked</b> ones show what to do to earn them.
@@ -204,9 +217,9 @@ export default function MeView({
         </div>
       )}
 
-      {(progressTab === "skills" || progressTab === "locker") && (
+      {activeTab === "locker" && (
         <ProgressionView
-          tab={progressTab}
+          tab="skills"
           settings={settings}
           ledgerIds={ledgerSet}
           ledger={ledger}
@@ -224,9 +237,9 @@ export default function MeView({
         />
       )}
 
-      {progressTab === "locker" && (
+      {activeTab === "locker" && (
         <ProgressionView
-          tab="journeys"
+          tab="locker"
           settings={settings}
           ledgerIds={ledgerSet}
           ledger={ledger}
@@ -244,7 +257,7 @@ export default function MeView({
         />
       )}
 
-      {progressTab === "settings" && (
+      {activeTab === "settings" && (
         <ViewErrorBoundary
           label="Settings"
           title="Settings couldn't load"

@@ -20,7 +20,7 @@ function isBirthday(dob) {
 export default function ProfileView({
   settings, totalXP, currentLevel, earnedBadges,
   totalBadges, tracksComplete, totalTracks,
-  P, onViewBadges, onViewLeaderboard, onPushStats, pushBusy, pushError,
+  P, onViewBadges, onViewLeaderboard, pushError,
   variant,
 }) {
   const showCard = variant !== "progress";
@@ -54,14 +54,6 @@ export default function ProfileView({
             : "Stats sync to Challenges automatically. Set your birthday for the right age group."}
         </p>
         {pushError && <div style={{ fontSize:11,color:"#f87171",marginBottom:8 }}>{pushError}</div>}
-        <button
-          onClick={onPushStats}
-          disabled={pushBusy}
-          style={{ width:"100%",padding:"11px",borderRadius:10,border:`1px solid ${P}44`,cursor:"pointer",
-            background:"transparent",color:P,
-            fontSize:12,fontWeight:700 }}>
-          {pushBusy ? "Syncing…" : "Sync leaderboard now"}
-        </button>
       </div>
 
       <button onClick={onViewBadges}

@@ -63,14 +63,17 @@ test.describe("FKH pre-deploy smoke", () => {
     await expect(nav(page).getByRole("button", { name: "👥 Squad" })).toBeVisible();
   });
 
-  test("Me overview shows stored profile photo and editable identity", async ({ page }) => {
-    // Avatar/name editing lives directly on the Me overview via IdentityEditor
-    // now, not behind Settings — it moved out ("Braylen: the problem wasn't
-    // finding his player, it was editing it", see MeView.jsx).
+  test("Me progress hides the identity form until Edit, then shows it", async ({ page }) => {
+    // The My Player form is one-time setup, so it sits behind an Edit pill on
+    // the athlete card rather than occupying the second screenful of a screen
+    // people open to check progress (see MeView.jsx). Nothing is removed --
+    // one tap reveals the whole form, photo picker included.
     await seedAthleteStorage(page, { "fkh-avatar": TINY_AVATAR_DATA_URL });
     await page.goto("/");
     await expectAppBooted(page);
     await openMeTab(page);
+    await expect(page.getByPlaceholder("First name")).toHaveCount(0);
+    await page.getByRole("button", { name: "Edit", exact: true }).click();
     await expect(page.getByRole("button", { name: "📷 Choose Photo" })).toBeVisible({ timeout: 20_000 });
     await expect(page.getByPlaceholder("First name")).toHaveValue("Braylen");
   });
