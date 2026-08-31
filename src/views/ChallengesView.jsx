@@ -1,14 +1,6 @@
-import { useState, useEffect, useMemo } from "react";
 import BoardView from "../components/BoardView.jsx";
-import HomeCollapsibleSection from "../components/HomeCollapsibleSection.jsx";
 import GuideNavButton from "../components/GuideNavButton.jsx";
 import CoachNavButton from "../components/CoachNavButton.jsx";
-import { getAgeGroup, getAgeGroupLabel } from "../lib/periodStats.js";
-import { recommendTrackForFavorite, getTrack, trackRankInfo } from "../lib/achievements.js";
-
-function loadLegendsOpen() {
-  try { return localStorage.getItem("fkh-legends-open") === "1"; } catch { return false; }
-}
 
 export default function ChallengesView({
   settings,
@@ -20,7 +12,6 @@ export default function ChallengesView({
   personalChallenges,
   currentLevel,
   xpData,
-  progressCtx,
   P,
   BG,
   SF,
@@ -32,33 +23,13 @@ export default function ChallengesView({
   onAddFriends,
   focusFriendsTick,
   onPushSuccess,
-  questsPanel,
   onOpenGuide,
   onOpenCoach,
   shellOverlays,
   renderBottomNav,
 }) {
-  const [legendsOpen, setLegendsOpen] = useState(loadLegendsOpen);
-  const sectionLbl = {
-    fontFamily: "'DM Mono',monospace",
-    fontSize: 12,
-    letterSpacing: "0.13em",
-    color: P,
-    fontWeight: 800,
-    textTransform: "uppercase",
-  };
 
-  useEffect(() => {
-    try { localStorage.setItem("fkh-legends-open", legendsOpen ? "1" : "0"); } catch { /* ignore */ }
-  }, [legendsOpen]);
 
-  const legendsHint = useMemo(() => {
-    const recId = recommendTrackForFavorite(settings);
-    const track = recId ? getTrack(recId) : null;
-    if (!track || !progressCtx) return "Legend paths";
-    const info = trackRankInfo(track, progressCtx);
-    return `${track.archetype} · ${info.currentRank}`;
-  }, [settings, progressCtx]);
 
   return (
     <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"var(--fkh-text)",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
@@ -69,9 +40,6 @@ export default function ChallengesView({
         <div style={{ display:"flex",alignItems:"center",gap:8 }}>
           {onOpenCoach && <CoachNavButton compact P={P} onClick={onOpenCoach} />}
           {onOpenGuide && <GuideNavButton compact onClick={() => onOpenGuide("explore")} />}
-          <div style={{ fontSize:10,color:"#475569",fontFamily:"'DM Mono',monospace" }}>
-            {settings.dateOfBirth ? getAgeGroupLabel(getAgeGroup(settings.dateOfBirth)) : "Set DOB for age group"}
-          </div>
         </div>
       </div>
 
@@ -98,19 +66,6 @@ export default function ChallengesView({
         focusFriendsTick={focusFriendsTick}
         onPushSuccess={onPushSuccess}
       />
-
-      {questsPanel && (
-        <HomeCollapsibleSection
-          title="⭐ Train Like Legends"
-          hint={legendsHint}
-          open={legendsOpen}
-          onToggle={() => setLegendsOpen(o => !o)}
-          labelStyle={sectionLbl}
-          accentColor={P}
-        >
-          {questsPanel}
-        </HomeCollapsibleSection>
-      )}
 
       {renderBottomNav()}
     </div>

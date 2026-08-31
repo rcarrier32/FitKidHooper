@@ -23,7 +23,6 @@ import {
   listFriendAthleteIds,
   getInviteUrl,
 } from "../lib/boardsApi.js";
-import AthleteCard from "./AthleteCard.jsx";
 import FeedView from "./FeedView.jsx";
 import FriendAvatar from "./FriendAvatar.jsx";
 import FriendProfileSheet from "./FriendProfileSheet.jsx";
@@ -73,8 +72,6 @@ export default function BoardView({
   earnedBadges = [],
   ledger = {},
   personalChallenges = [],
-  currentLevel,
-  xpData,
   P,
   BG,
   SF,
@@ -104,6 +101,7 @@ export default function BoardView({
   const [messageFriend, setMessageFriend] = useState(null);
   const [boardType, setBoardType] = useState("age_group");
   const [ageGroup, setAgeGroup] = useState(myAgeGroup);
+  const [boardSettingsOpen, setBoardSettingsOpen] = useState(false);
   const [period, setPeriod] = useState("week");
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -382,16 +380,6 @@ export default function BoardView({
 
   return (
     <div style={{ padding: isSquadLayout ? "0 20px 24px" : "0 20px 100px" }}>
-      {!isSquadLayout && (
-        <AthleteCard
-          settings={settings}
-          currentLevel={currentLevel}
-          totalXP={xpData?.total}
-          variant="compact"
-          P={P}
-        />
-      )}
-
       {modes.length > 1 && (
         <div style={{ display: "flex", gap: 6, margin: "14px 0 0" }}>
           {[["challenges", "🎯 Challenges"], ["friends", "👋 Friends"], ["rankings", "🏆 Rankings"]]
@@ -797,34 +785,6 @@ export default function BoardView({
         </button>
       )}
 
-      <div style={{
-        background: `${P}0d`, border: `1px solid ${P}22`, borderRadius: 16,
-        padding: 16, marginBottom: 16,
-      }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: P, marginBottom: 4 }}>Board sync</div>
-            <div style={{ fontSize: 11, color: "#64748b" }}>
-              Auto-syncs as you train
-              {" · "}{getAgeGroupLabel(myAgeGroup)}
-            </div>
-            <div style={{ fontSize: 10, color: "#475569", marginTop: 4, fontFamily: "'DM Mono',monospace" }}>
-              {fmtRelativePush(getLastPushTime())}
-            </div>
-          </div>
-          <button onClick={handleSyncNow} disabled={!configured || pushing} style={{
-            padding: "10px 16px", borderRadius: 12, flexShrink: 0, background: "transparent",
-            border: `1px solid ${configured ? P : "rgba(255,255,255,0.12)"}`,
-            color: configured ? P : "#64748b",
-            fontSize: 12, fontWeight: 700, cursor: configured ? "pointer" : "not-allowed",
-          }}>
-            {pushing ? "Syncing…" : "Sync now"}
-          </button>
-        </div>
-        {pushMsg && <div style={{ fontSize: 11, color: "#22c55e", fontWeight: 700, marginTop: 8 }}>{pushMsg}</div>}
-        {error && <div style={{ fontSize: 11, color: "#f87171", marginTop: 8 }}>{error}</div>}
-      </div>
-
       {myRow && (
         <div style={{
           background: SF, border: `1px solid ${P}40`, borderRadius: 12,
@@ -834,28 +794,14 @@ export default function BoardView({
             #{myRank || "—"}
           </div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--fkh-text)" }}>You · {myRow.display_name}</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--fkh-text)" }}>
+              You{boardType === "age_group" ? ` · ${getAgeGroupLabel(ageGroup)}` : ` · ${myRow.display_name}`}
+            </div>
             <div style={{ fontSize: 10, color: "#64748b", marginTop: 2 }}>
               {myRow.xp.toLocaleString()} XP · {myRow.shots_made.toLocaleString()} makes
             </div>
           </div>
         </div>
-      )}
-
-      {boardType === "age_group" && (
-        <>
-          <div style={lbl}>Age group</div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
-            {AGE_GROUPS.map(g => (
-              <button key={g.id} onClick={() => setAgeGroup(g.id)} style={{
-                padding: "7px 11px", borderRadius: 99, fontSize: 10, fontWeight: 700, cursor: "pointer",
-                border: `1px solid ${ageGroup === g.id ? P : bd}`,
-                background: ageGroup === g.id ? `${P}20` : "transparent",
-                color: ageGroup === g.id ? P : "#64748b",
-              }}>{g.label}</button>
-            ))}
-          </div>
-        </>
       )}
 
       <div style={lbl}>Time period</div>
@@ -870,12 +816,8 @@ export default function BoardView({
         ))}
       </div>
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+      <div style={{ marginBottom: 10 }}>
         <div style={lbl}>Rankings</div>
-        <button onClick={load} disabled={loading || !configured} style={{
-          background: "transparent", border: `1px solid ${P}30`, borderRadius: 8,
-          color: P, fontSize: 10, fontWeight: 700, padding: "5px 10px", cursor: "pointer",
-        }}>{loading ? "…" : "↻ Refresh"}</button>
       </div>
 
       {loading && rows.length === 0 ? (
@@ -963,6 +905,59 @@ export default function BoardView({
           })}
         </div>
       )}
+
+      {/* Plumbing, not the thing the kid came for — it sits under the board
+          now instead of above it. */}
+      <div style={{ marginTop: 16, borderTop: `1px solid ${bd}`, paddingTop: 12 }}>
+        <button type="button" onClick={() => setBoardSettingsOpen(o => !o)}
+          aria-expanded={boardSettingsOpen}
+          style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: 0,
+            background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: "#64748b", flex: 1, minWidth: 0 }}>
+            Board settings
+            <span style={{ color: "#475569", fontWeight: 500 }}>
+              {" · "}{fmtRelativePush(getLastPushTime()).toLowerCase()}
+            </span>
+          </span>
+          <span style={{ fontSize: 12, color: "#475569", lineHeight: 1,
+            transform: boardSettingsOpen ? "rotate(90deg)" : "none", transition: "transform 0.2s" }}>›</span>
+        </button>
+
+        {boardSettingsOpen && (
+          <div style={{ marginTop: 12 }}>
+        {boardType === "age_group" && (
+          <>
+            <div style={lbl}>Age group</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
+              {AGE_GROUPS.map(g => (
+                <button key={g.id} onClick={() => setAgeGroup(g.id)} style={{
+                  padding: "7px 11px", borderRadius: 99, fontSize: 10, fontWeight: 700, cursor: "pointer",
+                  border: `1px solid ${ageGroup === g.id ? P : bd}`,
+                  background: ageGroup === g.id ? `${P}20` : "transparent",
+                  color: ageGroup === g.id ? P : "#64748b",
+                }}>{g.label}</button>
+              ))}
+            </div>
+          </>
+        )}
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={handleSyncNow} disabled={!configured || pushing} style={{
+                flex: 1, padding: "9px 12px", borderRadius: 10, background: "transparent",
+                border: `1px solid ${configured ? P : "rgba(255,255,255,0.12)"}`,
+                color: configured ? P : "#64748b",
+                fontSize: 11, fontWeight: 700, cursor: configured ? "pointer" : "not-allowed",
+              }}>{pushing ? "Syncing…" : "Sync now"}</button>
+              <button onClick={load} disabled={loading || !configured} style={{
+                flex: 1, padding: "9px 12px", borderRadius: 10, background: "transparent",
+                border: `1px solid ${bd}`, color: "#94a3b8",
+                fontSize: 11, fontWeight: 700, cursor: "pointer",
+              }}>{loading ? "…" : "↻ Refresh"}</button>
+            </div>
+            {pushMsg && <div style={{ fontSize: 11, color: "#22c55e", fontWeight: 700, marginTop: 8 }}>{pushMsg}</div>}
+            {error && <div style={{ fontSize: 11, color: "#f87171", marginTop: 8 }}>{error}</div>}
+          </div>
+        )}
+      </div>
       </>)}
       {friendProfileId && (
         <FriendProfileSheet

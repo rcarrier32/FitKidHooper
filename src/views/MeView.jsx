@@ -224,6 +224,26 @@ export default function MeView({
         />
       )}
 
+      {progressTab === "locker" && (
+        <ProgressionView
+          tab="journeys"
+          settings={settings}
+          ledgerIds={ledgerSet}
+          ledger={ledger}
+          ctx={progressCtx}
+          P={P}
+          benchmarkPBs={benchmarkPBs}
+          onLogBenchmark={onLogBenchmark}
+          onEquipTitle={onEquipTitle}
+          onEquipCosmetic={onEquipCosmetic}
+          onUnequipSlot={onUnequipSlot}
+          allExercises={allExercises}
+          onOpenExercise={onOpenExercise}
+          onOpenPlayerHighlight={onOpenPlayerHighlight}
+          onOpenShots={onOpenShots}
+        />
+      )}
+
       {progressTab === "settings" && (
         <ViewErrorBoundary
           label="Settings"

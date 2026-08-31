@@ -27,7 +27,12 @@ export default function ChallengesActivePanel({
     );
   }
 
-  const active = personalChallenges.filter(c => !c.done);
+  /* Source order is authored priority, which buries a challenge at 12/15
+     below four barely started. Closest to done first, completed last. */
+  const active = personalChallenges
+    .filter(c => !c.done)
+    .slice()
+    .sort((a, b) => (b.target ? b.cur / b.target : 0) - (a.target ? a.cur / a.target : 0));
   const done = personalChallenges.filter(c => c.done);
   const [personalOpen, setPersonalOpen] = useState(() => loadSectionOpen("personal", true));
 

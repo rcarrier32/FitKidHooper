@@ -119,7 +119,6 @@ import { runGapAnalysis } from "./lib/coachAgent.js";
 import OnboardingTour from "./components/OnboardingTour.jsx";
 import { TOUR_STEPS, applyTourStep, markTourComplete, shouldShowTourPrompt, dismissTourPrompt } from "./lib/onboardingTour.js";
 import BoardView from "./components/BoardView.jsx";
-import ProgressionView from "./components/ProgressionView.jsx";
 import ProgramWeekStrip from "./components/ProgramWeekStrip.jsx";
 import { CHALLENGES_DEF, getChallengeProgress, buildPersonalChallenges } from "./lib/personalChallenges.js";
 import {
@@ -5685,25 +5684,6 @@ export default function FitKidHooperApp() {
         shellOverlays={shellOverlays}
         renderBottomNav={renderBottomNav}
         progressCtx={progressCtx}
-        questsPanel={
-          <ProgressionView
-            tab="journeys"
-            settings={settings}
-            ledgerIds={ledgerSet}
-            ledger={ledger}
-            ctx={progressCtx}
-            P={P}
-            benchmarkPBs={benchmarkPBs}
-            onLogBenchmark={handleLogBenchmark}
-            onEquipTitle={handleEquipTitle}
-            onEquipCosmetic={handleEquipCosmetic}
-            onUnequipSlot={handleUnequipSlot}
-            allExercises={ALL_EXERCISES}
-            onOpenExercise={exId => { const ex = ALL_EXERCISES[exId]; if (ex) openDetail({ ...ex, meta: EXERCISE_META[exId] || {} }, []); }}
-            onOpenShots={() => setView("shots")}
-            onOpenPlayerHighlight={openPlayerHighlight}
-          />
-        }
       />
     );
   }
