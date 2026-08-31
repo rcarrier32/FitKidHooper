@@ -5,6 +5,7 @@ import FriendsTeaser from "../components/FriendsTeaser.jsx";
 import CountBadge from "../components/CountBadge.jsx";
 import FindDrillsSheet from "../components/FindDrillsSheet.jsx";
 import HomeCollapsibleSection from "../components/HomeCollapsibleSection.jsx";
+import { recommendTrackForFavorite, getTrack, trackRankInfo } from "../lib/achievements.js";
 import TourPromptBanner from "../components/TourPromptBanner.jsx";
 import NotificationPromptBanner from "../components/NotificationPromptBanner.jsx";
 import GuestSaveBanner from "../components/GuestSaveBanner.jsx";
@@ -31,7 +32,10 @@ function actionBtnStyle(settings) {
   return { background:`${b}2e`, border:`1px solid ${b}66`, color:textMuted(settings) };
 }
 
-const DEFAULT_HOME_OPEN = { mission: true, training: true, programs: true, legends: true, squad: true };
+/* Six sections competed on the home screen and all of them persisted their
+   open state, so a returning kid could land on a screen where everything was
+   shut. Now four: the two you act on are open, the two you glance at are not. */
+const DEFAULT_HOME_OPEN = { mission: true, shots: true, squad: false, legends: false };
 
 function loadHomeOpen() {
   try {
@@ -66,6 +70,9 @@ export default function TodayView({
   progressCtx,
   coachMsg,
   onOpenCoach,
+  shotsToday,
+  onQuickLogShots,
+  onOpenShots,
   showFindDrills,
   onShowFindDrills,
   onHideFindDrills,
@@ -88,7 +95,6 @@ export default function TodayView({
   unreadMessages = 0,
   isSignedIn = false,
   onOpenAuth,
-  onOpenProgram,
   workoutOpen,
   onToggleWorkoutOpen,
   todaysWorkout,
@@ -106,7 +112,6 @@ export default function TodayView({
   openDetail,
   getMissionTaskProgress,
   isProgramExerciseDone,
-  getActiveProgramScheduleStatus,
   onOpenWorkout,
   requiredTasksDone,
   showTourPrompt,
@@ -140,10 +145,17 @@ export default function TodayView({
 
   const toggleHome = key => setHomeOpen(prev => ({ ...prev, [key]: !prev[key] }));
 
+  // Collapsed Legends still has to say where you are, so the rank rides in the
+  // section header — same summary Challenges used before it came off there.
+  const legendsHint = useMemo(() => {
+    const recId = recommendTrackForFavorite(settings);
+    const track = recId ? getTrack(recId) : null;
+    if (!track || !progressCtx) return "Legend paths";
+    const info = trackRankInfo(track, progressCtx);
+    return `${track.archetype} · ${info.currentRank}`;
+  }, [settings, progressCtx]);
+
   const enrolledList = programs.filter(p => enrolledPrograms[p.id]);
-  const missionProgramIds = new Set(
-    todayMission.tasks.filter(t => t.type === "program").map(t => t.programId),
-  );
   const mission = todayMission;
   const claimed = missionClaimed;
   const unread = Number(unreadMessages) || 0;
@@ -343,9 +355,14 @@ export default function TodayView({
         </button>
       )}
 
+      {/* Today's Mission absorbs Today's Training: same block, one header. */}
       <HomeCollapsibleSection
         title="Today's Mission"
-        hint={claimed ? "complete" : undefined}
+        hint={claimed
+          ? "complete"
+          : todayTrainingSummary
+            ? `${todayTrainingSummary.minutes} min · +${todayTrainingSummary.xp} XP`
+            : undefined}
         open={homeOpen.mission}
         onToggle={() => toggleHome("mission")}
         labelStyle={homeLbl}
@@ -355,17 +372,26 @@ export default function TodayView({
           border:`1px solid ${claimed ? "rgba(34,197,94,0.35)" : P + "33"}`,
           background:claimed ? "rgba(34,197,94,0.07)" : `${P}0c`, overflow:"hidden" }}>
 
-          <div style={{ padding:"12px 14px 10px", display:"flex", alignItems:"center", gap:10 }}>
+          <div style={{ padding:"12px 14px 10px", display:"flex", alignItems:"center", gap:11 }}>
+            {/* Progress reads at a glance instead of as a pill buried in the label row. */}
+            <div style={{ width:62, height:62, borderRadius:"50%", flexShrink:0,
+              display:"flex", alignItems:"center", justifyContent:"center",
+              background:`conic-gradient(${claimed ? "#22c55e" : P} ${overallPct * 360}deg, rgba(255,255,255,0.08) 0deg)` }}>
+              <div style={{ width:50, height:50, borderRadius:"50%", background:BG,
+                display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center" }}>
+                <span style={{ fontFamily:"'DM Mono',monospace", fontSize:18, fontWeight:800, lineHeight:1,
+                  color:claimed ? "#22c55e" : "var(--fkh-text)" }}>{doneReq}</span>
+                <span style={{ fontSize:8, color:"#475569", lineHeight:1, marginTop:2 }}>of {totalReq}</span>
+              </div>
+            </div>
             <div style={{ flex:1, minWidth:0 }}>
               <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:4, flexWrap:"wrap" }}>
                 <span style={{ fontFamily:"'DM Mono',monospace", fontSize:10, letterSpacing:"0.14em",
                   color:claimed ? "#22c55e" : P, textTransform:"uppercase", fontWeight:800 }}>Daily Mission</span>
-                {claimed
-                  ? <span style={{ fontSize:9, padding:"2px 8px", borderRadius:99,
-                      background:"rgba(34,197,94,0.18)", color:"#22c55e", fontWeight:800 }}>✓ COMPLETE</span>
-                  : <span style={{ fontSize:9, padding:"2px 8px", borderRadius:99,
-                      background:`${P}18`, color:P, fontWeight:700 }}>{doneReq}/{totalReq} TODAY</span>
-                }
+                {claimed && (
+                  <span style={{ fontSize:9, padding:"2px 8px", borderRadius:99,
+                    background:"rgba(34,197,94,0.18)", color:"#22c55e", fontWeight:800 }}>✓ COMPLETE</span>
+                )}
               </div>
               <div style={{ fontSize:13, fontWeight:700, color:"var(--fkh-text)",
                 overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
@@ -512,36 +538,9 @@ export default function TodayView({
             );
           })()}
         </div>
-      </HomeCollapsibleSection>
 
-      {/* Aspiration before the drill list — Train Like Legends is the "why keep
-          practicing," so it leads Today's Training / My Programs, not trails them. */}
-      <HomeCollapsibleSection
-        title="Train Like Legends"
-        open={homeOpen.legends}
-        onToggle={() => toggleHome("legends")}
-        labelStyle={homeLbl}
-        accentColor={P}
-      >
-        <ProgressRail
-          settings={settings}
-          ctx={progressCtx}
-          P={P}
-          onOpenPath={onOpenPath}
-          onSetFavorite={onSetFavorite}
-          onOpenPlayerHighlight={onOpenPlayerHighlight}
-        />
-      </HomeCollapsibleSection>
-
-      {hasTodayPlan && (
-        <HomeCollapsibleSection
-          title="Today's Training"
-          hint={todayTrainingSummary ? `${todayTrainingSummary.minutes} min · +${todayTrainingSummary.xp} XP` : "scheduled"}
-          open={homeOpen.training}
-          onToggle={() => toggleHome("training")}
-          labelStyle={homeLbl}
-          accentColor={P}
-        >
+        {hasTodayPlan && (
+          <>
           <div style={{ margin: "0 20px 14px" }}>
             {todayTrainingSummary && (
               <div style={{ display:"flex", alignItems:"center", gap:14, padding:"10px 12px", marginBottom:10,
@@ -599,90 +598,74 @@ export default function TodayView({
               onOpenCalendar={onOpenSchedule}
             />
           </div>
-        </HomeCollapsibleSection>
-      )}
+          </>
+        )}
+      </HomeCollapsibleSection>
 
-      {enrolledList.length > 0 && (
-        <HomeCollapsibleSection
-          title="My Programs"
-          hint={`${enrolledList.length} active`}
-          open={homeOpen.programs}
-          onToggle={() => toggleHome("programs")}
-          labelStyle={homeLbl}
-          accentColor={P}
-        >
-          <div style={{ margin:"0 20px 14px", display:"flex", flexDirection:"column", gap:8 }}>
-            {enrolledList.map(prog => {
-              const enrollment = enrolledPrograms[prog.id];
-              const sched = getActiveProgramScheduleStatus(prog, enrollment, programProgress, today);
-              const inMission = missionProgramIds.has(prog.id);
-              let statusLine = "";
-              if (inMission) statusLine = "In today's mission";
-              else if (sched.kind === "due") statusLine = `📋 ${sched.session.focus}`;
-              else if (sched.kind === "rest") statusLine = sched.opensLabel || "Rest day";
-              else if (sched.kind === "weekComplete") statusLine = `Week ${sched.week} complete ✓`;
-              const dueExercises = sched.kind === "due" && sched.session?.exercises
-                ? sched.session.exercises.map(id => allExercises[id]).filter(Boolean)
-                : [];
-              return (
-                <div key={prog.id} onClick={() => onOpenProgram(prog.id)}
-                  style={{ padding:"10px 12px", borderRadius:12, cursor:"pointer",
-                    border:`1px solid ${inMission || sched.kind === "due" ? `${prog.color}44` : `${prog.color}28`}`,
-                    background:`${prog.color}${inMission || sched.kind === "due" ? "12" : "08"}` }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                    <span style={{ fontSize:16 }}>{prog.emoji}</span>
-                    <span style={{ fontSize:12, fontWeight:800, color:prog.color, flex:1 }}>{prog.name}</span>
-                    {inMission && (
-                      <span style={{ fontSize:9, padding:"2px 7px", borderRadius:99,
-                        background:`${P}18`, color:P, fontWeight:800 }}>MISSION</span>
-                    )}
-                  </div>
-                  {statusLine && (
-                    <div style={{ fontSize:11, color:"#94a3b8", marginTop:4, marginLeft:24 }}>{statusLine}</div>
-                  )}
-                  {dueExercises.length > 0 && sched.kind === "due" && (
-                    <div style={{ marginTop:8, marginLeft:24, display:"flex", flexDirection:"column", gap:4 }}
-                      onClick={e => e.stopPropagation()}>
-                      {dueExercises.map(ex => (
-                        <button key={ex.id} type="button"
-                          onClick={() => {
-                            const ctx = { programId: prog.id, week: sched.week, sessionIdx: sched.sessionIdx };
-                            const base = dueExercises.map(e => ({ ...e, meta: exerciseMeta[e.id] || {} }));
-                            const list = withSessionWarmup(base, workouts, exerciseMeta, {
-                              categories: categoriesFromExercises(base, allExercises),
-                            });
-                            if (list[0]) openDetail(list[0], list, ctx, "program");
-                          }}
-                          style={{ textAlign:"left", padding:"6px 8px", borderRadius:8, border:`1px solid ${prog.color}33`,
-                            background:"rgba(255,255,255,0.04)", color:"var(--fkh-text)", fontSize:11, fontWeight:600, cursor:"pointer" }}>
-                          {isProgramExerciseDone(programProgress, prog.id, sched.week, sched.sessionIdx, ex.id) ? "✓ " : ""}{ex.name}
-                        </button>
-                      ))}
-                      <button type="button"
-                        onClick={() => {
-                          const ctx = { programId: prog.id, week: sched.week, sessionIdx: sched.sessionIdx };
-                          const base = dueExercises.map(e => ({ ...e, meta: exerciseMeta[e.id] || {} }));
-                          const list = withSessionWarmup(base, workouts, exerciseMeta, {
-                            categories: categoriesFromExercises(base, allExercises),
-                          });
-                          trackCtaClicked("program_start_session", { program_id: prog.id });
-                          if (list[0]) openDetail(list[0], list, ctx, "program");
-                        }}
-                        style={{ marginTop:4, padding:"7px 10px", borderRadius:8, border:"none",
-                          background: prog.color, color:"#fff", fontSize:11, fontWeight:800, cursor:"pointer" }}>
-                        Start session →
-                      </button>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+
+
+
+      {/* New on Today. Shot logging is the daily habit with the lowest
+          friction, so it gets a home on the home screen instead of living
+          only one tab away. */}
+      <HomeCollapsibleSection
+        title="Shot Tracking"
+        hint={shotsToday && shotsToday.taken > 0
+          ? `${shotsToday.made}/${shotsToday.taken} · ${shotsToday.pct}%`
+          : "none today"}
+        open={homeOpen.shots}
+        onToggle={() => toggleHome("shots")}
+        labelStyle={homeLbl}
+        accentColor={P}
+      >
+        <div style={{ margin:"0 20px 14px", borderRadius:16, padding:"12px 14px",
+          border:`1px solid ${P}33`, background:`${P}0c` }}>
+          <div style={{ display:"flex", alignItems:"center", gap:11 }}>
+            <div style={{ width:62, height:62, borderRadius:"50%", flexShrink:0,
+              display:"flex", alignItems:"center", justifyContent:"center",
+              background:`conic-gradient(${P} ${(shotsToday?.pct || 0) * 3.6}deg, rgba(255,255,255,0.08) 0deg)` }}>
+              <div style={{ width:50, height:50, borderRadius:"50%", background:BG,
+                display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <span style={{ fontFamily:"'DM Mono',monospace", fontSize:15, fontWeight:800, lineHeight:1,
+                  color:"var(--fkh-text)" }}>
+                  {shotsToday?.pct != null ? `${shotsToday.pct}%` : "—"}
+                </span>
+              </div>
+            </div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontSize:13, fontWeight:700, color:"var(--fkh-text)" }}>
+                {shotsToday?.taken
+                  ? `${shotsToday.made} of ${shotsToday.taken} today`
+                  : "No shots logged today"}
+              </div>
+              <div style={{ fontSize:11, color:"#64748b", marginTop:3 }}>
+                Goal {shotsToday?.goal ?? 25} makes
+              </div>
+            </div>
           </div>
-        </HomeCollapsibleSection>
-      )}
+          <div style={{ display:"flex", gap:6, marginTop:12 }}>
+            {[5, 10, 25].map(n => (
+              <button key={n} type="button"
+                onClick={() => { if (!onQuickLogShots?.(n)) onOpenShots?.(); }}
+                style={{ flex:1, padding:"9px 4px", borderRadius:10, cursor:"pointer",
+                  border:`1px solid ${P}44`, background:`${P}16`, color:P,
+                  fontSize:13, fontWeight:800 }}>
+                +{n}
+              </button>
+            ))}
+            <button type="button" onClick={() => onOpenShots?.()}
+              style={{ flex:1.4, padding:"9px 4px", borderRadius:10, cursor:"pointer",
+                border:`1px solid ${bd}`, background:"rgba(255,255,255,0.04)",
+                color:"var(--fkh-text-muted)", fontSize:12, fontWeight:700 }}>
+              Log spots →
+            </button>
+          </div>
+        </div>
+      </HomeCollapsibleSection>
 
       <HomeCollapsibleSection
-        title="Squad & Challenges"
+        title="Squad"
+        hint={squadTotal > 0 ? `${squadTotal} new` : undefined}
         open={homeOpen.squad}
         onToggle={() => toggleHome("squad")}
         labelStyle={homeLbl}
@@ -696,11 +679,34 @@ export default function TodayView({
           isSignedIn={isSignedIn}
           onSignIn={onOpenAuth}
         />
-        <ChallengeStrip
+      </HomeCollapsibleSection>
+
+      {/* One line, outside the collapsible, so squad challenges stay visible
+          even with Squad shut. */}
+      <ChallengeStrip
+        P={P}
+        variant="teaser"
+        onAddFriends={onFocusFriends}
+        onOpenChallenges={onOpenChallenges}
+      />
+
+      {/* Aspiration before the drill list — Train Like Legends is the "why keep
+          practicing," so it leads Today's Training / My Programs, not trails them. */}
+      <HomeCollapsibleSection
+        title="Train Like Legends"
+        hint={legendsHint}
+        open={homeOpen.legends}
+        onToggle={() => toggleHome("legends")}
+        labelStyle={homeLbl}
+        accentColor={P}
+      >
+        <ProgressRail
+          settings={settings}
+          ctx={progressCtx}
           P={P}
-          variant="teaser"
-          onAddFriends={onFocusFriends}
-          onOpenChallenges={onOpenChallenges}
+          onOpenPath={onOpenPath}
+          onSetFavorite={onSetFavorite}
+          onOpenPlayerHighlight={onOpenPlayerHighlight}
         />
       </HomeCollapsibleSection>
 
@@ -735,6 +741,9 @@ export default function TodayView({
         searchExercises={searchExercises}
       />
 
+      {/* Only when no program is enrolled — otherwise the plan is the answer
+          to "what do I do now?" and this is a second, competing one. */}
+      {enrolledList.length === 0 && (
       <HomeCollapsibleSection
         title="Quick Workout"
         hint={quickWorkoutComplete ? "complete" : todaysWorkout ? todaysWorkout.templateName : undefined}
@@ -885,6 +894,7 @@ export default function TodayView({
           </div>
         )}
       </HomeCollapsibleSection>
+      )}
     </>
   );
 }

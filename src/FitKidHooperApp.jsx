@@ -136,7 +136,6 @@ import {
   getProgramSessionCompletionDate,
   wasProgramSessionCompletedOnDate,
   findDueProgramSession,
-  getActiveProgramScheduleStatus,
   buildProgramWeekPlan,
   rehydrateProgramProgressFromCompleted,
 } from "./lib/programProgress.js";
@@ -4038,6 +4037,39 @@ export default function FitKidHooperApp() {
   const [showGuide, setShowGuide] = useState(false);
   const [guideMode, setGuideMode] = useState("explore");
   const [shotLogTick, setShotLogTick] = useState(0);
+
+  // Shot Tracking on Today: today's numbers, plus quick-log buttons.
+  const shotsToday = useMemo(() => {
+    const day = readShotLog()[new Date().toLocaleDateString("en-CA")] || [];
+    const taken = day.length;
+    const made = day.filter(sh => sh.made !== false).length;
+    return { made, taken, pct: taken ? Math.round((100 * made) / taken) : null, goal: getDayShotGoal() };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shotLogTick]);
+
+  /* A quick +5 has no spot attached, and every shot in the log needs one.
+     Rather than invent a zone, reuse the most recent spot the athlete logged;
+     with no history at all there is nothing sensible to assume, so the caller
+     sends them to the court instead. */
+  const quickLogShots = useCallback((n) => {
+    const log = readShotLog();
+    const dates = Object.keys(log).sort();
+    let last = null;
+    for (let i = dates.length - 1; i >= 0 && !last; i--) {
+      const day = log[dates[i]];
+      if (Array.isArray(day) && day.length) last = day[day.length - 1];
+    }
+    if (!last) return false;
+    const key = new Date().toLocaleDateString("en-CA");
+    const stamp = Date.now();
+    const entries = Array.from({ length: n }, (_, i) => ({
+      type: last.type, location: last.location ?? null, style: last.style ?? null,
+      made: true, ts: stamp + i,
+    }));
+    writeShotLog({ ...log, [key]: [...(log[key] || []), ...entries] });
+    setShotLogTick(t => t + 1);
+    return true;
+  }, []);
   const [view, setView] = useState("home");
   const [prevView, setPrevView] = useState("home");
   const [activeCat, setActiveCat] = useState(null);
@@ -6330,7 +6362,6 @@ export default function FitKidHooperApp() {
         isSignedIn={auth.isSignedIn}
         onOpenAuth={() => setShowAuth(true)}
         onOpenChallenges={() => setView("boards")}
-        onOpenProgram={(id) => { setSelectedProgram(id); setView("programs"); }}
         workoutOpen={workoutOpen}
         onToggleWorkoutOpen={() => setWorkoutOpen(o => !o)}
         todaysWorkout={todaysWorkout}
@@ -6348,7 +6379,6 @@ export default function FitKidHooperApp() {
         openDetail={openDetail}
         getMissionTaskProgress={getMissionTaskProgress}
         isProgramExerciseDone={isProgramExerciseDone}
-        getActiveProgramScheduleStatus={getActiveProgramScheduleStatus}
         onOpenWorkout={() => setWorkoutOpen(true)}
         showTourPrompt={showTourPrompt && !tourActive && !showOnboarding}
         onStartTour={startTour}
@@ -6363,6 +6393,9 @@ export default function FitKidHooperApp() {
         onSavePlayer={openSavePlayer}
         onDismissGuestSavePrompt={dismissGuestSavePrompt}
         onOpenSchedule={() => openSchedule("home", "week")}
+        shotsToday={shotsToday}
+        onQuickLogShots={quickLogShots}
+        onOpenShots={() => setView("shots")}
         onOpenCoach={() => setShowCoachFKH(true)}
         coachMsg={coachMsg}
         focusMissionSection={homeMissionFocus}
