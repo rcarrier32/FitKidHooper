@@ -9,12 +9,13 @@ import FeedbackCenter from "./components/FeedbackCenter.jsx";
 import { useAuth } from "./hooks/useAuth.js";
 import { useSquadNotifications } from "./hooks/useSquadNotifications.js";
 import GuideNavButton from "./components/GuideNavButton.jsx";
+import CoachNavButton from "./components/CoachNavButton.jsx";
 import ShotTrackerErrorBoundary from "./components/ShotTrackerErrorBoundary.jsx";
 import ViewErrorBoundary from "./components/ViewErrorBoundary.jsx";
 import CountBadge from "./components/CountBadge.jsx";
 import { readShotLog, normalizeShotLog, writeShotLog, countShotMakes } from "./lib/shotLog.js";
 import { computeShotStyleMakes, SHOT_STYLES, getShotStyle, getLastShotStyle, setLastShotStyle } from "./lib/shotStyles.js";
-import { getAgeGroup, getAgeGroupLabel } from "./lib/periodStats.js";
+import { getAgeGroup, getAgeGroupLabel, getPeriodRange, LEADERBOARD_PERIODS } from "./lib/periodStats.js";
 import { exportCanonicalSave, importCanonicalSave } from "./lib/canonicalSave.js";
 import { recoverFromSyncBackupIfNeeded } from "./lib/syncBackup.js";
 import { writeStoredAvatar, readStoredAvatar, stripAvatarForCloud, migrateAvatarOutOfSettings } from "./lib/avatarStorage.js";
@@ -45,8 +46,8 @@ import {
   readLocalLedger, ledgerIdSet, mergeIntoLocalLedger, pushLedgerEntries, pullLedger,
   pushEquippedIdentity,
 } from "./lib/achievementsApi.js";
-import { getStreak, getTrainingDays, getWeekShotGoal, getMonthShotGoal, setWeekShotGoal, setMonthShotGoal, getShotGoalPeriod, setShotGoalPeriod, getWeekMakesFromLog, getMonthMakesFromLog, daysLeftInWeek, daysLeftInMonth } from "./lib/progressStats.js";
-import { computeShootingStats, computeSpotStats, computeLocationStats, computeZoneTypeStats } from "./lib/shootingStats.js";
+import { getStreak, getTrainingDays, getWeekShotGoal, getMonthShotGoal, setWeekShotGoal, setMonthShotGoal, getDayShotGoal, setDayShotGoal, getShotGoalPeriod, setShotGoalPeriod, getWeekMakesFromLog, getMonthMakesFromLog, getDayMakesFromLog, daysLeftInWeek, daysLeftInMonth } from "./lib/progressStats.js";
+import { computeShootingStats, computeLocationTypeStats, computeZoneTypeStats, ZONES } from "./lib/shootingStats.js";
 import { resolveDailyAction, pickChallengeNudge } from "./lib/dailyAction.js";
 import { withSessionWarmup, categoriesFromExercises, isWarmupExercise } from "./lib/sessionWarmup.js";
 import {
@@ -415,6 +416,8 @@ function buildCoachMessage(completed, xpData, earnedBadges, programProgress, wea
   if (doneToday >= 1) return "Good start today. One more session makes the difference. 💪";
   return "Stay consistent. Every rep builds the player you're becoming. 📈";
 }
+
+
 
 function searchExercises(query, limit = 12) {
   const q = query.trim().toLowerCase();
@@ -1212,9 +1215,16 @@ const offsetDateKey = (days) => {
 const fmtDate  = k => new Date(k+"T00:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric"});
 const dayLabel = k => ["Su","Mo","Tu","We","Th","Fr","Sa"][new Date(k+"T00:00:00").getDay()];
 
-function StackedBars({ data, priColor, height=104, selDate, onSelect }) {
+function StackedBars({ data, priColor, height=104, selDate, onSelect, fgByDay }) {
   const maxT = Math.max(1, ...data.map(d=>d.total));
+  const showDayLabels = data.length<=21;
+  // "Am I improving?" — volume alone can't answer it, so FG% rides on top at
+  // the bar centres. Cyan reads above every bar colour at roughly 8.5:1.
+  const trend = (fgByDay||[])
+    .map((v,i) => v==null ? null : `${((i+0.5)/data.length)*100},${100-v}`)
+    .filter(Boolean);
   return (
+    <div style={{ position:"relative" }}>
     <div style={{ display:"flex",alignItems:"flex-end",gap:data.length>21?2:4,height }}>
       {data.map((d,i) => {
         const colH = Math.max(3,(d.total/maxT)*(height-20));
@@ -1230,10 +1240,24 @@ function StackedBars({ data, priColor, height=104, selDate, onSelect }) {
               })}
               {d.total===0 && <div style={{ width:"100%",height:"100%",background:"rgba(255,255,255,0.05)" }}/>}
             </div>
-            {data.length<=21 && <div style={{ fontSize:8,color:isToday?priColor:"#334155" }}>{d.label}</div>}
+            {showDayLabels && <div style={{ fontSize:8,color:isToday?priColor:"#334155" }}>{d.label}</div>}
           </div>
         );
       })}
+    </div>
+    {trend.length>1 && (
+      /* Inset to the bar band: below the count labels, above the day labels.
+         The wrapper gives the svg a definite box — sized by offsets alone a
+         replaced element falls back to its intrinsic 300x150 and overflows. */
+      <div style={{ position:"absolute",left:0,right:0,top:11,bottom:showDayLabels?12:0,
+        pointerEvents:"none",overflow:"hidden" }}>
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"
+          style={{ width:"100%",height:"100%",display:"block" }}>
+          <polyline points={trend.join(" ")} fill="none" stroke="#22d3ee" strokeWidth="2.5"
+            vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round"/>
+        </svg>
+      </div>
+    )}
     </div>
   );
 }
@@ -1334,8 +1358,20 @@ function CourtMap({ priColor, onZoneSelect, lastShot }) {
   );
 }
 
+/* Stats-tab periods. Ids match LEADERBOARD_PERIODS so the two stay in step,
+   plus a Day option the boards don't need. Labels drop the "This " so five
+   chips fit one row on a phone — the section below spells the period out. */
+const STATS_RANGES = [
+  { id:"today", label:"Today" },
+  ...LEADERBOARD_PERIODS.map(p => ({ id:p.id, label:p.label.replace(/^This /, "") })),
+];
+const STATS_RANGE_SUFFIX = {
+  today: "today", week: "this week", month: "this month",
+  ytd: "YTD", all_time: "all-time",
+};
+
 /* ═══════════════════════ SHOT TRACKER ═══════════════════════ */
-function ShotTracker({ P, S, BG, athleteName, settings, onLogChange, onOpenGuide }) {
+function ShotTracker({ P, S, BG, athleteName, settings, onLogChange, onOpenGuide, onOpenCoach }) {
   const [log, setLog] = useState(() => readShotLog());
   const [view, setView] = useState("log");
   const [activeType, setActiveType] = useState(null);
@@ -1344,6 +1380,9 @@ function ShotTracker({ P, S, BG, athleteName, settings, onLogChange, onOpenGuide
   const [selDate, setSelDate] = useState(todayKey());
   const [logDate, setLogDate] = useState(todayKey());
   const [range, setRange] = useState(14);
+  const [statsRange, setStatsRange] = useState("month");
+  const [openLoc, setOpenLoc] = useState(null);
+  const logDateRef = useRef(null);
   const [useCustom, setUseCustom] = useState(false);
   const [custStart, setCustStart] = useState("");
   const [custEnd, setCustEnd] = useState("");
@@ -1351,6 +1390,7 @@ function ShotTracker({ P, S, BG, athleteName, settings, onLogChange, onOpenGuide
   const [shotStyle, setShotStyle] = useState(() => getLastShotStyle());
   const [weekGoal, setWeekGoal] = useState(() => getWeekShotGoal());
   const [monthGoal, setMonthGoal] = useState(() => getMonthShotGoal());
+  const [dayGoal, setDayGoal] = useState(() => getDayShotGoal());
   const [goalPeriod, setGoalPeriod] = useState(() => getShotGoalPeriod());
   const [editingGoal, setEditingGoal] = useState(false);
 
@@ -1362,19 +1402,14 @@ function ShotTracker({ P, S, BG, athleteName, settings, onLogChange, onOpenGuide
 
   const saveGoal = g => {
     const v = Math.max(1, parseInt(g, 10) || 100);
-    if (goalPeriod === "month") {
-      setMonthGoal(v);
-      setMonthShotGoal(v);
-    } else {
-      setWeekGoal(v);
-      setWeekShotGoal(v);
-    }
+    if (goalPeriod === "day") { setDayGoal(v); setDayShotGoal(v); }
+    else if (goalPeriod === "month") { setMonthGoal(v); setMonthShotGoal(v); }
+    else { setWeekGoal(v); setWeekShotGoal(v); }
   };
 
   const switchGoalPeriod = period => {
     setGoalPeriod(period);
     setShotGoalPeriod(period);
-    setEditingGoal(false);
   };
 
   const pickShotStyle = (id) => {
@@ -1439,21 +1474,38 @@ function ShotTracker({ P, S, BG, athleteName, settings, onLogChange, onOpenGuide
   const allByType = useMemo(()=>{ const c={}; allFlat.forEach(s=>{c[s.type]=(c[s.type]||0)+1}); return c; },[allFlat]);
   const allTotal = allFlat.length;
   const allTimeStats = useMemo(() => computeShootingStats(log), [log]);
-  const styleAccuracy = useMemo(() => allTimeStats.styles, [allTimeStats]);
-  const locationStats = useMemo(() => computeLocationStats(log), [log]);
-  const zoneTypeStats = useMemo(() => computeZoneTypeStats(log), [log]);
-  const spotStats = useMemo(() => computeSpotStats(log), [log]);
+  // Stats read a selected period, not all-time. Left all-time, every number
+  // freezes after a few hundred shots and improvement stops showing up.
+  const statsPeriod = useMemo(() => {
+    if (statsRange === "all_time") return { start: null, end: null };
+    if (statsRange === "today") { const t = todayKey(); return { start: t, end: t }; }
+    return getPeriodRange(statsRange);
+  }, [statsRange]);
+  const rangeFlat = useMemo(() => Object.entries(log)
+    .filter(([d]) => (!statsPeriod.start || d >= statsPeriod.start) && (!statsPeriod.end || d <= statsPeriod.end))
+    .flatMap(([, s]) => Array.isArray(s) ? s : []), [log, statsPeriod]);
+  const rangeByType = useMemo(()=>{ const c={}; rangeFlat.forEach(s=>{c[s.type]=(c[s.type]||0)+1}); return c; },[rangeFlat]);
+  const rangeTotal = rangeFlat.length;
+  const rangeStats = useMemo(() => computeShootingStats(log, statsPeriod), [log, statsPeriod]);
+  const styleAccuracy = useMemo(() => rangeStats.styles, [rangeStats]);
+  const zoneTypeStats = useMemo(() => computeZoneTypeStats(log, statsPeriod), [log, statsPeriod]);
+  const locationTypeStats = useMemo(() => computeLocationTypeStats(log, statsPeriod), [log, statsPeriod]);
   const streak = useMemo(()=>{ let s=0,d=new Date(); while(true){const k=d.toLocaleDateString("en-CA");if((log[k]||[]).length>0){s++;d.setDate(d.getDate()-1)}else break} return s; },[log]);
   const todayTotal = todayShots.length;
   const todayMade = useMemo(()=>todayShots.filter(s=>s.made!==false).length,[todayShots]);
   const todayPct = todayTotal>0 ? Math.round((todayMade/todayTotal)*100) : 0;
 
-  // Period makes: week (Mon→today) or month (1st→today)
+  // Period makes: day (today), week (Mon→today) or month (1st→today)
   const periodMakes = useMemo(() => (
-    goalPeriod === "month" ? getMonthMakesFromLog(log) : getWeekMakesFromLog(log)
+    goalPeriod === "day" ? getDayMakesFromLog(log)
+      : goalPeriod === "month" ? getMonthMakesFromLog(log)
+      : getWeekMakesFromLog(log)
   ), [log, goalPeriod]);
-  const periodGoal = goalPeriod === "month" ? monthGoal : weekGoal;
+  const periodGoal = goalPeriod === "day" ? dayGoal : goalPeriod === "month" ? monthGoal : weekGoal;
   const daysLeftInPeriod = goalPeriod === "month" ? daysLeftInMonth() : daysLeftInWeek();
+  const periodLabel = goalPeriod === "day" ? "day" : goalPeriod === "month" ? "month" : "week";
+  // Right-hand side of the goal strip — "today" needs no countdown.
+  const periodRemainLabel = goalPeriod === "day" ? "today" : `${daysLeftInPeriod}d left`;
 
   const histData = useMemo(()=>{
     const days=[];
@@ -1462,7 +1514,8 @@ function ShotTracker({ P, S, BG, athleteName, settings, onLogChange, onOpenGuide
       while (d<=end) {
         const k=d.toLocaleDateString("en-CA"), sh=log[k]||[], bst={};
         sh.forEach(s=>{bst[s.type]=(bst[s.type]||0)+1});
-        days.push({key:k,label:dayLabel(k),total:sh.length,byShotType:bst});
+        const mk=sh.filter(s=>s.made!==false).length;
+        days.push({key:k,label:dayLabel(k),total:sh.length,makes:mk,pct:sh.length?Math.round((100*mk)/sh.length):null,byShotType:bst});
         d.setDate(d.getDate()+1);
       }
     } else {
@@ -1470,39 +1523,66 @@ function ShotTracker({ P, S, BG, athleteName, settings, onLogChange, onOpenGuide
         const d=new Date(); d.setDate(d.getDate()-i);
         const k=d.toLocaleDateString("en-CA"), sh=log[k]||[], bst={};
         sh.forEach(s=>{bst[s.type]=(bst[s.type]||0)+1});
-        days.push({key:k,label:dayLabel(k),total:sh.length,byShotType:bst});
+        const mk=sh.filter(s=>s.made!==false).length;
+        days.push({key:k,label:dayLabel(k),total:sh.length,makes:mk,pct:sh.length?Math.round((100*mk)/sh.length):null,byShotType:bst});
       }
     }
     return days;
   },[log,range,useCustom,custStart,custEnd]);
 
   const selShots = log[selDate]||[];
+  const selZoneStats = useMemo(() => computeShootingStats(log, { start:selDate, end:selDate }).zones, [log, selDate]);
+
+  // This week vs last, so History answers "am I getting better?" rather than
+  // "how many did I take?".
+  const wow = useMemo(() => {
+    const now = new Date();
+    const thisMon = new Date(now); thisMon.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+    const lastMon = new Date(thisMon); lastMon.setDate(thisMon.getDate() - 7);
+    const lastSun = new Date(thisMon); lastSun.setDate(thisMon.getDate() - 1);
+    const key = d => d.toLocaleDateString("en-CA");
+    const tally = (start, end) => {
+      let m = 0, a = 0, days = 0;
+      for (const [date, shots] of Object.entries(log || {})) {
+        if (date < start || date > end) continue;
+        const list = Array.isArray(shots) ? shots : [];
+        if (!list.length) continue;
+        days += 1;
+        for (const sh of list) { a += 1; if (sh.made !== false) m += 1; }
+      }
+      return { m, a, days, pct: a ? Math.round((100 * m) / a) : null };
+    };
+    return { cur: tally(key(thisMon), key(now)), prev: tally(key(lastMon), key(lastSun)) };
+  }, [log]);
   const lbl = { fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:`${P}80`,marginBottom:10,textTransform:"uppercase" };
   const bd = "rgba(255,255,255,0.07)";
   const sf = "rgba(255,255,255,0.028)";
 
-  const TABS = [{id:"log",label:"📍 Log"},{id:"history",label:"📈 History"},{id:"breakdown",label:"🍩 Stats"}];
+  const TABS = [{id:"log",label:"📍 Log"},{id:"breakdown",label:"🍩 Stats"},{id:"history",label:"📈 History"}];
 
   return (
     <div style={{ background:BG,color:"var(--fkh-text)",maxWidth:680,margin:"0 auto",minHeight:"100vh",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))",fontFamily:"'DM Sans','Helvetica Neue',sans-serif" }}>
-      <div style={{ padding:"22px 20px 14px",borderBottom:`1px solid ${P}18` }}>
-        <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.2em",color:"#334155",marginBottom:5 }}>SHOT TRACKER</div>
-        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-end" }}>
-          <h2 style={{ fontSize:24,fontWeight:800,margin:0,letterSpacing:"-0.02em" }}>{athleteName}'s <span style={{ color:P }}>Shots</span></h2>
-          <div style={{ display:"flex",alignItems:"flex-end",gap:10 }}>
-            {onOpenGuide && <GuideNavButton compact onClick={onOpenGuide} />}
-            <div style={{ display:"flex",gap:14 }}>
-            {[[todayMade,"TODAY",P],[`${todayPct}%`,"FG%",S],[streak,"STREAK","#34d399"]].map(([n,l,c])=>(
-              <div key={l} style={{ textAlign:"right" }}>
-                <div style={{ fontSize:22,fontWeight:800,color:c,fontFamily:"'DM Mono',monospace",lineHeight:1 }}>{n}</div>
-                <div style={{ fontSize:8,color:"#334155",letterSpacing:"0.06em" }}>{l}</div>
-              </div>
-            ))}
+      {/* One line, so the court — the actual tool — starts near the top of the
+          screen instead of ~300px down. Same three numbers, read as a sentence. */}
+      <div style={{ padding:"14px 20px 12px",borderBottom:`1px solid ${P}18` }}>
+        <div style={{ display:"flex",alignItems:"center",gap:10 }}>
+          <div style={{ flex:1,minWidth:0 }}>
+            <h2 style={{ fontSize:17,fontWeight:800,margin:0,letterSpacing:"-0.02em",lineHeight:1.15 }}>
+              {athleteName}'s <span style={{ color:P }}>Shots</span>
+            </h2>
+            <div style={{ fontFamily:"'DM Mono',monospace",fontSize:10.5,color:"#475569",marginTop:3,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>
+              <span style={{ fontSize:12,fontWeight:800,color:P }}>{todayMade}</span> today
+              {" · "}<span style={{ fontSize:12,fontWeight:800,color:S }}>{todayPct}%</span> FG
+              {" · "}<span style={{ fontSize:12,fontWeight:800,color:"#34d399" }}>{streak}</span> streak 🔥
             </div>
           </div>
+          {onOpenCoach && <CoachNavButton compact P={P} onClick={onOpenCoach} />}
+          {onOpenGuide && <GuideNavButton compact onClick={onOpenGuide} />}
         </div>
       </div>
-      {/* ── Weekly Goal Widget ───────────────────────────────── */}
+      {/* ── Goal strip ─────────────────────────────────────────
+          Was a ~110px widget above the court. Now one tappable line;
+          everything it used to show permanently lives behind the caret. */}
       {(()=>{
         const pct      = Math.min(1, periodMakes / periodGoal);
         const reached  = periodMakes >= periodGoal;
@@ -1515,102 +1595,62 @@ function ShotTracker({ P, S, BG, athleteName, settings, onLogChange, onOpenGuide
               : `linear-gradient(90deg,${P}cc,${P})`;
         const glowColor = reached ? "#22c55e" : P;
         const numColor  = reached ? "#22c55e" : pct >= 0.75 ? "#86efac" : "var(--fkh-text)";
-        const periodLabel = goalPeriod === "month" ? "month" : "week";
-        const goalPresets = goalPeriod === "month"
-          ? [200, 400, 600, 800, 1000, 1500]
-          : [50, 100, 150, 200, 300, 500];
+        const goalPresets = goalPeriod === "day"
+          ? [25, 50, 75, 100, 150, 200]
+          : goalPeriod === "month"
+            ? [200, 400, 600, 800, 1000, 1500]
+            : [50, 100, 150, 200, 300, 500];
+        const targetLabel = goalPeriod === "day" ? "Daily" : goalPeriod === "month" ? "Monthly" : "Weekly";
 
         return (
-          <div style={{ padding:"12px 16px 10px",borderBottom:`1px solid ${bd}` }}>
-            {/* Top row: counter + period toggle + set-goal */}
-            <div style={{ display:"flex",alignItems:"flex-end",justifyContent:"space-between",marginBottom:9,gap:8 }}>
-              <div style={{ display:"flex",alignItems:"baseline",gap:6,minWidth:0,flex:1 }}>
-                <span style={{ fontFamily:"'DM Mono',monospace",fontSize:30,fontWeight:800,
-                  color:numColor,lineHeight:1,
-                  textShadow:reached?`0 0 20px #22c55e80`:pct>0.4?`0 0 16px ${P}60`:"none",
-                  transition:"color 0.4s,text-shadow 0.4s" }}>
-                  {periodMakes}
-                </span>
-                <span style={{ fontSize:13,color:"#475569",paddingBottom:2 }}>
-                  / {periodGoal} makes this {periodLabel}
-                </span>
-                {reached && (
-                  <span style={{ fontSize:12,animation:"fkh-bounce 0.5s ease-out both" }}>🎯</span>
-                )}
-              </div>
-              <div style={{ display:"flex",alignItems:"center",gap:6,flexShrink:0 }}>
-                <div style={{ display:"flex",borderRadius:8,overflow:"hidden",border:`1px solid ${bd}` }}>
-                  {["week", "month"].map(p => (
-                    <button key={p} type="button" onClick={() => switchGoalPeriod(p)}
-                      style={{
-                        padding:"5px 9px", border:"none", cursor:"pointer", fontSize:10, fontWeight:700,
+          <div style={{ borderBottom:`1px solid ${bd}` }}>
+            <button type="button" onClick={()=>setEditingGoal(e=>!e)}
+              aria-expanded={editingGoal}
+              style={{ width:"100%",display:"flex",alignItems:"center",gap:10,padding:"9px 16px",
+                background:"transparent",border:"none",cursor:"pointer",textAlign:"left" }}>
+              <span style={{ fontFamily:"'DM Mono',monospace",fontSize:14,fontWeight:800,color:numColor,flexShrink:0,
+                textShadow:reached?"0 0 12px #22c55e70":"none",transition:"color 0.4s" }}>
+                {periodMakes}/{periodGoal}
+              </span>
+              <span style={{ flex:1,minWidth:0,height:7,borderRadius:99,background:"rgba(255,255,255,0.06)",overflow:"hidden" }}>
+                <span style={{ display:"block",height:"100%",width:`${pct*100}%`,borderRadius:99,background:barColor,
+                  boxShadow:`0 0 10px ${glowColor}60`,transition:"width 0.7s cubic-bezier(0.4,0,0.2,1)" }}/>
+              </span>
+              <span style={{ fontFamily:"'DM Mono',monospace",fontSize:10,flexShrink:0,
+                color:reached?"#22c55e":"#475569" }}>
+                {reached ? "goal 🎯" : periodRemainLabel}
+              </span>
+              <span style={{ fontSize:12,color:"#475569",flexShrink:0,lineHeight:1,
+                transform:editingGoal?"rotate(90deg)":"none",transition:"transform 0.2s" }}>›</span>
+            </button>
+
+            {editingGoal && (
+              <div style={{ padding:"0 16px 12px" }}>
+                <div style={{ display:"flex",gap:6,marginBottom:10 }}>
+                  {["day","week","month"].map(pd => (
+                    <button key={pd} type="button" onClick={() => switchGoalPeriod(pd)}
+                      style={{ flex:1,padding:"6px 4px",borderRadius:9,cursor:"pointer",fontSize:11,fontWeight:700,
                         textTransform:"capitalize",
-                        background: goalPeriod === p ? `${P}22` : "transparent",
-                        color: goalPeriod === p ? P : "#64748b",
-                      }}>
-                      {p}
+                        border:`1px solid ${goalPeriod === pd ? P : bd}`,
+                        background: goalPeriod === pd ? `${P}18` : "transparent",
+                        color: goalPeriod === pd ? P : "#64748b" }}>
+                      {pd}
                     </button>
                   ))}
                 </div>
-                <button onClick={()=>setEditingGoal(e=>!e)}
-                  style={{ fontSize:10,color:editingGoal?P:"#475569",
-                    background:editingGoal?`${P}14`:"transparent",
-                    border:`1px solid ${editingGoal?P+"40":"rgba(255,255,255,0.1)"}`,
-                    borderRadius:8,padding:"5px 11px",cursor:"pointer",fontWeight:600,
-                    transition:"all 0.2s" }}>
-                  {editingGoal ? "Done ✓" : "Set Goal"}
-                </button>
-              </div>
-            </div>
-
-            {/* Progress bar */}
-            <div style={{ position:"relative",height:10,background:"rgba(255,255,255,0.06)",
-              borderRadius:99,overflow:"visible",marginBottom:6 }}>
-              <div style={{ height:"100%",borderRadius:99,
-                background:barColor,
-                width:`${pct*100}%`,
-                transition:"width 0.7s cubic-bezier(0.4,0,0.2,1)",
-                boxShadow:`0 0 12px ${glowColor}70`,
-                position:"relative",overflow:"hidden" }}>
-                {/* Shimmer when not complete */}
-                {!reached && pct>0.05 && (
-                  <div style={{ position:"absolute",inset:0,
-                    background:"linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.25) 50%,transparent 100%)",
-                    backgroundSize:"200% 100%",
-                    animation:"fkh-shimmer 2s linear infinite" }}/>
-                )}
-              </div>
-            </div>
-
-            {/* Sub-row: % + pace */}
-            <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center" }}>
-              <div style={{ display:"flex",alignItems:"center",gap:8 }}>
-                <span style={{ fontFamily:"'DM Mono',monospace",fontSize:11,
-                  fontWeight:700,color:glowColor }}>
-                  {Math.round(pct*100)}%
-                </span>
-                {!reached && periodMakes>0 && (
+                <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:9 }}>
+                  <span style={{ fontFamily:"'DM Mono',monospace",fontSize:11,fontWeight:700,color:glowColor }}>
+                    {Math.round(pct*100)}%
+                  </span>
                   <span style={{ fontSize:10,color:"#334155" }}>
-                    · {periodGoal-periodMakes} to go
+                    {reached
+                      ? "· Goal smashed! 🏀"
+                      : `· ${periodGoal-periodMakes} makes to go ${goalPeriod === "day" ? "today" : `this ${periodLabel}`}`}
                   </span>
-                )}
-                {reached && (
-                  <span style={{ fontSize:10,color:"#22c55e",fontWeight:600 }}>
-                    · Goal smashed! 🏀
-                  </span>
-                )}
-              </div>
-              <span style={{ fontSize:10,color:"#334155",fontFamily:"'DM Mono',monospace" }}>
-                {daysLeftInPeriod}d left in {periodLabel}
-              </span>
-            </div>
-
-            {/* Goal presets (shown when editing) */}
-            {editingGoal && (
-              <div style={{ marginTop:10,paddingTop:10,borderTop:"1px solid rgba(255,255,255,0.06)" }}>
+                </div>
                 <div style={{ fontSize:9,color:"#475569",letterSpacing:"0.1em",
                   textTransform:"uppercase",fontFamily:"'DM Mono',monospace",marginBottom:8 }}>
-                  {goalPeriod === "month" ? "Monthly" : "Weekly"} makes target
+                  {targetLabel} makes target
                 </div>
                 <div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>
                   {goalPresets.map(n=>(
@@ -1623,7 +1663,6 @@ function ShotTracker({ P, S, BG, athleteName, settings, onLogChange, onOpenGuide
                       {n}
                     </button>
                   ))}
-                  {/* Custom input */}
                   <div style={{ display:"flex",alignItems:"center",gap:4,borderRadius:9,padding:"0 8px",...actionBtnStyle(settings) }}>
                     <input
                       type="number" inputMode="numeric" min="1"
@@ -1658,12 +1697,12 @@ function ShotTracker({ P, S, BG, athleteName, settings, onLogChange, onOpenGuide
       {view==="log" && (
         <div style={{ padding:"14px 16px 0" }}>
           <div style={{
-            display:"flex", alignItems:"center", gap:8, flexWrap:"wrap",
+            display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", position:"relative",
             marginBottom:12, padding:"8px 10px", borderRadius:10,
             background: logDate !== todayKey() ? `${P}10` : "transparent",
             border:`1px solid ${logDate !== todayKey() ? `${P}28` : bd}`,
           }}>
-            <span style={{ fontSize:10, fontWeight:700, color:"#64748b" }}>📅</span>
+            {/* No label — the chips say what they are. */}
             {[["Today", todayKey()], ["Yesterday", offsetDateKey(-1)]].map(([label, key]) => (
               <button key={label} type="button" onClick={() => pickLogDate(key)} style={{
                 padding:"5px 10px", borderRadius:99, fontSize:10, fontWeight:700, cursor:"pointer",
@@ -1672,23 +1711,52 @@ function ShotTracker({ P, S, BG, athleteName, settings, onLogChange, onOpenGuide
                 color: logDate === key ? P : "#64748b",
               }}>{label}</button>
             ))}
-            <input
-              type="date"
-              value={logDate}
-              max={todayKey()}
-              onChange={e => pickLogDate(e.target.value)}
-              style={{
-                flex:"1 1 120px", minWidth:120, background:"rgba(255,255,255,0.05)",
-                border:`1px solid ${bd}`, borderRadius:8, padding:"5px 8px",
-                color:"var(--fkh-text)", fontSize:11, outline:"none",
-              }}
-            />
+            {(() => {
+              const custom = logDate !== todayKey() && logDate !== offsetDateKey(-1);
+              return (
+                <>
+                  <button type="button"
+                    onClick={() => { const el = logDateRef.current; if (!el) return; el.showPicker ? el.showPicker() : el.click(); }}
+                    style={{
+                      padding:"5px 10px", borderRadius:99, fontSize:10, fontWeight:700, cursor:"pointer",
+                      border:`1px solid ${custom ? P : bd}`,
+                      background: custom ? `${P}20` : "transparent",
+                      color: custom ? P : "#64748b",
+                    }}>
+                    📅 {custom ? fmtDate(logDate) : "Pick"}
+                  </button>
+                  <input
+                    ref={logDateRef}
+                    type="date"
+                    value={logDate}
+                    max={todayKey()}
+                    onChange={e => pickLogDate(e.target.value)}
+                    aria-label="Log for another day"
+                    style={{ position:"absolute", width:1, height:1, opacity:0, pointerEvents:"none" }}
+                  />
+                </>
+              );
+            })()}
           </div>
 
           <div style={{ background:sf, border:`1px solid ${P}22`, borderRadius:14, padding:"12px 12px 14px", marginBottom:14 }}>
-            <div style={{ fontSize:14, fontWeight:800, color:"var(--fkh-text)", marginBottom:4 }}>Log Shots</div>
-            <div style={{ fontSize:11, color:"#64748b", marginBottom:12, lineHeight:1.45 }}>
-              Tap a spot on the court → pick how you shot → log makes and misses. FG% is calculated for you.
+            {/* Style is set once per session, not re-asked at every spot — it
+                already persists in localStorage between visits. No label: the
+                chips say what they are, and the court says to tap it. */}
+            <div style={{ display:"flex", gap:5, marginBottom:10 }}>
+              {SHOT_STYLES.map(sty => (
+                <button key={sty.id} type="button" onClick={() => pickShotStyle(sty.id)}
+                  style={{
+                    flex:1, minWidth:0, padding:"7px 4px", borderRadius:9, cursor:"pointer",
+                    border:`1px solid ${shotStyle === sty.id ? P : bd}`,
+                    background: shotStyle === sty.id ? `${P}1c` : "transparent",
+                    color: shotStyle === sty.id ? P : "#64748b",
+                    fontSize:10, fontWeight: shotStyle === sty.id ? 800 : 600,
+                    lineHeight:1.2, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis",
+                  }}>
+                  {sty.label}
+                </button>
+              ))}
             </div>
 
             <CourtMap priColor={P} onZoneSelect={selectZone} lastShot={lastShot}/>
@@ -1735,25 +1803,6 @@ function ShotTracker({ P, S, BG, athleteName, settings, onLogChange, onOpenGuide
                     </button>
                   </div>
 
-                  <div style={{ fontSize:10, fontWeight:700, color:"#64748b", letterSpacing:"0.06em", textTransform:"uppercase", marginBottom:8 }}>
-                    Shot type
-                  </div>
-                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:14 }}>
-                    {SHOT_STYLES.map(sty => (
-                      <button key={sty.id} type="button" onClick={() => pickShotStyle(sty.id)}
-                        style={{
-                          padding:"10px 8px", borderRadius:10, cursor:"pointer",
-                          border:`1.5px solid ${shotStyle === sty.id ? P : bd}`,
-                          background: shotStyle === sty.id ? `${P}22` : "rgba(255,255,255,0.04)",
-                          color: shotStyle === sty.id ? P : "var(--fkh-text-muted)",
-                          fontSize:11, fontWeight: shotStyle === sty.id ? 800 : 600,
-                          lineHeight:1.25, textAlign:"center",
-                        }}>
-                        {sty.label}
-                      </button>
-                    ))}
-                  </div>
-
                   <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
                     <span style={{ fontSize:12, fontWeight:700, color:"#22c55e", width:62 }}>Made</span>
                     <button type="button" style={stepBtn()} onClick={()=>setShotCount(c=>({...c,made:Math.max(0,c.made-1)}))}>−</button>
@@ -1768,6 +1817,8 @@ function ShotTracker({ P, S, BG, athleteName, settings, onLogChange, onOpenGuide
                     />
                     <button type="button" style={stepBtn({ background:"#22c55e22", borderColor:"#22c55e44" })}
                       onClick={()=>setShotCount(c=>({...c,made:c.made+1}))}>+</button>
+                    <button type="button" style={stepBtn({ background:"#22c55e18", borderColor:"#22c55e33", fontSize:14, fontWeight:800 })}
+                      onClick={()=>setShotCount(c=>({...c,made:c.made+5}))}>+5</button>
                   </div>
                   <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
                     <span style={{ fontSize:12, fontWeight:700, color:"#ef4444", width:62 }}>Miss</span>
@@ -1792,7 +1843,9 @@ function ShotTracker({ P, S, BG, athleteName, settings, onLogChange, onOpenGuide
                       background:total>0?`${P}22`:"rgba(255,255,255,0.04)",
                       color:total>0?P:"#334155", fontSize:13, fontWeight:700,
                       cursor:total>0?"pointer":"default" }}>
-                    {total>0 ? `Log ${total} shot${total!==1?"s":""} ✓` : "Add makes or misses above"}
+                    {total>0
+                      ? `Log ${total} shot${total!==1?"s":""} · ${Math.round((shotCount.made/total)*100)}% ✓`
+                      : "Add makes or misses above"}
                   </button>
                 </div>
               );
@@ -1840,6 +1893,33 @@ function ShotTracker({ P, S, BG, athleteName, settings, onLogChange, onOpenGuide
             ))}
             <button onClick={()=>setUseCustom(v=>!v)} style={{ padding:"7px 12px",borderRadius:10,border:`1px solid ${useCustom?S:bd}`,background:useCustom?`${S}18`:"transparent",color:useCustom?S:"#475569",fontSize:12,fontWeight:600,cursor:"pointer" }}>📅 Custom</button>
           </div>
+          {(()=>{
+            const delta = (a, b) => (a == null || b == null) ? null : a - b;
+            const cells = [
+              { label:"FG%",   val: wow.cur.pct == null ? "—" : `${wow.cur.pct}%`, d: delta(wow.cur.pct, wow.prev.pct),
+                was: wow.prev.pct == null ? null : `was ${wow.prev.pct}%` },
+              { label:"Makes", val: wow.cur.m, d: wow.cur.m - wow.prev.m, was: null },
+              { label:"Days",  val: wow.cur.days, d: wow.cur.days - wow.prev.days, was: null },
+            ];
+            return (
+              <div style={{ display:"flex",gap:8,marginBottom:12 }}>
+                {cells.map(c => (
+                  <div key={c.label} style={{ flex:1,minWidth:0,background:sf,border:`1px solid ${bd}`,borderRadius:12,padding:"9px 10px" }}>
+                    <div style={{ fontSize:8.5,color:"#475569",letterSpacing:"0.12em",textTransform:"uppercase",fontFamily:"'DM Mono',monospace" }}>{c.label}</div>
+                    <div style={{ display:"flex",alignItems:"baseline",gap:5,marginTop:3 }}>
+                      <span style={{ fontFamily:"'DM Mono',monospace",fontSize:16,fontWeight:800,color:"var(--fkh-text)",lineHeight:1 }}>{c.val}</span>
+                      {c.d != null && c.d !== 0 && (
+                        <span style={{ fontSize:10,fontWeight:800,color:c.d > 0 ? "#22c55e" : "#f87171" }}>
+                          {c.d > 0 ? "▲" : "▼"}{Math.abs(c.d)}
+                        </span>
+                      )}
+                    </div>
+                    {c.was && <div style={{ fontSize:9,color:"#334155",marginTop:2 }}>{c.was}</div>}
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
           {useCustom&&(
             <div style={{ display:"flex",gap:8,marginBottom:12,alignItems:"center" }}>
               <input type="date" value={custStart} onChange={e=>setCustStart(e.target.value)} style={{ flex:1,background:sf,border:`1px solid ${bd}`,borderRadius:8,padding:"7px 10px",color:"var(--fkh-text)",fontSize:12,outline:"none" }}/>
@@ -1848,9 +1928,14 @@ function ShotTracker({ P, S, BG, athleteName, settings, onLogChange, onOpenGuide
             </div>
           )}
           <div style={{ background:sf,border:`1px solid ${bd}`,borderRadius:14,padding:"14px 12px",marginBottom:14 }}>
-            <div style={{ ...lbl,marginBottom:12 }}>Daily Makes — Stacked by Shot Type</div>
-            <StackedBars data={histData} priColor={P} height={160} selDate={selDate} onSelect={setSelDate}/>
+            <div style={{ ...lbl,marginBottom:12 }}>Daily Volume &amp; FG% Trend</div>
+            <StackedBars data={histData} priColor={P} height={160} selDate={selDate} onSelect={setSelDate}
+              fgByDay={histData.map(d=>d.pct)}/>
             <div style={{ display:"flex",flexWrap:"wrap",gap:8,marginTop:12 }}>
+              <div style={{ display:"flex",alignItems:"center",gap:5 }}>
+                <div style={{ width:12,height:2.5,borderRadius:2,background:"#22d3ee",flexShrink:0 }}/>
+                <span style={{ fontSize:10,fontWeight:700,color:"#22d3ee" }}>FG%</span>
+              </div>
               {SHOT_TYPES.filter(t=>histData.some(d=>(d.byShotType[t.id]||0)>0)).map(t=>(
                 <div key={t.id} style={{ display:"flex",alignItems:"center",gap:5 }}>
                   <div style={{ width:9,height:9,borderRadius:2,background:SHOT_COLORS[t.id],flexShrink:0 }}/>
@@ -1876,13 +1961,19 @@ function ShotTracker({ P, S, BG, athleteName, settings, onLogChange, onOpenGuide
             })()}
             {selShots.length===0
               ? <div style={{ color:"#334155",fontSize:12 }}>No shots on this day</div>
-              : <div style={{ display:"flex",flexWrap:"wrap",gap:6 }}>
-                  {SHOT_TYPES.map(t=>{ const cnt=selShots.filter(s=>s.type===t.id).length; if(!cnt) return null;
-                    const locs=[...new Set(selShots.filter(s=>s.type===t.id&&s.location).map(s=>s.location))];
-                    return (<div key={t.id} style={{ padding:"6px 10px",borderRadius:10,background:`${SHOT_COLORS[t.id]}14`,border:`1px solid ${SHOT_COLORS[t.id]}28` }}>
-                      <span style={{ fontSize:13 }}>{t.emoji}</span><span style={{ fontSize:12,fontWeight:700,color:SHOT_COLORS[t.id],marginLeft:5 }}>{cnt}</span>
-                      {locs.length>0&&<div style={{ fontSize:9,color:"#475569",marginTop:2 }}>{locs.join(", ")}</div>}
-                    </div>);
+              : <div style={{ display:"flex",flexDirection:"column",gap:6 }}>
+                  {ZONES.map(z=>{ const st=selZoneStats[z.id]; if(!st||!st.a) return null;
+                    return (
+                      <div key={z.id} style={{ display:"flex",alignItems:"center",gap:8 }}>
+                        <span style={{ fontSize:12,flexShrink:0 }}>{z.emoji}</span>
+                        <span style={{ fontSize:11,color:"var(--fkh-text-muted)",flex:1,minWidth:0 }}>{z.label}</span>
+                        <div style={{ width:56,height:5,borderRadius:99,background:"rgba(255,255,255,0.07)",overflow:"hidden",flexShrink:0 }}>
+                          <div style={{ width:`${st.pct||0}%`,height:"100%",background:P }} />
+                        </div>
+                        <span style={{ fontSize:11,fontWeight:800,color:P,fontFamily:"'DM Mono',monospace",width:44,textAlign:"right" }}>{st.pct}%</span>
+                        <span style={{ fontSize:10,color:"#475569",width:40,textAlign:"right" }}>{st.m}/{st.a}</span>
+                      </div>
+                    );
                   })}
                 </div>
             }
@@ -1908,17 +1999,27 @@ function ShotTracker({ P, S, BG, athleteName, settings, onLogChange, onOpenGuide
 
       {view==="breakdown" && (
         <div style={{ padding:"14px 16px 0" }}>
+          {/* Governs every section on this tab. */}
+          <div style={{ display:"flex",gap:5,marginBottom:10,flexWrap:"wrap" }}>
+            {STATS_RANGES.map(r=>(
+              <button key={r.id} onClick={()=>setStatsRange(r.id)} style={{ padding:"7px 12px",borderRadius:10,border:`1px solid ${statsRange===r.id?P:bd}`,background:statsRange===r.id?`${P}18`:"transparent",color:statsRange===r.id?P:"#475569",fontSize:12,fontWeight:600,cursor:"pointer" }}>{r.label}</button>
+            ))}
+          </div>
           <div style={{ background:sf,border:`1px solid ${bd}`,borderRadius:14,padding:"16px",marginBottom:14,display:"flex",gap:16,alignItems:"center" }}>
-            <Donut size={128} data={SHOT_TYPES.map(t=>({value:allByType[t.id]||0,color:SHOT_COLORS[t.id]}))}/>
+            <Donut size={128} data={SHOT_TYPES.map(t=>({value:rangeByType[t.id]||0,color:SHOT_COLORS[t.id]}))}/>
             <div style={{ flex:1 }}>
               <div style={lbl}>Overall</div>
               <div style={{ fontFamily:"'DM Mono',monospace",fontSize:28,fontWeight:800,color:P,lineHeight:1,marginBottom:2 }}>
-                {allTimeStats.pct != null ? `${allTimeStats.pct}%` : "—"}
+                {rangeStats.pct != null ? `${rangeStats.pct}%` : "—"}
               </div>
               <div style={{ fontSize:10,color:"#475569",marginBottom:8 }}>
-                {allTimeStats.makes}/{allTimeStats.attempts} all-time FG%
+                {rangeStats.makes}/{rangeStats.attempts} FG% {STATS_RANGE_SUFFIX[statsRange]}
               </div>
-              <div style={{ fontSize:10,color:"#475569" }}>{allTotal} attempts logged</div>
+              <div style={{ fontSize:10,color:"#475569" }}>
+                {statsRange !== "all_time" && allTimeStats.pct != null
+                  ? `${allTimeStats.pct}% · ${allTimeStats.makes}/${allTimeStats.attempts} all-time`
+                  : `${allTotal} attempts logged`}
+              </div>
             </div>
           </div>
           <div style={{ background:sf,border:`1px solid ${bd}`,borderRadius:14,padding:"14px",marginBottom:14 }}>
@@ -1962,41 +2063,62 @@ function ShotTracker({ P, S, BG, athleteName, settings, onLogChange, onOpenGuide
                 })}
             </div>
           </div>
+          {/* By location and Spot detail were the same data with and without
+              shot type — one section, tap a location to split it by type. */}
           <div style={{ background:sf,border:`1px solid ${bd}`,borderRadius:14,padding:"14px",marginBottom:14 }}>
-            <div style={lbl}>By location</div>
-            {locationStats.length === 0
+            <div style={lbl}>By location &amp; type</div>
+            {locationTypeStats.length === 0
               ? <div style={{ color:"#334155",fontSize:12,textAlign:"center",padding:"12px 0" }}>Locations appear when you tap specific court zones</div>
               : <div style={{ display:"flex",flexDirection:"column",gap:6 }}>
-                  {locationStats.map(loc => (
-                    <div key={loc.label} style={{ display:"flex",alignItems:"center",gap:8 }}>
-                      <div style={{ fontSize:11,color:"var(--fkh-text-muted)",flex:1,minWidth:0 }}>{loc.label}</div>
-                      <div style={{ width:56,height:5,borderRadius:99,background:"rgba(255,255,255,0.07)",overflow:"hidden" }}>
-                        <div style={{ width:`${loc.pct || 0}%`,height:"100%",background:S }} />
+                  {locationTypeStats.map(loc => {
+                    const open = openLoc === loc.label;
+                    const splits = loc.types.length > 1;
+                    return (
+                      <div key={loc.label}>
+                        <button type="button"
+                          onClick={() => splits && setOpenLoc(open ? null : loc.label)}
+                          aria-expanded={splits ? open : undefined}
+                          style={{ width:"100%",display:"flex",alignItems:"center",gap:8,padding:0,
+                            background:"transparent",border:"none",textAlign:"left",
+                            cursor:splits?"pointer":"default" }}>
+                          <span style={{ fontSize:11,color:"var(--fkh-text-muted)",flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>
+                            {splits && <span style={{ color:"#475569",marginRight:4,display:"inline-block",width:8,
+                              transform:open?"rotate(90deg)":"none",transition:"transform 0.2s" }}>›</span>}
+                            {loc.label}
+                          </span>
+                          <span style={{ width:56,height:5,borderRadius:99,background:"rgba(255,255,255,0.07)",overflow:"hidden",flexShrink:0 }}>
+                            <span style={{ display:"block",width:`${loc.pct || 0}%`,height:"100%",background:S }} />
+                          </span>
+                          <span style={{ fontSize:11,fontWeight:800,color:S,fontFamily:"'DM Mono',monospace",width:44,textAlign:"right" }}>{loc.pct}%</span>
+                          <span style={{ fontSize:10,color:"#475569",width:40,textAlign:"right" }}>{loc.m}/{loc.a}</span>
+                        </button>
+                        {open && (
+                          <div style={{ display:"flex",flexDirection:"column",gap:5,margin:"6px 0 2px 12px",
+                            paddingLeft:10,borderLeft:`1px solid ${bd}` }}>
+                            {loc.types.map(t => {
+                              const c = SHOT_COLORS[t.id] || P;
+                              return (
+                                <div key={t.id} style={{ display:"flex",alignItems:"center",gap:8 }}>
+                                  <span style={{ fontSize:10.5,color:"#64748b",flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{t.label}</span>
+                                  <div style={{ width:44,height:4,borderRadius:99,background:"rgba(255,255,255,0.07)",overflow:"hidden" }}>
+                                    <div style={{ width:`${t.pct || 0}%`,height:"100%",background:c }} />
+                                  </div>
+                                  <span style={{ fontSize:10.5,fontWeight:800,color:c,fontFamily:"'DM Mono',monospace",width:40,textAlign:"right" }}>{t.pct}%</span>
+                                  <span style={{ fontSize:9.5,color:"#475569",width:38,textAlign:"right" }}>{t.m}/{t.a}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
-                      <span style={{ fontSize:11,fontWeight:800,color:S,fontFamily:"'DM Mono',monospace",width:44,textAlign:"right" }}>{loc.pct}%</span>
-                      <span style={{ fontSize:10,color:"#475569",width:40,textAlign:"right" }}>{loc.m}/{loc.a}</span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
             }
           </div>
-          {spotStats.length > 1 && (
-            <div style={{ background:sf,border:`1px solid ${bd}`,borderRadius:14,padding:"14px",marginBottom:14 }}>
-              <div style={lbl}>Spot detail</div>
-              <div style={{ display:"flex",flexDirection:"column",gap:6 }}>
-                {spotStats.slice(0, 12).map(s => (
-                  <div key={s.key} style={{ display:"flex",alignItems:"center",gap:8 }}>
-                    <span style={{ fontSize:11,color:"var(--fkh-text-muted)",flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{s.label}</span>
-                    <span style={{ fontSize:11,fontWeight:800,color:P,fontFamily:"'DM Mono',monospace" }}>{s.pct}%</span>
-                    <span style={{ fontSize:10,color:"#475569" }}>{s.m}/{s.a}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          <div style={lbl}>7-day volume by zone</div>
+          <div style={lbl}>Volume by zone</div>
           <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:8 }}>
-            {SHOT_TYPES.map(t=>{ const total=allByType[t.id]||0,pct=allTotal>0?Math.round((total/allTotal)*100):0;
+            {SHOT_TYPES.map(t=>{ const total=rangeByType[t.id]||0,pct=rangeTotal>0?Math.round((total/rangeTotal)*100):0;
               const wk7=Array.from({length:7}).map((_,i)=>{const d=new Date();d.setDate(d.getDate()-(6-i));return(log[d.toLocaleDateString("en-CA")]||[]).filter(s=>s.type===t.id).length;});
               return (<div key={t.id} style={{ background:`${SHOT_COLORS[t.id]}0a`,border:`1px solid ${SHOT_COLORS[t.id]}20`,borderRadius:12,padding:"12px" }}>
                 <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8 }}>
@@ -4645,7 +4767,6 @@ export default function FitKidHooperApp() {
       onAvatarChange={bumpAvatar}
       onOpenWhatsNew={openWhatsNew}
       onOpenAuth={() => { setShowSettings(false); setShowAuth(true); }}
-      onOpenGuide={() => { setShowSettings(false); openGuide("tour"); }}
       isSignedIn={auth.isSignedIn}
       signedInUsername={auth.username}
       onCloudSync={applyCloudSync}
@@ -5316,6 +5437,7 @@ export default function FitKidHooperApp() {
   if (view==="programs") {
     return (
       <ProgramsView
+        onOpenCoach={() => setShowCoachFKH(true)}
         programs={PROGRAMS}
         settings={settings}
         enrolledPrograms={enrolledPrograms}
@@ -5365,6 +5487,7 @@ export default function FitKidHooperApp() {
   if (view === "squad") {
     return (
       <SquadView
+        onOpenCoach={() => setShowCoachFKH(true)}
         settings={settings}
         completed={completedSafe}
         missionLog={missionLog}
@@ -5407,7 +5530,8 @@ export default function FitKidHooperApp() {
       <ShotTrackerErrorBoundary P={P} onRepaired={() => setShotLogTick(t => t + 1)}>
         <ShotTracker P={P} S={S} BG={BG} athleteName={settings.athleteName} settings={settings}
           onLogChange={() => setShotLogTick(t => t + 1)}
-          onOpenGuide={() => openGuide("explore")} />
+          onOpenGuide={() => openGuide("explore")}
+          onOpenCoach={() => setShowCoachFKH(true)} />
       </ShotTrackerErrorBoundary>
       {renderBottomNav()}
     </div>
@@ -5504,6 +5628,7 @@ export default function FitKidHooperApp() {
   if (view==="boards") {
     return (
       <ChallengesView
+        onOpenCoach={() => setShowCoachFKH(true)}
         settings={settings}
         completed={completedSafe}
         missionLog={missionLog}
@@ -6089,40 +6214,29 @@ export default function FitKidHooperApp() {
           onSkip={() => { setShowCoachIntro(false); /* tour waits until after first practice */ }}
         />
       )}
-      <div style={{ padding:"26px 20px 16px",borderBottom:`1px solid ${P}14` }}>
-        <div style={{ display:"flex",alignItems:"center",gap:12 }}>
-          <h1 style={{ flex:1,minWidth:0,fontSize:28,fontWeight:800,margin:0,letterSpacing:"-0.03em",lineHeight:1.1 }}>
-            FKH <span style={{ color:P }}>Fit Kid Hooper</span>
-          </h1>
-          <div style={{ display:"flex",gap:6,flexShrink:0 }}>
-            <button type="button" onClick={openFeedback} title="Send feedback" aria-label="Send feedback"
-              style={{ background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:8,color:"var(--fkh-text-muted)",fontSize:12,fontWeight:700,cursor:"pointer",padding:"5px 10px" }}>
-              💬
-            </button>
-            <button type="button" onClick={() => openGuide("explore")} title="Guide" aria-label="Open guide"
-              style={{ background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:8,color:"var(--fkh-text-muted)",fontSize:12,fontWeight:700,cursor:"pointer",padding:"5px 10px" }}>
-              📖
-            </button>
+      {/* One row: who you are, then the two things you can ask for anywhere.
+          The app name used to sit above this and wrapped to two lines on a
+          phone — it told a returning kid nothing they didn't know. */}
+      <div style={{ padding:"14px 20px",borderBottom:`1px solid ${P}14` }}>
+        <div style={{ display:"flex",alignItems:"center",gap:11 }}>
+          <div onClick={()=>{ setView("progress"); setProgressTab("overview"); }}
+            style={{ width:38,height:38,borderRadius:"50%",background:`${P}18`,flexShrink:0,
+              border:`2px solid ${headerFrameColor || P}`,
+              boxShadow:headerFrameColor ? `0 0 10px ${headerFrameColor}55` : "none",
+              overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer" }}>
+            {avatarUrl ? <img src={avatarUrl} alt="" style={{ width:"100%",height:"100%",objectFit:"cover" }}/> : <span style={{ fontSize:18 }}>👤</span>}
           </div>
-          <div style={{ position:"relative",width:56,height:56,flexShrink:0 }}>
-            <div onClick={()=>{ setView("progress"); setProgressTab("overview"); }}
-              style={{ width:56,height:56,borderRadius:"50%",background:`${P}18`,
-                border:`3px solid ${headerFrameColor || P}`,
-                boxShadow:headerFrameColor ? `0 0 10px ${headerFrameColor}55` : "none",
-                overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer" }}>
-              {avatarUrl ? <img src={avatarUrl} alt="" style={{ width:"100%",height:"100%",objectFit:"cover" }}/> : <span style={{ fontSize:24 }}>👤</span>}
+          <div onClick={()=>{ setView("progress"); setProgressTab("overview"); }}
+            style={{ flex:1,minWidth:0,cursor:"pointer" }}>
+            <div style={{ fontSize:19,fontWeight:800,letterSpacing:"-0.02em",lineHeight:1.1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>
+              {settings.athleteName}
+            </div>
+            <div style={{ fontSize:10,fontFamily:"'DM Mono',monospace",color:P,marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>
+              {currentLevel.emoji} {currentLevel.name.toUpperCase()} · {xpData.total} XP
             </div>
           </div>
-        </div>
-        <div style={{ display:"flex",alignItems:"center",gap:8,marginTop:8,flexWrap:"wrap" }}>
-          <p style={{ fontSize:14,color:P,fontWeight:600,margin:0 }}>{settings.athleteName}</p>
-          <div onClick={()=>{ setView("progress"); setProgressTab("overview"); }}
-            style={{ display:"flex",alignItems:"center",gap:5,padding:"3px 10px",borderRadius:20,cursor:"pointer",
-              background:`${P}20`,border:`1px solid ${P}45` }}>
-            <span style={{ fontSize:11 }}>{currentLevel.emoji}</span>
-            <span style={{ fontSize:11,fontWeight:800,color:P }}>{currentLevel.name}</span>
-            <span style={{ fontSize:10,color:P,fontFamily:"'DM Mono',monospace",opacity:0.85 }}>· {xpData.total} XP</span>
-          </div>
+          <CoachNavButton compact P={P} onClick={()=>setShowCoachFKH(true)} />
+          <GuideNavButton compact onClick={() => openGuide("explore")} />
         </div>
       </div>
 
@@ -6180,7 +6294,6 @@ export default function FitKidHooperApp() {
         SF={SF}
         NV={NV}
         bd={bd}
-        coachMsg={coachMsg}
         today={today}
         growthLog={growthLog}
         schedule={SCHEDULE}
@@ -6251,6 +6364,7 @@ export default function FitKidHooperApp() {
         onDismissGuestSavePrompt={dismissGuestSavePrompt}
         onOpenSchedule={() => openSchedule("home", "week")}
         onOpenCoach={() => setShowCoachFKH(true)}
+        coachMsg={coachMsg}
         focusMissionSection={homeMissionFocus}
         onMissionFocusHandled={() => setHomeMissionFocus(false)}
       />

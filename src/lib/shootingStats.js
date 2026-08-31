@@ -105,6 +105,40 @@ export function computeLocationStats(shotLog, { start = null, end = null } = {})
   return rows;
 }
 
+/**
+ * Per-location accuracy with each shot type from that spot nested underneath —
+ * "Left Wing 52%" opening into "Wing 3 44% / Wing (Mid) 56%". Same grouping key
+ * as computeLocationStats so the two always agree.
+ */
+export function computeLocationTypeStats(shotLog, { start = null, end = null } = {}) {
+  const map = {};
+  for (const [date, shots] of Object.entries(shotLog || {})) {
+    if (start && date < start) continue;
+    if (end && date > end) continue;
+    const list = Array.isArray(shots) ? shots : [];
+    for (const s of list) {
+      if (!s || typeof s !== "object" || !s.type) continue;
+      const label = s.location || TYPE_LABEL[s.type] || s.type;
+      if (!map[label]) map[label] = { label, m: 0, a: 0, types: {} };
+      const row = map[label];
+      row.a += 1;
+      if (s.made !== false) row.m += 1;
+      const tLabel = TYPE_LABEL[s.type] || s.type;
+      if (!row.types[s.type]) row.types[s.type] = { id: s.type, label: tLabel, m: 0, a: 0 };
+      row.types[s.type].a += 1;
+      if (s.made !== false) row.types[s.type].m += 1;
+    }
+  }
+  const rows = Object.values(map);
+  for (const r of rows) {
+    r.pct = pct(r.m, r.a);
+    r.types = Object.values(r.types).sort((a, b) => b.a - a.a);
+    for (const t of r.types) t.pct = pct(t.m, t.a);
+  }
+  rows.sort((a, b) => b.a - a.a);
+  return rows;
+}
+
 /** Per court-zone (layup, corner 3, etc.) accuracy. */
 export function computeZoneTypeStats(shotLog, { start = null, end = null } = {}) {
   const map = {};

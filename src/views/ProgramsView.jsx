@@ -30,6 +30,7 @@ import { safePersistKey } from "../lib/dataSafety.js";
 import { buildTrainingDayPlan } from "../lib/trainingDayPlan.js";
 import { withSessionWarmup, categoriesFromExercises } from "../lib/sessionWarmup.js";
 import GuideNavButton from "../components/GuideNavButton.jsx";
+import CoachNavButton from "../components/CoachNavButton.jsx";
 
 const todayKey = () => new Date().toLocaleDateString("en-CA");
 
@@ -119,6 +120,7 @@ export default function ProgramsView({
   renderBottomNav,
   setShowSettings,
   onOpenGuide,
+  onOpenCoach,
   isFav,
   toggleFav,
   openDetail,
@@ -655,6 +657,7 @@ export default function ProgramsView({
           </div>
           <div style={{ display:"flex",gap:8,alignItems:"center" }}>
             <button onClick={() => setShowSettings(true)} style={{ padding:"8px 10px",borderRadius:10,border:`1px solid ${bd}`,background:SF,color:"#64748b",fontSize:14,cursor:"pointer" }}>⚙️</button>
+            {onOpenCoach && <CoachNavButton P={P} onClick={onOpenCoach} />}
             {onOpenGuide && <GuideNavButton onClick={() => onOpenGuide("explore")} />}
           </div>
         </div>

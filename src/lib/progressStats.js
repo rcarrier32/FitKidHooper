@@ -119,9 +119,30 @@ export function setMonthShotGoal(n) {
   } catch {}
 }
 
+export function getDayShotGoal() {
+  try {
+    const stored = localStorage.getItem("fkh-shot-day-goal");
+    if (stored) return parseInt(stored, 10);
+    // Sensible first value: a week's target spread over training days, not 7.
+    return Math.max(25, Math.round(getWeekShotGoal() / 4 / 5) * 5);
+  } catch {
+    return 25;
+  }
+}
+
+export function setDayShotGoal(n) {
+  const v = String(Math.max(1, parseInt(n, 10) || 25));
+  try {
+    localStorage.setItem("fkh-shot-day-goal", v);
+  } catch { /* ignore */ }
+}
+
+const GOAL_PERIODS = ["day", "week", "month"];
+
 export function getShotGoalPeriod() {
   try {
-    return localStorage.getItem("fkh-shot-goal-period") === "month" ? "month" : "week";
+    const stored = localStorage.getItem("fkh-shot-goal-period");
+    return GOAL_PERIODS.includes(stored) ? stored : "week";
   } catch {
     return "week";
   }
@@ -129,7 +150,7 @@ export function getShotGoalPeriod() {
 
 export function setShotGoalPeriod(period) {
   try {
-    localStorage.setItem("fkh-shot-goal-period", period === "month" ? "month" : "week");
+    localStorage.setItem("fkh-shot-goal-period", GOAL_PERIODS.includes(period) ? period : "week");
   } catch {}
 }
 
@@ -158,6 +179,11 @@ export function getMonthMakesFromLog(log, refDate = new Date()) {
   const startKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
   const endKey = now.toLocaleDateString("en-CA");
   return countMakesInLogRange(log, startKey, endKey);
+}
+
+export function getDayMakesFromLog(log, refDate = new Date()) {
+  const key = (refDate instanceof Date ? refDate : new Date(refDate)).toLocaleDateString("en-CA");
+  return countMakesInLogRange(log, key, key);
 }
 
 export function daysLeftInWeek(refDate = new Date()) {

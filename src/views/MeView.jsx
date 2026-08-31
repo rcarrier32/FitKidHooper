@@ -2,6 +2,7 @@ import ProfileView from "../components/ProfileView.jsx";
 import ProgressJourney from "../components/ProgressJourney.jsx";
 import IdentityEditor from "../components/IdentityEditor.jsx";
 import ProgressionView from "../components/ProgressionView.jsx";
+import CoachNavButton from "../components/CoachNavButton.jsx";
 import SettingsSheet from "../components/SettingsSheet.jsx";
 import ViewErrorBoundary from "../components/ViewErrorBoundary.jsx";
 import HomeCollapsibleSection from "../components/HomeCollapsibleSection.jsx";
@@ -103,6 +104,7 @@ export default function MeView({
           ⭐ Me
         </h1>
         <div style={{ display:"flex",gap:8 }}>
+          {onOpenCoach && <CoachNavButton P={P} onClick={onOpenCoach} />}
           <button onClick={() => onOpenGuide?.("explore")}
             style={{ background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:8,color:"var(--fkh-text-muted)",fontSize:12,fontWeight:700,cursor:"pointer",padding:"5px 10px" }}>
             📖 Guide
@@ -173,36 +175,7 @@ export default function MeView({
             pushBusy={pushBusy}
             pushError={pushError}
           />
-          {onOpenCoach && (
-            <button
-              type="button"
-              onClick={onOpenCoach}
-              style={{
-                display: "block", width: "calc(100% - 36px)", margin: "0 18px 14px", textAlign: "left",
-                padding: "14px 16px", borderRadius: 14, border: `1px solid ${P}44`, background: `${P}12`, cursor: "pointer",
-              }}
-            >
-              <div style={{ fontSize: 14, fontWeight: 800, color: P }}>🧠 Ask Coach FKH</div>
-              <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 4, lineHeight: 1.45 }}>
-                Ask what to work on next, get drills for your goals, or learn how to play like your legend.
-              </div>
-            </button>
-          )}
-          {onOpenFeedback && (
-            <button
-              type="button"
-              onClick={onOpenFeedback}
-              style={{
-                display: "block", width: "calc(100% - 36px)", margin: "0 18px 16px", textAlign: "left",
-                padding: "14px 16px", borderRadius: 14, border: `1px solid ${bd}`, background: SF, cursor: "pointer",
-              }}
-            >
-              <div style={{ fontSize: 14, fontWeight: 800, color: "var(--fkh-text)" }}>💬 Feedback</div>
-              <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 4, lineHeight: 1.45 }}>
-                Something not working, an idea, or just love it? Tell us — it goes straight to the team.
-              </div>
-            </button>
-          )}
+          {/* Coach lives in the header on every tab; Feedback lives in Settings. */}
         </>
       )}
 
@@ -265,7 +238,6 @@ export default function MeView({
             onOpenFeedback={onOpenFeedback}
             onOpenWhatsNew={onOpenWhatsNew}
             onOpenAuth={onOpenAuth}
-            onOpenGuide={() => onOpenGuide?.("tour")}
             isSignedIn={isSignedIn}
             signedInUsername={signedInUsername}
             onCloudSync={onCloudSync}

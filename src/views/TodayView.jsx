@@ -41,24 +41,6 @@ function loadHomeOpen() {
   return { ...DEFAULT_HOME_OPEN };
 }
 
-// Plays a one-time entrance + pulse on the Coach FKH card so first-time
-// visitors notice it, then settles for good — tracked in localStorage so it
-// never replays on later visits.
-const COACH_HIGHLIGHT_KEY = "fkh-coach-card-highlighted";
-function useCoachCardHighlight() {
-  const [active, setActive] = useState(() => {
-    try { return !localStorage.getItem(COACH_HIGHLIGHT_KEY); } catch { return false; }
-  });
-  useEffect(() => {
-    if (!active) return undefined;
-    const t = setTimeout(() => {
-      try { localStorage.setItem(COACH_HIGHLIGHT_KEY, "1"); } catch { /* ignore */ }
-      setActive(false);
-    }, 2400);
-    return () => clearTimeout(t);
-  }, [active]);
-  return active;
-}
 
 export default function TodayView({
   settings,
@@ -69,7 +51,6 @@ export default function TodayView({
   SF,
   NV,
   bd,
-  coachMsg,
   today,
   growthLog,
   schedule,
@@ -83,6 +64,8 @@ export default function TodayView({
   enrolledPrograms,
   programs,
   progressCtx,
+  coachMsg,
+  onOpenCoach,
   showFindDrills,
   onShowFindDrills,
   onHideFindDrills,
@@ -141,11 +124,9 @@ export default function TodayView({
   onOpenSchedule,
   focusMissionSection = false,
   onMissionFocusHandled,
-  onOpenCoach,
 }) {
   const homeLbl = { fontFamily:"'DM Mono',monospace", fontSize:12, letterSpacing:"0.13em", color:P, fontWeight:800, marginBottom:10, textTransform:"uppercase" };
   const [homeOpen, setHomeOpen] = useState(loadHomeOpen);
-  const coachHighlight = useCoachCardHighlight();
 
   useEffect(() => {
     if (!focusMissionSection) return;
@@ -276,33 +257,6 @@ export default function TodayView({
 
   return (
     <>
-      {/* Coach FKH — compact motivational bar */}
-      <button
-        type="button"
-        onClick={() => { trackCtaClicked("coach_fkh"); onOpenCoach?.(); }}
-        style={{ margin:"8px 20px 10px", padding:"10px 14px", borderRadius:12, background:`${P}0d`, border:`1px solid ${P}22`,
-          display:"flex", alignItems:"flex-start", gap:10, width:"calc(100% - 40px)", cursor:"pointer", textAlign:"left",
-          position:"relative", overflow:"visible",
-          ...(coachHighlight ? { animation:"fkh-scale-in 0.5s cubic-bezier(0.34,1.56,0.64,1) both" } : null) }}
-      >
-        {coachHighlight && (
-          <>
-            <span style={{ position:"absolute", inset:0, borderRadius:12, border:`2px solid ${P}`,
-              animation:"fkh-pulse-ring 1.4s ease-out 0.2s infinite", pointerEvents:"none" }} />
-            <span style={{ position:"absolute", inset:0, borderRadius:12, border:`2px solid ${P}`,
-              animation:"fkh-pulse-ring 1.4s ease-out 0.7s infinite", pointerEvents:"none" }} />
-          </>
-        )}
-        <span style={{ fontSize:16, flexShrink:0, lineHeight:1.4 }}>🏀</span>
-        <div style={{ flex:1, minWidth:0 }}>
-          <span style={{ fontSize:10, fontWeight:800, color:P, letterSpacing:"0.12em", textTransform:"uppercase", marginRight:6 }}>Coach FKH</span>
-          <span style={{ fontSize:12, color:"var(--fkh-text)", lineHeight:1.5 }}>{coachMsg}</span>
-        </div>
-        {onOpenCoach && (
-          <span style={{ fontSize:11, fontWeight:800, color:P, flexShrink:0, alignSelf:"center" }}>Ask →</span>
-        )}
-      </button>
-
       {practiceCTA && (
         <button type="button" onClick={() => { trackCtaClicked("start_practice", { label: practiceCTA.label }); practiceCTA.run(); }}
           style={{ margin:"0 20px 12px", padding:"16px 18px", borderRadius:16, border:"none", cursor:"pointer",
@@ -310,6 +264,26 @@ export default function TodayView({
             background:`linear-gradient(135deg, ${P}, ${P}cc)`, boxShadow:`0 4px 20px ${P}44` }}>
           <span style={{ fontSize:22, flexShrink:0 }}>▶</span>
           <span style={{ fontSize:16, fontWeight:800, color:"#000" }}>{practiceCTA.label}</span>
+        </button>
+      )}
+
+      {/* Coach's read on where you are — one line, under the CTA rather than
+          above it. Coach itself is a header button on every tab now; this is
+          the message, not a second entry point competing for the hero slot. */}
+      {coachMsg && (
+        <button
+          type="button"
+          onClick={() => { trackCtaClicked("coach_fkh"); onOpenCoach?.(); }}
+          style={{ margin:"0 20px 14px", padding:"8px 11px", borderRadius:10, background:`${P}0b`,
+            border:`1px solid ${P}1e`, width:"calc(100% - 40px)", cursor:"pointer", textAlign:"left",
+            display:"flex", alignItems:"flex-start", gap:8 }}
+        >
+          <span style={{ fontSize:13, flexShrink:0, lineHeight:1.35 }}>🏀</span>
+          <span style={{ minWidth:0, fontSize:11.5, lineHeight:1.45, color:"var(--fkh-text-muted)",
+            display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden" }}>
+            <span style={{ fontWeight:800, color:P, letterSpacing:"0.1em", fontSize:9.5, marginRight:6 }}>COACH FKH</span>
+            {coachMsg}
+          </span>
         </button>
       )}
 

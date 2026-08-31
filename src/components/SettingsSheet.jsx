@@ -137,7 +137,7 @@ function isInstallIOS() {
 }
 
 /* ═══════════════════════ SETTINGS SHEET ═══════════════════════ */
-function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenWhatsNew, onOpenAuth, onOpenGuide, isSignedIn, signedInUsername, onCloudSync, cloudSyncStatus, cloudSyncDetail, onLogout, embedded = false }) {
+function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenWhatsNew, onOpenAuth, isSignedIn, signedInUsername, onCloudSync, cloudSyncStatus, cloudSyncDetail, onLogout, embedded = false }) {
   const [tab, setTab] = useState("accent");
   const [showAdvancedColors, setShowAdvancedColors] = useState(false);
   const [guardrailNote, setGuardrailNote] = useState(null);
@@ -448,12 +448,7 @@ function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenW
               <div style={{ fontSize:10,color:"#64748b",marginTop:3 }}>See the latest features and improvements</div>
             </button>
           )}
-          {onOpenGuide && (
-            <button onClick={onOpenGuide} style={{ width:"100%",padding:"12px 14px",borderRadius:12,cursor:"pointer",marginBottom:10,...actionBtnStyle(settings),textAlign:"left" }}>
-              <div style={{ fontSize:13,fontWeight:700,color:P }}>📖 App guide</div>
-              <div style={{ fontSize:10,color:"#64748b",marginTop:3 }}>Tour, explore the map, and how-to tips</div>
-            </button>
-          )}
+          {/* Guide is a header button on every tab — one home. */}
           {appInstalled ? (
             <div style={{ padding:"12px 14px",borderRadius:12,...chipStyle(settings, true, P) }}>
               <div style={{ fontSize:13,fontWeight:700,color:P }}>✓ Installed on Home Screen</div>
