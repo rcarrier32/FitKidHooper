@@ -2,12 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import NotificationSettings from "./NotificationSettings.jsx";
 import VideoTrainingSettings from "./VideoTrainingSettings.jsx";
 import ParentConsentInvite from "./ParentConsentInvite.jsx";
-import { getAgeGroup, getAgeGroupLabel } from "../lib/periodStats.js";
 import { exportCanonicalSave, importCanonicalSave } from "../lib/canonicalSave.js";
-import {
-  getLastPushTime,
-  isLeaderboardConfigured,
-} from "../lib/boardsApi.js";
 import {
   THEME_PRESETS,
   applyThemePreset,
@@ -19,7 +14,7 @@ import {
   tabPreviewLabel,
 } from "../lib/theme.js";
 import {
-  hsl, pri, sec, bg, btn, surf, textPri, textMuted, str3,
+  hsl, pri, bg, btn, surf, textMuted,
   chipStyle, actionBtnStyle, hexToHsl, contrastOn,
 } from "../lib/themeColors.js";
 
@@ -131,6 +126,29 @@ function isPWAStandalone() {
   return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 }
 
+/* One flat scroll served a kid picking a team color and a parent doing
+   consent, notifications and backup. Split by who each part is for. */
+function Section({ title, hint, defaultOpen = false, settings, P, children }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+      <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open}
+        style={{ width: "100%", display: "flex", alignItems: "center", gap: 10,
+          padding: "14px 20px", background: "transparent", border: "none",
+          cursor: "pointer", textAlign: "left" }}>
+        <span style={{ flex: 1, minWidth: 0, fontFamily: "'DM Mono',monospace", fontSize: 12,
+          letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 800, color: P }}>
+          {title}
+        </span>
+        {hint && <span style={{ fontSize: 11, color: textMuted(settings) }}>{hint}</span>}
+        <span style={{ fontSize: 13, color: "#475569", lineHeight: 1,
+          transform: open ? "rotate(90deg)" : "none", transition: "transform 0.2s" }}>›</span>
+      </button>
+      {open && <div>{children}</div>}
+    </div>
+  );
+}
+
 function isInstallIOS() {
   const ua = navigator.userAgent;
   return /iphone|ipad|ipod/i.test(ua) || (/macintosh/i.test(ua) && navigator.maxTouchPoints > 1);
@@ -139,12 +157,13 @@ function isInstallIOS() {
 /* ═══════════════════════ SETTINGS SHEET ═══════════════════════ */
 function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenWhatsNew, onOpenAuth, isSignedIn, signedInUsername, onCloudSync, cloudSyncStatus, cloudSyncDetail, onLogout, embedded = false }) {
   const [tab, setTab] = useState("accent");
-  const [showAdvancedColors, setShowAdvancedColors] = useState(false);
+  const [channelOpen, setChannelOpen] = useState(false);
+  const [presetsOpen, setPresetsOpen] = useState(false);
   const [guardrailNote, setGuardrailNote] = useState(null);
   const [installPrompt, setInstallPrompt] = useState(() => window._installPrompt || null);
   const importRef = useRef(null);
-  const P = pri(settings), S = sec(settings), B = bg(settings), BTN = btn(settings), A = str3(settings);
-  const SURF = surf(settings), TXT = textPri(settings);
+  const P = pri(settings), B = bg(settings), BTN = btn(settings);
+  const SURF = surf(settings);
   const appInstalled = isPWAStandalone();
   const installIOS = isInstallIOS();
   const donateUrl = import.meta.env.VITE_DONATE_URL || null;
@@ -209,16 +228,6 @@ function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenW
   const briMax = brightnessMaxForTab(tab);
   const clampL = l => Math.max(2, Math.min(l, briMax));
 
-  const tabColor = id => {
-    if (id === "accent") return P;
-    if (id === "bg") return B;
-    if (id === "surface") return SURF;
-    if (id === "button") return BTN;
-    if (id === "text") return TXT;
-    if (id === "secondary") return S;
-    return A;
-  };
-
   // Hex field: a local draft so partial/invalid input doesn't fight the store;
   // commits live whenever the text parses to a valid color.
   const [hexDraft, setHexDraft] = useState(activeCol);
@@ -261,6 +270,124 @@ function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenW
           )}
         </div>
 
+        <Section title="🎨 My Look" hint="Colors &amp; theme" defaultOpen settings={settings} P={P}>
+        {/* Colors */}
+        <div style={{ padding:"0 20px" }}>
+          <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:"#334155",marginBottom:8,textTransform:"uppercase" }}>App Colors</div>
+          <div style={{ fontSize:11,color:"#64748b",marginBottom:12,lineHeight:1.45 }}>
+            Pick a team vibe, then fine-tune. Accent stays bold; text and surfaces auto-guard for readability.
+          </div>
+          {/* A row per channel, each opening its own adjuster, instead of a
+              permanent 168px wheel plus a separate channel picker. */}
+          <div style={{ display:"flex",flexDirection:"column",gap:6,marginBottom:12 }}>
+            {[...MAIN_THEME_TABS, ...ADVANCED_THEME_TABS].map(([id, chLabel]) => {
+              const chHSL = getTabHSL(settings, id);
+              const chCol = hsl(chHSL.h, chHSL.s, chHSL.l);
+              const isOpen = channelOpen && tab === id;
+              return (
+                <div key={id}>
+                  <button type="button"
+                    onClick={()=>{
+                      if (isOpen) { setChannelOpen(false); return; }
+                      setTab(id); setChannelOpen(true); setPresetsOpen(false); setGuardrailNote(null);
+                    }}
+                    aria-expanded={isOpen}
+                    style={{ width:"100%",display:"flex",alignItems:"center",gap:9,padding:"7px 10px",
+                      borderRadius:10,cursor:"pointer",textAlign:"left",
+                      background:isOpen?`${BTN}30`:"transparent",
+                      border:`1px solid ${isOpen?`${chCol}88`:`${BTN}55`}`,
+                      color:"var(--fkh-text)" }}>
+                    <span style={{ width:22,height:22,borderRadius:"50%",flexShrink:0,background:chCol,
+                      border:`2px solid ${B}`,boxShadow:`0 0 0 1px ${BTN}66` }}/>
+                    <span style={{ flex:1,minWidth:0,fontSize:12,fontWeight:700 }}>{chLabel}</span>
+                    <span style={{ fontFamily:"'DM Mono',monospace",fontSize:10.5,color:textMuted(settings),
+                      textTransform:"uppercase" }}>
+                      {chCol} · {chHSL.l}%
+                    </span>
+                    <span style={{ fontSize:12,color:"#475569",lineHeight:1,flexShrink:0,
+                      transform:isOpen?"rotate(90deg)":"none",transition:"transform 0.2s" }}>›</span>
+                  </button>
+                  {isOpen && (
+                    <div style={{ display:"flex",gap:14,alignItems:"flex-start",padding:"12px 4px 6px" }}>
+                      <ColorWheel hue={cur.h} sat={cur.s} light={cur.l} onChange={setHS} size={84}/>
+                      <div style={{ flex:1,minWidth:0,display:"flex",flexDirection:"column",gap:11 }}>
+                        <div>
+                          <div style={{ fontFamily:"'DM Mono',monospace",fontSize:10,color:"#475569",marginBottom:6 }}>
+                            Brightness <span style={{ color:activeCol }}>{cur.l}%</span>
+                          </div>
+                          <GradientSlider value={cur.l} min={2} max={briMax} accent={activeCol} onChange={setL}
+                            gradient={`linear-gradient(90deg, ${hsl(cur.h,cur.s,2)}, ${hsl(cur.h,cur.s,Math.round(briMax/2))}, ${hsl(cur.h,cur.s,briMax)})`}/>
+                        </div>
+                        <div style={{ display:"flex",gap:6,alignItems:"center" }}>
+                          <input value={hexDraft} onChange={e=>onHexInput(e.target.value)} spellCheck={false} maxLength={7} aria-label="Hex color"
+                            style={{ flex:1,minWidth:0,fontFamily:"'DM Mono',monospace",fontSize:13,letterSpacing:"0.04em",textTransform:"uppercase",
+                              color:"var(--fkh-text)",background:`${BTN}24`,borderRadius:8,padding:"8px 10px",outline:"none",
+                              border:`1px solid ${hexToHsl(hexDraft)?`${BTN}66`:"#ef4444"}` }}/>
+                          {typeof window!=="undefined" && window.EyeDropper && (
+                            <button onClick={pickEye} aria-label="Pick color from screen" title="Eyedropper"
+                              style={{ width:36,height:36,flexShrink:0,borderRadius:8,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",...actionBtnStyle(settings) }}>
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="m2 22 1-1h3l9-9"/><path d="M3 21v-3l9-9"/>
+                                <path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3l.4.4Z"/>
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                        <div style={{ height:30,borderRadius:10,background:activeCol,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:contrastOn(activeCol) }}>
+                          {tabPreviewLabel(tab)}
+                        </div>
+                        {tab === "accent" && !settings.customSecondary && (
+                          <div style={{ fontSize:10,color:"#475569",lineHeight:1.4 }}>
+                            Secondary accent auto-pairs with Accent — open the Secondary row to customise.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Presets hand off to the channels rather than occupying the top. */}
+          <button type="button" onClick={()=>{ setPresetsOpen(o=>!o); setChannelOpen(false); }}
+            aria-expanded={presetsOpen}
+            style={{ width:"100%",display:"flex",alignItems:"center",gap:8,padding:"8px 10px",marginBottom:10,
+              borderRadius:10,cursor:"pointer",textAlign:"left",background:"transparent",
+              border:`1px solid ${BTN}55`,color:textMuted(settings) }}>
+            <span style={{ flex:1,minWidth:0,fontSize:11.5,fontWeight:600 }}>
+              Start from a team preset
+              <span style={{ color:"#475569" }}>
+                {" · "}{THEME_PRESETS.slice(0,3).map(t2=>t2.label).join(", ")}, and {Math.max(0, THEME_PRESETS.length - 3)} more
+              </span>
+            </span>
+            <span style={{ fontSize:12,color:"#475569",lineHeight:1,
+              transform:presetsOpen?"rotate(90deg)":"none",transition:"transform 0.2s" }}>›</span>
+          </button>
+          {presetsOpen && (
+          <div style={{ display:"flex",flexWrap:"wrap",gap:6,marginBottom:14 }}>
+            {THEME_PRESETS.map(pr2 => (
+              <button key={pr2.id} onClick={()=>{
+                setSettings(p => ({ ...p, ...applyThemePreset(pr2) }));
+                setGuardrailNote(null);
+              }} style={{ display:"flex",alignItems:"center",gap:5,padding:"6px 11px",borderRadius:20,cursor:"pointer",...actionBtnStyle(settings) }}>
+                {[pr2.colors.accent, pr2.colors.bg, pr2.colors.surface, pr2.colors.button].map((c, i) => (
+                  <span key={i} style={{ width:10,height:10,borderRadius:"50%",background:hsl(c[0],c[1],c[2]),display:"inline-block",marginLeft:i?-3:0,border:`2px solid ${B}` }}/>
+                ))}
+                <span style={{ fontSize:11,color:textMuted(settings),marginLeft:2,fontWeight:600 }}>{pr2.label}</span>
+              </button>
+            ))}
+          </div>
+          )}
+          {guardrailNote && (
+            <div style={{ fontSize:10,color:"#fbbf24",marginBottom:10,padding:"6px 10px",borderRadius:8,background:"rgba(251,191,36,0.08)",border:"1px solid rgba(251,191,36,0.2)" }}>
+              {guardrailNote}
+            </div>
+          )}
+        </div>
+        </Section>
+
+        <Section title="📱 App &amp; Data" hint="Timers, install, backup" settings={settings} P={P}>
         {/* Workout Timers */}
         <div style={{ padding:"0 20px 16px" }}>
           <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:"#334155",marginBottom:12,textTransform:"uppercase" }}>Workout</div>
@@ -276,168 +403,6 @@ function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenW
               <span style={{ position:"absolute",top:3,left:settings.workoutTimers!==false?24:3,width:24,height:24,borderRadius:"50%",background:"#fff",transition:"left 0.2s",boxShadow:"0 1px 4px rgba(0,0,0,0.3)" }}/>
             </button>
           </div>
-        </div>
-
-        {/* Colors */}
-        <div style={{ padding:"0 20px" }}>
-          <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:"#334155",marginBottom:8,textTransform:"uppercase" }}>App Colors</div>
-          <div style={{ fontSize:11,color:"#64748b",marginBottom:12,lineHeight:1.45 }}>
-            Pick a team vibe, then fine-tune. Accent stays bold; text and surfaces auto-guard for readability.
-          </div>
-          <div style={{ display:"flex",flexWrap:"wrap",gap:6,marginBottom:14 }}>
-            {THEME_PRESETS.map(pr2 => (
-              <button key={pr2.id} onClick={()=>{
-                setSettings(p => ({ ...p, ...applyThemePreset(pr2) }));
-                setGuardrailNote(null);
-              }} style={{ display:"flex",alignItems:"center",gap:5,padding:"6px 11px",borderRadius:20,cursor:"pointer",...actionBtnStyle(settings) }}>
-                {[pr2.colors.accent, pr2.colors.bg, pr2.colors.surface, pr2.colors.button].map((c, i) => (
-                  <span key={i} style={{ width:10,height:10,borderRadius:"50%",background:hsl(c[0],c[1],c[2]),display:"inline-block",marginLeft:i?-3:0,border:`2px solid ${B}` }}/>
-                ))}
-                <span style={{ fontSize:11,color:textMuted(settings),marginLeft:2,fontWeight:600 }}>{pr2.label}</span>
-              </button>
-            ))}
-          </div>
-          <div style={{ display:"flex",flexWrap:"wrap",gap:6,marginBottom:10 }}>
-            {MAIN_THEME_TABS.map(([id, lbl]) => (
-              <button key={id} onClick={()=>{ setTab(id); setGuardrailNote(null); }}
-                style={{ flex:"1 1 30%",padding:"9px 6px",borderRadius:10,fontSize:11,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:5,
-                  background:tab===id?`${tabColor(id)}20`:`${BTN}24`,border:`1px solid ${tab===id?tabColor(id):`${BTN}66`}`,color:tab===id?tabColor(id):textMuted(settings) }}>
-                <span style={{ width:10,height:10,borderRadius:"50%",background:tabColor(id),display:"inline-block",flexShrink:0 }}/>
-                {lbl}
-              </button>
-            ))}
-          </div>
-          <button type="button" onClick={()=>setShowAdvancedColors(v=>!v)}
-            style={{ width:"100%",padding:"8px 10px",marginBottom:10,borderRadius:10,cursor:"pointer",fontSize:11,fontWeight:600,
-              background:"transparent",border:`1px solid ${BTN}44`,color:textMuted(settings),textAlign:"left" }}>
-            {showAdvancedColors ? "▾" : "▸"} Advanced colors
-            <span style={{ fontSize:10,color:"#475569",marginLeft:6 }}>Secondary accent · Strength category</span>
-          </button>
-          {showAdvancedColors && (
-            <div style={{ display:"flex",flexWrap:"wrap",gap:6,marginBottom:10 }}>
-              {ADVANCED_THEME_TABS.map(([id, lbl]) => (
-                <button key={id} onClick={()=>{ setTab(id); setGuardrailNote(null); }}
-                  style={{ flex:"1 1 45%",padding:"9px 6px",borderRadius:10,fontSize:11,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:5,
-                    background:tab===id?`${tabColor(id)}20`:`${BTN}24`,border:`1px solid ${tab===id?tabColor(id):`${BTN}66`}`,color:tab===id?tabColor(id):textMuted(settings) }}>
-                  <span style={{ width:10,height:10,borderRadius:"50%",background:tabColor(id),display:"inline-block",flexShrink:0 }}/>
-                  {lbl}
-                </button>
-              ))}
-            </div>
-          )}
-          {guardrailNote && (
-            <div style={{ fontSize:10,color:"#fbbf24",marginBottom:10,padding:"6px 10px",borderRadius:8,background:"rgba(251,191,36,0.08)",border:"1px solid rgba(251,191,36,0.2)" }}>
-              {guardrailNote}
-            </div>
-          )}
-          <div style={{ display:"flex",gap:16,alignItems:"flex-start",marginBottom:18 }}>
-            <ColorWheel hue={cur.h} sat={cur.s} light={cur.l} onChange={setHS} size={168}/>
-            <div style={{ flex:1,display:"flex",flexDirection:"column",gap:13 }}>
-              {/* Brightness — gradient track shows the actual dark→light range */}
-              <div>
-                <div style={{ fontFamily:"'DM Mono',monospace",fontSize:10,color:"#475569",marginBottom:6 }}>
-                  Brightness <span style={{ color:activeCol }}>{cur.l}%</span>
-                </div>
-                <GradientSlider value={cur.l} min={2} max={briMax} accent={activeCol} onChange={setL}
-                  gradient={`linear-gradient(90deg, ${hsl(cur.h,cur.s,2)}, ${hsl(cur.h,cur.s,Math.round(briMax/2))}, ${hsl(cur.h,cur.s,briMax)})`}/>
-              </div>
-              {/* Hex input + eyedropper */}
-              <div>
-                <div style={{ fontFamily:"'DM Mono',monospace",fontSize:10,color:"#475569",marginBottom:6 }}>Hex</div>
-                <div style={{ display:"flex",gap:6,alignItems:"center" }}>
-                  <input value={hexDraft} onChange={e=>onHexInput(e.target.value)} spellCheck={false} maxLength={7} aria-label="Hex color"
-                    style={{ flex:1,minWidth:0,fontFamily:"'DM Mono',monospace",fontSize:13,letterSpacing:"0.04em",textTransform:"uppercase",
-                      color:"var(--fkh-text)",background:`${BTN}24`,borderRadius:8,padding:"8px 10px",outline:"none",
-                      border:`1px solid ${hexToHsl(hexDraft)?`${BTN}66`:"#ef4444"}` }}/>
-                  {typeof window!=="undefined" && window.EyeDropper && (
-                    <button onClick={pickEye} aria-label="Pick color from screen" title="Eyedropper"
-                      style={{ width:36,height:36,flexShrink:0,borderRadius:8,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",...actionBtnStyle(settings) }}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="m2 22 1-1h3l9-9"/><path d="M3 21v-3l9-9"/>
-                        <path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3l.4.4Z"/>
-                      </svg>
-                    </button>
-                  )}
-                </div>
-              </div>
-              <div style={{ height:32,borderRadius:10,background:activeCol,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:contrastOn(activeCol) }}>
-                {tabPreviewLabel(tab)}
-              </div>
-              <div style={{ display:"flex",alignItems:"center",gap:4 }}>
-                {[P, SURF, BTN, TXT, B].map((col,i)=>(<div key={i} style={{ width:22,height:22,borderRadius:"50%",background:col,border:`2px solid ${B}`,marginLeft:i?-6:0 }}/>))}
-                <span style={{ fontSize:10,color:"#334155",marginLeft:8 }}>Live palette</span>
-              </div>
-              {tab === "accent" && !settings.customSecondary && (
-                <div style={{ fontSize:10,color:"#475569",lineHeight:1.4 }}>
-                  Secondary accent auto-pairs with Accent. Open Advanced to customize.
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Account & cloud */}
-        <div style={{ padding:"0 20px 16px", borderTop:"1px solid rgba(255,255,255,0.06)" }}>
-          <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:"#334155",marginBottom:12,textTransform:"uppercase" }}>Account</div>
-          <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
-            <button onClick={onOpenAuth} style={{ width:"100%",padding:"12px 14px",borderRadius:12,cursor:"pointer",...actionBtnStyle(settings) }}>
-              <div style={{ fontSize:13,fontWeight:700,color:P }}>
-                {isSignedIn ? `✓ Signed in as @${signedInUsername || "athlete"}` : "🔑 Sign in · Back up & sync"}
-              </div>
-              <div style={{ fontSize:10,color:"#64748b",marginTop:3 }}>
-                {isSignedIn ? "Cloud save & friends on Challenges" : "Username + passcode · optional"}
-              </div>
-            </button>
-            {isSignedIn && (
-              <>
-              <button onClick={onCloudSync} style={{ width:"100%",padding:"10px 14px",borderRadius:12,cursor:"pointer",...chipStyle(settings, cloudSyncStatus==="ok"||cloudSyncStatus==="restored", P) }}>
-                <div style={{ fontSize:12,fontWeight:700,color:P }}>
-                  {cloudSyncStatus==="syncing" ? "Syncing…"
-                    : cloudSyncStatus==="restored" ? "✓ Restored from cloud"
-                    : cloudSyncStatus==="ok" ? "✓ Cloud synced"
-                    : cloudSyncStatus==="skipped" ? "Sync skipped (data safe)"
-                    : cloudSyncStatus==="error" ? "Sync failed — tap to retry"
-                    : "Sync to cloud now"}
-                </div>
-                {cloudSyncDetail?.error && (
-                  <div style={{ fontSize:10,color:"#ef4444",marginTop:3 }}>{cloudSyncDetail.error}</div>
-                )}
-                {cloudSyncDetail?.reason && cloudSyncStatus==="skipped" && (
-                  <div style={{ fontSize:10,color:"#64748b",marginTop:3 }}>{cloudSyncDetail.reason}</div>
-                )}
-              </button>
-              <button onClick={onLogout} style={{ width:"100%",padding:"10px 14px",borderRadius:12,cursor:"pointer",...actionBtnStyle(settings) }}>
-                <div style={{ fontSize:12,fontWeight:700,color:"#94a3b8" }}>Log out</div>
-              </button>
-              </>
-            )}
-            <div style={{ fontSize:11,fontWeight:800,color:"#64748b",letterSpacing:"0.06em",textTransform:"uppercase",margin:"4px 2px 8px" }}>🙌 Parent Approval</div>
-            <ParentConsentInvite P={P} isSignedIn={isSignedIn} athleteName={settings?.athleteName} />
-            <div style={{ fontSize:11,fontWeight:800,color:"#64748b",letterSpacing:"0.06em",textTransform:"uppercase",margin:"16px 2px 8px" }}>🔔 Notifications</div>
-            <NotificationSettings P={P} isSignedIn={isSignedIn} onNeedAuth={onOpenAuth} />
-            <div style={{ fontSize:11,fontWeight:800,color:"#64748b",letterSpacing:"0.06em",textTransform:"uppercase",margin:"16px 2px 8px" }}>🎥 Video Training</div>
-            <VideoTrainingSettings P={P} isSignedIn={isSignedIn} />
-          </div>
-        </div>
-
-        {/* Challenges & leaderboard */}
-        <div style={{ padding:"0 20px 16px", borderTop:"1px solid rgba(255,255,255,0.06)" }}>
-          <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:"#334155",marginBottom:12,textTransform:"uppercase" }}>Challenges</div>
-          <div style={{ width:"100%",padding:"12px 14px",borderRadius:12,...chipStyle(settings, true, P) }}>
-            <div style={{ textAlign:"left" }}>
-              <div style={{ fontSize:13,fontWeight:700,color:P }}>Challenges sync ✓</div>
-              <div style={{ fontSize:10,color:"#64748b",marginTop:3 }}>
-                Stats sync automatically as <span style={{ color:"var(--fkh-text)" }}>{settings.athleteName}</span>
-                {settings.dateOfBirth ? ` · ${getAgeGroupLabel(getAgeGroup(settings.dateOfBirth))}` : " · set DOB for age group"}
-              </div>
-            </div>
-          </div>
-          <p style={{ fontSize:10,color:"#334155",margin:"8px 0 0",lineHeight:1.5 }}>
-            {getLastPushTime()
-              ? `Last synced ${new Date(getLastPushTime()).toLocaleString()}`
-              : "Syncs automatically when you train"}
-            {!isLeaderboardConfigured() && " · Supabase env vars needed for live rankings"}
-          </p>
         </div>
 
         <div style={{ padding:"0 20px 16px" }}>
@@ -502,6 +467,58 @@ function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenW
               Open Feedback Center
             </button>
           </div>
+        </div>
+        </Section>
+
+        <Section title="🔒 Account &amp; Safety" hint={isSignedIn ? "Signed in" : "Not signed in"} settings={settings} P={P}>
+        {/* Account & cloud */}
+        <div style={{ padding:"0 20px 16px", borderTop:"1px solid rgba(255,255,255,0.06)" }}>
+          <div style={{ fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:"#334155",marginBottom:12,textTransform:"uppercase" }}>Account</div>
+          <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
+            <button onClick={onOpenAuth} style={{ width:"100%",padding:"12px 14px",borderRadius:12,cursor:"pointer",...actionBtnStyle(settings) }}>
+              <div style={{ fontSize:13,fontWeight:700,color:P }}>
+                {isSignedIn ? `✓ Signed in as @${signedInUsername || "athlete"}` : "🔑 Sign in · Back up & sync"}
+              </div>
+              <div style={{ fontSize:10,color:"#64748b",marginTop:3 }}>
+                {isSignedIn ? "Cloud save & friends on Challenges" : "Username + passcode · optional"}
+              </div>
+            </button>
+            {isSignedIn && (
+              <>
+              <button onClick={onCloudSync} style={{ width:"100%",padding:"10px 14px",borderRadius:12,cursor:"pointer",...chipStyle(settings, cloudSyncStatus==="ok"||cloudSyncStatus==="restored", P) }}>
+                <div style={{ fontSize:12,fontWeight:700,color:P }}>
+                  {cloudSyncStatus==="syncing" ? "Syncing…"
+                    : cloudSyncStatus==="restored" ? "✓ Restored from cloud"
+                    : cloudSyncStatus==="ok" ? "✓ Cloud synced"
+                    : cloudSyncStatus==="skipped" ? "Sync skipped (data safe)"
+                    : cloudSyncStatus==="error" ? "Sync failed — tap to retry"
+                    : "Sync to cloud now"}
+                </div>
+                {cloudSyncDetail?.error && (
+                  <div style={{ fontSize:10,color:"#ef4444",marginTop:3 }}>{cloudSyncDetail.error}</div>
+                )}
+                {cloudSyncDetail?.reason && cloudSyncStatus==="skipped" && (
+                  <div style={{ fontSize:10,color:"#64748b",marginTop:3 }}>{cloudSyncDetail.reason}</div>
+                )}
+              </button>
+              <button onClick={onLogout} style={{ width:"100%",padding:"10px 14px",borderRadius:12,cursor:"pointer",...actionBtnStyle(settings) }}>
+                <div style={{ fontSize:12,fontWeight:700,color:"#94a3b8" }}>Log out</div>
+              </button>
+              </>
+            )}
+            <div style={{ fontSize:11,fontWeight:800,color:"#64748b",letterSpacing:"0.06em",textTransform:"uppercase",margin:"4px 2px 8px" }}>🙌 Parent Approval</div>
+            <ParentConsentInvite P={P} isSignedIn={isSignedIn} athleteName={settings?.athleteName} />
+            <div style={{ fontSize:11,fontWeight:800,color:"#64748b",letterSpacing:"0.06em",textTransform:"uppercase",margin:"16px 2px 8px" }}>🔔 Notifications</div>
+            <NotificationSettings P={P} isSignedIn={isSignedIn} onNeedAuth={onOpenAuth} />
+            <div style={{ fontSize:11,fontWeight:800,color:"#64748b",letterSpacing:"0.06em",textTransform:"uppercase",margin:"16px 2px 8px" }}>🎥 Video Training</div>
+            <VideoTrainingSettings P={P} isSignedIn={isSignedIn} />
+          </div>
+        </div>
+
+        </Section>
+
+        {/* Always visible, outside the collapsed groups — it was buried. */}
+        <div style={{ padding:"0 20px 16px" }}>
           {donateUrl && (
             <div style={{ padding:"12px 14px",borderRadius:12,marginBottom:12,...actionBtnStyle(settings) }}>
               <div style={{ fontSize:13,fontWeight:700,color:P,marginBottom:6 }}>🧡 Support Legends Youth Basketball</div>

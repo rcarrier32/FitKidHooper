@@ -35,6 +35,10 @@ async function openMeSettings(page) {
   await openMeTab(page);
   await expect(page.getByRole("button", { name: "Settings", exact: true })).toBeVisible({ timeout: 20_000 });
   await page.getByRole("button", { name: "Settings", exact: true }).click();
+  // Settings is split by audience now: My Look is open, the parent-facing
+  // groups are shut. Workout Timers leads App & Data, so it takes one tap.
+  await expect(page.getByText("My Look")).toBeVisible();
+  await page.getByRole("button", { name: /App & Data/ }).click();
   await expect(page.getByText("Workout Timers")).toBeVisible();
 }
 

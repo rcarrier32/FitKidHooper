@@ -1217,7 +1217,7 @@ function StackedBars({ data, priColor, height=104, selDate, onSelect, fgByDay })
   const maxT = Math.max(1, ...data.map(d=>d.total));
   const showDayLabels = data.length<=21;
   // "Am I improving?" — volume alone can't answer it, so FG% rides on top at
-  // the bar centres. Cyan reads above every bar colour at roughly 8.5:1.
+  // the bar centers. Cyan reads above every bar color at roughly 8.5:1.
   const trend = (fgByDay||[])
     .map((v,i) => v==null ? null : `${((i+0.5)/data.length)*100},${100-v}`)
     .filter(Boolean);
