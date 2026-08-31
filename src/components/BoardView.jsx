@@ -33,10 +33,9 @@ import { fetchProfileSnippets, fetchUsernames, fetchFriendWeekStats, profileSnip
 import { getAchievementMeta } from "../lib/achievements.js";
 
 const SQUAD_TABS = [
-  ["friends", "Friends"],
+  ["friends", "Squad"],
   ["messages", "Messages"],
-  ["challenges", "Challenges"],
-  ["requests", "Requests"],
+  ["feed", "Feed"],
 ];
 
 function friendOverviewLine(profile, stats) {
@@ -90,6 +89,8 @@ export default function BoardView({
   challengeActivity = 0,
   onSquadTabSeen,
   onUnreadRefresh,
+  addOpen = false,
+  onOpenAdd,
   openMessagesInbox = false,
   onMessagesInboxOpened,
 }) {
@@ -98,6 +99,7 @@ export default function BoardView({
   const isSquadLayout = modes.length === 1 && modes[0] === "friends";
   const [mode, setMode] = useState(modes[0]);
   const [squadTab, setSquadTab] = useState("friends");
+  const [squadChallengesOpen, setSquadChallengesOpen] = useState(false);
   const [messageFriend, setMessageFriend] = useState(null);
   const [boardType, setBoardType] = useState("age_group");
   const [ageGroup, setAgeGroup] = useState(myAgeGroup);
@@ -156,7 +158,8 @@ export default function BoardView({
   useEffect(() => {
     if (!isSquadLayout || !onSquadTabSeen) return undefined;
     return () => {
-      if (squadTab === "friends" || squadTab === "challenges") onSquadTabSeen(squadTab);
+      if (squadTab === "friends") { onSquadTabSeen("friends"); onSquadTabSeen("challenges"); }
+      else if (squadTab === "feed") onSquadTabSeen("friends");
     };
   }, [isSquadLayout, squadTab, onSquadTabSeen]);
 
@@ -415,10 +418,11 @@ export default function BoardView({
         <div style={{ marginTop: isSquadLayout ? 0 : 12 }} ref={friendsPanelRef}>
           <div style={{ display: "flex", gap: 5, marginBottom: 12, overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
             {SQUAD_TABS.map(([tab, label]) => {
+              // Requests used to carry their own badge on their own tab; they
+              // are an in-place banner on Squad now, so the count rides there.
               const badge = tab === "messages" ? unreadMessages
-                : tab === "requests" ? (friendRequests || requests.length)
-                : tab === "friends" ? feedActivity
-                : tab === "challenges" ? challengeActivity
+                : tab === "friends" ? (friendRequests || requests.length) + challengeActivity
+                : tab === "feed" ? feedActivity
                 : 0;
               return (
                 <button
@@ -426,7 +430,7 @@ export default function BoardView({
                   type="button"
                   onClick={() => {
                     setSquadTab(tab);
-                    if (tab === "friends" || tab === "challenges") onSquadTabSeen?.(tab);
+                    if (tab === "friends") { onSquadTabSeen?.("friends"); onSquadTabSeen?.("challenges"); }
                     if (tab !== "messages") setMessageFriend(null);
                   }}
                   style={{
@@ -445,105 +449,10 @@ export default function BoardView({
             })}
           </div>
 
-          {squadTab === "friends" && (
-            <>
-              {!isSignedIn && (
-                <div style={{
-                  marginBottom: 12, padding: "10px 12px", borderRadius: 10,
-                  background: `${P}12`, border: `1px solid ${P}28`, fontSize: 11, color: "var(--fkh-text-muted)", lineHeight: 1.5,
-                }}>
-                  🔒 Save your player to see your squad and message friends.
-                  <button type="button" onClick={onOpenAuth} style={{
-                    display: "block", marginTop: 8, padding: "8px 12px", borderRadius: 8, border: `1px solid ${P}44`,
-                    background: "transparent", color: P, fontSize: 11, fontWeight: 700, cursor: "pointer", width: "100%",
-                  }}>Save your player</button>
-                </div>
-              )}
-
-              {isSignedIn && friendRoster.length === 0 && (
-                <div style={{
-                  marginBottom: 14, padding: "14px 12px", borderRadius: 12,
-                  background: `${P}0c`, border: `1px solid ${P}22`, fontSize: 12, color: "#94a3b8", lineHeight: 1.5,
-                }}>
-                  No friends yet. Tap <strong style={{ color: P }}>Requests</strong> to search for someone or share a friend code.
-                </div>
-              )}
-
-              {friendRoster.length > 0 && (
-                <div style={{ marginBottom: 16 }}>
-                  <div style={{ ...lbl, marginBottom: 8 }}>Your squad</div>
-                  {friendRoster.map(({ profile: prof, username, stats }) => (
-                    <button
-                      key={prof.id}
-                      type="button"
-                      onClick={() => viewFriend(prof.id)}
-                      style={{
-                        display: "flex", alignItems: "center", gap: 12, width: "100%",
-                        padding: "10px 12px", marginBottom: 8, borderRadius: 12, cursor: "pointer",
-                        border: `1px solid ${bd}`, background: "rgba(255,255,255,0.03)", textAlign: "left",
-                      }}
-                    >
-                      <FriendAvatar profile={prof} size={48} P={P} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 800, color: "var(--fkh-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {prof.displayName}
-                        </div>
-                        {username && (
-                          <div style={{ fontSize: 11, color: P, fontWeight: 700, marginTop: 2 }}>@{username}</div>
-                        )}
-                        <div style={{ fontSize: 10, color: "#64748b", marginTop: 4, lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {friendOverviewLine(prof, stats)}
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              <div style={{ marginBottom: 8 }}>
-                <div style={{ ...lbl, marginBottom: 4 }}>Friends feed</div>
-                <div style={{ fontSize: 11, color: "#64748b", lineHeight: 1.45, marginBottom: 12 }}>
-                  See what friends unlocked · React with emojis · Comment and @tag teammates
-                </div>
-                <FeedView P={P} SF={SF} bd={bd} onViewFriend={viewFriend} />
-              </div>
-            </>
-          )}
-
-          {squadTab === "messages" && (
-            isSignedIn ? (
-              <MessagesPanel
-                P={P}
-                SF={SF}
-                bd={bd}
-                embedded
-                initialFriend={messageFriend}
-                onUnreadChange={onUnreadRefresh}
-              />
-            ) : (
-              <div style={{ padding: "20px 12px", fontSize: 12, color: "#94a3b8", textAlign: "center", lineHeight: 1.5 }}>
-                🔒 Save your player to message friends.
-                <button type="button" onClick={onOpenAuth} style={{
-                  display: "block", margin: "10px auto 0", padding: "8px 16px", borderRadius: 8,
-                  border: `1px solid ${P}44`, background: "transparent", color: P, fontSize: 11, fontWeight: 700, cursor: "pointer",
-                }}>Save your player</button>
-              </div>
-            )
-          )}
-
-          {squadTab === "challenges" && (
-            <ChallengesActivePanel
-              personalChallenges={personalChallenges}
-              P={P}
-              SF={SF}
-              bd={bd}
-              squadOnly
-              onAddFriends={() => setSquadTab("requests")}
-            />
-          )}
-
-          {squadTab === "requests" && (
-            <div style={{ background: SF, border: `1px solid ${bd}`, borderRadius: 14, padding: 14 }}>
+          {/* 3.3 — one panel behind a permanently visible + Add, replacing a
+              card that stacked four unrelated jobs on a fourth tab. */}
+          {addOpen && (
+            <div style={{ background: SF, border: `1px solid ${P}44`, borderRadius: 14, padding: 14, marginBottom: 14 }}>
               {!isSignedIn && (
                 <div style={{
                   marginBottom: 12, padding: "10px 12px", borderRadius: 10,
@@ -556,47 +465,6 @@ export default function BoardView({
                   }}>Sign in</button>
                 </div>
               )}
-
-              {requests.length > 0 && (
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
-                    Pending requests ({requests.length})
-                  </div>
-                  {requests.map(r => {
-                    const prof = requesterProfiles[r.requester_id] || profileSnippet({
-                      id: r.requester_id,
-                      display_name: r.display_name,
-                    });
-                    return (
-                      <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 10, background: `${P}10`, border: `1px solid ${P}22`, marginBottom: 6 }}>
-                        <FriendAvatar
-                          profile={prof}
-                          displayName={r.username || "athlete"}
-                          size={36}
-                          P={P}
-                          onPress={() => viewFriend(r.requester_id)}
-                        />
-                        <div style={{ flex: 1, minWidth: 0, fontSize: 12, color: "var(--fkh-text)", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          <button
-                            type="button"
-                            onClick={() => viewFriend(r.requester_id)}
-                            style={{
-                              background: "none", border: "none", padding: 0, margin: 0,
-                              font: "inherit", fontWeight: 700, color: "var(--fkh-text)",
-                              cursor: "pointer", textDecoration: "underline",
-                            }}
-                          >
-                            @{r.username || "athlete"}
-                          </button>
-                        </div>
-                        <button type="button" onClick={() => handleRespond(r.id, true)} style={{ padding: "6px 12px", borderRadius: 8, border: "none", background: P, color: "#000", fontSize: 11, fontWeight: 800, cursor: "pointer" }}>Accept</button>
-                        <button type="button" onClick={() => handleRespond(r.id, false)} style={{ padding: "6px 10px", borderRadius: 8, border: `1px solid ${bd}`, background: "transparent", color: "#94a3b8", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Decline</button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
               <div style={{ fontSize: 14, fontWeight: 800, color: P, marginBottom: 4 }}>Find a friend</div>
               <div style={{ fontSize: 11, color: "#64748b", marginBottom: 10, lineHeight: 1.45 }}>
                 Search by first name, last name, or username — or share a friend code.
@@ -739,6 +607,158 @@ export default function BoardView({
               {friendMsg && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 8 }}>{friendMsg}</div>}
             </div>
           )}
+
+          {squadTab === "friends" && (
+            <>
+              {!isSignedIn && (
+                <div style={{
+                  marginBottom: 12, padding: "10px 12px", borderRadius: 10,
+                  background: `${P}12`, border: `1px solid ${P}28`, fontSize: 11, color: "var(--fkh-text-muted)", lineHeight: 1.5,
+                }}>
+                  🔒 Save your player to see your squad and message friends.
+                  <button type="button" onClick={onOpenAuth} style={{
+                    display: "block", marginTop: 8, padding: "8px 12px", borderRadius: 8, border: `1px solid ${P}44`,
+                    background: "transparent", color: P, fontSize: 11, fontWeight: 700, cursor: "pointer", width: "100%",
+                  }}>Save your player</button>
+                </div>
+              )}
+
+              {/* 3.2 — accept in place. Adding a friend used to live only on
+                  the fourth tab, and the empty state had to point you there. */}
+              {requests.length > 0 && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+                    Pending requests ({requests.length})
+                  </div>
+                  {requests.map(r => {
+                    const prof = requesterProfiles[r.requester_id] || profileSnippet({
+                      id: r.requester_id,
+                      display_name: r.display_name,
+                    });
+                    return (
+                      <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 10, background: `${P}10`, border: `1px solid ${P}22`, marginBottom: 6 }}>
+                        <FriendAvatar
+                          profile={prof}
+                          displayName={r.username || "athlete"}
+                          size={36}
+                          P={P}
+                          onPress={() => viewFriend(r.requester_id)}
+                        />
+                        <div style={{ flex: 1, minWidth: 0, fontSize: 12, color: "var(--fkh-text)", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          <button
+                            type="button"
+                            onClick={() => viewFriend(r.requester_id)}
+                            style={{
+                              background: "none", border: "none", padding: 0, margin: 0,
+                              font: "inherit", fontWeight: 700, color: "var(--fkh-text)",
+                              cursor: "pointer", textDecoration: "underline",
+                            }}
+                          >
+                            @{r.username || "athlete"}
+                          </button>
+                        </div>
+                        <button type="button" onClick={() => handleRespond(r.id, true)} style={{ padding: "6px 12px", borderRadius: 8, border: "none", background: P, color: "#000", fontSize: 11, fontWeight: 800, cursor: "pointer" }}>Accept</button>
+                        <button type="button" onClick={() => handleRespond(r.id, false)} style={{ padding: "6px 10px", borderRadius: 8, border: `1px solid ${bd}`, background: "transparent", color: "#94a3b8", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Decline</button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+
+              {isSignedIn && friendRoster.length === 0 && (
+                <div style={{
+                  marginBottom: 14, padding: "14px 12px", borderRadius: 12,
+                  background: `${P}0c`, border: `1px solid ${P}22`, fontSize: 12, color: "#94a3b8", lineHeight: 1.5,
+                }}>
+                  No friends yet. Tap <strong style={{ color: P }}>+ Add</strong> up top to search for someone or share a friend code.
+                </div>
+              )}
+
+              {friendRoster.length > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ ...lbl, marginBottom: 8 }}>Your squad</div>
+                  {friendRoster.map(({ profile: prof, username, stats }) => (
+                    <button
+                      key={prof.id}
+                      type="button"
+                      onClick={() => viewFriend(prof.id)}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 12, width: "100%",
+                        padding: "10px 12px", marginBottom: 8, borderRadius: 12, cursor: "pointer",
+                        border: `1px solid ${bd}`, background: "rgba(255,255,255,0.03)", textAlign: "left",
+                      }}
+                    >
+                      <FriendAvatar profile={prof} size={48} P={P} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: "var(--fkh-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {prof.displayName}
+                        </div>
+                        {username && (
+                          <div style={{ fontSize: 11, color: P, fontWeight: 700, marginTop: 2 }}>@{username}</div>
+                        )}
+                        <div style={{ fontSize: 10, color: "#64748b", marginTop: 4, lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {friendOverviewLine(prof, stats)}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* 3.5 — squad challenges expand in place rather than linking out. */}
+              <div style={{ marginBottom: 8 }}>
+                <button type="button" onClick={() => setSquadChallengesOpen(o => !o)}
+                  aria-expanded={squadChallengesOpen}
+                  style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "10px 12px",
+                    borderRadius: 12, cursor: "pointer", textAlign: "left",
+                    border: `1px solid ${bd}`, background: "rgba(255,255,255,0.03)" }}>
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 800, color: P }}>🏆 Squad challenges</span>
+                  {challengeActivity > 0 && <CountBadge count={challengeActivity} P={P} />}
+                  <span style={{ fontSize: 12, color: "#475569", lineHeight: 1,
+                    transform: squadChallengesOpen ? "rotate(90deg)" : "none", transition: "transform 0.2s" }}>›</span>
+                </button>
+                {squadChallengesOpen && (
+                  <div style={{ marginTop: 10 }}>
+                    <ChallengesActivePanel
+                      personalChallenges={personalChallenges}
+                      P={P}
+                      SF={SF}
+                      bd={bd}
+                      squadOnly
+                      onAddFriends={() => onOpenAdd?.()}
+                    />
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {squadTab === "feed" && (
+            <FeedView P={P} SF={SF} bd={bd} onViewFriend={viewFriend} />
+          )}
+
+          {squadTab === "messages" && (
+            isSignedIn ? (
+              <MessagesPanel
+                P={P}
+                SF={SF}
+                bd={bd}
+                embedded
+                initialFriend={messageFriend}
+                onUnreadChange={onUnreadRefresh}
+              />
+            ) : (
+              <div style={{ padding: "20px 12px", fontSize: 12, color: "#94a3b8", textAlign: "center", lineHeight: 1.5 }}>
+                🔒 Save your player to message friends.
+                <button type="button" onClick={onOpenAuth} style={{
+                  display: "block", margin: "10px auto 0", padding: "8px 16px", borderRadius: 8,
+                  border: `1px solid ${P}44`, background: "transparent", color: P, fontSize: 11, fontWeight: 700, cursor: "pointer",
+                }}>Save your player</button>
+              </div>
+            )
+          )}
+
         </div>
       ) : (<>
 

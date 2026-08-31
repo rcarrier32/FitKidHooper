@@ -1,3 +1,4 @@
+import { useState } from "react";
 import BoardView from "../components/BoardView.jsx";
 import CountBadge from "../components/CountBadge.jsx";
 import GuideNavButton from "../components/GuideNavButton.jsx";
@@ -37,6 +38,9 @@ export default function SquadView({
   shellOverlays,
   renderBottomNav,
 }) {
+  // Adding a friend used to live only on the fourth sub-tab. It is a header
+  // control now, visible from every Squad tab.
+  const [addOpen, setAddOpen] = useState(false);
   return (
     <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif",background:BG,color:"var(--fkh-text)",minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:"calc(80px + env(safe-area-inset-bottom, 0px))" }}>
       {shellOverlays}
@@ -47,6 +51,11 @@ export default function SquadView({
           {(squadNotifications > 0) && <CountBadge count={squadNotifications} P={P} />}
         </h1>
         <div style={{ display:"flex",alignItems:"center",gap:8 }}>
+          <button type="button" onClick={() => setAddOpen(o => !o)} aria-expanded={addOpen}
+            style={{ padding:"6px 12px",borderRadius:99,border:`1px solid ${P}`,
+              background:addOpen?`${P}30`:`${P}18`,color:P,fontSize:11,fontWeight:800,cursor:"pointer",flexShrink:0 }}>
+            + Add
+          </button>
           {onOpenCoach && <CoachNavButton compact P={P} onClick={onOpenCoach} />}
           {onOpenGuide && <GuideNavButton compact onClick={() => onOpenGuide("explore")} />}
           {!isSignedIn && (
@@ -93,6 +102,8 @@ export default function SquadView({
         onUnreadRefresh={onUnreadRefresh}
         openMessagesInbox={openMessagesInbox}
         onMessagesInboxOpened={onMessagesInboxOpened}
+        addOpen={addOpen}
+        onOpenAdd={() => setAddOpen(true)}
       />
 
       {renderBottomNav()}
