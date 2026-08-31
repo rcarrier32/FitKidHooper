@@ -58,53 +58,6 @@ export function computeShootingStats(shotLog, { start = null, end = null } = {})
   return tallyShots(shotLog, { start, end });
 }
 
-/** Per-spot accuracy (type + location), most-attempted first. For the drill-down. */
-export function computeSpotStats(shotLog, { start = null, end = null } = {}) {
-  const map = {};
-  for (const [date, shots] of Object.entries(shotLog || {})) {
-    if (start && date < start) continue;
-    if (end && date > end) continue;
-    const list = Array.isArray(shots) ? shots : [];
-    for (const s of list) {
-      if (!s || typeof s !== "object") continue;
-      const key = `${s.type}|${s.location || ""}`;
-      if (!map[key]) {
-        const zone = ZONE_OF[s.type] || null;
-        const label = s.location
-          ? (zone === "three" ? `${s.location} 3` : s.location)
-          : (TYPE_LABEL[s.type] || s.type);
-        map[key] = { key, zone, label, m: 0, a: 0 };
-      }
-      map[key].a += 1; if (s.made !== false) map[key].m += 1;
-    }
-  }
-  const rows = Object.values(map);
-  for (const r of rows) r.pct = pct(r.m, r.a);
-  rows.sort((a, b) => b.a - a.a);
-  return rows;
-}
-
-/** Per-location accuracy (named court spots), most-attempted first. */
-export function computeLocationStats(shotLog, { start = null, end = null } = {}) {
-  const map = {};
-  for (const [date, shots] of Object.entries(shotLog || {})) {
-    if (start && date < start) continue;
-    if (end && date > end) continue;
-    const list = Array.isArray(shots) ? shots : [];
-    for (const s of list) {
-      if (!s || typeof s !== "object") continue;
-      const label = s.location || TYPE_LABEL[s.type] || s.type;
-      if (!map[label]) map[label] = { label, m: 0, a: 0 };
-      map[label].a += 1;
-      if (s.made !== false) map[label].m += 1;
-    }
-  }
-  const rows = Object.values(map);
-  for (const r of rows) r.pct = pct(r.m, r.a);
-  rows.sort((a, b) => b.a - a.a);
-  return rows;
-}
-
 /**
  * Per-location accuracy with each shot type from that spot nested underneath —
  * "Left Wing 52%" opening into "Wing 3 44% / Wing (Mid) 56%". Same grouping key

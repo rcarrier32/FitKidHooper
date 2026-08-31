@@ -7,9 +7,10 @@ import CoachNavButton from "../components/CoachNavButton.jsx";
 import SettingsSheet from "../components/SettingsSheet.jsx";
 import ViewErrorBoundary from "../components/ViewErrorBoundary.jsx";
 import HomeCollapsibleSection from "../components/HomeCollapsibleSection.jsx";
-import ShootingCard from "../components/ShootingCard.jsx";
 import GrowthCard from "../components/GrowthCard.jsx";
 import { getStreak, getTrainingDays } from "../lib/progressStats.js";
+import { shootingSnapshot } from "../lib/shootingStats.js";
+import { readShotLog } from "../lib/shotLog.js";
 
 export default function MeView({
   settings,
@@ -294,7 +295,34 @@ export default function MeView({
               <div style={{ fontSize:18,fontWeight:800,color:P,marginTop:3,fontFamily:"'DM Mono',monospace" }}>{earnedBadges.length}</div>
             </button>
           </div>
-          <ShootingCard P={P} SF={SF} bd={bd} />
+          {/* Shooting used to be a full card here: overall and this-week FG%,
+              per-zone, by-type and accuracy-by-spot — the same data Shots ›
+              Stats shows, except that tab now filters by period and this one
+              could not. Two homes for one dataset, and this was the stale one.
+              One line and a handoff instead. */}
+          {(() => {
+            const snap = shootingSnapshot(readShotLog());
+            const has = snap.allTime.attempts > 0;
+            return (
+              <button type="button" onClick={() => onOpenShots?.()}
+                style={{ width:"100%",display:"flex",alignItems:"center",gap:10,marginBottom:14,
+                  padding:"12px 14px",borderRadius:14,cursor:"pointer",textAlign:"left",
+                  background:SF,border:`1px solid ${bd}` }}>
+                <span style={{ fontSize:16,flexShrink:0 }}>🎯</span>
+                <span style={{ flex:1,minWidth:0 }}>
+                  <span style={{ display:"block",fontSize:13,fontWeight:800,color:"var(--fkh-text)" }}>
+                    Shooting accuracy
+                  </span>
+                  <span style={{ display:"block",fontSize:11,color:"#64748b",marginTop:2 }}>
+                    {has
+                      ? `${snap.allTime.pct}% all-time · ${snap.allTime.makes}/${snap.allTime.attempts} — filter by period on Shots`
+                      : "Log shots to see your accuracy by zone and period"}
+                  </span>
+                </span>
+                <span style={{ fontSize:12,color:"#475569",flexShrink:0 }}>›</span>
+              </button>
+            );
+          })()}
           <GrowthCard log={growthLog} onLog={onLogHeight} P={P} SF={SF} bd={bd} />
           <ProgressStatsPanel
             totalXP={xpData?.total||0}

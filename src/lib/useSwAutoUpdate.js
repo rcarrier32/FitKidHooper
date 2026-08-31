@@ -13,18 +13,26 @@ import { useRegisterSW } from 'virtual:pwa-register/react'
  * calls this) unconditionally in App() makes every route check for
  * updates.
  *
- * This deliberately does NOT force a reload on its own: vite.config's
- * workbox `skipWaiting`+`clientsClaim` already activate a new build and
- * take over open pages as soon as one is found, so the next navigation
- * picks up fresh code by itself. An earlier version of this hook called
- * `updateServiceWorker(true)` automatically whenever `needRefresh` flipped
- * true, which caused a reload loop: each reload re-ran the immediate
- * `.update()` check below, which could re-detect a refresh was needed and
- * reload again before the page ever settled. `updateServiceWorker` is
- * still returned so UpdateBanner can apply an update immediately, but only
- * in response to an athlete tapping the button — a one-shot, user-driven
- * call, not an automatic loop.
+ * Reloading is limited to a cold launch. An earlier version called
+ * `updateServiceWorker(true)` whenever `needRefresh` flipped true, which
+ * looped: each reload re-ran the immediate `.update()` below, re-detected a
+ * refresh, and reloaded again before the page settled. Doing nothing at all
+ * was the fix, but it went too far — `skipWaiting`+`clientsClaim` activate a
+ * new build, yet an installed PWA keeps running the old bundle until
+ * something reloads it, so athletes sat on stale builds indefinitely with no
+ * signal. Now a waiting build is applied only within the first few seconds
+ * after start, guarded by a session flag: the reloaded page finds no waiting
+ * worker, so there is nothing to loop on, and nobody loses a screen
+ * mid-drill. After that window an update waits for the athlete to tap the
+ * UpdateBanner, which is why `updateServiceWorker` is still returned.
  */
+/* A build found within this window of app start is treated as a cold launch:
+   applying it costs the athlete nothing because they have not done anything
+   yet. After it, an update waits for the banner so we never yank a screen out
+   from under someone mid-drill. */
+const COLD_LAUNCH_MS = 6000
+const startedAt = Date.now()
+
 export function useSwAutoUpdate() {
   const { needRefresh: [needRefresh], updateServiceWorker } = useRegisterSW({
     onRegistered(registration) {
@@ -33,6 +41,23 @@ export function useSwAutoUpdate() {
       setInterval(() => registration.update(), 5 * 60 * 1000)
     },
   })
+
+  /* An installed PWA can hold a stale shell across launches: skipWaiting and
+     clientsClaim activate the new worker, but the open page keeps running the
+     old bundle until something reloads it. The previous version never
+     reloaded at all, to avoid a loop, which left athletes on builds that were
+     weeks old with no signal. Reloading only during the first few seconds
+     after start cannot loop -- the reloaded page finds no waiting worker, and
+     if it somehow did, the flag below stops a second pass. */
+  useEffect(() => {
+    if (!needRefresh) return
+    if (Date.now() - startedAt > COLD_LAUNCH_MS) return
+    try {
+      if (sessionStorage.getItem('fkh-sw-cold-reloaded')) return
+      sessionStorage.setItem('fkh-sw-cold-reloaded', '1')
+    } catch { /* ignore */ }
+    updateServiceWorker(true)
+  }, [needRefresh, updateServiceWorker])
 
   useEffect(() => {
     const onVisible = () => {
