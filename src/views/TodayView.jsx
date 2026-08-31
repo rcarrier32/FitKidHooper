@@ -605,6 +605,34 @@ export default function TodayView({
 
 
 
+      {/* My Programs moved to the Programs tab, which left a kid with no plan
+          no route to one from home. One dashed row, only when nothing is
+          enrolled. */}
+      {enrolledList.length === 0 && (() => {
+        const picks = programs.slice(0, 2).map(pr => pr.name);
+        const rest = Math.max(0, programs.length - picks.length);
+        const weeks = programs[0]?.weeks?.length;
+        return (
+          <button type="button" onClick={() => onOpenProgramsSection?.("plans")}
+            style={{ display:"block", width:"calc(100% - 40px)", margin:"0 20px 14px", textAlign:"left",
+              padding:"13px 15px", borderRadius:14, cursor:"pointer",
+              border:`1px dashed ${P}55`, background:"transparent" }}>
+            <div style={{ fontFamily:"'DM Mono',monospace", fontSize:9.5, letterSpacing:"0.16em",
+              textTransform:"uppercase", fontWeight:800, color:P, marginBottom:5 }}>
+              No plan yet
+            </div>
+            <div style={{ fontSize:13, fontWeight:700, color:"var(--fkh-text)", lineHeight:1.3 }}>
+              Pick a program for a week-by-week plan
+            </div>
+            <div style={{ fontSize:11, color:"#64748b", marginTop:4, lineHeight:1.45 }}>
+              {picks.join(", ")}{rest ? `, and ${rest} more` : ""}
+              {weeks ? ` — ${weeks} weeks each` : ""}
+            </div>
+            <div style={{ fontSize:11.5, fontWeight:800, color:P, marginTop:8 }}>Browse programs →</div>
+          </button>
+        );
+      })()}
+
       {/* New on Today. Shot logging is the daily habit with the lowest
           friction, so it gets a home on the home screen instead of living
           only one tab away. */}
