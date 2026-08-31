@@ -68,7 +68,7 @@ export function exportCanonicalSave() {
     try {
       const val = readRawSaveValue(k);
       if (val !== undefined) data[k] = val;
-    } catch {}
+    } catch { /* ignore */ }
   }
   if (data.s_settings) data.s_settings = stripAvatarFromSettings(data.s_settings);
   return data;
@@ -96,7 +96,7 @@ export function importCanonicalSave(data, { mergeSettings = true } = {}) {
         safePersistKey("s_settings", { ...s, avatar }, { force: true });
       }
       delete data.s_settings._avatarLocal;
-    } catch {}
+    } catch { /* ignore */ }
   }
 }
 
@@ -211,6 +211,6 @@ export function writeCanonicalPayload(payload, { force = false } = {}) {
     try {
       const s = JSON.parse(localStorage.getItem("s_settings") || "{}");
       safePersistKey("s_settings", { ...s, avatar }, { force: true });
-    } catch {}
+    } catch { /* ignore */ }
   }
 }

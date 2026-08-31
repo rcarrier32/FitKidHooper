@@ -112,9 +112,10 @@ export default function PlayerPicker({
   const [listOpen, setListOpen] = useState(false);
   const [listQuery, setListQuery] = useState("");
 
-  useEffect(() => {
-    setDraft(value || "");
-  }, [value]);
+  /* Adjust during render — an effect renders the previous player's name for a
+     frame before correcting itself. */
+  const [draftFor, setDraftFor] = useState(value);
+  if (draftFor !== value) { setDraftFor(value); setDraft(value || ""); }
 
   const chip = (active) => ({
     padding: "6px 11px",

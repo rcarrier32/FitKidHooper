@@ -18,7 +18,7 @@ class BootErrorBoundary extends Component {
 
   componentDidCatch(error, info) {
     console.error('[fkh] boot failed', error, info)
-    try { window.__FKH_BOOT_ERROR__ = String(error?.message || error) } catch {}
+    try { window.__FKH_BOOT_ERROR__ = String(error?.message || error) } catch { /* ignore */ }
   }
 
   componentDidMount() {

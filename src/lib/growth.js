@@ -23,7 +23,7 @@ export function addGrowthEntry(heightIn, date = new Date().toLocaleDateString("e
   const log = readGrowthLog().filter(e => e.date !== date);
   log.push({ date, h });
   log.sort((a, b) => (a.date < b.date ? -1 : 1));
-  try { localStorage.setItem(KEY, JSON.stringify(log)); } catch {}
+  try { localStorage.setItem(KEY, JSON.stringify(log)); } catch { /* ignore */ }
   return log;
 }
 

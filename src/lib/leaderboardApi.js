@@ -43,7 +43,7 @@ export function getLastPushTime() {
 export function setLastPushTime(ts = Date.now()) {
   try {
     localStorage.setItem(LAST_PUSH_KEY, String(ts));
-  } catch {}
+  } catch { /* ignore */ }
 }
 
 export function daysSinceLastPush() {
@@ -66,7 +66,7 @@ export function shouldShowPushPrompt({ sharingEnabled, minDays = PUSH_STALE_DAYS
 export function dismissPushPrompt(hours = 24) {
   try {
     localStorage.setItem(PUSH_DISMISS_KEY, String(Date.now() + hours * 3600000));
-  } catch {}
+  } catch { /* ignore */ }
 }
 
 export function buildPushPayload({
@@ -197,7 +197,7 @@ export async function pushFromAppState({ settings, completed, missionLog, getCat
   let shotLog = {};
   try {
     shotLog = JSON.parse(localStorage.getItem("shot_log_v2") || "{}");
-  } catch {}
+  } catch { /* ignore */ }
 
   const ageGroup = getAgeGroup(settings.dateOfBirth);
   const cloudProfile = profileForCloud(settings);
@@ -206,7 +206,7 @@ export async function pushFromAppState({ settings, completed, missionLog, getCat
   let makes = 0;
   try {
     makes = Object.values(shotLog).flatMap(v => v).filter(s => s.made !== false).length;
-  } catch {}
+  } catch { /* ignore */ }
 
   const progressCtx = {
     earnedBadgeIds: new Set(earnedBadges),

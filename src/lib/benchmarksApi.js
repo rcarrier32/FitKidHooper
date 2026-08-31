@@ -22,7 +22,7 @@ export function recordLocalPB(benchmarkId, value) {
   const pbs = readLocalPBs();
   if (value > (pbs[benchmarkId] ?? -Infinity)) {
     pbs[benchmarkId] = value;
-    try { localStorage.setItem(PB_KEY, JSON.stringify(pbs)); } catch {}
+    try { localStorage.setItem(PB_KEY, JSON.stringify(pbs)); } catch { /* ignore */ }
   }
   return readLocalPBs();
 }

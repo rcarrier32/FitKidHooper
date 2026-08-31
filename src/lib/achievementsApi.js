@@ -19,7 +19,7 @@ export function readLocalLedger() {
 export function writeLocalLedger(ledger) {
   try {
     localStorage.setItem(LEDGER_KEY, JSON.stringify(ledger || {}));
-  } catch {}
+  } catch { /* ignore */ }
 }
 
 export function ledgerIdSet(ledger) {

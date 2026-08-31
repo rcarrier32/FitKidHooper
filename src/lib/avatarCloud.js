@@ -61,7 +61,7 @@ export function writeCachedAvatarUrl(url) {
   try {
     if (url) localStorage.setItem(AVATAR_URL_KEY, url);
     else localStorage.removeItem(AVATAR_URL_KEY);
-  } catch {}
+  } catch { /* ignore */ }
 }
 
 /** Resize a data URL to a JPEG data URL suitable for localStorage + cloud. */

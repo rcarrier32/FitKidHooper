@@ -469,7 +469,7 @@ function buildCalendarData(completed) {
       dayMap[date].shots  = makes;
       dayMap[date].cats.add("shooting");
     }
-  } catch {}
+  } catch { /* ignore */ }
 
   // Compute per-day XP and finalise cats → array
   for (const [, data] of Object.entries(dayMap)) {
@@ -567,7 +567,7 @@ function buildReport(period, completed, badgeDatesMap, enrolledPrograms, favorit
     for (const [date, count] of Object.entries(shotDayTotals)) {
       if (count>shotBestDay) { shotBestDay=count; shotBestDayDate=date; }
     }
-  } catch {}
+  } catch { /* ignore */ }
   const shotActiveDays = Object.keys(shotDayTotals).filter(d=>shotDayTotals[d]>0).length;
   const shotAverage = shotActiveDays>0 ? Math.round(shotTotal/shotActiveDays) : 0;
 
@@ -1428,7 +1428,7 @@ function ProgressStatsPanel({ totalXP, xpData, currentLevel, P, ST, SF, bd, lbl 
           { name:"10K Shooter",    emoji:"🏆", target:10000, color:"#f97316" },
         ];
         let allMakes = 0;
-        try { const sl=JSON.parse(localStorage.getItem("shot_log_v2")||"{}"); allMakes=Object.values(sl).flatMap(v=>v).filter(s=>s.made!==false).length; } catch {}
+        try { const sl=JSON.parse(localStorage.getItem("shot_log_v2")||"{}"); allMakes=Object.values(sl).flatMap(v=>v).filter(s=>s.made!==false).length; } catch { /* ignore */ }
         const tierIdx = SHOT_TIERS.filter(t=>allMakes>=t.target).length - 1;
         const curTier = tierIdx>=0 ? SHOT_TIERS[tierIdx] : null;
         const nxtTier = SHOT_TIERS[tierIdx+1] || null;
@@ -1574,7 +1574,7 @@ const MIGRATIONS = [
         raw.workoutTimers = true;
         localStorage.setItem("s_settings", JSON.stringify(raw));
       }
-    } catch {}
+    } catch { /* ignore */ }
   },
   // ── v2 → v3: program progress only counts after Start Program ───
   () => {
@@ -1623,7 +1623,7 @@ const MIGRATIONS = [
 
       if (progChanged) localStorage.setItem("fkh-program-progress", JSON.stringify(progress));
       if (enrollChanged) localStorage.setItem("fkh-programs", JSON.stringify(enrolled));
-    } catch {}
+    } catch { /* ignore */ }
   },
   // ── v3 → v4: recover program progress wiped by v3 migration or sync ──
   // Rebuilds session marks from s_done — never deletes existing marks.
@@ -1715,7 +1715,7 @@ function runDataMigrations() {
   // version and skip legacy migrations — they assume old shapes that a
   // brand-new device never had.
   if (stored == null && !hasExistingData()) {
-    try { localStorage.setItem(DATA_VERSION_KEY, String(DATA_VERSION)); } catch {}
+    try { localStorage.setItem(DATA_VERSION_KEY, String(DATA_VERSION)); } catch { /* ignore */ }
     return;
   }
 
@@ -1732,7 +1732,7 @@ function runDataMigrations() {
       return;
     }
   }
-  try { localStorage.setItem(DATA_VERSION_KEY, String(DATA_VERSION)); } catch {}
+  try { localStorage.setItem(DATA_VERSION_KEY, String(DATA_VERSION)); } catch { /* ignore */ }
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1936,7 +1936,7 @@ export default function FitKidHooperApp() {
   }, [view]);
 
   useEffect(() => {
-    try { localStorage.setItem("fkh-workout-open", workoutOpen ? "1" : "0"); } catch {}
+    try { localStorage.setItem("fkh-workout-open", workoutOpen ? "1" : "0"); } catch { /* ignore */ }
   }, [workoutOpen]);
 
   const focusSquad = useCallback(() => {
@@ -2744,13 +2744,13 @@ export default function FitKidHooperApp() {
     if (defs.length>0) setLastEarnedBadge(defs[defs.length-1]);
     const updated = new Set([...celebratedBadges,...newBadges]);
     setCelebratedBadges(updated);
-    try { localStorage.setItem("fkh-celebrated-badges",JSON.stringify([...updated])); } catch {}
+    try { localStorage.setItem("fkh-celebrated-badges",JSON.stringify([...updated])); } catch { /* ignore */ }
     // Record earn date for each new badge (first-time only)
     const today = new Date().toLocaleDateString("en-CA");
     setBadgeDates(prev=>{
       const next={...prev};
       for (const id of newBadges) { if (!next[id]) next[id]=today; }
-      try{ localStorage.setItem("fkh-badge-dates",JSON.stringify(next)); }catch{}
+      try{ localStorage.setItem("fkh-badge-dates",JSON.stringify(next)); }catch { /* ignore */ }
       return next;
     });
   },[earnedBadges]);

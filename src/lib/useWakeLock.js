@@ -15,7 +15,7 @@ export function useWakeLock(active) {
     const release = async () => {
       try {
         await sentinelRef.current?.release();
-      } catch {}
+      } catch { /* ignore */ }
       sentinelRef.current = null;
     };
 
@@ -24,7 +24,7 @@ export function useWakeLock(active) {
       try {
         if (sentinelRef.current && !sentinelRef.current.released) return;
         sentinelRef.current = await navigator.wakeLock.request("screen");
-      } catch {}
+      } catch { /* ignore */ }
     };
 
     if (active) request();

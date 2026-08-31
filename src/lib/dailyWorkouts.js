@@ -11,7 +11,7 @@ function readStore() {
 function writeStore(store) {
   try {
     localStorage.setItem(STORE_KEY, JSON.stringify(store));
-  } catch {}
+  } catch { /* ignore */ }
 }
 
 /** True when every exercise in the generated quick workout has been checked off (any date). */

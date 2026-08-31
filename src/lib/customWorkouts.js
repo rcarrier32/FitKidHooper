@@ -25,7 +25,7 @@ export function readCustomWorkouts() {
 }
 
 export function writeCustomWorkouts(list) {
-  try { localStorage.setItem(KEY, JSON.stringify(list)); } catch {}
+  try { localStorage.setItem(KEY, JSON.stringify(list)); } catch { /* ignore */ }
 }
 
 export const CUSTOM_WORKOUTS_KEY = KEY;

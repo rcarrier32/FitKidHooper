@@ -61,7 +61,7 @@ function setLocalCloudMeta(version, updatedAt) {
   try {
     localStorage.setItem(LOCAL_CLOUD_VERSION_KEY, String(version));
     localStorage.setItem(LOCAL_CLOUD_UPDATED_KEY, updatedAt);
-  } catch {}
+  } catch { /* ignore */ }
 }
 
 function payloadForCloudUpload(payload) {

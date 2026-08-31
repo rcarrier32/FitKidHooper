@@ -71,7 +71,7 @@ export function getLastUsername() {
 }
 
 function rememberUsername(username) {
-  try { localStorage.setItem(LAST_USERNAME_KEY, username); } catch {}
+  try { localStorage.setItem(LAST_USERNAME_KEY, username); } catch { /* ignore */ }
 }
 
 export function getSignedInUsername(user) {
@@ -345,8 +345,8 @@ export async function linkDeviceProfileOnAuth(user, settings) {
   if (deviceId && deviceId !== user.id) {
     try {
       await sb.rpc("claim_device_stats", { p_device_id: deviceId });
-    } catch {}
+    } catch { /* ignore */ }
   }
 
-  try { localStorage.setItem(LEGACY_LINKED_KEY, user.id); } catch {}
+  try { localStorage.setItem(LEGACY_LINKED_KEY, user.id); } catch { /* ignore */ }
 }

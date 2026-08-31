@@ -87,7 +87,7 @@ export function setLogKey(exerciseId, today, programContext) {
 /** Haptic + beep + voice for timer alerts (best-effort on mobile). */
 export function timerAlert(kind, countValue) {
   const isBegin = kind === "go" || kind === "begin";
-  try { if (navigator.vibrate) navigator.vibrate(isBegin ? [80,40,80] : [40]); } catch {}
+  try { if (navigator.vibrate) navigator.vibrate(isBegin ? [80,40,80] : [40]); } catch { /* ignore */ }
   try {
     const ctx = new (window.AudioContext||window.webkitAudioContext)();
     const osc = ctx.createOscillator();
@@ -97,7 +97,7 @@ export function timerAlert(kind, countValue) {
     gain.gain.value = 0.12;
     osc.start();
     osc.stop(ctx.currentTime + (isBegin ? 0.25 : 0.12));
-  } catch {}
+  } catch { /* ignore */ }
   const speech =
     kind === "rest" ? "Rest"
     : isBegin ? "Begin"
@@ -112,7 +112,7 @@ export function timerAlert(kind, countValue) {
     u.rate = 1.05;
     u.volume = 1;
     window.speechSynthesis.speak(u);
-  } catch {}
+  } catch { /* ignore */ }
 }
 
 export function announceCountdown(secs, delayMs = 0) {

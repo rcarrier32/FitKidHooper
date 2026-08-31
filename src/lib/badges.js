@@ -97,7 +97,7 @@ export function getEarnedBadges(completed, programProgress = {}, programs = []) 
     if (makes >= 2500)  earned.add("shots-2500");
     if (makes >= 5000)  earned.add("shots-5k");
     if (makes >= 10000) earned.add("shots-10k");
-  } catch {}
+  } catch { /* ignore */ }
 
   const workoutDays = new Set(
     Object.keys(done).filter(k => done[k])
@@ -129,7 +129,7 @@ export function getBadgeProgress(badge, completed, programProgress = {}, program
     if (days.includes(k)) { streak++; dw.setDate(dw.getDate() - 1); } else break;
   }
   let makes = 0;
-  try { makes = countShotMakes(readShotLog()); } catch {}
+  try { makes = countShotMakes(readShotLog()); } catch { /* ignore */ }
   const MAP = {
     "workouts-1":{cur:workoutDays,target:1},"workouts-10":{cur:workoutDays,target:10},
     "workouts-25":{cur:workoutDays,target:25},"workouts-50":{cur:workoutDays,target:50},

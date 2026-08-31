@@ -35,9 +35,13 @@ export function MessagesPanel({
   const [loadError, setLoadError] = useState(null);
   const endRef = useRef(null);
 
-  useEffect(() => {
+  /* Adjust during render so the sheet never shows the previous thread for a
+     frame when it is reopened on a different friend. */
+  const [activeFor, setActiveFor] = useState(initialFriend?.id);
+  if (activeFor !== initialFriend?.id) {
+    setActiveFor(initialFriend?.id);
     setActive(initialFriend || null);
-  }, [initialFriend?.id]);
+  }
 
   const loadInbox = useCallback(() => {
     setLoadError(null);

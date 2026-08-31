@@ -98,7 +98,7 @@ export function setWeekShotGoal(n) {
   try {
     localStorage.setItem("shot_week_goal", v);
     localStorage.setItem("fkh-shot-goal", v);
-  } catch {}
+  } catch { /* ignore */ }
 }
 
 export function getMonthShotGoal() {
@@ -116,7 +116,7 @@ export function setMonthShotGoal(n) {
   try {
     localStorage.setItem("fkh-shot-month-goal", v);
     localStorage.setItem("shot_month_goal", v);
-  } catch {}
+  } catch { /* ignore */ }
 }
 
 export function getDayShotGoal() {
@@ -151,7 +151,7 @@ export function getShotGoalPeriod() {
 export function setShotGoalPeriod(period) {
   try {
     localStorage.setItem("fkh-shot-goal-period", GOAL_PERIODS.includes(period) ? period : "week");
-  } catch {}
+  } catch { /* ignore */ }
 }
 
 export function countMakesInLogRange(log, startDate, endDate) {

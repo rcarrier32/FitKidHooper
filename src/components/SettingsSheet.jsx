@@ -231,7 +231,10 @@ function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenW
   // Hex field: a local draft so partial/invalid input doesn't fight the store;
   // commits live whenever the text parses to a valid color.
   const [hexDraft, setHexDraft] = useState(activeCol);
-  useEffect(() => { setHexDraft(activeCol); }, [activeCol]);
+  /* Adjust during render rather than in an effect: an effect would paint the
+     stale hex for a frame after switching channels. */
+  const [hexDraftFor, setHexDraftFor] = useState(activeCol);
+  if (hexDraftFor !== activeCol) { setHexDraftFor(activeCol); setHexDraft(activeCol); }
   const onHexInput = v => {
     setHexDraft(v);
     const parsed = hexToHsl(v);
@@ -239,7 +242,7 @@ function SettingsSheet({ settings, setSettings, onClose, onOpenFeedback, onOpenW
   };
   const pickEye = async () => {
     try { const { sRGBHex } = await new window.EyeDropper().open();
-      const p = hexToHsl(sRGBHex); if (p) setHSL(p.h, p.s, clampL(p.l)); } catch {}
+      const p = hexToHsl(sRGBHex); if (p) setHSL(p.h, p.s, clampL(p.l)); } catch { /* ignore */ }
   };
 
   const inner = (

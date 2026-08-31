@@ -5,7 +5,7 @@ const MAX_AVATAR_CHARS = 400_000;
 function trimOversizedAvatar(dataUrl) {
   if (typeof dataUrl !== "string" || !dataUrl) return null;
   if (dataUrl.length <= MAX_AVATAR_CHARS) return dataUrl;
-  try { localStorage.removeItem(AVATAR_STORAGE_KEY); } catch {}
+  try { localStorage.removeItem(AVATAR_STORAGE_KEY); } catch { /* ignore */ }
   return null;
 }
 
@@ -14,7 +14,7 @@ export function readStoredAvatar() {
   try {
     const raw = localStorage.getItem(AVATAR_STORAGE_KEY);
     if (raw) return trimOversizedAvatar(raw);
-  } catch {}
+  } catch { /* ignore */ }
   return null;
 }
 
@@ -47,7 +47,7 @@ export function migrateAvatarOutOfSettings() {
 export function clearStoredAvatar() {
   try {
     localStorage.removeItem(AVATAR_STORAGE_KEY);
-  } catch {}
+  } catch { /* ignore */ }
 }
 
 /** Merge stored avatar into settings for UI (does not mutate input). */

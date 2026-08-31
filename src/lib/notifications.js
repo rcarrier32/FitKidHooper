@@ -23,7 +23,7 @@ export const NOTIFICATION_CATEGORIES = [
 ];
 
 export function dismissNotificationPrompt() {
-  try { localStorage.setItem(NOTIFY_PROMPT_DISMISS_KEY, "1"); } catch {}
+  try { localStorage.setItem(NOTIFY_PROMPT_DISMISS_KEY, "1"); } catch { /* ignore */ }
 }
 
 /** Signed-in athletes who haven't enabled push on this device (and didn't dismiss the banner). */
@@ -48,7 +48,7 @@ export async function needsNotificationSubscription() {
 
 export function getNotifyPrefs() {
   let stored = {};
-  try { stored = JSON.parse(localStorage.getItem(PREFS_KEY) || "{}"); } catch {}
+  try { stored = JSON.parse(localStorage.getItem(PREFS_KEY) || "{}"); } catch { /* ignore */ }
   const prefs = {};
   for (const c of NOTIFICATION_CATEGORIES) prefs[c.key] = stored[c.key] !== false; // default true
   return prefs;
@@ -57,7 +57,7 @@ export function getNotifyPrefs() {
 export function setNotifyPref(key, on) {
   const prefs = getNotifyPrefs();
   prefs[key] = !!on;
-  try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch {}
+  try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch { /* ignore */ }
   // Reflect onto any existing push subscriptions so the send job filters correctly.
   const sb = getSupabaseClient();
   if (sb) sb.rpc("update_push_prefs", { p_prefs: prefs }).then(() => {}, () => {});
@@ -132,7 +132,7 @@ export async function unsubscribeFromPush() {
   const sub = await getPushSubscription();
   if (sub) {
     if (sb) await sb.rpc("delete_push_subscription", { p_endpoint: sub.endpoint }).then(() => {}, () => {});
-    try { await sub.unsubscribe(); } catch {}
+    try { await sub.unsubscribe(); } catch { /* ignore */ }
   }
   setNotificationPref(false);
   return { ok: true };
@@ -149,7 +149,7 @@ export function getNotificationPref() {
 export function setNotificationPref(on) {
   try {
     localStorage.setItem(NOTIFY_PREF_KEY, on ? "1" : "0");
-  } catch {}
+  } catch { /* ignore */ }
 }
 
 export function canUseNotifications() {
@@ -160,7 +160,7 @@ export async function requestNotificationPermission() {
   if (!canUseNotifications()) return "unsupported";
   if (Notification.permission === "granted") return "granted";
   if (Notification.permission === "denied") return "denied";
-  try { localStorage.setItem(NOTIFY_PROMPT_KEY, "1"); } catch {}
+  try { localStorage.setItem(NOTIFY_PROMPT_KEY, "1"); } catch { /* ignore */ }
   const result = await Notification.requestPermission();
   if (result === "granted") setNotificationPref(true);
   return result;

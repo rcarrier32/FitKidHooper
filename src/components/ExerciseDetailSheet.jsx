@@ -468,7 +468,10 @@ export default function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF,
 
   /* Video player ─────────────────────────────────────────── */
   const [videoPlaying, setVideoPlaying] = useState(false);
-  useEffect(() => { setVideoPlaying(false); }, [exercise?.id]);
+  /* Adjust during render: via an effect the previous drill's player stays
+     mounted for a frame after moving to the next exercise. */
+  const [playingFor, setPlayingFor] = useState(exercise?.id);
+  if (playingFor !== exercise?.id) { setPlayingFor(exercise?.id); setVideoPlaying(false); }
   useEffect(() => {
     if (!videoPlaying || !exercise?.id) return;
     track(ANALYTICS_EVENTS.VIDEO_PLAY, {

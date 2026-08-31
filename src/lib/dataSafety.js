@@ -21,12 +21,12 @@ export function writeSaveValueDirect(key, value) {
   if (key === "fkh-avatar") {
     try {
       if (value) localStorage.setItem(key, value);
-    } catch {}
+    } catch { /* ignore */ }
     return;
   }
   try {
     localStorage.setItem(key, JSON.stringify(value));
-  } catch {}
+  } catch { /* ignore */ }
 }
 
 /**
@@ -83,5 +83,5 @@ export function snapshotAthleteBackup(payload) {
       savedAt: Date.now(),
       payload,
     }));
-  } catch {}
+  } catch { /* ignore */ }
 }
