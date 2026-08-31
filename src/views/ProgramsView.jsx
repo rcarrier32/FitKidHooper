@@ -199,7 +199,7 @@ export default function ProgramsView({
     openDetail(enriched, fullList, ctx);
   };
 
-  const startCustomList = (entryOrIds, name, emoji = "🏋️") => {
+  const startCustomList = (entryOrIds) => {
     const entry = Array.isArray(entryOrIds)
       ? { exerciseIds: entryOrIds, type: "day" }
       : entryOrIds;

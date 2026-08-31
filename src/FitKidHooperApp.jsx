@@ -95,7 +95,7 @@ import { shouldShowWhatsNew, markWhatsNewSeen, WHATS_NEW_EVENT } from "./lib/cha
 import SettingsSheet from "./components/SettingsSheet.jsx";
 import HighlightVideoSheet from "./components/HighlightVideoSheet.jsx";
 import {
-  hsl, pri, sec, bg, btn, surf, nav, textPri, textMuted, str3, chipStyle, contrastOn,
+  hsl, pri, sec, bg, surf, nav, textPri, textMuted, str3, chipStyle, contrastOn,
 } from "./lib/themeColors.js";
 import GuideSheet from "./components/GuideSheet.jsx";
 import CoachFKHSheet from "./components/CoachFKHSheet.jsx";
@@ -357,7 +357,8 @@ function computeXP(completed, programProgress={}, missionLog={}) {
   completed = asRecord(completed);
   programProgress = asRecord(programProgress);
   missionLog = asRecord(missionLog);
-  let exXP=0, workoutXP=0, challengeXP=0, shotXP=0, streakXP=0, badgeXP=0, missionXP=0;
+  let exXP=0, workoutXP=0, challengeXP=0, streakXP=0, missionXP=0;
+  let shotXP, badgeXP;
 
   // Exercise XP (5 per) + workout completion bonus (25 per qualifying day)
   const dayMap = {};
@@ -518,6 +519,30 @@ function computePeriodXP(periodEntries) {
   return exXP + workoutXP;
 }
 
+/* Report building blocks. Module scope on purpose — declared inside the render
+   these are a new component type every pass, which remounts the subtree. */
+function ReportSection({ emoji, title, surface, children }) {
+  return (
+    <div style={{ margin:"0 18px 14px",borderRadius:14,background:surface,border:"1px solid rgba(255,255,255,0.07)",overflow:"hidden" }}>
+      <div style={{ padding:"12px 14px",borderBottom:"1px solid rgba(255,255,255,0.06)",display:"flex",alignItems:"center",gap:8 }}>
+        <span style={{ fontSize:16 }}>{emoji}</span>
+        <span style={{ fontSize:12,fontWeight:800,color:"var(--fkh-text)",letterSpacing:"0.01em" }}>{title}</span>
+      </div>
+      <div style={{ padding:"12px 14px" }}>{children}</div>
+    </div>
+  );
+}
+
+function ReportStat({ label, value, sub, accent }) {
+  return (
+    <div style={{ textAlign:"center" }}>
+      <div style={{ fontSize:22,fontWeight:800,fontFamily:"'DM Mono',monospace",color:accent,lineHeight:1 }}>{value}</div>
+      <div style={{ fontSize:9,color:"#475569",textTransform:"uppercase",letterSpacing:"0.06em",marginTop:3 }}>{label}</div>
+      {sub&&<div style={{ fontSize:10,color:"#334155",marginTop:2 }}>{sub}</div>}
+    </div>
+  );
+}
+
 function buildReport(period, completed, badgeDatesMap, enrolledPrograms, favorites, programProgress={}) {
   completed = asRecord(completed);
   badgeDatesMap = asRecord(badgeDatesMap);
@@ -665,7 +690,7 @@ function buildReport(period, completed, badgeDatesMap, enrolledPrograms, favorit
   };
 }
 
-function generateInsights(report, period, currentLevel) {
+function generateInsights(report, period) {
   const pLabel = period==="7d"?"week":period==="30d"?"month":"all time";
   const insights = [];
   const activeCats = [...report.categories].filter(c=>c.count>0).sort((a,b)=>b.count-a.count);
@@ -891,7 +916,6 @@ function computeRecommendation(settings, completed, currentTemplate, weakAreas =
   completed = asRecord(completed);
   const age   = calcAge(settings.dateOfBirth);
   const goals = settings.goals || [];
-  const today = new Date().toLocaleDateString("en-CA");
 
   // ── How many days since last training session ──────────────────
   let daysSinceTrained = 0;
@@ -1149,7 +1173,7 @@ const MONTH_NAMES = ["January","February","March","April","May","June","July","A
 const DOW_HEADERS = ["M","T","W","T","F","S","S"];
 
 function CalendarView({
-  completed, P, S, BG, SF, bd, lbl,
+  completed, P, SF, bd,
   schedule, programs, enrolledPrograms, programProgress,
   cats, allExercises, workouts,
   onOpenCategory, onOpenExercise,
@@ -1823,7 +1847,7 @@ export default function FitKidHooperApp() {
   const [showPlayLikePicker, setShowPlayLikePicker] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const [authInitialMode, setAuthInitialMode] = useState("signin");
-  const [inviteCode, setInviteCode] = useState(() => consumeInviteDeepLink());
+  const [inviteCode] = useState(() => consumeInviteDeepLink());
   const [missionDeepLink, setMissionDeepLink] = useState(() => consumeMissionDeepLink());
   const [navDeepLink, setNavDeepLink] = useState(() => consumeNavigationDeepLink());
   const [openMessagesInbox, setOpenMessagesInbox] = useState(false);
@@ -1973,6 +1997,7 @@ export default function FitKidHooperApp() {
   const [missionTaskToast, setMissionTaskToast] = useState(null);
   const celebratedMissionTasksRef = useRef(new Set());
   const [favorites, setFavorites] = useState(() => readStoredObject("fkh-favs", { exercises: {}, workouts: {}, programs: {} }));
+  const [strDay, setStrDay] = useState(()=>localStorage.getItem('s_strday')||'Day 1');
   const reloadAthleteStateFromStorage = useCallback(() => {
     repairStoredObjectKeys();
     migrateAvatarOutOfSettings();
@@ -2039,7 +2064,6 @@ export default function FitKidHooperApp() {
     }
   }, [auth.syncNow, reloadAthleteStateFromStorage, hydrateProfileIntoState, refreshSquadNotifications]);
   const [reportPeriod, setReportPeriod] = useState("30d");
-  const [strDay, setStrDay] = useState(()=>localStorage.getItem('s_strday')||'Day 1');
   const [showOnboarding, setShowOnboarding] = useState(() => {
     if (localStorage.getItem("s_onboarded")) return false;
     if (hasStoredAuthSession()) return false;
@@ -2048,7 +2072,7 @@ export default function FitKidHooperApp() {
   const [tourActive, setTourActive] = useState(false);
   const [tourStep, setTourStep] = useState(0);
   const tourStepRef = useRef(0);
-  tourStepRef.current = tourStep;
+  useEffect(() => { tourStepRef.current = tourStep; }, [tourStep]);
   const [showTourPrompt, setShowTourPrompt] = useState(() => shouldShowTourPrompt());
   const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
   // Existing-guest "save your player" nudge — dismissible, persists per device.
@@ -2078,7 +2102,8 @@ export default function FitKidHooperApp() {
   }, []);
 
   const tourHandlersRef = useRef({ setView, setProgressTab, setProgramsHubSection, setSelectedProgram });
-  tourHandlersRef.current = { setView, setProgressTab, setProgramsHubSection, setSelectedProgram };
+  useEffect(() => { tourHandlersRef.current = { setView, setProgressTab, setProgramsHubSection, setSelectedProgram }; },
+    [setView, setProgressTab, setProgramsHubSection, setSelectedProgram]);
 
   const goToTourStep = useCallback((index) => {
     const step = TOUR_STEPS[index];
@@ -2193,7 +2218,7 @@ export default function FitKidHooperApp() {
   }, [settings, completed, missionLog, getExerciseCategory]);
 
   const syncLeaderboardRef = useRef(syncLeaderboard);
-  syncLeaderboardRef.current = syncLeaderboard;
+  useEffect(() => { syncLeaderboardRef.current = syncLeaderboard; }, [syncLeaderboard]);
 
   useEffect(() => {
     const run = () => syncLeaderboardRef.current();
@@ -2211,13 +2236,6 @@ export default function FitKidHooperApp() {
     return () => clearTimeout(timer);
   }, [completed, missionLog, settings.athleteName]);
 
-
-  const calcWeek = startDate => {
-    if (!startDate) return null;
-    const start = new Date(startDate+'T00:00:00'), now = new Date();
-    return Math.max(1, Math.floor((now-start)/(7*24*60*60*1000))+1);
-  };
-  const trainingWeek = calcWeek(settings.startDate);
 
   const settingsPersistKey = useMemo(() => {
     try { return JSON.stringify(stripAvatarForCloud(settings)); } catch { return ""; }
@@ -2284,7 +2302,7 @@ export default function FitKidHooperApp() {
   };
 
   const today = todayKey();
-  const P = pri(settings), S = sec(settings), BG = bg(settings), ST = str3(settings), BTN = btn(settings);
+  const P = pri(settings), S = sec(settings), BG = bg(settings), ST = str3(settings);
   const NV = nav(settings), SF = surf(settings);
 
   const isDone  = id => !!completed[`${today}-${id}`];
@@ -2349,7 +2367,6 @@ export default function FitKidHooperApp() {
     setBilateralPrefs(prev => ({ ...prev, [exId]: { on, unit } }));
   }, []);
   const setStrDayPersist = day => { setStrDay(day); localStorage.setItem('s_strday',day); };
-  const doneCnt = Object.keys(completedSafe).filter(k=>k.startsWith(today)).length;
 
   /* Exercise Detail helpers ────────────────────────────────── */
   const activePracticeRef = useRef(null);
@@ -2450,7 +2467,9 @@ export default function FitKidHooperApp() {
   const [todaysWorkout, setTodaysWorkout] = useState(null);
 
   const recentExIds = useMemo(()=>{
-    const cutoff = new Date(Date.now()-3*86400000).toLocaleDateString("en-CA");
+    // Derived from `today` rather than the clock: a memo factory runs during
+    // render, so Date.now() here made the memo impure.
+    const cutoff = new Date(new Date(today+"T00:00:00").getTime()-3*86400000).toLocaleDateString("en-CA");
     // Exclude today's frozen mission drills from workout anti-repeat so completing
     // the mission doesn't push those exercises out of Quick Workout shuffles.
     const exclude = missionExerciseIds(missionLogSafe[today]?.mission);
@@ -3126,7 +3145,6 @@ export default function FitKidHooperApp() {
 
   const bd  = "rgba(255,255,255,0.07)";
   const lbl = { fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.18em",color:`${P}80`,marginBottom:10,textTransform:"uppercase" };
-  const homeLbl = { fontFamily:"'DM Mono',monospace",fontSize:12,letterSpacing:"0.13em",color:P,fontWeight:800,marginBottom:10,textTransform:"uppercase" };
   const NAV = [
     {id:"home",     emoji:"☀️",label:"Today"},
     {id:"squad",    emoji:"👥",label:"Squad"},
@@ -3490,7 +3508,7 @@ export default function FitKidHooperApp() {
           <div style={{ padding:"12px 16px 0" }}>
             <div style={lbl}>Training Program — Select Day</div>
             <div style={{ display:"flex",gap:8,marginBottom:14 }}>
-              {Object.entries(STR_DAYS).map(([key,val])=>(
+              {Object.keys(STR_DAYS).map((key)=>(
                 <button key={key} onClick={()=>setStrDayPersist(key)} style={{ flex:1,padding:"10px 8px",borderRadius:12,border:`1px solid ${strDay===key?color:bd}`,background:strDay===key?`${color}18`:"transparent",color:strDay===key?color:"#475569",fontSize:11,fontWeight:700,cursor:"pointer",textAlign:"center",lineHeight:1.3 }}>
                   <div style={{ fontSize:16,marginBottom:3 }}>{key==="Day 1"?"💪":key==="Day 2"?"🎯":"⚡"}</div>
                   {key}
@@ -3529,25 +3547,11 @@ export default function FitKidHooperApp() {
   /* REPORT */
   if (view==="report") {
     const report = buildReport(reportPeriod, completed, badgeDates, enrolledPrograms, favorites, programProgress);
-    const insights = generateInsights(report, reportPeriod, currentLevel);
+    const insights = generateInsights(report, reportPeriod);
     const periodLabel = reportPeriod==="7d"?"Last 7 Days":reportPeriod==="30d"?"Last 30 Days":"All Time";
-
-    const Section = ({emoji,title,children})=>(
-      <div style={{ margin:"0 18px 14px",borderRadius:14,background:SF,border:"1px solid rgba(255,255,255,0.07)",overflow:"hidden" }}>
-        <div style={{ padding:"12px 14px",borderBottom:"1px solid rgba(255,255,255,0.06)",display:"flex",alignItems:"center",gap:8 }}>
-          <span style={{ fontSize:16 }}>{emoji}</span>
-          <span style={{ fontSize:12,fontWeight:800,color:"var(--fkh-text)",letterSpacing:"0.01em" }}>{title}</span>
-        </div>
-        <div style={{ padding:"12px 14px" }}>{children}</div>
-      </div>
-    );
-    const Stat = ({label,value,sub})=>(
-      <div style={{ textAlign:"center" }}>
-        <div style={{ fontSize:22,fontWeight:800,fontFamily:"'DM Mono',monospace",color:P,lineHeight:1 }}>{value}</div>
-        <div style={{ fontSize:9,color:"#475569",textTransform:"uppercase",letterSpacing:"0.06em",marginTop:3 }}>{label}</div>
-        {sub&&<div style={{ fontSize:10,color:"#334155",marginTop:2 }}>{sub}</div>}
-      </div>
-    );
+    /* Section and Stat used to be declared here, inside the render. React saw a
+       new component type every pass and remounted the whole report subtree, so
+       they are ReportSection / ReportStat at module scope now. */
 
     return (
       <div style={{ background:BG,minHeight:"100vh",maxWidth:680,margin:"0 auto",paddingBottom:80 }}>
@@ -3592,7 +3596,7 @@ export default function FitKidHooperApp() {
         </div>
 
         {/* 💡 Coach FKH Insights — at the top for impact */}
-        <Section emoji="💡" title="Coach FKH Insights">
+        <ReportSection surface={SF} emoji="💡" title="Coach FKH Insights">
           <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
             {insights.length>0 ? insights.map((ins,i)=>(
               <div key={i} style={{ display:"flex",gap:10,alignItems:"flex-start",padding:"9px 11px",borderRadius:10,background:`${P}0d`,border:`1px solid ${P}20` }}>
@@ -3603,40 +3607,40 @@ export default function FitKidHooperApp() {
               <div style={{ fontSize:12,color:"#475569",textAlign:"center",padding:"8px 0" }}>Train more to unlock insights. 🏀</div>
             )}
           </div>
-        </Section>
+        </ReportSection>
 
         {/* 🏋️ Training Overview */}
-        <Section emoji="🏋️" title="Training">
+        <ReportSection surface={SF} emoji="🏋️" title="Training">
           <div style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10 }}>
-            <Stat label="Days" value={report.training.days}/>
-            <Stat label="Exercises" value={report.training.exercises}/>
-            <Stat label="Minutes" value={report.training.minutes}/>
+            <ReportStat accent={P} label="Days" value={report.training.days}/>
+            <ReportStat accent={P} label="Exercises" value={report.training.exercises}/>
+            <ReportStat accent={P} label="Minutes" value={report.training.minutes}/>
           </div>
-        </Section>
+        </ReportSection>
 
         {/* 🏀 Shots Made */}
-        <Section emoji="🏀" title="Shots Made">
+        <ReportSection surface={SF} emoji="🏀" title="Shots Made">
           {report.shots.total===0
             ? <div style={{ fontSize:12,color:"#475569",textAlign:"center" }}>No shots logged this period.</div>
             : <div style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10 }}>
-                <Stat label="Total Makes" value={report.shots.total.toLocaleString()}/>
-                <Stat label="Daily Avg" value={report.shots.average}/>
-                <Stat label="Best Day" value={report.shots.bestDay} sub={report.shots.bestDayDate ? new Date(report.shots.bestDayDate+"T12:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric"}) : ""}/>
+                <ReportStat accent={P} label="Total Makes" value={report.shots.total.toLocaleString()}/>
+                <ReportStat accent={P} label="Daily Avg" value={report.shots.average}/>
+                <ReportStat accent={P} label="Best Day" value={report.shots.bestDay} sub={report.shots.bestDayDate ? new Date(report.shots.bestDayDate+"T12:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric"}) : ""}/>
               </div>
           }
-        </Section>
+        </ReportSection>
 
         {/* 🔥 Streaks */}
-        <Section emoji="🔥" title="Streaks">
+        <ReportSection surface={SF} emoji="🔥" title="Streaks">
           <div style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10 }}>
-            <Stat label="Current" value={`${report.streaks.current}d`}/>
-            <Stat label="Best This Period" value={`${report.streaks.longest}d`}/>
-            <Stat label="Training Days" value={report.streaks.days}/>
+            <ReportStat accent={P} label="Current" value={`${report.streaks.current}d`}/>
+            <ReportStat accent={P} label="Best This Period" value={`${report.streaks.longest}d`}/>
+            <ReportStat accent={P} label="Training Days" value={report.streaks.days}/>
           </div>
-        </Section>
+        </ReportSection>
 
         {/* ⭐ Level Progress */}
-        <Section emoji="⭐" title="Level Progress">
+        <ReportSection surface={SF} emoji="⭐" title="Level Progress">
           <div style={{ display:"flex",alignItems:"center",gap:12,marginBottom:10 }}>
             <span style={{ fontSize:28 }}>{currentLevel.emoji}</span>
             <div style={{ flex:1 }}>
@@ -3667,10 +3671,10 @@ export default function FitKidHooperApp() {
               </>
             );
           })()}
-        </Section>
+        </ReportSection>
 
         {/* 📈 Category Breakdown */}
-        <Section emoji="📈" title="Category Breakdown">
+        <ReportSection surface={SF} emoji="📈" title="Category Breakdown">
           {report.training.exercises===0
             ? <div style={{ fontSize:12,color:"#475569",textAlign:"center" }}>No exercises logged this period.</div>
             : <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
@@ -3688,10 +3692,10 @@ export default function FitKidHooperApp() {
                 {report.categories.every(c=>c.count===0) && <div style={{ fontSize:12,color:"#475569",textAlign:"center" }}>No basketball-specific categories tracked yet.</div>}
               </div>
           }
-        </Section>
+        </ReportSection>
 
         {/* 🏆 Achievements */}
-        <Section emoji="🏆" title="Achievements">
+        <ReportSection surface={SF} emoji="🏆" title="Achievements">
           <div style={{ display:"flex",flexDirection:"column",gap:10 }}>
             {/* Badges earned in period */}
             <div>
@@ -3731,10 +3735,10 @@ export default function FitKidHooperApp() {
               <div style={{ fontSize:22,fontWeight:800,fontFamily:"'DM Mono',monospace",color:P }}>{report.completedChallenges.length}<span style={{ fontSize:11,color:"#475569",fontWeight:400,fontFamily:"sans-serif" }}> / {CHALLENGES_DEF.length}</span></div>
             </div>
           </div>
-        </Section>
+        </ReportSection>
 
         {/* 📌 Favorites */}
-        <Section emoji="📌" title="Favorites">
+        <ReportSection surface={SF} emoji="📌" title="Favorites">
           <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
             {[
               { label:"Most Completed (All Time)", value: report.mostCompleted ? `${report.mostCompleted.name} (${report.mostCompleted.count}×)` : "—" },
@@ -3750,7 +3754,7 @@ export default function FitKidHooperApp() {
               </div>
             ))}
           </div>
-        </Section>
+        </ReportSection>
 
         {renderBottomNav()}
       </div>

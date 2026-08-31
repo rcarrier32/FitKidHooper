@@ -103,7 +103,6 @@ export default function ShotTracker({ P, S, BG, athleteName, settings, onLogChan
     setLastShot(null);
   };
 
-  const addShot = (tid, loc, made) => logBatch(tid, loc, made?1:0, made?0:1);
 
   const selectZone = (tid, courtLoc = undefined) => {
     const st = SHOT_TYPES.find(s => s.id === tid);

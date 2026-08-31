@@ -66,7 +66,7 @@ export function buildHistoryData(completed, badgeDates, allExercises = {}) {
     pd2 = d;
   }
 
-  let totalShots = 0;
+  let totalShots;
   try {
     const sl = JSON.parse(localStorage.getItem("shot_log_v2") || "{}");
     totalShots = Object.values(sl).flatMap(v => v || []).filter(s => s.made !== false).length;

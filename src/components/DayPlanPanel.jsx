@@ -16,8 +16,6 @@ export default function DayPlanPanel({
   workouts = null,
   exerciseMeta = {},
   P = "#f97316",
-  SF = "#111827",
-  bd = "rgba(255,255,255,0.08)",
   onOpenCategory,
   onOpenExercise,
   onStartProgramSession,

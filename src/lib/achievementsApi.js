@@ -7,7 +7,7 @@
  */
 import { getSupabaseClient, isSupabaseConfigured } from "./supabaseClient.js";
 import { getEffectiveAthleteId } from "./auth.js";
-import { parseStoredObject, readStoredObject } from "./storageParse.js";
+import { readStoredObject } from "./storageParse.js";
 
 const LEDGER_KEY = "fkh-achievements";
 

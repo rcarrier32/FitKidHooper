@@ -29,9 +29,6 @@ export function pickChallengeNudge(challenges, getChallengeProgress, completed, 
 
 export function resolveDailyAction({
   mission,
-  enrolledPrograms,
-  programProgress,
-  todayStr,
   challenges,
   getChallengeProgress,
   completed,

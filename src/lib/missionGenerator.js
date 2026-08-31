@@ -72,7 +72,7 @@ function buildPool(cats, workouts, exerciseMeta) {
   );
 }
 
-function scoreExercise(ex, { age, pRank, goals, recentIds, boostCats }) {
+function scoreExercise(ex, { age, goals, recentIds, boostCats }) {
   const m = ex.meta || {};
   let s = m.funScore || 5;
   if (goals.some(g => (m.basketballTransfer || []).includes(g))) s += 2;

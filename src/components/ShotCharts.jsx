@@ -70,14 +70,22 @@ export function Donut({ data, size=128 }) {
     </svg>
   );
   const r = size/2-10, circ = 2*Math.PI*r;
-  let off = 0;
+  /* Offsets computed without reassigning anything in render scope — doing it
+     inside the map mutated a render-scope variable from a callback React may
+     run later. At most 11 slices, so the quadratic scan is free. */
+  const visible = data.filter(d => d.value > 0);
+  const dashes = visible.map(d => (d.value / total) * circ);
+  const arcs = visible.map((d, i) => ({
+    dash: dashes[i],
+    gap: circ - dashes[i],
+    offset: dashes.slice(0, i).reduce((a, b) => a + b, 0),
+    color: d.color,
+  }));
   return (
     <svg width={size} height={size} style={{ transform:"rotate(-90deg)" }}>
-      {data.filter(d=>d.value>0).map((d,i)=>{
-        const dash=(d.value/total)*circ, gap=circ-dash;
-        const el = <circle key={i} cx={size/2} cy={size/2} r={r} fill="none" stroke={d.color} strokeWidth="18" strokeDasharray={`${dash} ${gap}`} strokeDashoffset={-off} strokeLinecap="butt"/>;
-        off+=dash; return el;
-      })}
+      {arcs.map((a,i)=>(
+        <circle key={i} cx={size/2} cy={size/2} r={r} fill="none" stroke={a.color} strokeWidth="18" strokeDasharray={`${a.dash} ${a.gap}`} strokeDashoffset={-a.offset} strokeLinecap="butt"/>
+      ))}
       <circle cx={size/2} cy={size/2} r={r-9} fill="#060b14"/>
     </svg>
   );

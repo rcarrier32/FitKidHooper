@@ -14,11 +14,20 @@ function loadSectionOpen(key, defaultOpen = true) {
 export default function ChallengesActivePanel({
   personalChallenges = [],
   P = "#f97316",
-  SF,
-  bd,
   onAddFriends,
   squadOnly = false,
 }) {
+  /* Hooks first: they used to sit below the squadOnly early return, so a
+     component that ever flipped between the two modes would render a
+     different number of hooks and throw. */
+  const [personalOpen, setPersonalOpen] = useState(() => loadSectionOpen("personal", true));
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("fkh-challenge-sections", JSON.stringify({ personal: personalOpen }));
+    } catch { /* ignore */ }
+  }, [personalOpen]);
+
   if (squadOnly) {
     return (
       <div style={{ padding: "0 0 8px" }}>
@@ -34,7 +43,6 @@ export default function ChallengesActivePanel({
     .slice()
     .sort((a, b) => (b.target ? b.cur / b.target : 0) - (a.target ? a.cur / a.target : 0));
   const done = personalChallenges.filter(c => c.done);
-  const [personalOpen, setPersonalOpen] = useState(() => loadSectionOpen("personal", true));
 
   const sectionLbl = {
     fontFamily: "'DM Mono',monospace",
@@ -45,11 +53,6 @@ export default function ChallengesActivePanel({
     textTransform: "uppercase",
   };
 
-  useEffect(() => {
-    try {
-      localStorage.setItem("fkh-challenge-sections", JSON.stringify({ personal: personalOpen }));
-    } catch { /* ignore */ }
-  }, [personalOpen]);
 
   return (
     <div style={{ padding: "0 0 8px" }}>

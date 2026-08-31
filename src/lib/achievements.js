@@ -22,10 +22,6 @@ import {
 } from "./pathRegistry.js";
 import {
   evaluateStageGate,
-  getPrimaryVolumeReq,
-  getPrevThreshold,
-  getMetricValue,
-  formatProgressLabel,
   trackStageProgress as computeTrackStageProgress,
 } from "./pathGates.js";
 

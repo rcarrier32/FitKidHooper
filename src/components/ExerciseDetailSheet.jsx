@@ -915,7 +915,7 @@ export default function ExerciseDetailSheet({ exercise, color, bg2, brd, BG, SF,
                   </span>
                 </div>
                 <div style={{ display:"flex",flexDirection:"column",gap:7 }}>
-                  {chainStatus.steps.map((step, i) => {
+                  {chainStatus.steps.map((step) => {
                     const isThis   = step.exId === exercise.id;
                     const lockPct  = step.unlocksAt > 0 ? Math.min(1, step.count / step.unlocksAt) : 1;
                     const stepName = step.ex?.name || step.exId;

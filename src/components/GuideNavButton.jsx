@@ -1,5 +1,5 @@
 /** Compact header button — opens the unified Guide from any tab. */
-export default function GuideNavButton({ onClick, P, compact = false }) {
+export default function GuideNavButton({ onClick, compact = false }) {
   return (
     <button
       type="button"

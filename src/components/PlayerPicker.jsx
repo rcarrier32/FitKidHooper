@@ -6,7 +6,7 @@ import {
   filterPlayers,
 } from "../lib/nbaPlayers.js";
 
-function PlayerListSheet({ open, onClose, pool, query, onQueryChange, results, value, onPick, accent }) {
+function PlayerListSheet({ open, onClose, query, onQueryChange, results, value, onPick, accent }) {
   const inputRef = useRef(null);
 
   useEffect(() => {
