@@ -2810,7 +2810,7 @@ export default function FitKidHooperApp() {
     [progressCtx]
   );
 
-  // Progress Journey view-model for Me › Overview — reframes existing training
+  // Progress Journey view-model for Me › Progress — reframes existing training
   // data (completed drills, shots, badges, ledger, XP) as identity + growth.
   // Pure derivation, no new tracking. Level context comes from LEVELS here
   // since that table lives in this file.

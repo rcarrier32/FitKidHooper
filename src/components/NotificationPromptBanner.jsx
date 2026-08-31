@@ -16,7 +16,7 @@ export default function NotificationPromptBanner({ P = "#f97316", onEnable, onDi
         } else if (result.reason === "unsupported") {
           setError("On iPhone or iPad, add Fit Kid Hooper to your Home Screen first.");
         } else if (result.reason !== "not_signed_in") {
-          setError("Couldn't enable notifications. Try Settings → Notifications.");
+          setError("Couldn't enable notifications. Try Me → Settings → Account & Safety → Notifications.");
         }
       }
     } finally {

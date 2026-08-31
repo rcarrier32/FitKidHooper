@@ -714,8 +714,8 @@ export default function TodayView({
         onOpenChallenges={onOpenChallenges}
       />
 
-      {/* Aspiration before the drill list — Train Like Legends is the "why keep
-          practicing," so it leads Today's Training / My Programs, not trails them. */}
+      {/* Collapsed by default with the rank in the header — the aspiration is
+          worth a glance, not the space it used to take above the drill list. */}
       <HomeCollapsibleSection
         title="Train Like Legends"
         hint={legendsHint}

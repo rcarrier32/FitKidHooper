@@ -23,7 +23,7 @@ export default function CoachIntroSheet({ P = "#f97316", athleteName, onPickProm
         </h2>
         <p style={{ color: "#94a3b8", fontSize: 13, lineHeight: 1.55, margin: "0 0 20px" }}>
           {athleteName ? `Hey ${athleteName}! ` : ""}
-          I build your workouts, answer basketball questions, and adjust your training as you improve. Ask me anything, anytime — just tap my card on Today.
+          I build your workouts, answer basketball questions, and adjust your training as you improve. Ask me anything, anytime — just tap the 🏀 button at the top of any screen.
         </p>
 
         <div style={{

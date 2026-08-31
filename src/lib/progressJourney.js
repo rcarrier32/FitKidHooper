@@ -1,6 +1,6 @@
 /**
  * Progress Journey — turns the athlete's existing training data into an
- * identity + growth story for the Me › Overview tab.
+ * identity + growth story for the Me › Progress tab.
  *
  * This is a PRESENTATION layer over systems that already exist: it reads
  * completed drills, the shot log, earned badges, the achievement ledger, and
