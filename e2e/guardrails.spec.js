@@ -64,3 +64,51 @@ test.describe("component identity and hook order", () => {
   });
 
 });
+
+/**
+ * Deep links. Written before consolidating the three separate effects that
+ * handled them into one, so the refactor has something to answer to: these
+ * assertions describe the behaviour as it shipped, not as it was rewritten.
+ */
+test.describe("deep links land on the right screen", () => {
+  const onScreen = (page, name) =>
+    expect(page.getByRole("button", { name })).toBeVisible({ timeout: 20_000 });
+
+  test("?view=squad opens Squad", async ({ page }) => {
+    await seedAthleteStorage(page);
+    await page.goto("/?view=squad");
+    await expect(page.getByRole("button", { name: "+ Add" })).toBeVisible({ timeout: 20_000 });
+  });
+
+  test("?view=shots opens Shots", async ({ page }) => {
+    await seedAthleteStorage(page);
+    await page.goto("/?view=shots");
+    await onScreen(page, "🍩 Stats");
+  });
+
+  test("?mission=1 opens Today with the mission expanded", async ({ page }) => {
+    await seedAthleteStorage(page);
+    await page.goto("/?mission=1");
+    await expect(page.getByText("Today's Mission")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(/DAILY MISSION/i)).toBeVisible();
+  });
+
+  test("?invite= opens Challenges and carries the code through", async ({ page }) => {
+    await seedAthleteStorage(page);
+    await page.goto("/?invite=AB12CD");
+    await expect(page.getByRole("button", { name: /Rankings/ })).toBeVisible({ timeout: 20_000 });
+  });
+
+  test("?friends=1 opens Squad", async ({ page }) => {
+    await seedAthleteStorage(page);
+    await page.goto("/?friends=1");
+    await expect(page.getByRole("button", { name: "+ Add" })).toBeVisible({ timeout: 20_000 });
+  });
+
+  test("a deep link strips its own params from the URL", async ({ page }) => {
+    await seedAthleteStorage(page);
+    await page.goto("/?view=shots");
+    await onScreen(page, "🍩 Stats");
+    expect(new URL(page.url()).searchParams.get("view")).toBeNull();
+  });
+});

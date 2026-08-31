@@ -13,7 +13,7 @@
  */
 import { execFileSync } from "node:child_process";
 
-const BUDGET = 42;
+const BUDGET = 40;
 
 // eslint exits non-zero whenever it reports an error, so read stdout off the
 // thrown result rather than treating a non-zero exit as a failure to run.

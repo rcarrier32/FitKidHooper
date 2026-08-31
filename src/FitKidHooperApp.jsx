@@ -1848,8 +1848,18 @@ export default function FitKidHooperApp() {
   const [showAuth, setShowAuth] = useState(false);
   const [authInitialMode, setAuthInitialMode] = useState("signin");
   const [inviteCode] = useState(() => consumeInviteDeepLink());
-  const [missionDeepLink, setMissionDeepLink] = useState(() => consumeMissionDeepLink());
-  const [navDeepLink, setNavDeepLink] = useState(() => consumeNavigationDeepLink());
+  /* Everything that says "when the app opens, go somewhere" funnels through one
+     pending-navigation value. Mission, invite and notification links each had
+     their own state and their own effect, and all three called setView -- so
+     with more than one present the winner was whichever effect ran last. The
+     order below is that same precedence, stated once instead of implied. */
+  const [pendingNav, setPendingNav] = useState(() => {
+    const nav = consumeNavigationDeepLink();
+    if (nav) return nav;
+    if (inviteCode) return { tab: "boards" };
+    if (consumeMissionDeepLink()) return { tab: "home", focusMission: true };
+    return null;
+  });
   const [openMessagesInbox, setOpenMessagesInbox] = useState(false);
   const auth = useAuth(settings);
   const { squadNotifications, unreadMessages, friendRequests, feedActivity, challengeActivity, markSquadTabSeen, refreshSquadNotifications } = useSquadNotifications(auth.isSignedIn, auth.username);
@@ -3002,18 +3012,6 @@ export default function FitKidHooperApp() {
   }), [todayMission, enrolledPrograms, programProgress, today, completed, coachRec, activeProgForMission, dueSessionForMission, challengeProgress]);
 
   useEffect(() => {
-    if (missionDeepLink) {
-      setView("home");
-      setHomeMissionFocus(true);
-      setMissionDeepLink(false);
-    }
-  }, [missionDeepLink]);
-
-  useEffect(() => {
-    if (inviteCode) setView("boards");
-  }, [inviteCode]);
-
-  useEffect(() => {
     if (auth.loading || !auth.isSignedIn || !auth.user?.id) return;
     refreshSquadNotifications();
     const retry = setTimeout(refreshSquadNotifications, 1500);
@@ -3024,24 +3022,26 @@ export default function FitKidHooperApp() {
     if (auth.isSignedIn) refreshSquadNotifications();
   }, [view, auth.isSignedIn, refreshSquadNotifications]);
 
+  /* The one place a pending navigation is applied. */
   useEffect(() => {
-    if (!navDeepLink) return;
-    setView(navDeepLink.tab);
-    if (navDeepLink.openMessages) {
+    if (!pendingNav) return;
+    if (pendingNav.tab) setView(pendingNav.tab);
+    if (pendingNav.focusMission) setHomeMissionFocus(true);
+    if (pendingNav.openMessages) {
       setOpenMessagesInbox(true);
       setFriendsFocusTick(t => t + 1);
     }
-    if (navDeepLink.openFriends) setFriendsFocusTick(t => t + 1);
-    if (navDeepLink.openProgram) setSelectedProgram(navDeepLink.openProgram);
-    setNavDeepLink(null);
-  }, [navDeepLink]);
+    if (pendingNav.openFriends) setFriendsFocusTick(t => t + 1);
+    if (pendingNav.openProgram) setSelectedProgram(pendingNav.openProgram);
+    setPendingNav(null);
+  }, [pendingNav]);
 
-  useEffect(() => listenForNotificationNavigation(setNavDeepLink), []);
+  useEffect(() => listenForNotificationNavigation(setPendingNav), []);
 
   useEffect(() => {
     const onShow = () => {
       const link = consumeNavigationDeepLink();
-      if (link) setNavDeepLink(link);
+      if (link) setPendingNav(link);
     };
     window.addEventListener("pageshow", onShow);
     return () => window.removeEventListener("pageshow", onShow);
