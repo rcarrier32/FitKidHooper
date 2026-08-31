@@ -4823,7 +4823,8 @@ export default function FitKidHooperApp() {
       case "shots": setView("shots"); break;
       case "programs": setView("programs"); break;
       case "boards": setView("boards"); break;
-      case "paths": setView("boards"); break;
+      // Legend journeys moved off Challenges to Me > Badges.
+      case "paths": setView("progress"); setProgressTab("locker"); break;
       case "progress": setView("progress"); setProgressTab("overview"); break;
       case "badges": setView("progress"); setProgressTab("locker"); break;
       case "stats": setView("progress"); setProgressTab("stats"); break;
