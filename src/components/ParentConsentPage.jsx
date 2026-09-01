@@ -121,6 +121,7 @@ export default function ParentConsentPage() {
   const [attest, setAttest] = useState(false);
   const [video, setVideo] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [confirmSkip, setConfirmSkip] = useState(false);
   const [err, setErr] = useState(null);
   const [done, setDone] = useState(null);
 
@@ -147,6 +148,11 @@ export default function ParentConsentPage() {
     e.preventDefault();
     setErr(null);
     if (!attest) { setErr("Please confirm you're the parent or legal guardian."); return; }
+    if (!relationship) { setErr("Please tell us your relationship to " + athlete + "."); return; }
+    /* Neither checkbox is pre-ticked, so an unticked optional feature might be
+       a decision or might be an oversight. Ask once rather than guess -- and
+       never by defaulting it on, which would not be consent. */
+    if (!video && !confirmSkip) { setConfirmSkip(true); return; }
     setBusy(true);
     const r = await submitParentConsent(token, {
       parentName: name, relationship, parentEmail: email, videoOptIn: video,
@@ -252,6 +258,35 @@ export default function ParentConsentPage() {
             </span>
           </label>
         </div>
+
+        {confirmSkip && !video && (
+          <div style={{
+            background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10,
+            padding: "12px 14px", fontSize: 13, lineHeight: 1.6, color: INK,
+          }}>
+            <strong>Just checking — live video workouts are off.</strong>
+            <div style={{ color: MUTED, marginTop: 4 }}>
+              {athlete}&apos;s account will be approved either way. Without this, {athlete} won&apos;t be
+              able to train over video with friends you approve, once that feature exists.
+              You can turn it on later in Settings.
+            </div>
+            <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+              <button type="button" onClick={() => { setVideo(true); setConfirmSkip(false); }}
+                style={{
+                  padding: "9px 14px", borderRadius: 999, border: `1px solid ${ORANGE}`,
+                  background: "#fff", color: ORANGE, fontSize: 13, fontWeight: 800, cursor: "pointer",
+                }}>
+                Turn it on
+              </button>
+              <button type="submit" style={{
+                padding: "9px 14px", borderRadius: 999, border: `1px solid ${LINE}`,
+                background: "#fff", color: MUTED, fontSize: 13, fontWeight: 700, cursor: "pointer",
+              }}>
+                Approve without it
+              </button>
+            </div>
+          </div>
+        )}
 
         {err && (
           <div style={{
