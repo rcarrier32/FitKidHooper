@@ -87,6 +87,17 @@ export default function AuthSheet({ P, SF, onClose, onSignedIn, initialMode = "s
       setStatus("Your Jersey Name can't include your real name — try a nickname or something creative!");
       return;
     }
+    /* A real first name is required before an account exists. Three of the
+       first nine accounts have none, so their parent approval reads "Approve
+       beastmode23's account" — a parent should not have to decode a handle to
+       know which child they are consenting for. firstName comes from the
+       athlete's profile, which onboarding already asks for; this catches the
+       path where someone reaches signup without it. */
+    const realFirstName = String(firstName || "").trim();
+    if (parentConsent && (!realFirstName || realFirstName === "Champ")) {
+      setStatus("Add your first name in Me → Progress → Edit first — a grown-up needs to know who they're approving.");
+      return;
+    }
     setBusy(true);
     setStatus(null);
     try {
