@@ -60,7 +60,7 @@ function Shell({ children }) {
   );
 }
 
-function Notice({ emoji, title, children }) {
+function Notice({ emoji, title, children, footer }) {
   return (
     <Shell>
       <div style={{ textAlign: "center", padding: "32px 8px" }}>
@@ -68,7 +68,46 @@ function Notice({ emoji, title, children }) {
         <h1 style={{ fontSize: 19, fontWeight: 800, margin: "0 0 10px" }}>{title}</h1>
         <p style={{ fontSize: 14, color: MUTED, lineHeight: 1.6, margin: 0 }}>{children}</p>
       </div>
+      {footer}
     </Shell>
+  );
+}
+
+/**
+ * The only place in the product where a donation ask reaches a verified adult
+ * at a moment of intent. It is deliberately not in the app: everyone in there
+ * is a child, and asking a kid for money -- or to go and ask a parent -- is not
+ * something a nonprofit training app should teach. A parent who has just
+ * approved an account is the one person for whom this is a fair question.
+ */
+function SupportLegends() {
+  const donateUrl = import.meta.env.VITE_DONATE_URL || null;
+  if (!donateUrl) return null;
+  return (
+    <div style={{
+      marginTop: 24, padding: "16px 18px", borderRadius: 12,
+      background: "#fff7ed", border: "1px solid #fed7aa",
+    }}>
+      <div style={{ fontSize: 14, fontWeight: 800, color: INK, marginBottom: 6 }}>
+        🧡 Support Legends Youth Basketball
+      </div>
+      <p style={{ fontSize: 13, color: MUTED, lineHeight: 1.6, margin: "0 0 12px" }}>
+        Fit Kid Hooper is built and run by Legends YBA, a nonprofit. It is free for
+        every athlete, and always will be. Donations fund training, camps and gym
+        time for kids who could not otherwise get them.
+      </p>
+      <a href={donateUrl} target="_blank" rel="noopener noreferrer"
+        style={{
+          display: "inline-block", padding: "10px 18px", borderRadius: 999,
+          background: "#f97316", color: "#fff", fontSize: 13, fontWeight: 800,
+          textDecoration: "none",
+        }}>
+        Donate
+      </a>
+      <div style={{ fontSize: 12, color: MUTED, marginTop: 10 }}>
+        Entirely optional — the account is already approved either way.
+      </div>
+    </div>
   );
 }
 
@@ -135,7 +174,7 @@ export default function ParentConsentPage() {
     </Notice>;
 
   if (done || state.data?.status === "signed")
-    return <Notice emoji="✅" title="Thank you — you're all set">
+    return <Notice emoji="✅" title="Thank you — you're all set" footer={<SupportLegends />}>
       {athlete}&apos;s account is approved{done?.video ? ", and you've pre-approved video workouts with friends you approve" : ""}.
       You can change or withdraw this at any time from Settings in the app, or by replying to any email we send you.
     </Notice>;
