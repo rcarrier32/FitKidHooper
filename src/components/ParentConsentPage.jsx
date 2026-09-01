@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import {
   getConsentRequest,
   submitParentConsent,
+  deleteAthleteViaConsent,
   consentTokenFromUrl,
 } from "../lib/parentConsent.js";
 
@@ -122,6 +123,8 @@ export default function ParentConsentPage() {
   const [video, setVideo] = useState(false);
   const [busy, setBusy] = useState(false);
   const [confirmSkip, setConfirmSkip] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleted, setDeleted] = useState(false);
   const [err, setErr] = useState(null);
   const [done, setDone] = useState(null);
 
@@ -166,6 +169,21 @@ export default function ParentConsentPage() {
       not_found: "This link isn't valid — ask your athlete to send a new one.",
     }[r.error] || "Something went wrong. Please try again.");
   };
+
+  const runDelete = async () => {
+    setErr(null);
+    setBusy(true);
+    const r = await deleteAthleteViaConsent(token);
+    setBusy(false);
+    if (r.ok) setDeleted(true);
+    else setErr("Could not delete the account. Reply to this email and we'll take care of it.");
+  };
+
+  if (deleted)
+    return <Notice emoji="🗑" title="Account deleted">
+      {athlete}&apos;s account and training history have been removed. Nothing is kept.
+      If this was a mistake, they can start again any time.
+    </Notice>;
 
   if (state.loading) return <Notice emoji="🏀" title="Loading…">One moment.</Notice>;
 
@@ -308,6 +326,51 @@ export default function ParentConsentPage() {
           <a href="privacy.html" style={{ color: ORANGE }}>privacy notice</a>.
           Questions? Reply to any email we send you.
         </p>
+
+        {/* The other answer. A consent request that can only be accepted is not
+            really a request, and without this the only way to decline was to
+            reply to an email and wait for a human. */}
+        <div style={{ borderTop: `1px solid ${LINE}`, paddingTop: 16, textAlign: "center" }}>
+          {!confirmDelete ? (
+            <button type="button" onClick={() => setConfirmDelete(true)}
+              style={{
+                background: "none", border: "none", color: MUTED, fontSize: 12.5,
+                textDecoration: "underline", cursor: "pointer", padding: 4,
+              }}>
+              I&apos;d rather delete {athlete}&apos;s account
+            </button>
+          ) : (
+            <div style={{
+              background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10,
+              padding: "14px 16px", textAlign: "left",
+            }}>
+              <div style={{ fontSize: 13.5, fontWeight: 800, color: "#b91c1c", marginBottom: 6 }}>
+                Delete {athlete}&apos;s account?
+              </div>
+              <p style={{ fontSize: 12.5, color: MUTED, lineHeight: 1.6, margin: "0 0 12px" }}>
+                This removes the account and all training history straight away. It cannot be undone,
+                and it does not need our help — it happens the moment you tap.
+              </p>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <button type="button" onClick={runDelete} disabled={busy}
+                  style={{
+                    padding: "10px 16px", borderRadius: 999, border: "none",
+                    background: busy ? "#cbd5e1" : "#dc2626", color: "#fff",
+                    fontSize: 13, fontWeight: 800, cursor: busy ? "default" : "pointer",
+                  }}>
+                  {busy ? "Deleting…" : "Yes, delete it"}
+                </button>
+                <button type="button" onClick={() => setConfirmDelete(false)}
+                  style={{
+                    padding: "10px 16px", borderRadius: 999, border: `1px solid ${LINE}`,
+                    background: "#fff", color: MUTED, fontSize: 13, fontWeight: 700, cursor: "pointer",
+                  }}>
+                  Keep the account
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </form>
     </Shell>
   );

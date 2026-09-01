@@ -64,6 +64,19 @@ export async function getConsentRequest(token) {
   return data || { ok: false, error: "no response" };
 }
 
+/**
+ * The other answer a parent can give. Scoped to the consent token because the
+ * caller is anonymous and the token is the only evidence of authority; it is
+ * consumed either way, so a link cannot delete twice.
+ */
+export async function deleteAthleteViaConsent(token) {
+  const sb = getSupabaseClient();
+  if (!sb) return { ok: false, error: "not configured" };
+  const { data, error } = await sb.rpc("delete_athlete_via_consent", { p_token: token });
+  if (error) return { ok: false, error: error.message };
+  return data || { ok: false, error: "no response" };
+}
+
 /** Parent signs. videoOptIn is optional and independent of the account consent. */
 export async function submitParentConsent(token, { parentName, relationship, parentEmail, videoOptIn }) {
   const sb = getSupabaseClient();
