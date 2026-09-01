@@ -24,7 +24,7 @@ Lightweight instrumentation for learning from the first ~100 users. Uses the sam
 
 - **No names, DOB, or avatars** are sent in events or feedback.
 - **Device UUID** (`fkh-athlete-id`) links events on one device only.
-- **Age group** bracket (`u10` / `u12` / `u14` / `u17`) is optional segmentation — same as leaderboard.
+- **Age group** bracket (`u10` / `u12` / `u14` / `u17` / `adult` / `unknown`) is optional segmentation — same as leaderboard. `adult` is 18+; the app is youth-first but coaches, parents and older siblings train in it too. Guarded by a `CHECK` constraint on `events`, `athlete_analytics`, `leaderboard_stats` and `athlete_profiles` — a bracket the client emits but the constraint rejects loses the write silently, so `npm run verify:consent-age` asserts the two stay in step.
 - Feedback messages are optional free text — avoid entering real names.
 
 Before a broader launch, tighten RLS `SELECT` policies on `events` and `feedback` (currently open for small-team MVP).

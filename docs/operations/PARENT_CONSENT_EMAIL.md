@@ -64,7 +64,9 @@ Subject line: `A quick approval for {athlete}'s Fit Kid Hooper account`
 **Pending vs signed** (Supabase SQL editor):
 
 ```sql
--- Overview
+-- Overview. Statuses: pending → signed (approved) or deleted (parent removed
+-- the account); not_required marks a request that should not have been raised
+-- (athlete is 13+, or consent already exists on another row).
 select status, count(*) from parent_consent_requests group by status;
 
 -- Still waiting (not expired)
@@ -103,10 +105,35 @@ FKH does **not** have its own deliverability admin UI. FKH consent events may ap
 
 ---
 
-## Sep 2026 initial blast
+## Sep 2026 initial send
 
-- Sent via `send-consent-email` with manually assembled `recipients[]`.
-- All messages **delivered** in Resend; no bounces required cleanup.
+- **5 emails**, one per athlete under 13 with an address on file. Sent from
+  `Legends YBA <info@legendsyba.com>`, reply-to the same.
+- Sent by a **local script posting straight to the Resend API**, spaced ~20s
+  apart — *not* through `send-consent-email`. That function is deployed and
+  works, but was not the path used, so don't read this entry as proof of it.
+- All five returned **HTTP 200 = accepted by Resend**. Acceptance is not
+  delivery; check the Resend dashboard for actual delivery and bounces.
+- Tokens expire **2026-10-01**.
+
+**Who was left out, and why.** Three athletes had `pending` rows that should
+never have been raised — one already signed on another row, and two aged 17
+and 29 who self-consent under the age gate. All three are now `not_required`
+and their tokens are inert. Filter the "still waiting" query below by age
+before any future send, or you will ask a guardian to approve an adult.
+
+**Before a re-send, check the recipient still needs consent:**
+
+```sql
+select coalesce(p.first_name, p.display_name) as who,
+       date_part('year', age(p.date_of_birth))::int as age,
+       r.status, r.expires_at::date
+from parent_consent_requests r
+join athlete_profiles p on p.id = r.athlete_id
+where r.status = 'pending'
+order by age nulls last;   -- a null age still needs a parent: unknown fails safe
+```
+
 - **Next:** parents sign at `?consent={token}`; monitor `parent_consent_requests.status` and follow up non-responders before token expiry.
 
 ---

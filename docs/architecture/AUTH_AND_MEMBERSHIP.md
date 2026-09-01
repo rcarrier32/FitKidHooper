@@ -54,12 +54,23 @@ The gate POSTs to `https://www.legendsyba.com/api/fkh/verify` (override: `VITE_L
 
 ### Parent consent & COPPA (live)
 
+**Consent is gated on age, not applied to everyone.** `needsParentConsent(dob)` — defined in `src/lib/periodStats.js`, re-exported from `src/lib/parentConsent.js` — returns true below `CONSENT_AGE` (13). It gates the signup sheet (`AuthSheet` `parentConsent` prop), the onboarding account step, and the "grab a grown-up" hand-off in `SettingsSheet`. At 13+ the athlete supplies their own email, sees no guardian checkboxes, and **no `parental_consent` row is written** — there is no guardian to record.
+
+A **null birthday returns true**. A self-declared date is not proof of age, so unknown fails safe. Guarded by `npm run verify:consent-age` (CI step), which also asserts every `AGE_GROUPS` id is one the DB `CHECK` constraint accepts.
+
 - **`parental_consent`** — account consent + optional video intent. — `supabase/parental_consent.sql`
 - **`parent_consent_requests`** — one-time signing links (30-day TTL, token is the only key). — `supabase/parent_consent_link.sql`
 - **UI:** `ParentConsentPage` (`?consent={token}`), in-app invite via `ParentConsentInvite` (mailto / SMS / copy link).
+- **Delete:** `delete_athlete_via_consent(token)` — token-scoped account deletion offered on the consent page. — `supabase/parent_delete_account.sql`
 - **Bulk email:** `supabase/functions/send-consent-email/` — deployed; manual invoke with `PUSH_SECRET` + `recipients[]`. See [Parent Consent Email ops](../operations/PARENT_CONSENT_EMAIL.md).
 
-**Sep 2026 blast:** Initial parent consent emails sent via `send-consent-email`; all delivered in Resend (shared account with Legends). Track signatures via `parent_consent_requests.status = 'signed'` and new `parental_consent` rows (`method = 'parent_signed_link'`).
+**Statuses:** `pending` → `signed` (parent approved) or `deleted` (parent chose removal). `not_required` marks a request that should never have been raised — the athlete is 13+, or consent already exists on another row. Those tokens are inert.
+
+**Sep 2026 send:** 5 emails, sent from `Legends YBA <info@legendsyba.com>` via a local script posting directly to the Resend API — **not** through `send-consent-email`, which is deployed but was not the path used. All five returned HTTP 200 (accepted by Resend; acceptance is not delivery confirmation). Tokens expire 2026-10-01.
+
+Three athletes were deliberately excluded, all now `not_required`: one whose consent was already signed on another row, and two aged 17 and 29 who self-consent under the age gate. Before the gate existed, both were queued to have a guardian asked to approve them.
+
+Track signatures via `parent_consent_requests.status = 'signed'` and new `parental_consent` rows (`method = 'parent_signed_link'`).
 
 ### Founding members (schema live, not wired to gating)
 
