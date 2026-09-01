@@ -77,6 +77,7 @@ import {
   setAnalyticsAgeGroup,
   track,
   trackScreen,
+  trackProgramsSection,
   trackHomeViewed,
   trackPracticeStarted,
   trackPracticeFinished,
@@ -2688,6 +2689,14 @@ export default function FitKidHooperApp() {
     trackScreen(screen);
     if (view === "home") trackHomeViewed();
   }, [view, selectedProgram, activeCat, schedTab]);
+
+  /* Which of the Programs hub's sixteen states is actually in use. screen_view
+     records the whole tab as one value, so the four sections and the four
+     Plans segments were invisible. */
+  useEffect(() => {
+    if (view !== "programs" || selectedProgram) return;
+    trackProgramsSection(programsHubSection, programsHubSection === "plans" ? programSegment : null);
+  }, [view, selectedProgram, programsHubSection, programSegment]);
 
   useEffect(() => {
     const ap = activePracticeRef.current;

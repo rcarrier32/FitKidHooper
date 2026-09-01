@@ -21,3 +21,13 @@ export function getSupabaseClient() {
   });
   return client;
 }
+
+/**
+ * Raw REST details for requests that must survive page teardown. The JS client
+ * cannot issue a keepalive fetch, and an ordinary insert started on pagehide is
+ * cancelled with the page.
+ */
+export function getSupabaseRest() {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
+  return { url: SUPABASE_URL, key: SUPABASE_ANON_KEY };
+}

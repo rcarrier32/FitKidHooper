@@ -1,6 +1,6 @@
 import { getDeviceAthleteId as getAthleteId, readStoredAuthSession } from "./auth.js";
 import { FIRST_EXERCISE_KEY } from "./athleteExperience.js";
-import { getSupabaseClient, isSupabaseConfigured } from "./supabaseClient.js";
+import { getSupabaseClient, isSupabaseConfigured, getSupabaseRest } from "./supabaseClient.js";
 import { ANALYTICS_EVENTS } from "./analyticsTypes.js";
 
 const QUEUE_KEY = "fkh-analytics-queue";
@@ -119,6 +119,50 @@ export function track(eventName, properties = {}) {
   }
 }
 
+function toEventRow({ event_name, properties, athlete_id, app_version, age_group, session_id, queued_at }) {
+  return {
+    athlete_id,
+    event_name,
+    properties: properties || {},
+    app_version,
+    age_group,
+    session_id: session_id || null,
+    client_ts: queued_at ? new Date(queued_at).toISOString() : null,
+  };
+}
+
+/**
+ * Flush on the way out.
+ *
+ * flushEvents() starts an ordinary async insert, which the browser cancels as
+ * the page tears down. initAnalytics happens to queue session_start and flush
+ * immediately, so that one event always landed while everything queued after
+ * it -- screen_view included -- only arrived if the session lasted past the
+ * 30s timer or the athlete came back later. That is why 81 athletes had a
+ * session_start and nothing else. keepalive lets the request outlive the page.
+ */
+function flushEventsOnExit() {
+  const rest = getSupabaseRest();
+  if (!rest) return;
+  const queue = readQueue();
+  if (queue.length === 0) return;
+  const batch = queue.slice(0, FLUSH_BATCH_SIZE);
+  try {
+    fetch(`${rest.url}/rest/v1/events`, {
+      method: "POST",
+      keepalive: true,
+      headers: {
+        "Content-Type": "application/json",
+        apikey: rest.key,
+        Authorization: `Bearer ${rest.key}`,
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify(batch.map(toEventRow)),
+    }).catch(() => { /* the page is going away; nothing to retry into */ });
+    writeQueue(queue.slice(batch.length));
+  } catch { /* ignore */ }
+}
+
 export async function flushEvents() {
   if (!isSupabaseConfigured() || flushing) return;
   const sb = getSupabaseClient();
@@ -136,15 +180,7 @@ export async function flushEvents() {
   // locally and flush together every 30s, so several events in one batch
   // would otherwise share the same server insert time and make any
   // duration/ordering math between them collapse to zero.
-  const rows = batch.map(({ event_name, properties, athlete_id, app_version, age_group, session_id, queued_at }) => ({
-    athlete_id,
-    event_name,
-    properties: properties || {},
-    app_version,
-    age_group,
-    session_id: session_id || null,
-    client_ts: queued_at ? new Date(queued_at).toISOString() : null,
-  }));
+  const rows = batch.map(toEventRow);
 
   const { error } = await sb.from("events").insert(rows);
   if (!error) {
@@ -173,6 +209,11 @@ async function upsertAthleteAnalytics({ isFirstSession = false } = {}) {
   }
 
   await sb.from("athlete_analytics").upsert(row, { onConflict: "athlete_id" });
+}
+
+/** Programs hub section + Plans segment — the states screen_view flattened. */
+export function trackProgramsSection(section, segment) {
+  track(ANALYTICS_EVENTS.PROGRAMS_SECTION_VIEW, { section, segment: segment || null });
 }
 
 export function trackScreen(screen, extra = {}) {
@@ -277,7 +318,7 @@ function endSession() {
   track(ANALYTICS_EVENTS.SESSION_END, { duration_sec: durationSec });
   sessionStartedAt = null;
   sessionId = null;
-  flushEvents();
+  flushEventsOnExit();
 }
 
 /** Call once on app mount. */
@@ -304,7 +345,10 @@ export function initAnalytics({ ageGroup = "unknown", isStandalone = false } = {
     } else if (document.visibilityState === "visible" && !sessionStartedAt) {
       sessionStartedAt = Date.now();
       sessionId = crypto.randomUUID();
-      track(ANALYTICS_EVENTS.SESSION_START, { is_standalone: isStandalone, is_return: true });
+      // Distinct from session_start: the app came back to the foreground, it
+      // is not a new visit. Counting them together made every session and
+      // retention figure roughly six times too big.
+      track(ANALYTICS_EVENTS.APP_FOREGROUNDED, { is_standalone: isStandalone });
       upsertAthleteAnalytics();
     }
   };

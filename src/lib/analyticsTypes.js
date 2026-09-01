@@ -2,6 +2,14 @@
 export const ANALYTICS_EVENTS = {
   SESSION_START: "session_start",
   SESSION_END: "session_end",
+  /* Returning to the foreground used to re-fire session_start, so 1,499 of
+     1,810 "sessions" were really app switches and every session metric was
+     inflated about six-fold. It is its own event now. */
+  APP_FOREGROUNDED: "app_foregrounded",
+  /* Programs hub: which of the four sections and which Plans segment. The hub
+     was a single "programs" screen_view, so nothing distinguished the sixteen
+     states behind those two chip rows. */
+  PROGRAMS_SECTION_VIEW: "programs_section_view",
   SCREEN_VIEW: "screen_view",
   ONBOARDING_COMPLETE: "onboarding_complete",
   ONBOARDING_TOUR_COMPLETE: "onboarding_tour_complete",
