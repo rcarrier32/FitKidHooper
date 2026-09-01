@@ -1,6 +1,7 @@
 import { supabaseAuthStorageKey } from "./athleteStorage.js";
 
-const TEST_USER_ID = "3644131e-feed-4c8f-a825-0a0433b40308";
+// Matches the fixture id in athleteStorage.js. Was a real athlete's id.
+const TEST_USER_ID = "00000000-e2e0-4000-8000-000000000001";
 const TEST_USERNAME = "braylen";
 
 function sessionPayload() {

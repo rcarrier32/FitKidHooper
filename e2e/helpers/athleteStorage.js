@@ -44,7 +44,11 @@ export const MINIMAL_ATHLETE_STORAGE = {
   "fkh-missions": "{}",
   "fkh-favs": JSON.stringify({ exercises: {}, workouts: {}, programs: {} }),
   "fkh-badge-dates": "{}",
-  "fkh-athlete-id": "3644131e-feed-4c8f-a825-0a0433b40308",
+  // A dedicated fixture id, registered in analytics_qa_athletes. This used to
+  // be a real athlete's id, so every local and CI run seeded storage as an
+  // actual child and any event that escaped the automation guard landed on
+  // their record.
+  "fkh-athlete-id": "00000000-e2e0-4000-8000-000000000001",
   "fkh-last-username": "braylen",
 };
 
