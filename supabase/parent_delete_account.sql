@@ -51,6 +51,7 @@ begin
   delete from public.friend_requests       where requester_id = v_athlete or target_id = v_athlete;
   delete from public.friendships           where athlete_a    = v_athlete or athlete_b = v_athlete;
   delete from public.messages              where sender_id    = v_athlete or recipient_id = v_athlete;
+  delete from public.video_sessions        where host_id      = v_athlete or guest_id     = v_athlete;
   delete from public.drill_completions     where user_id      = v_athlete;
   delete from public.shot_log              where user_id      = v_athlete;
   delete from public.push_subscriptions    where user_id      = v_athlete;
