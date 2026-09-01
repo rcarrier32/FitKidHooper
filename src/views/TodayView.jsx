@@ -263,16 +263,58 @@ export default function TodayView({
     return { label: doneReq > 0 ? "Continue Practice" : "Start Today's Practice", run: () => startExerciseList(exList) };
   })();
 
+  /* The drill the CTA will actually open — first undone exercise of the next
+     unfinished task, falling back to the task's own label. */
+  const nextDrillName = (() => {
+    if (!nextMissionTask) return null;
+    if (nextMissionTask.type === "program") return nextMissionTask.kindLabel || "Next session";
+    const firstUndone = (nextMissionTask.exercises || [])
+      .find(id => !completed[`${today}-${id}`]);
+    return allExercises[firstUndone]?.name || nextMissionTask.label || null;
+  })();
+
   return (
     <>
+      {/* The hero, per the study: where you are, what's next, one action. It
+          sits above Today's Mission rather than inside it, so collapsing the
+          section can never hide the primary action — and the task list below
+          keeps its targets, optional markers and program sessions, which six
+          flat drill rows could not express. */}
       {practiceCTA && (
-        <button type="button" onClick={() => { trackCtaClicked("start_practice", { label: practiceCTA.label }); practiceCTA.run(); }}
-          style={{ margin:"0 20px 12px", padding:"16px 18px", borderRadius:16, border:"none", cursor:"pointer",
-            width:"calc(100% - 40px)", textAlign:"left", display:"flex", alignItems:"center", gap:12,
-            background:`linear-gradient(135deg, ${P}, ${P}cc)`, boxShadow:`0 4px 20px ${P}44` }}>
-          <span style={{ fontSize:22, flexShrink:0 }}>▶</span>
-          <span style={{ fontSize:16, fontWeight:800, color:"#000" }}>{practiceCTA.label}</span>
-        </button>
+        <div style={{ margin:"0 20px 12px", padding:"16px 15px 15px", borderRadius:18,
+          border:`1px solid ${P}40`, background:`linear-gradient(160deg, ${P}14, ${BG} 70%)` }}>
+          <div style={{ display:"flex", alignItems:"center", gap:13, marginBottom:13 }}>
+            <div style={{ width:62, height:62, borderRadius:"50%", flexShrink:0,
+              display:"flex", alignItems:"center", justifyContent:"center",
+              background:`conic-gradient(${P} ${overallPct * 360}deg, rgba(255,255,255,0.08) 0deg)` }}>
+              <div style={{ width:50, height:50, borderRadius:"50%", background:BG,
+                display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center" }}>
+                <span style={{ fontFamily:"'DM Mono',monospace", fontSize:18, fontWeight:800, lineHeight:1 }}>{doneReq}</span>
+                <span style={{ fontSize:8, color:"#475569", lineHeight:1, marginTop:2 }}>of {totalReq}</span>
+              </div>
+            </div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontFamily:"'DM Mono',monospace", fontSize:9.5, letterSpacing:"0.14em",
+                textTransform:"uppercase", fontWeight:800, color:P, marginBottom:4 }}>
+                {doneReq > 0 ? "Up next" : "First up"}
+              </div>
+              <div style={{ fontSize:17, fontWeight:800, lineHeight:1.15, letterSpacing:"-0.02em",
+                textWrap:"pretty", color:"var(--fkh-text)" }}>
+                {nextDrillName || mission.title}
+              </div>
+              {todayTrainingSummary && (
+                <div style={{ fontSize:11, color:"#64748b", marginTop:4 }}>
+                  {todayTrainingSummary.minutes} min · +{todayTrainingSummary.xp} XP
+                </div>
+              )}
+            </div>
+          </div>
+          <button type="button" onClick={() => { trackCtaClicked("start_practice", { label: practiceCTA.label }); practiceCTA.run(); }}
+            style={{ width:"100%", padding:15, borderRadius:14, border:"none", cursor:"pointer",
+              background:P, color:"#000", fontSize:15.5, fontWeight:800 }}>
+            {practiceCTA.label}
+          </button>
+        </div>
       )}
 
       {/* Coach's read on where you are — one line, under the CTA rather than
@@ -369,25 +411,15 @@ export default function TodayView({
           background:claimed ? "rgba(34,197,94,0.07)" : `${P}0c`, overflow:"hidden" }}>
 
           <div style={{ padding:"12px 14px 10px", display:"flex", alignItems:"center", gap:11 }}>
-            {/* Progress reads at a glance instead of as a pill buried in the label row. */}
-            <div style={{ width:62, height:62, borderRadius:"50%", flexShrink:0,
-              display:"flex", alignItems:"center", justifyContent:"center",
-              background:`conic-gradient(${claimed ? "#22c55e" : P} ${overallPct * 360}deg, rgba(255,255,255,0.08) 0deg)` }}>
-              <div style={{ width:50, height:50, borderRadius:"50%", background:BG,
-                display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center" }}>
-                <span style={{ fontFamily:"'DM Mono',monospace", fontSize:18, fontWeight:800, lineHeight:1,
-                  color:claimed ? "#22c55e" : "var(--fkh-text)" }}>{doneReq}</span>
-                <span style={{ fontSize:8, color:"#475569", lineHeight:1, marginTop:2 }}>of {totalReq}</span>
-              </div>
-            </div>
             <div style={{ flex:1, minWidth:0 }}>
               <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:4, flexWrap:"wrap" }}>
                 <span style={{ fontFamily:"'DM Mono',monospace", fontSize:10, letterSpacing:"0.14em",
                   color:claimed ? "#22c55e" : P, textTransform:"uppercase", fontWeight:800 }}>Daily Mission</span>
-                {claimed && (
-                  <span style={{ fontSize:9, padding:"2px 8px", borderRadius:99,
-                    background:"rgba(34,197,94,0.18)", color:"#22c55e", fontWeight:800 }}>✓ COMPLETE</span>
-                )}
+                {claimed
+                  ? <span style={{ fontSize:9, padding:"2px 8px", borderRadius:99,
+                      background:"rgba(34,197,94,0.18)", color:"#22c55e", fontWeight:800 }}>✓ COMPLETE</span>
+                  : <span style={{ fontSize:9, padding:"2px 8px", borderRadius:99,
+                      background:`${P}18`, color:P, fontWeight:700 }}>{doneReq}/{totalReq} TODAY</span>}
               </div>
               <div style={{ fontSize:13, fontWeight:700, color:"var(--fkh-text)",
                 overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
