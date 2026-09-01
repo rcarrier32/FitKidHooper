@@ -1,4 +1,5 @@
 import { readCachedAvatarUrl } from "./avatarCloud.js";
+import { isTestClient } from "./analytics.js";
 import { getSupabaseClient, isSupabaseConfigured } from "./supabaseClient.js";
 import { profileForCloud, boardDisplayName } from "./identity.js";
 import { getDeviceAthleteId, getEffectiveAthleteId } from "./auth.js";
@@ -114,6 +115,10 @@ export function buildPushPayload({
 }
 
 export async function pushLeaderboardStats(payload) {
+  /* Boards are real athletes only. Local dev, automation and QA sessions were
+     writing profiles and stats onto live leaderboards, so a test run could
+     outrank a child. Same gate analytics uses -- see isTestClient. */
+  if (isTestClient()) return { skipped: true, reason: "test_client" };
   const sb = getClient();
   if (!sb) throw new Error("Leaderboard is not configured yet");
 
@@ -170,6 +175,9 @@ export async function maybeAutoSyncLeaderboard({
   ledger = {},
   force = false,
 } = {}) {
+  if (isTestClient()) {
+    return { skipped: true, reason: "test_client" };
+  }
   if (!canAutoSyncLeaderboard(settings)) {
     return { skipped: true, reason: "not_eligible" };
   }
