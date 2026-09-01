@@ -34,11 +34,15 @@ const GOAL_OPTIONS = [
   ["coordination", "🎶 Coordination"],
 ];
 
+/* Youth app, but not a youth-only one: coaches, parents and older siblings
+   train alongside the kids. Capping the picker at 18 meant an adult could not
+   enter a birthday at all, so they got no age group and — once the birthday
+   started driving consent — a guardian prompt they could never satisfy. */
 function dobBounds() {
   const today = new Date();
   return {
-    max: new Date(today.getFullYear() - 8, today.getMonth(), today.getDate()).toLocaleDateString("en-CA"),
-    min: new Date(today.getFullYear() - 18, today.getMonth(), today.getDate()).toLocaleDateString("en-CA"),
+    max: new Date(today.getFullYear() - 5, today.getMonth(), today.getDate()).toLocaleDateString("en-CA"),
+    min: new Date(today.getFullYear() - 100, today.getMonth(), today.getDate()).toLocaleDateString("en-CA"),
   };
 }
 
@@ -130,7 +134,7 @@ export default function OnboardingSheet({ P = "#f97316", onComplete, onAuthSucce
   const validateStep2Profile = () => {
     if (!dateOfBirth) return "Enter your birthday so we can match your age group";
     const age = calcAge(dateOfBirth);
-    if (age < 8 || age > 18) return "Birthday must be for ages 8–18";
+    if (age < 5 || age > 100) return "Check that birthday — it doesn't look right";
     return null;
   };
 

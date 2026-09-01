@@ -51,8 +51,10 @@ export default function IdentityEditor({ settings, setSettings, avatarUrl, onAva
   };
 
   const today = new Date();
-  const maxDOB = new Date(today.getFullYear() - 8, today.getMonth(), today.getDate()).toLocaleDateString("en-CA");
-  const minDOB = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate()).toLocaleDateString("en-CA");
+  // Matches dobBounds() in OnboardingSheet — adults train here too, and a
+  // picker that stops at 18 leaves them with no age at all.
+  const maxDOB = new Date(today.getFullYear() - 5, today.getMonth(), today.getDate()).toLocaleDateString("en-CA");
+  const minDOB = new Date(today.getFullYear() - 100, today.getMonth(), today.getDate()).toLocaleDateString("en-CA");
   const age = settings.dateOfBirth ? calcAge(settings.dateOfBirth) : null;
   const bday = settings.dateOfBirth && isBirthday(settings.dateOfBirth);
 

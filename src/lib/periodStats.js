@@ -4,6 +4,9 @@ export const AGE_GROUPS = [
   { id: "u12", label: "U12 (11–12)", min: 11, max: 12 },
   { id: "u14", label: "U14 (13–14)", min: 13, max: 14 },
   { id: "u17", label: "U15+ (15–17)", min: 15, max: 17 },
+  // Grown-ups train here too — coaches, parents, older siblings. They get their
+  // own bracket rather than a place on a children's board.
+  { id: "adult", label: "18+ Open", min: 18, max: 120 },
   { id: "unknown", label: "Unlisted age", min: 0, max: 0 },
 ];
 
@@ -30,7 +33,8 @@ export function getAgeGroup(dob) {
   if (age <= 10) return "u10";
   if (age <= 12) return "u12";
   if (age <= 14) return "u14";
-  return "u17";
+  if (age <= 17) return "u17";
+  return "adult";
 }
 
 export function getAgeGroupLabel(id) {
