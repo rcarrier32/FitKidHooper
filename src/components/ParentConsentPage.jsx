@@ -52,8 +52,19 @@ function Shell({ children }) {
         width: "100%", background: "#0b1220", color: "#fff", padding: "14px 20px",
         boxSizing: "border-box", display: "flex", justifyContent: "center",
       }}>
-        <div style={{ width: "100%", maxWidth: 480, fontSize: 14, fontWeight: 800, letterSpacing: 0.2 }}>
-          🏀 FKH <span style={{ color: ORANGE }}>Fit Kid Hooper</span>
+        <div style={{ width: "100%", maxWidth: 480, display: "flex", alignItems: "center", gap: 10 }}>
+          <img src="legends-crest.png" alt="Legends Youth Basketball"
+               width="30" height="23" style={{ display: "block", flexShrink: 0 }} />
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, letterSpacing: 0.2 }}>
+              🏀 FKH <span style={{ color: ORANGE }}>Fit Kid Hooper</span>
+            </div>
+            {/* A parent approving their child's account should be able to see
+                whose programme they are approving, not just the app's name. */}
+            <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 1 }}>
+              A Legends Youth Basketball program
+            </div>
+          </div>
         </div>
       </div>
       <div style={card}>{children}</div>
