@@ -36,6 +36,22 @@ export function isAuthConfigured() {
  * Call right after the parent's email is verified at signup. Writes the
  * caller's own row server-side via the record_parental_consent RPC.
  */
+/**
+ * Record consent without letting a failure block account creation -- but not
+ * silently. The RPC returns { ok:false } rather than throwing, so the callers'
+ * try/catch never fired and a failure looked identical to success.
+ */
+async function recordConsentQuietly(parentEmail) {
+  try {
+    const res = await recordParentalConsent({ parentEmail });
+    if (!res?.ok) console.warn("[fkh] parental consent not recorded:", res?.error);
+    return res;
+  } catch (e) {
+    console.warn("[fkh] parental consent not recorded:", e?.message || e);
+    return { ok: false, error: e?.message || String(e) };
+  }
+}
+
 export async function recordParentalConsent({ parentEmail, consentVersion = CONSENT_VERSION, method = "email_verification" } = {}) {
   const sb = getSupabaseClient();
   if (!sb) return { ok: false, error: "not configured" };
@@ -207,6 +223,13 @@ export async function signUpWithUsername({ username, passcode, recoveryEmail }) 
   if (data.session) {
     await registerUsername(normUser);
     rememberUsername(normUser);
+    /* Consent is recorded here, next to registerUsername, because both need the
+       same fresh session. It used to live only in the caller's OTP branch, so
+       whenever Supabase returned a session straight from signUp -- no code to
+       enter -- the app went to finish() and no consent row was ever written.
+       Every account created that way has a registered username and no consent,
+       which is exactly what the data shows. */
+    await recordConsentQuietly(email);
     return { needsEmailVerification: false, user: data.user };
   }
 
@@ -227,6 +250,7 @@ export async function verifySignupEmail({ email, code, username }) {
   const normUser = normalizeUsername(username);
   await registerUsername(normUser);
   rememberUsername(normUser);
+  await recordConsentQuietly(email.trim().toLowerCase());
   return { ok: true };
 }
 
