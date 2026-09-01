@@ -95,8 +95,64 @@ function basePayload() {
  * athlete + session_start event into real analytics — this is why the
  * admin dashboard's athlete list included obvious bot/test entries.
  */
+const QA_MODE_KEY = "fkh-qa-mode";
+
+/**
+ * Test traffic is kept out of the data at source rather than filtered after.
+ *
+ * The previous approach inferred it downstream: analytics_qa_athletes is a view
+ * over "any athlete whose app_version is local or setup". That has two holes.
+ * Testing against the deployed site carries a real version string, so it looks
+ * like genuine use and lands in the numbers -- 386 events did exactly that. And
+ * a real athlete who ever opens a dev build is silently excluded from reporting
+ * forever. Neither is recoverable once the rows exist.
+ *
+ * Three things make a client a test client:
+ *   - automation (Playwright sets navigator.webdriver)
+ *   - a local dev server, by hostname
+ *   - an explicit QA flag, for testing against production
+ *
+ * Turn the flag on with ?qa=1 and off with ?qa=0. It sticks in localStorage so
+ * a whole testing session stays out, and it logs on every boot -- silently not
+ * recording a real athlete would be a worse failure than the one this fixes.
+ */
+function isLocalHost() {
+  try {
+    const h = window.location.hostname;
+    return h === "localhost" || h === "127.0.0.1" || h === "::1" || h.endsWith(".local");
+  } catch { return false; }
+}
+
+function readQaFlag() {
+  try {
+    const param = new URLSearchParams(window.location.search).get("qa");
+    if (param === "1") { localStorage.setItem(QA_MODE_KEY, "1"); return true; }
+    if (param === "0") { localStorage.removeItem(QA_MODE_KEY); return false; }
+    return localStorage.getItem(QA_MODE_KEY) === "1";
+  } catch { return false; }
+}
+
+let announcedTestClient = false;
+
+export function isTestClient() {
+  // readQaFlag() is evaluated first and unconditionally: it is what persists
+  // ?qa=1 and clears on ?qa=0. Behind a || it would be skipped on localhost,
+  // so the flag could never be set from a dev server -- and never cleared.
+  const flagged = readQaFlag();
+  let automated = false;
+  try { automated = Boolean(navigator.webdriver); } catch { /* ignore */ }
+  const test = automated || isLocalHost() || flagged;
+  if (test && !announcedTestClient) {
+    announcedTestClient = true;
+    try {
+      console.info("[fkh] test client — analytics disabled. ?qa=0 to record normally.");
+    } catch { /* ignore */ }
+  }
+  return test;
+}
+
 function isAutomatedBrowser() {
-  try { return Boolean(navigator.webdriver); } catch { return false; }
+  return isTestClient();
 }
 
 /** Queue an event for batched upload. No-op when Supabase is not configured. */
