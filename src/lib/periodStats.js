@@ -37,6 +37,30 @@ export function getAgeGroupLabel(id) {
   return AGE_GROUPS.find(g => g.id === id)?.label || id;
 }
 
+/** COPPA applies below 13. At 13 and up, the athlete consents for themselves. */
+export const CONSENT_AGE = 13;
+
+/**
+ * Whether this athlete's account needs a parent or guardian to approve it.
+ *
+ * The birthday onboarding already requires is the input, so nobody is asked
+ * their age twice and nobody over the threshold is handed a guardian step they
+ * do not need — a 17-year-old was queued for a "please approve your child's
+ * account" email before this existed.
+ *
+ * An unknown birthday returns TRUE. A self-declared date is not proof of age,
+ * so the only safe default when we know nothing is to ask for a grown-up; the
+ * accounts predating the required-birthday onboarding all land here.
+ *
+ * Re-exported from parentConsent.js — see the note there on why it lives in
+ * this module instead.
+ */
+export function needsParentConsent(dob) {
+  const age = calcAge(dob);
+  if (age == null) return true;
+  return age < CONSENT_AGE;
+}
+
 const todayKey = () => new Date().toLocaleDateString("en-CA");
 
 function dateInRange(dateStr, start, end) {

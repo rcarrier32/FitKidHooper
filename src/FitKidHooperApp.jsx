@@ -19,6 +19,7 @@ import CountBadge from "./components/CountBadge.jsx";
 import { readShotLog, normalizeShotLog, writeShotLog, countShotMakes } from "./lib/shotLog.js";
 import { computeShotStyleMakes } from "./lib/shotStyles.js";
 import { getAgeGroup } from "./lib/periodStats.js";
+import { needsParentConsent } from "./lib/parentConsent.js";
 import { recoverFromSyncBackupIfNeeded } from "./lib/syncBackup.js";
 import { writeStoredAvatar, readStoredAvatar, stripAvatarForCloud, migrateAvatarOutOfSettings } from "./lib/avatarStorage.js";
 import { safePersistKey } from "./lib/dataSafety.js";
@@ -2623,6 +2624,7 @@ export default function FitKidHooperApp() {
       SF={surf(settings)}
       zIndex={showOnboarding ? 450 : 350}
       initialMode={authInitialMode}
+      parentConsent={needsParentConsent(settings.dateOfBirth)}
       firstName={settings.athleteName || ""}
       lastName={settings.lastName || ""}
       onClose={() => { setShowAuth(false); setAuthInitialMode("signin"); }}

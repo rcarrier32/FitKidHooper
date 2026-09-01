@@ -17,7 +17,8 @@
     "verify:exercise-skills": "node scripts/audit-exercise-skills.mjs",
     "verify:coach-agent": "node scripts/verify-coach-agent.mjs",
     "verify:daily-mission": "node scripts/verify-daily-mission.mjs",
-    "migrate:paths": "supabase db query --linked -f supabase/paths.sql --yes"
+    "migrate:paths": "supabase db query --linked -f supabase/paths.sql --yes",
+    "verify:consent-age": "node scripts/verify-consent-age.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.2",

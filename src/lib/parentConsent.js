@@ -14,6 +14,11 @@
 import { getSupabaseClient } from "./supabaseClient.js";
 import { CONSENT_VERSION } from "./auth.js";
 
+// Defined in periodStats.js so the rule stays testable outside Vite (this
+// module reaches Supabase), and re-exported here because this is where anyone
+// looking for consent policy will look first.
+export { CONSENT_AGE, needsParentConsent } from "./periodStats.js";
+
 const STICKY_KEY = "fkh-consent-session";
 
 /**

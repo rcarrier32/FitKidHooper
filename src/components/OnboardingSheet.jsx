@@ -13,6 +13,7 @@ import {
 } from "../lib/auth.js";
 import { checkLegendsAccess, rememberLegendsAccess } from "../lib/legendsAccess.js";
 import { calcAge } from "../lib/periodStats.js";
+import { needsParentConsent } from "../lib/parentConsent.js";
 import { POSITIONS } from "../lib/identity.js";
 import PlayerPicker from "./PlayerPicker.jsx";
 
@@ -78,6 +79,9 @@ export default function OnboardingSheet({ P = "#f97316", onComplete, onAuthSucce
   const isReturning = flow === "returning";
   const wantsAccount = authEnabled && !isReturning
     && (normUser || passcode || passcode2 || recoveryEmail.trim());
+  // The birthday is collected a step earlier, so by the time the account block
+  // renders we already know whether a grown-up is required at all.
+  const needsConsent = needsParentConsent(dateOfBirth);
 
   const checkUsername = useCallback(async (raw) => {
     if (isReturning) return;
@@ -140,8 +144,12 @@ export default function OnboardingSheet({ P = "#f97316", onComplete, onAuthSucce
     if (usernameRevealsRealName(normUser, firstName, lastName)) return "Your Jersey Name can't include your real name — try a nickname or something creative!";
     if (!/^\d{6}$/.test(passcode)) return "Passcode must be exactly 6 digits";
     if (passcode !== passcode2) return "Passcodes do not match";
-    if (!recoveryEmail.trim().includes("@")) return "Ask a parent for their email to save your player";
-    if (!isParent || !readPrivacy) return "A parent needs to check both boxes to save your player";
+    if (!recoveryEmail.trim().includes("@")) {
+      return needsConsent
+        ? "Ask a parent for their email to save your player"
+        : "Add an email so you can recover your account";
+    }
+    if (needsConsent && (!isParent || !readPrivacy)) return "A parent needs to check both boxes to save your player";
     return null;
   };
 
@@ -251,8 +259,12 @@ export default function OnboardingSheet({ P = "#f97316", onComplete, onAuthSucce
     setError(null);
     try {
       await verifySignupEmail({ email: pendingEmail, code: otpCode, username: pendingUsername });
-      // Parent email is now verified → record the consent. Non-fatal.
-      try { await recordParentalConsent({ parentEmail: pendingEmail }); } catch { /* non-fatal */ }
+      // Parent email is now verified → record the consent. Non-fatal. Skipped
+      // for 13+, where the verified address is the athlete's own and there is
+      // no guardian to record.
+      if (needsConsent) {
+        try { await recordParentalConsent({ parentEmail: pendingEmail }); } catch { /* non-fatal */ }
+      }
       await onAuthSuccess?.();
       onComplete?.({ settings: buildProfilePatch(), finalize: true });
       setVerifyMode(false);
@@ -488,25 +500,37 @@ export default function OnboardingSheet({ P = "#f97316", onComplete, onAuthSucce
             onChange={e => setPasscode2(e.target.value.replace(/\D/g, ""))}
             placeholder="••••••" style={inputStyle} />
 
-          {/* Kid → parent hand-off: make the moment to fetch a grown-up obvious. */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "6px 0 12px" }}>
-            <div style={{ flex: 1, height: 1, background: "rgba(148,163,184,0.2)" }} />
-            <span style={{ fontSize: 11, fontWeight: 700, color: P, whiteSpace: "nowrap" }}>🙌 Grab a grown-up</span>
-            <div style={{ flex: 1, height: 1, background: "rgba(148,163,184,0.2)" }} />
-          </div>
-          <label style={labelStyle}>Parent&apos;s email</label>
+          {/* Kid → parent hand-off: make the moment to fetch a grown-up obvious.
+              Only below 13 — an older athlete signs up for themselves. */}
+          {needsConsent && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "6px 0 12px" }}>
+              <div style={{ flex: 1, height: 1, background: "rgba(148,163,184,0.2)" }} />
+              <span style={{ fontSize: 11, fontWeight: 700, color: P, whiteSpace: "nowrap" }}>🙌 Grab a grown-up</span>
+              <div style={{ flex: 1, height: 1, background: "rgba(148,163,184,0.2)" }} />
+            </div>
+          )}
+          <label style={labelStyle}>{needsConsent ? "Parent's email" : "Your email"}</label>
           <input type="email" value={recoveryEmail} onChange={e => setRecoveryEmail(e.target.value)}
-            placeholder="grown-up@email.com" style={inputStyle} />
-          <label style={{ display: "flex", gap: 9, alignItems: "flex-start", cursor: "pointer", fontSize: 11.5, color: "#94a3b8", lineHeight: 1.4, marginBottom: 8 }}>
-            <input type="checkbox" checked={isParent} onChange={e => setIsParent(e.target.checked)}
-              style={{ accentColor: P, width: 16, height: 16, flexShrink: 0, marginTop: 1 }} />
-            <span>I&apos;m the parent/guardian and I give permission for my athlete to use Fit Kid Hooper.</span>
-          </label>
-          <label style={{ display: "flex", gap: 9, alignItems: "flex-start", cursor: "pointer", fontSize: 11.5, color: "#94a3b8", lineHeight: 1.4, marginBottom: 10 }}>
-            <input type="checkbox" checked={readPrivacy} onChange={e => setReadPrivacy(e.target.checked)}
-              style={{ accentColor: P, width: 16, height: 16, flexShrink: 0, marginTop: 1 }} />
-            <span>I&apos;ve read the <a href={`${import.meta.env.BASE_URL}privacy.html`} target="_blank" rel="noopener noreferrer" style={{ color: P, fontWeight: 700 }}>privacy notice</a>.</span>
-          </label>
+            placeholder={needsConsent ? "grown-up@email.com" : "you@email.com"} style={inputStyle} />
+          {needsConsent ? (
+            <>
+              <label style={{ display: "flex", gap: 9, alignItems: "flex-start", cursor: "pointer", fontSize: 11.5, color: "#94a3b8", lineHeight: 1.4, marginBottom: 8 }}>
+                <input type="checkbox" checked={isParent} onChange={e => setIsParent(e.target.checked)}
+                  style={{ accentColor: P, width: 16, height: 16, flexShrink: 0, marginTop: 1 }} />
+                <span>I&apos;m the parent/guardian and I give permission for my athlete to use Fit Kid Hooper.</span>
+              </label>
+              <label style={{ display: "flex", gap: 9, alignItems: "flex-start", cursor: "pointer", fontSize: 11.5, color: "#94a3b8", lineHeight: 1.4, marginBottom: 10 }}>
+                <input type="checkbox" checked={readPrivacy} onChange={e => setReadPrivacy(e.target.checked)}
+                  style={{ accentColor: P, width: 16, height: 16, flexShrink: 0, marginTop: 1 }} />
+                <span>I&apos;ve read the <a href={`${import.meta.env.BASE_URL}privacy.html`} target="_blank" rel="noopener noreferrer" style={{ color: P, fontWeight: 700 }}>privacy notice</a>.</span>
+              </label>
+            </>
+          ) : (
+            <p style={{ fontSize: 11.5, color: "#94a3b8", lineHeight: 1.4, margin: "0 0 10px" }}>
+              We&apos;ll email you a code to confirm it&apos;s you. Read the{" "}
+              <a href={`${import.meta.env.BASE_URL}privacy.html`} target="_blank" rel="noopener noreferrer" style={{ color: P, fontWeight: 700 }}>privacy notice</a>.
+            </p>
+          )}
           <button type="button" onClick={goToLogin} disabled={busy}
             style={{ background: "none", border: "none", color: P, fontSize: 11, fontWeight: 700,
               cursor: "pointer", padding: "0 0 10px", textAlign: "left" }}>

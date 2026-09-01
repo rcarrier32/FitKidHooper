@@ -29,6 +29,7 @@ jobs:
       - run: npm run verify:imports
       - run: npm run verify:settings-merge
       - run: npm run verify:lint-budget
+      - run: npm run verify:consent-age
       - run: npm run verify:schema
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
