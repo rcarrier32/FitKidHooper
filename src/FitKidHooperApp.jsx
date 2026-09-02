@@ -5,6 +5,7 @@ import AuthSheet from "./components/AuthSheet.jsx";
 import BuddyVideoInviteBanner from "./components/BuddyVideoInviteBanner.jsx";
 import LiveClassBanner from "./components/LiveClassBanner.jsx";
 import CoachPanel from "./components/CoachPanel.jsx";
+import SharedClassSheet from "./components/SharedClassSheet.jsx";
 // Lifted to app level so the coach's own room is not a fullscreen sheet nested
 // inside CoachPanel, which is itself a sheet. Lazy: it pulls the LiveKit SDK.
 const CoachClassRoom = lazy(() => import("./components/ClassLiveSheet.jsx"));
@@ -1860,6 +1861,13 @@ export default function FitKidHooperApp() {
   const [isCoach, setIsCoach] = useState(false);
   const [showCoachPanel, setShowCoachPanel] = useState(false);
   const [coachRoom, setCoachRoom] = useState(null);
+  /* Read straight off the URL, and declared before pendingNav because that
+     initializer strips the query params. Setting this inside the pendingNav
+     effect instead would be a synchronous setState in an effect body. */
+  const [pendingClassId, setPendingClassId] = useState(() => {
+    try { return new URLSearchParams(window.location.search).get("class"); }
+    catch { return null; }
+  });
   const [authInitialMode, setAuthInitialMode] = useState("signin");
   const [inviteCode] = useState(() => consumeInviteDeepLink());
   /* Everything that says "when the app opens, go somewhere" funnels through one
@@ -3251,6 +3259,10 @@ export default function FitKidHooperApp() {
           only on the Squad tab. */}
       <BuddyVideoInviteBanner P={P} isSignedIn={auth.isSignedIn} />
       <LiveClassBanner P={P} isSignedIn={auth.isSignedIn} />
+      {pendingClassId && (
+        <SharedClassSheet P={P} SF={surf(settings)} classId={pendingClassId}
+          isSignedIn={auth.isSignedIn} onClose={()=>setPendingClassId(null)} />
+      )}
       {coachRoom && (
         <Suspense fallback={null}>
           <CoachClassRoom P={P} klass={coachRoom} onClose={()=>setCoachRoom(null)} />

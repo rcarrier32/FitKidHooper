@@ -123,6 +123,43 @@ export async function inviteToClass(classId, athleteIds) {
   return { ok: true, invited: data.invited };
 }
 
+/** One class by id — what a ?class= link resolves to. */
+export async function getClass(classId) {
+  const sb = getSupabaseClient();
+  if (!sb) return null;
+  const { data, error } = await sb.rpc("get_video_class", { p_id: classId });
+  if (error || !data) return null;
+  return data;
+}
+
+/** The link a coach can paste anywhere. Not a capability — see class_share.sql. */
+export function classShareUrl(classId) {
+  const base = typeof window === "undefined"
+    ? "https://rcarrier32.github.io/FitKidHooper/"
+    : `${window.location.origin}${import.meta.env.BASE_URL}`;
+  return `${base}?class=${classId}`;
+}
+
+/**
+ * Email the invite. Takes athlete IDS, never addresses: the edge function
+ * resolves them server-side so a coach is never handed a family's contact
+ * details just to invite them.
+ */
+export async function emailClassInvite(classId, athleteIds) {
+  const sb = getSupabaseClient();
+  if (!sb) return { ok: false, error: "not configured" };
+  const { data, error } = await sb.functions.invoke("send-class-invite", {
+    body: { class_id: classId, athlete_ids: athleteIds },
+  });
+  if (error) {
+    let reason = "unavailable";
+    try { reason = (await error.context?.json())?.error || reason; } catch { /* keep default */ }
+    return { ok: false, error: reason };
+  }
+  if (!data?.ok) return { ok: false, error: data?.error || "could not send" };
+  return { ok: true, sent: data.sent, failed: data.failed };
+}
+
 export function classErrorMessage(code) {
   switch (code) {
     case "class_not_live": return "That class hasn't started yet.";
@@ -130,6 +167,8 @@ export function classErrorMessage(code) {
     case "not_configured": return "Live classes aren't switched on yet.";
     case "not a coach": return "Only a coach can do that.";
     case "class not live": return "Chat opens when the class starts.";
+    case "not_your_class": return "That isn't your class.";
+    case "no recipients": return "Pick at least one athlete first.";
     case "not signed in":
     case "unauthorized": return "Sign in to join the class.";
     default: return "Something went wrong — try again.";

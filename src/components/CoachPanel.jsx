@@ -5,6 +5,8 @@ import {
   setClassStatus,
   listClassInvitees,
   inviteToClass,
+  emailClassInvite,
+  classShareUrl,
   classErrorMessage,
 } from "../lib/coachClasses.js";
 
@@ -33,6 +35,10 @@ export default function CoachPanel({ P = "#f97316", SF = "#0d1526", onClose, onO
   const [invitingFor, setInvitingFor] = useState(__preview?.invitingFor || null);
   const [invitees, setInvitees] = useState(__preview?.invitees || []);
   const [picked, setPicked] = useState(() => new Set());
+  // Email is opt-in per send. A push reaches a kid who has the app open and
+  // notifications on; email reaches the parent who does not. Both, usually.
+  const [alsoEmail, setAlsoEmail] = useState(true);
+  const [copied, setCopied] = useState(null);
   const isPreview = Boolean(__preview);
 
   const refresh = useCallback(async () => {
@@ -92,10 +98,33 @@ export default function CoachPanel({ P = "#f97316", SF = "#0d1526", onClose, onO
     setBusy(true);
     const fresh = [...picked].filter(id => !invitees.find(i => i.athlete_id === id)?.invited);
     const r = await inviteToClass(invitingFor, fresh);
-    setStatus(r.ok ? `Invited ${r.invited}.` : classErrorMessage(r.error));
+    if (!r.ok) { setStatus(classErrorMessage(r.error)); setBusy(false); return; }
+    let note = `Invited ${r.invited}.`;
+    if (alsoEmail && fresh.length) {
+      const e = await emailClassInvite(invitingFor, fresh);
+      // A failed email must not read as a failed invite — the in-app invite
+      // already landed, and saying otherwise would send a coach round again.
+      note += e.ok
+        ? ` Emailed ${e.sent}${e.failed ? `, ${e.failed} had no address` : ""}.`
+        : " Email didn't send.";
+    }
+    setStatus(note);
     setBusy(false);
     setInvitingFor(null);
-  }, [invitingFor, picked, invitees, busy]);
+  }, [invitingFor, picked, invitees, busy, alsoEmail]);
+
+  const share = useCallback(async (c) => {
+    const url = classShareUrl(c.class_id);
+    const text = `${c.title}${c.description ? ` — ${c.description}` : ""}`;
+    // navigator.share is the native sheet on a phone, which is where a coach
+    // actually is; clipboard is the desktop fallback.
+    try {
+      if (navigator.share) { await navigator.share({ title: c.title, text, url }); return; }
+      await navigator.clipboard.writeText(url);
+      setCopied(c.class_id);
+      setTimeout(() => setCopied(null), 2000);
+    } catch { /* a cancelled share sheet is not an error */ }
+  }, []);
 
   const go = useCallback(async (classId, next) => {
     setBusy(true);
@@ -182,6 +211,14 @@ export default function CoachPanel({ P = "#f97316", SF = "#0d1526", onClose, onO
                 </span>
               </label>
             ))}
+            <label style={{
+              display: "flex", gap: 10, alignItems: "center", cursor: "pointer",
+              fontSize: 12.5, color: "var(--fkh-text-muted)", marginTop: 12,
+            }}>
+              <input type="checkbox" checked={alsoEmail} onChange={e => setAlsoEmail(e.target.checked)}
+                style={{ accentColor: P, width: 17, height: 17, flexShrink: 0 }} />
+              <span>Also email them — reaches the grown-up, not just the app.</span>
+            </label>
             <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
               <button type="button" onClick={() => setInvitingFor(null)} style={{
                 flex: 1, padding: 12, borderRadius: 11, border: `1px solid ${P}33`,
@@ -259,6 +296,10 @@ export default function CoachPanel({ P = "#f97316", SF = "#0d1526", onClose, onO
                         padding: "9px 12px", borderRadius: 9, border: `1px solid ${P}44`,
                         background: "transparent", color: P, fontSize: 12, fontWeight: 700, cursor: "pointer",
                       }}>Invite</button>
+                      <button type="button" onClick={() => share(c)} style={{
+                        padding: "9px 12px", borderRadius: 9, border: "1px solid rgba(148,163,184,0.3)",
+                        background: "transparent", color: "#94a3b8", fontSize: 12, fontWeight: 700, cursor: "pointer",
+                      }}>{copied === c.class_id ? "Copied ✓" : "Share"}</button>
                     </>
                   )}
                 </div>

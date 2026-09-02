@@ -276,6 +276,7 @@ export function parseNavigationDeepLink(input) {
   const messages = params.get("messages") === "1";
   const friends = params.get("friends") === "1";
   const program = params.get("program");
+  const klass = params.get("class");
 
   let tab = null;
   let openMessages = false;
@@ -292,9 +293,12 @@ export function parseNavigationDeepLink(input) {
 
   /* A bare ?program= link carries no ?view=, so it implies the Programs tab. */
   if (program && !tab) tab = "programs";
+  /* A shared class link lands on Today; the class opens over it, so the tab is
+     only what sits behind. */
+  if (klass && !tab) tab = "home";
 
   if (!tab) return null;
-  return { tab, openMessages, openFriends, openProgram: program || null };
+  return { tab, openMessages, openFriends, openProgram: program || null, openClass: klass || null };
 }
 
 function stripNavigationParamsFromLocation() {
@@ -303,11 +307,15 @@ function stripNavigationParamsFromLocation() {
   const messages = params.get("messages") === "1";
   const friends = params.get("friends") === "1";
   const program = params.get("program");
-  if (!view && !messages && !friends && !program) return;
+  const klass = params.get("class");
+  if (!view && !messages && !friends && !program && !klass) return;
   if (view) params.delete("view");
   if (messages) params.delete("messages");
   if (friends) params.delete("friends");
   if (program) params.delete("program");
+  // Stripped like the rest: left on the URL, a shared class link would reopen
+  // the sheet on every refresh, including after the athlete dismissed it.
+  if (klass) params.delete("class");
   const qs = params.toString();
   const path = window.location.pathname + (qs ? `?${qs}` : "");
   window.history.replaceState({}, "", path);
