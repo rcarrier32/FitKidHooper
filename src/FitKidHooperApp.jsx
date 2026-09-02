@@ -4,6 +4,8 @@ import BadgesView from "./components/BadgesView.jsx";
 import AuthSheet from "./components/AuthSheet.jsx";
 import BuddyVideoInviteBanner from "./components/BuddyVideoInviteBanner.jsx";
 import LiveClassBanner from "./components/LiveClassBanner.jsx";
+import CoachPanel from "./components/CoachPanel.jsx";
+import { amICoach } from "./lib/coachClasses.js";
 import OnboardingSheet from "./components/OnboardingSheet.jsx";
 import PlayLikePickerSheet from "./components/PlayLikePickerSheet.jsx";
 import FeedbackCenter from "./components/FeedbackCenter.jsx";
@@ -1850,6 +1852,10 @@ export default function FitKidHooperApp() {
   const [showSettings, setShowSettings] = useState(false);
   const [showPlayLikePicker, setShowPlayLikePicker] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
+  // Coach mode. Granted by hand in the database and re-checked server-side on
+  // every action — this only decides whether the tools are visible.
+  const [isCoach, setIsCoach] = useState(false);
+  const [showCoachPanel, setShowCoachPanel] = useState(false);
   const [authInitialMode, setAuthInitialMode] = useState("signin");
   const [inviteCode] = useState(() => consumeInviteDeepLink());
   /* Everything that says "when the app opens, go somewhere" funnels through one
@@ -2078,6 +2084,13 @@ export default function FitKidHooperApp() {
     }
   }, [auth.syncNow, reloadAthleteStateFromStorage, hydrateProfileIntoState, refreshSquadNotifications]);
   const [reportPeriod, setReportPeriod] = useState("30d");
+  useEffect(() => {
+    if (!auth.isSignedIn) return undefined;
+    let cancelled = false;
+    amICoach().then(v => { if (!cancelled) setIsCoach(v); });
+    return () => { cancelled = true; };
+  }, [auth.isSignedIn]);
+
   const [showOnboarding, setShowOnboarding] = useState(() => {
     if (localStorage.getItem("s_onboarded")) return false;
     if (hasStoredAuthSession()) return false;
@@ -3234,6 +3247,9 @@ export default function FitKidHooperApp() {
           only on the Squad tab. */}
       <BuddyVideoInviteBanner P={P} isSignedIn={auth.isSignedIn} />
       <LiveClassBanner P={P} isSignedIn={auth.isSignedIn} />
+      {showCoachPanel && (
+        <CoachPanel P={P} SF={surf(settings)} onClose={()=>setShowCoachPanel(false)} />
+      )}
       {showPlayLikePicker && (
         <PlayLikePickerSheet
           open={showPlayLikePicker}
@@ -4048,6 +4064,15 @@ export default function FitKidHooperApp() {
               {currentLevel.emoji} {currentLevel.name.toUpperCase()} · {xpData.total} XP
             </div>
           </div>
+          {isCoach && (
+            <button type="button" onClick={()=>setShowCoachPanel(true)}
+              aria-label="Coach tools"
+              style={{ flexShrink:0, padding:"7px 10px", borderRadius:10, cursor:"pointer",
+                border:`1px solid ${P}55`, background:`${P}18`, color:P,
+                fontSize:11, fontWeight:800, whiteSpace:"nowrap" }}>
+              📋 Classes
+            </button>
+          )}
           <CoachNavButton compact P={P} onClick={()=>setShowCoachFKH(true)} />
           <GuideNavButton compact onClick={() => openGuide("explore")} />
         </div>

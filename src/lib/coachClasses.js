@@ -19,7 +19,7 @@ export async function amICoach() {
 export async function listClasses() {
   const sb = getSupabaseClient();
   if (!sb) return [];
-  const { data, error } = await sb.rpc("list_video_classes");
+  const { data, error } = await sb.rpc("list_my_classes");
   if (error) return [];
   return Array.isArray(data) ? data : [];
 }
@@ -88,6 +88,39 @@ export async function getClassJoinToken(classId) {
   }
   if (!data?.ok) return { ok: false, error: data?.error || "unavailable" };
   return { ok: true, token: data.token, url: data.url, room: data.room, role: data.role };
+}
+
+/** Schedule ahead, with the description that becomes the invite's message. */
+export async function scheduleClass(title, description, scheduledAt = null) {
+  const sb = getSupabaseClient();
+  if (!sb) return { ok: false, error: "not configured" };
+  const { data, error } = await sb.rpc("schedule_video_class", {
+    p_title: title, p_description: description, p_scheduled_at: scheduledAt,
+  });
+  if (error) return { ok: false, error: error.message };
+  if (!data?.ok) return { ok: false, error: data?.error || "could not schedule" };
+  return { ok: true, classId: data.class_id };
+}
+
+/** Everyone a coach could invite, flagged with who already is. Coach-only. */
+export async function listClassInvitees(classId) {
+  const sb = getSupabaseClient();
+  if (!sb) return [];
+  const { data, error } = await sb.rpc("list_class_invitees", { p_class_id: classId });
+  if (error) return [];
+  return Array.isArray(data) ? data : [];
+}
+
+/** Invite, and notify. Already-invited athletes are not pinged again. */
+export async function inviteToClass(classId, athleteIds) {
+  const sb = getSupabaseClient();
+  if (!sb) return { ok: false, error: "not configured" };
+  const { data, error } = await sb.rpc("invite_to_class", {
+    p_class_id: classId, p_athlete_ids: athleteIds,
+  });
+  if (error) return { ok: false, error: error.message };
+  if (!data?.ok) return { ok: false, error: data?.error || "could not invite" };
+  return { ok: true, invited: data.invited };
 }
 
 export function classErrorMessage(code) {
