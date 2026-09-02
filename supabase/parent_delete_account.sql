@@ -57,6 +57,7 @@ begin
   delete from public.feed_comments         where author_id    = v_athlete or target_id     = v_athlete;
   delete from public.feed_reactions        where actor_id     = v_athlete or target_id     = v_athlete;
   delete from public.video_sessions        where host_id      = v_athlete or guest_id     = v_athlete;
+  delete from public.video_class_invites   where athlete_id   = v_athlete;
   delete from public.video_class_messages  where athlete_id   = v_athlete;
   delete from public.video_classes         where coach_id     = v_athlete;
   delete from public.drill_completions     where user_id      = v_athlete;
