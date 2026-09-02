@@ -18,7 +18,8 @@
     "verify:coach-agent": "node scripts/verify-coach-agent.mjs",
     "verify:daily-mission": "node scripts/verify-daily-mission.mjs",
     "migrate:paths": "supabase db query --linked -f supabase/paths.sql --yes",
-    "verify:consent-age": "node scripts/verify-consent-age.mjs"
+    "verify:consent-age": "node scripts/verify-consent-age.mjs",
+    "verify:delete-coverage": "node scripts/verify-delete-coverage.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.2",

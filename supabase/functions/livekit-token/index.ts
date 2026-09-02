@@ -21,6 +21,13 @@
 //   4. The session is still invitable/active, not ended or declined
 //   5. can_video_with() — mutual friendship AND both parents opted into video
 //
+// Two kinds of room, one gate:
+//   { session_id } — a buddy call. Both parties publish. Requires mutual
+//     friendship and video consent on both sides.
+//   { class_id }   — a coach-led class. ONLY the coach gets canPublish; every
+//     athlete joins muted and cameraless, which is enforced here in the grant
+//     rather than in the UI. A client cannot ask to publish in a class.
+//
 // Env: LIVEKIT_API_KEY, LIVEKIT_API_SECRET, LIVEKIT_URL.
 // Call with { dry_run: true } to check configuration without minting anything;
 // it reports presence only, never values.
@@ -67,8 +74,11 @@ async function mintLiveKitToken(opts: {
       roomJoin: true,
       canPublish: opts.canPublish,
       canSubscribe: true,
-      // Chat rides the same data channel. Coach-led sessions will reuse it.
-      canPublishData: true,
+      // Tied to canPublish, not granted to everyone. Class chat lives in a
+      // moderated table the coach can hide messages from; an open data channel
+      // would be a second, unreviewable chat sitting right beside it, which is
+      // the thing that design was meant to avoid.
+      canPublishData: opts.canPublish,
       // Nobody creates or destroys rooms from a phone.
       roomCreate: false,
       roomAdmin: false,
@@ -132,11 +142,43 @@ Deno.serve(async (req) => {
   if (userErr || !me) return json({ ok: false, error: "unauthorized" }, 401);
 
   const sessionId = String(payload.session_id || "").trim();
-  if (!sessionId) return json({ ok: false, error: "session_id required" }, 400);
+  const classId = String(payload.class_id || "").trim();
+  if (!sessionId && !classId) return json({ ok: false, error: "session_id or class_id required" }, 400);
 
   // ── 2. Is the feature on at all? ───────────────────────────────────────────
   const { data: available } = await sb.rpc("video_sessions_available");
   if (available !== true) return json({ ok: false, error: "unavailable" }, 403);
+
+  // ── Coach-led class ────────────────────────────────────────────────────────
+  if (classId) {
+    const { data: cls, error: cErr } = await sb
+      .from("video_classes")
+      .select("id, coach_id, status")
+      .eq("id", classId)
+      .maybeSingle();
+    if (cErr || !cls) return json({ ok: false, error: "not_found" }, 404);
+    // You cannot join a class that is not on. There is no waiting room, so an
+    // open room outside class time would be an unsupervised one.
+    if (cls.status !== "live") return json({ ok: false, error: "class_not_live" }, 409);
+
+    // The single most important line in this file: publishing is decided here,
+    // from the database's view of who the coach is. An athlete's token simply
+    // does not carry the capability, so no amount of client tampering turns a
+    // child's camera on in a class.
+    const isCoach = cls.coach_id === me;
+
+    const classToken = await mintLiveKitToken({
+      apiKey: LIVEKIT_API_KEY,
+      apiSecret: LIVEKIT_API_SECRET,
+      identity: me,
+      room: `class-${cls.id}`,
+      canPublish: isCoach,
+    });
+    return json({
+      ok: true, token: classToken, url: LIVEKIT_URL,
+      room: `class-${cls.id}`, identity: me, role: isCoach ? "coach" : "athlete",
+    });
+  }
 
   // ── 3 & 4. Is this caller a party to a session that is still live? ─────────
   // RLS on video_sessions already restricts SELECT to participants, so a row
