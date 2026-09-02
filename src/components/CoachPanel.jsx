@@ -49,6 +49,13 @@ export default function CoachPanel({ P = "#f97316", SF = "#0d1526", onClose, onO
     return () => { alive = false; };
   }, [isPreview]);
 
+  const openInvites = useCallback(async (classId) => {
+    setInvitingFor(classId);
+    const list = await listClassInvitees(classId);
+    setInvitees(list);
+    setPicked(new Set(list.filter(i => i.invited).map(i => i.athlete_id)));
+  }, []);
+
   const create = useCallback(async (e) => {
     e.preventDefault();
     if (!title.trim() || busy) return;
@@ -58,17 +65,27 @@ export default function CoachPanel({ P = "#f97316", SF = "#0d1526", onClose, onO
     // for a coach scheduling their own session.
     const at = when ? new Date(when).toISOString() : null;
     const r = await scheduleClass(title.trim(), description.trim(), at);
-    if (!r.ok) setStatus(classErrorMessage(r.error));
-    else { setTitle(""); setDescription(""); setWhen(""); setStatus("Class scheduled."); await refresh(); }
+    if (!r.ok) { setStatus(classErrorMessage(r.error)); setBusy(false); return; }
+    setTitle(""); setDescription(""); setWhen("");
+    setStatus("Class scheduled — now pick who it's for.");
+    await refresh();
     setBusy(false);
-  }, [title, description, when, busy, refresh]);
+    // Scheduling and inviting are one job in a coach's head; making the second
+    // half a separate hunt is how classes end up with nobody in them.
+    await openInvites(r.classId);
+  }, [title, description, when, busy, refresh, openInvites]);
 
-  const openInvites = useCallback(async (classId) => {
-    setInvitingFor(classId);
-    const list = await listClassInvitees(classId);
-    setInvitees(list);
-    setPicked(new Set(list.filter(i => i.invited).map(i => i.athlete_id)));
-  }, []);
+  const groupsPresent = [...new Set(invitees.map(i => i.age_group).filter(Boolean))].sort();
+
+  const addGroup = useCallback((group) => {
+    setPicked(prev => {
+      const next = new Set(prev);
+      for (const a of invitees) {
+        if (group === "Everyone" || a.age_group === group) next.add(a.athlete_id);
+      }
+      return next;
+    });
+  }, [invitees]);
 
   const sendInvites = useCallback(async () => {
     if (!invitingFor || busy) return;
@@ -127,6 +144,25 @@ export default function CoachPanel({ P = "#f97316", SF = "#0d1526", onClose, onO
             </div>
             {invitees.length === 0 && (
               <div style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}>No athletes to invite yet.</div>
+            )}
+            {/* Bulk picks. A coach running a U10 session should be able to say
+                "the U10s" rather than tick eight boxes and miss one. Only the
+                not-yet-invited are added — these never re-ping anyone. */}
+            {invitees.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+                {["Everyone", ...groupsPresent].map(g => (
+                  <button key={g} type="button" onClick={() => addGroup(g)} style={{
+                    padding: "6px 10px", borderRadius: 99, cursor: "pointer",
+                    border: `1px solid ${P}44`, background: `${P}14`, color: P,
+                    fontSize: 11, fontWeight: 800,
+                  }}>{g === "Everyone" ? "+ Everyone" : `+ ${g.toUpperCase()}`}</button>
+                ))}
+                <button type="button" onClick={() => setPicked(new Set(invitees.filter(i => i.invited).map(i => i.athlete_id)))} style={{
+                  padding: "6px 10px", borderRadius: 99, cursor: "pointer",
+                  border: "1px solid rgba(148,163,184,0.3)", background: "transparent",
+                  color: "#94a3b8", fontSize: 11, fontWeight: 700,
+                }}>Clear</button>
+              </div>
             )}
             {invitees.map(a => (
               <label key={a.athlete_id} style={{
