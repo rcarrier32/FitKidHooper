@@ -1,10 +1,13 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from "react";
 import HistoryView from "./components/HistoryView.jsx";
 import BadgesView from "./components/BadgesView.jsx";
 import AuthSheet from "./components/AuthSheet.jsx";
 import BuddyVideoInviteBanner from "./components/BuddyVideoInviteBanner.jsx";
 import LiveClassBanner from "./components/LiveClassBanner.jsx";
 import CoachPanel from "./components/CoachPanel.jsx";
+// Lifted to app level so the coach's own room is not a fullscreen sheet nested
+// inside CoachPanel, which is itself a sheet. Lazy: it pulls the LiveKit SDK.
+const CoachClassRoom = lazy(() => import("./components/ClassLiveSheet.jsx"));
 import { amICoach } from "./lib/coachClasses.js";
 import OnboardingSheet from "./components/OnboardingSheet.jsx";
 import PlayLikePickerSheet from "./components/PlayLikePickerSheet.jsx";
@@ -1856,6 +1859,7 @@ export default function FitKidHooperApp() {
   // every action — this only decides whether the tools are visible.
   const [isCoach, setIsCoach] = useState(false);
   const [showCoachPanel, setShowCoachPanel] = useState(false);
+  const [coachRoom, setCoachRoom] = useState(null);
   const [authInitialMode, setAuthInitialMode] = useState("signin");
   const [inviteCode] = useState(() => consumeInviteDeepLink());
   /* Everything that says "when the app opens, go somewhere" funnels through one
@@ -3247,8 +3251,15 @@ export default function FitKidHooperApp() {
           only on the Squad tab. */}
       <BuddyVideoInviteBanner P={P} isSignedIn={auth.isSignedIn} />
       <LiveClassBanner P={P} isSignedIn={auth.isSignedIn} />
+      {coachRoom && (
+        <Suspense fallback={null}>
+          <CoachClassRoom P={P} klass={coachRoom} onClose={()=>setCoachRoom(null)} />
+        </Suspense>
+      )}
       {showCoachPanel && (
-        <CoachPanel P={P} SF={surf(settings)} onClose={()=>setShowCoachPanel(false)} />
+        <CoachPanel P={P} SF={surf(settings)}
+          onClose={()=>setShowCoachPanel(false)}
+          onOpenClass={(c)=>{ setShowCoachPanel(false); setCoachRoom(c); }} />
       )}
       {showPlayLikePicker && (
         <PlayLikePickerSheet
