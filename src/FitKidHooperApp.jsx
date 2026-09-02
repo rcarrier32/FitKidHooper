@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import HistoryView from "./components/HistoryView.jsx";
 import BadgesView from "./components/BadgesView.jsx";
 import AuthSheet from "./components/AuthSheet.jsx";
+import BuddyVideoInviteBanner from "./components/BuddyVideoInviteBanner.jsx";
 import OnboardingSheet from "./components/OnboardingSheet.jsx";
 import PlayLikePickerSheet from "./components/PlayLikePickerSheet.jsx";
 import FeedbackCenter from "./components/FeedbackCenter.jsx";
@@ -3228,6 +3229,9 @@ export default function FitKidHooperApp() {
   const shellOverlays = (
     <>
       {settingsSheet}{feedbackSheet}{authSheet}{guideSheet}
+      {/* App-level: a buddy calling has to reach you wherever you are, not
+          only on the Squad tab. */}
+      <BuddyVideoInviteBanner P={P} isSignedIn={auth.isSignedIn} />
       {showPlayLikePicker && (
         <PlayLikePickerSheet
           open={showPlayLikePicker}
