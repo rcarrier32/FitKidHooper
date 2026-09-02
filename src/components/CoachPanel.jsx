@@ -104,9 +104,12 @@ export default function CoachPanel({ P = "#f97316", SF = "#0d1526", onClose, onO
       const e = await emailClassInvite(invitingFor, fresh);
       // A failed email must not read as a failed invite — the in-app invite
       // already landed, and saying otherwise would send a coach round again.
-      note += e.ok
-        ? ` Emailed ${e.sent}${e.failed ? `, ${e.failed} had no address` : ""}.`
-        : " Email didn't send.";
+      if (e.ok && e.sent) {
+        note += ` Emailed ${e.sent}${e.failed ? `, ${e.failed} failed` : ""}.`;
+      } else {
+        // Say why. "Email didn't send" is not something a coach can act on.
+        note += ` Email failed${e.detail || e.error ? `: ${e.detail || e.error}` : ""}.`;
+      }
     }
     setStatus(note);
     setBusy(false);

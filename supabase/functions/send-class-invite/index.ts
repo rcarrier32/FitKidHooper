@@ -134,13 +134,21 @@ Deno.serve(async (req) => {
 
   let sent = 0;
   const failed: string[] = [];
+  // Resend's rejection reason, surfaced to the caller. Without it a coach sees
+  // only "email didn't send", which is not something anyone can act on. It
+  // carries a status and message, never a key or an address.
+  let detail: string | null = null;
 
   for (const id of athleteIds) {
     // auth.users is not queryable through PostgREST; the admin API is how an
     // athlete's account email is resolved.
-    const { data: u } = await admin.auth.admin.getUserById(id);
+    const { data: u, error: uErr } = await admin.auth.admin.getUserById(id);
     const email = u?.user?.email;
-    if (!email) { failed.push(id); continue; }
+    if (!email) {
+      failed.push(id);
+      detail = detail || `no address on file${uErr ? ` (${uErr.message})` : ""}`;
+      continue;
+    }
 
     const prof = (profiles || []).find((p: any) => p.id === id);
     const athleteName = prof?.first_name || prof?.display_name || "your athlete";
@@ -163,9 +171,22 @@ Deno.serve(async (req) => {
         }),
       }),
     });
-    if (res.ok) sent++; else failed.push(id);
+    if (res.ok) {
+      sent++;
+    } else {
+      failed.push(id);
+      if (!detail) {
+        let why = "";
+        try { why = JSON.stringify(await res.json()).slice(0, 200); }
+        catch { why = (await res.text()).slice(0, 200); }
+        detail = `resend ${res.status}: ${why}`;
+      }
+    }
+    // Resend rate-limits bursts; a small gap costs nothing on a class-sized
+    // list and avoids a 429 that looks like a broken feature.
+    await new Promise((r) => setTimeout(r, 600));
   }
 
   // Ids, never addresses — the caller must not learn who has an email on file.
-  return json({ ok: true, sent, failed: failed.length });
+  return json({ ok: true, sent, failed: failed.length, detail });
 });

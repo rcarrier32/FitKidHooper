@@ -157,7 +157,10 @@ export async function emailClassInvite(classId, athleteIds) {
     return { ok: false, error: reason };
   }
   if (!data?.ok) return { ok: false, error: data?.error || "could not send" };
-  return { ok: true, sent: data.sent, failed: data.failed };
+  // `detail` is Resend's own rejection text when nothing sent. Passing it
+  // through is the difference between a coach retrying blindly and knowing
+  // the from-address is wrong.
+  return { ok: true, sent: data.sent, failed: data.failed, detail: data.detail || null };
 }
 
 export function classErrorMessage(code) {
