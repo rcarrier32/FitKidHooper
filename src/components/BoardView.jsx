@@ -1,4 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { isVideoAvailable } from "../lib/buddyVideo.js";
+// Lazily loaded: the call surface pulls in the LiveKit SDK, which no one who
+// never opens a session should have to download.
+const BuddyVideoSheet = lazy(() => import("./BuddyVideoSheet.jsx"));
 import {
   AGE_GROUPS,
   LEADERBOARD_PERIODS,
@@ -100,6 +104,12 @@ export default function BoardView({
   const [mode, setMode] = useState(modes[0]);
   const [squadTab, setSquadTab] = useState("friends");
   const [squadChallengesOpen, setSquadChallengesOpen] = useState(false);
+  // Buddy video. `videoAvailable` is the server kill switch, asked once — it is
+  // off by default and stays off until parent verification clears legal review,
+  // so the button simply does not exist rather than existing and failing.
+  const [videoAvailable, setVideoAvailable] = useState(false);
+  const [videoFriend, setVideoFriend] = useState(null);
+  const canVideo = isSignedIn && videoAvailable;
   const [messageFriend, setMessageFriend] = useState(null);
   const [boardType, setBoardType] = useState("age_group");
   const [ageGroup, setAgeGroup] = useState(myAgeGroup);
@@ -154,6 +164,16 @@ export default function BoardView({
   }, [isSignedIn]);
 
   useEffect(() => { loadRequests(); loadSentRequests(); }, [loadRequests, loadSentRequests]);
+
+  // Only ever set from the async answer. Signing out is handled by `canVideo`
+  // below rather than by resetting here, which would be a synchronous setState
+  // in an effect body and a cascading render.
+  useEffect(() => {
+    if (!isSignedIn) return undefined;
+    let cancelled = false;
+    isVideoAvailable().then(v => { if (!cancelled) setVideoAvailable(v); });
+    return () => { cancelled = true; };
+  }, [isSignedIn]);
 
   useEffect(() => {
     if (!isSquadLayout || !onSquadTabSeen) return undefined;
@@ -679,29 +699,55 @@ export default function BoardView({
                 <div style={{ marginBottom: 16 }}>
                   <div style={{ ...lbl, marginBottom: 8 }}>Your squad</div>
                   {friendRoster.map(({ profile: prof, username, stats }) => (
-                    <button
+                    /* A row, not a button: the video action needs to sit beside
+                       the profile tap target, and a button cannot nest inside a
+                       button. */
+                    <div
                       key={prof.id}
-                      type="button"
-                      onClick={() => viewFriend(prof.id)}
                       style={{
-                        display: "flex", alignItems: "center", gap: 12, width: "100%",
-                        padding: "10px 12px", marginBottom: 8, borderRadius: 12, cursor: "pointer",
-                        border: `1px solid ${bd}`, background: "rgba(255,255,255,0.03)", textAlign: "left",
+                        display: "flex", alignItems: "center", gap: 8, width: "100%",
+                        padding: "10px 12px", marginBottom: 8, borderRadius: 12,
+                        border: `1px solid ${bd}`, background: "rgba(255,255,255,0.03)",
                       }}
                     >
-                      <FriendAvatar profile={prof} size={48} P={P} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 800, color: "var(--fkh-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {prof.displayName}
+                      <button
+                        type="button"
+                        onClick={() => viewFriend(prof.id)}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0,
+                          padding: 0, border: "none", background: "transparent",
+                          cursor: "pointer", textAlign: "left",
+                        }}
+                      >
+                        <FriendAvatar profile={prof} size={48} P={P} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 800, color: "var(--fkh-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {prof.displayName}
+                          </div>
+                          {username && (
+                            <div style={{ fontSize: 11, color: P, fontWeight: 700, marginTop: 2 }}>@{username}</div>
+                          )}
+                          <div style={{ fontSize: 10, color: "#64748b", marginTop: 4, lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {friendOverviewLine(prof, stats)}
+                          </div>
                         </div>
-                        {username && (
-                          <div style={{ fontSize: 11, color: P, fontWeight: 700, marginTop: 2 }}>@{username}</div>
-                        )}
-                        <div style={{ fontSize: 10, color: "#64748b", marginTop: 4, lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {friendOverviewLine(prof, stats)}
-                        </div>
-                      </div>
-                    </button>
+                      </button>
+                      {/* Only rendered when the server says video exists at all.
+                          Whether these two specific athletes may call is decided
+                          per-attempt by the server, which can explain a refusal
+                          better than a hidden button can. */}
+                      {canVideo && (
+                        <button
+                          type="button"
+                          aria-label={`Train with ${prof.displayName} on video`}
+                          onClick={() => setVideoFriend({ id: prof.id, display_name: prof.displayName })}
+                          style={{
+                            flexShrink: 0, width: 40, height: 40, borderRadius: 10, cursor: "pointer",
+                            border: `1px solid ${P}44`, background: `${P}18`, color: P, fontSize: 16,
+                          }}
+                        >📹</button>
+                      )}
+                    </div>
                   ))}
                 </div>
               )}
@@ -1002,6 +1048,16 @@ export default function BoardView({
           onClose={() => setMessageFriend(null)}
           onUnreadChange={onUnreadRefresh}
         />
+      )}
+
+      {videoFriend && (
+        <Suspense fallback={null}>
+          <BuddyVideoSheet
+            P={P}
+            friend={videoFriend}
+            onClose={() => setVideoFriend(null)}
+          />
+        </Suspense>
       )}
     </div>
   );

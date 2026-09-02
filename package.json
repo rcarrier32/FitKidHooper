@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.2",
+    "livekit-client": "^2.22.2",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "vite-plugin-pwa": "^1.3.0"
