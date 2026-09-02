@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import { getClass, classErrorMessage } from "../lib/coachClasses.js";
+import { getClass } from "../lib/coachClasses.js";
 
 const ClassLiveSheet = lazy(() => import("./ClassLiveSheet.jsx"));
 
@@ -15,7 +15,7 @@ const ClassLiveSheet = lazy(() => import("./ClassLiveSheet.jsx"));
  * room would be a link that turns on a child's app mid-lesson without them
  * choosing to; joining stays a tap.
  */
-export default function SharedClassSheet({ P = "#f97316", SF = "#0d1526", classId, isSignedIn, onClose, zIndex = 410 }) {
+export default function SharedClassSheet({ P = "#f97316", SF = "#0d1526", classId, isSignedIn, onOpenAuth, onClose, zIndex = 410 }) {
   const [klass, setKlass] = useState(null);
   const [loaded, setLoaded] = useState(false);
   const [joined, setJoined] = useState(false);
@@ -59,9 +59,25 @@ export default function SharedClassSheet({ P = "#f97316", SF = "#0d1526", classI
         </div>
 
         {!isSignedIn ? (
-          <p style={{ fontSize: 13, color: "var(--fkh-text-muted)", lineHeight: 1.55 }}>
-            {classErrorMessage("unauthorized")}
-          </p>
+          /* A shared link is often the first thing someone ever sees of FKH, so
+             this has to be a door rather than a notice. The sheet stays mounted
+             behind the auth flow, so finishing sign-in lands them back on the
+             class they were invited to instead of on a cold home screen. */
+          <>
+            <p style={{ fontSize: 13.5, color: "var(--fkh-text-muted)", lineHeight: 1.55 }}>
+              You&apos;ve been invited to a live training session. Sign in to see it,
+              or make a player first — it takes a minute.
+            </p>
+            <button type="button" onClick={() => onOpenAuth?.("signup")} style={{
+              width: "100%", padding: 14, borderRadius: 12, border: "none", marginTop: 16,
+              background: P, color: "#000", fontSize: 14, fontWeight: 800, cursor: "pointer",
+            }}>Create my player</button>
+            <button type="button" onClick={() => onOpenAuth?.("signin")} style={{
+              width: "100%", padding: 12, borderRadius: 12, marginTop: 9,
+              border: `1px solid ${P}44`, background: "transparent", color: P,
+              fontSize: 13, fontWeight: 700, cursor: "pointer",
+            }}>I already have a player</button>
+          </>
         ) : loading ? (
           <p style={{ fontSize: 13, color: "#64748b" }}>Loading…</p>
         ) : !klass ? (

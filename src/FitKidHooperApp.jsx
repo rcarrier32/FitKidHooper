@@ -2649,7 +2649,9 @@ export default function FitKidHooperApp() {
     <AuthSheet
       P={pri(settings)}
       SF={surf(settings)}
-      zIndex={showOnboarding ? 450 : 350}
+      /* Above the shared-class sheet (410) when one is open, or it would
+         appear behind the very thing that asked for it. */
+      zIndex={showOnboarding ? 450 : pendingClassId ? 430 : 350}
       initialMode={authInitialMode}
       parentConsent={needsParentConsent(settings.dateOfBirth)}
       firstName={settings.athleteName || ""}
@@ -3261,7 +3263,9 @@ export default function FitKidHooperApp() {
       <LiveClassBanner P={P} isSignedIn={auth.isSignedIn} />
       {pendingClassId && (
         <SharedClassSheet P={P} SF={surf(settings)} classId={pendingClassId}
-          isSignedIn={auth.isSignedIn} onClose={()=>setPendingClassId(null)} />
+          isSignedIn={auth.isSignedIn}
+          onOpenAuth={(mode)=>{ setAuthInitialMode(mode); setShowAuth(true); }}
+          onClose={()=>setPendingClassId(null)} />
       )}
       {coachRoom && (
         <Suspense fallback={null}>
